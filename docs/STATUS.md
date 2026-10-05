@@ -18,13 +18,13 @@ The team is the founder plus Claude Code. There are no other developers, so this
 
 | | |
 |---|---|
-| **Phase** | Phase 1a (Restaurant loop), in progress. Phase 0 is done apart from CI and a staging environment. |
+| **Phase** | Phase 1a (Restaurant loop), in progress. The daily checklist feature is finished for now (founder, 5 Oct 2026); its parked follow-ups are listed in section 5. |
 | **Plan approval** | Approved by the founder on 5 Oct 2026. Installing and scaffolding are allowed. |
 | **Code** | `packages/db`: schema (about 48 tables), migrations, sample seed. `packages/shared`: roles, permission rules, request schemas. `packages/api-client`: the one typed client web and mobile use. `packages/i18n`: English, Telugu, Hindi text. `apps/api`: login, sessions, role and scope checks, staff logins, outlets, client onboarding, daily checklists, photo storage. `apps/mobile`: login screens, role-based home, staff logins, daily checklists (today, fill in with photos, add own items, history). `apps/web`: ECCS console with login, client list and restaurant onboarding. |
 | **Local services** | Running in Docker: PostgreSQL on 5432, Redis on 6379, SeaweedFS (S3 stand-in) on 8333. Database is migrated and seeded. |
 | **Blocked** | Nothing. |
-| **Next action (Claude)** | Make checklists work without signal (save on the phone, upload later) and add reminders. Then the rest of Phase 1a: issues and support, licences and documents, SOP library, restaurant dashboard, history calendar. |
-| **Next action (founder)** | Restart the three terminals (section 6) and try the daily checklist. Ideally also try it on a real Android phone, since the camera has only been exercised through automated tests and a desktop browser. |
+| **Next action (Claude)** | Waiting for the founder to pick the next feature. Recommended order: (1) try the app on a real Android phone, (2) issues and ECCS support, (3) licences and document vault, (4) restaurant dashboard and history calendar. |
+| **Next action (founder)** | Choose what to build next. Review the decisions marked "not yet reviewed by the founder" in section 3 when convenient. |
 
 ## 3. Decisions made
 
@@ -91,8 +91,8 @@ Status values: not started, in progress, done, blocked.
 | Git, Node 24, pnpm, VS Code extensions | done | See section 6 |
 | WSL2, Docker Desktop | done | Installed by the founder |
 | JDK 17, Android Studio | not started | Optional for now; only needed for a local Android emulator |
-| Monorepo scaffolded (pnpm + Turborepo) | done | `apps/web`, `apps/api`, `apps/mobile` are generator defaults |
-| Local services (Postgres, Redis, S3 stand-in) | done | `pnpm services:up`. S3 bucket creation still to be verified when the storage module is built |
+| Monorepo scaffolded (pnpm + Turborepo) | done | |
+| Local services (Postgres, Redis, S3 stand-in) | done | `pnpm services:up`. Photo storage on SeaweedFS is exercised by the checklist tests |
 | `packages/db` (Prisma schema, migrations, sample seed) | done | Prisma 7.10. Seed: 3 ECCS users, 2 sample brands, 3 outlets, 7 restaurant users, 5 checklist templates in en/te/hi, 4 service types, 2 plans, jobs, licences, staff, food items |
 | `packages/shared` (Zod schemas, roles, permissions) | done | `src/permissions.ts` is the one definition of who may do what; it mirrors PROPOSAL.md section 3 and has tests |
 | `packages/i18n` (en, te, hi) | done | Login, home and staff text. Telugu and Hindi are machine-drafted and need a native speaker's review |
@@ -104,7 +104,6 @@ Status values: not started, in progress, done, blocked.
 | Staff logins screen (Owner and Manager add people, new PIN, remove access) | done | Mobile |
 | Console: edit or deactivate a client or outlet, change a restaurant code, unlink phones, manage ECCS users | not started | ECCS users still come from the seed |
 | Restaurant codes shown to Owner and Manager | done | Top of the Staff logins screen, and next to each newly generated PIN. Sent by the API only to people who may add staff at that outlet |
-| API client shared by web and mobile | not started | |
 | CI (GitHub Actions) | not started | No GitHub remote yet |
 | Staging environment | not started | Deferred until there is something to deploy |
 
@@ -122,6 +121,21 @@ Status values: not started, in progress, done, blocked.
 | Licence tracker and document vault | not started | |
 | Restaurant dashboard | not started | |
 | History calendar (1 year) | not started | |
+
+#### Daily checklists: parked follow-ups
+
+The founder called the checklist feature done for now on 5 Oct 2026. These are known gaps, none started:
+
+| Item | Why it matters |
+|---|---|
+| Try it on a real Android phone and an iPhone | The camera, photo shrinking and upload have only run in automated tests and a desktop browser |
+| Work without signal | Kitchens have patchy connectivity; today a checklist needs a connection |
+| Reminders when a checklist is due or overdue | Listed on the whiteboard (item 5) |
+| Telugu and Hindi wording for the library, and a native speaker's review of all translations | The library is English only |
+| Add a whole library checklist ("pack") in one tap | **Benched by the founder**; do not build until asked |
+| Console screens for ECCS to edit the basic checklists and the library | Today they change only by editing files and reloading |
+| Burn the time and name into the photo file itself | Today the stamp is drawn by the app over the photo |
+| Turn a reported problem into a tracked issue for ECCS | Depends on the issues feature |
 
 ### Phase 1b: Service loop
 | Item | Status | Notes |
@@ -300,6 +314,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 5 Oct 2026 | Founder: daily checklists are done for now. Tracker tidied: parked checklist follow-ups listed, stale scaffold notes removed, next step awaiting the founder's choice. |
 | 5 Oct 2026 | Checklist items can be "tick only": chosen when adding, staff tick with one tap, undo, or report a problem. Whoever answers is now recorded on every answer. Library packs benched by the founder. |
 | 5 Oct 2026 | Checklist suggestion library: founder's Excel sheet (588 checks) plus 52 ECCS additions loaded; add-item box now searches as you type, with synonyms; tap to add or add own text. Library loads without wiping data. |
 | 5 Oct 2026 | Checklists: restaurants can create extra checklists and set due times; red clock for overdue and red exclamation for reported problems on the daily page; a problem needs a reason; a submitted checklist is locked for every head chef, with a clear message if someone else submitted first. Screenshots in `docs/screenshots`. |

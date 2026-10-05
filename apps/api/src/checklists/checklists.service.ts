@@ -26,6 +26,15 @@ export function indiaDate(at: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(at);
 }
 
+/** The time of day in India as HH:mm, for comparing with a checklist's due time. */
+export function indiaTime(at: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).format(at);
+}
+
+/** Checklists in the order they fall due; ones without a time come last. */
+const byDueTime = <T extends { dueTime: string | null }>(a: T, b: T) =>
+  (a.dueTime ?? '99:99').localeCompare(b.dueTime ?? '99:99');
+
 const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const fromDbDate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -67,19 +76,21 @@ export class ChecklistsService {
 
     const lists = await this.db.outletChecklist.findMany({
       where: { outletId, isActive: true, template: { kind: 'DAILY', isActive: true } },
-      select: { id: true },
+      select: { id: true, template: { select: { items: true } } },
     });
+    // A checklist the restaurant has created but not yet given any items is not handed out.
+    const usable = lists.filter((list) => itemsFor(list.template.items, outletId).length > 0);
     await this.db.checklistRun.createMany({
-      data: lists.map((list) => ({ outletChecklistId: list.id, outletId, date: toDbDate(today), shift: '' })),
+      data: usable.map((list) => ({ outletChecklistId: list.id, outletId, date: toDbDate(today), shift: '' })),
       skipDuplicates: true,
     });
 
     const runs = await this.db.checklistRun.findMany({
-      where: { outletId, date: toDbDate(today) },
+      where: { outletId, date: toDbDate(today), outletChecklistId: { in: usable.map((list) => list.id) } },
       include: runInclude,
-      orderBy: { outletChecklist: { dueTime: 'asc' } },
     });
-    return this.toDtos(runs, today);
+    const dtos = await this.toDtos(runs, today);
+    return dtos.sort(byDueTime);
   }
 
   async getRun(user: AuthUser, runId: string): Promise<ChecklistRunDto> {
@@ -199,7 +210,7 @@ export class ChecklistsService {
       orderBy: [{ date: 'desc' }, { outletChecklist: { dueTime: 'asc' } }],
     });
 
-    return runs.map((run) => {
+    const rows = runs.map((run) => {
       const items = itemsFor(run.outletChecklist.template.items, run.outletId);
       const itemIds = new Set(items.map((item) => item.id));
       const responses = run.responses.filter((response) => itemIds.has(response.itemId));
@@ -215,22 +226,90 @@ export class ChecklistsService {
         reviewedAt: run.reviewedAt?.toISOString() ?? null,
       };
     });
+    return rows.filter((row) => row.itemCount > 0);
   }
 
-  // ───────────────────────── The outlet's own items ─────────────────────────
+  // ───────────────────────── The outlet's own checklists and items ─────────────────────────
+
+  /** The Owner or Manager creates an extra checklist for their outlet, such as "Mid-day checklist". */
+  async createList(
+    user: AuthUser,
+    input: { outletId: string; title: string; dueTime?: string | undefined },
+  ): Promise<OutletChecklistDto[]> {
+    await this.requireOutlet(user, 'update', input.outletId);
+    await this.db.outletChecklist.create({
+      data: {
+        outlet: { connect: { id: input.outletId } },
+        frequency: 'DAILY',
+        dueTime: input.dueTime ?? null,
+        template: {
+          create: {
+            kind: 'DAILY',
+            outletId: input.outletId,
+            createdById: user.id,
+            // Typed in one language; shown as typed to everyone at the outlet.
+            title: { [user.language.toLowerCase()]: input.title },
+          },
+        },
+      },
+    });
+    return this.outletChecklists(user, input.outletId);
+  }
+
+  /** Changes the due time of any of the outlet's checklists, or the name of one the restaurant created. */
+  async updateList(
+    user: AuthUser,
+    outletChecklistId: string,
+    input: { title?: string | undefined; dueTime?: string | null | undefined },
+  ): Promise<OutletChecklistDto[]> {
+    const list = await this.requireList(user, outletChecklistId);
+    if (input.title !== undefined) {
+      if (list.template.outletId === null) {
+        throw new ForbiddenException("ECCS's basic checklists cannot be renamed");
+      }
+      await this.db.checklistTemplate.update({
+        where: { id: list.templateId },
+        data: { title: { [user.language.toLowerCase()]: input.title } },
+      });
+    }
+    if (input.dueTime !== undefined) {
+      await this.db.outletChecklist.update({ where: { id: list.id }, data: { dueTime: input.dueTime } });
+    }
+    return this.outletChecklists(user, list.outletId);
+  }
+
+  /** Removes a checklist the restaurant created. Past records are kept. */
+  async removeList(user: AuthUser, outletChecklistId: string): Promise<OutletChecklistDto[]> {
+    const list = await this.requireList(user, outletChecklistId);
+    if (list.template.outletId === null) {
+      throw new ForbiddenException("ECCS's basic checklists cannot be removed");
+    }
+    await this.db.outletChecklist.update({ where: { id: list.id }, data: { isActive: false } });
+    return this.outletChecklists(user, list.outletId);
+  }
+
+  private async requireList(user: AuthUser, outletChecklistId: string) {
+    const list = await this.db.outletChecklist.findFirst({
+      where: { id: outletChecklistId, isActive: true },
+      include: { template: { select: { outletId: true } } },
+    });
+    if (!list) throw new NotFoundException('Checklist not found');
+    await this.requireOutlet(user, 'update', list.outletId);
+    return list;
+  }
 
   async outletChecklists(user: AuthUser, outletId: string): Promise<OutletChecklistDto[]> {
     await this.requireOutlet(user, 'read', outletId);
     const lists = await this.db.outletChecklist.findMany({
       where: { outletId, isActive: true, template: { kind: 'DAILY', isActive: true } },
       include: { template: { include: { items: { orderBy: { position: 'asc' } } } } },
-      orderBy: { dueTime: 'asc' },
     });
-    return lists.map((list) => ({
+    return lists.sort(byDueTime).map((list) => ({
       id: list.id,
       outletId: list.outletId,
       title: list.template.title as LocalizedText,
       dueTime: list.dueTime,
+      isCustom: list.template.outletId !== null,
       items: itemsFor(list.template.items, outletId).map((item) => ({
         id: item.id,
         label: item.label as LocalizedText,
@@ -241,9 +320,7 @@ export class ChecklistsService {
 
   /** The Owner or Manager adds a check specific to their kitchen. It needs a photo like every other item. */
   async addItem(user: AuthUser, outletChecklistId: string, label: string): Promise<OutletChecklistDto[]> {
-    const list = await this.db.outletChecklist.findUnique({ where: { id: outletChecklistId } });
-    if (!list) throw new NotFoundException('Checklist not found');
-    await this.requireOutlet(user, 'update', list.outletId);
+    const list = await this.requireList(user, outletChecklistId);
 
     const last = await this.db.checklistItem.aggregate({
       where: { templateId: list.templateId },
@@ -321,9 +398,12 @@ export class ChecklistsService {
       : [];
     const personName = new Map(people.map((person) => [person.id, person.name]));
 
+    const now = indiaTime();
     return runs.map((run) => {
       const responses = new Map(run.responses.map((response) => [response.itemId, response]));
       const status = effectiveStatus(run, today);
+      const dueTime = run.outletChecklist.dueTime;
+      const open = status === 'PENDING' || status === 'IN_PROGRESS';
       // A closed checklist shows what was actually answered, even if items were removed since.
       const items =
         status === 'SUBMITTED' || status === 'MISSED'
@@ -340,6 +420,7 @@ export class ChecklistsService {
         date: fromDbDate(run.date),
         dueTime: run.outletChecklist.dueTime,
         status,
+        isOverdue: open && dueTime !== null && fromDbDate(run.date) === today && now > dueTime,
         submittedAt: run.submittedAt?.toISOString() ?? null,
         submittedByName: run.submittedBy?.name ?? null,
         reviewedAt: run.reviewedAt?.toISOString() ?? null,

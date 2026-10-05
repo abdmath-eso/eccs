@@ -1,5 +1,22 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
-import { addChecklistItemSchema, answerChecklistItemSchema } from '@eccs/shared';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
+import {
+  addChecklistItemSchema,
+  answerChecklistItemSchema,
+  createChecklistSchema,
+  updateChecklistSchema,
+} from '@eccs/shared';
 import type { z } from 'zod';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
@@ -66,6 +83,38 @@ export class ChecklistsController {
     return this.checklists.outletChecklists(user, requireOutletId(outletId));
   }
 
+  @Post('setup')
+  @RequirePermission('checklists', 'update')
+  createList(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(createChecklistSchema)) body: z.output<typeof createChecklistSchema>,
+  ) {
+    return this.checklists.createList(user, body);
+  }
+
+  // Declared before the ":outletChecklistId" routes so "items" is not read as a checklist id.
+  @Delete('setup/items/:itemId')
+  @RequirePermission('checklists', 'update')
+  removeItem(@CurrentUser() user: AuthUser, @Param('itemId') itemId: string) {
+    return this.checklists.removeItem(user, itemId);
+  }
+
+  @Patch('setup/:outletChecklistId')
+  @RequirePermission('checklists', 'update')
+  updateList(
+    @CurrentUser() user: AuthUser,
+    @Param('outletChecklistId') outletChecklistId: string,
+    @Body(new ZodValidationPipe(updateChecklistSchema)) body: z.output<typeof updateChecklistSchema>,
+  ) {
+    return this.checklists.updateList(user, outletChecklistId, body);
+  }
+
+  @Delete('setup/:outletChecklistId')
+  @RequirePermission('checklists', 'update')
+  removeList(@CurrentUser() user: AuthUser, @Param('outletChecklistId') outletChecklistId: string) {
+    return this.checklists.removeList(user, outletChecklistId);
+  }
+
   @Post('setup/:outletChecklistId/items')
   @RequirePermission('checklists', 'update')
   addItem(
@@ -76,9 +125,4 @@ export class ChecklistsController {
     return this.checklists.addItem(user, outletChecklistId, body.label);
   }
 
-  @Delete('setup/items/:itemId')
-  @RequirePermission('checklists', 'update')
-  removeItem(@CurrentUser() user: AuthUser, @Param('itemId') itemId: string) {
-    return this.checklists.removeItem(user, itemId);
-  }
 }

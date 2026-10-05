@@ -69,28 +69,29 @@ model Outlet {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization         Organization           @relation(fields: [organizationId], references: [id])
-  linkedDevices        LinkedDevice[]
-  memberships          Membership[]
-  outletChecklists     OutletChecklist[]
-  customChecklistItems ChecklistItem[]
-  checklistRuns        ChecklistRun[]
-  subscriptions        Subscription[]
-  bookings             Booking[]
-  schedules            ServiceSchedule[]
-  jobs                 Job[]
-  certificates         Certificate[]
-  inspections          Inspection[]
-  licences             Licence[]
-  documents            Document[]
-  issues               Issue[]
-  scoreSnapshots       HygieneScoreSnapshot[]
-  invoices             Invoice[]
-  staffMembers         StaffMember[]
-  foodItems            FoodItem[]
-  foodLabels           FoodLabel[]
-  attachments          Attachment[]
-  publicProfile        PublicProfile?
+  organization             Organization           @relation(fields: [organizationId], references: [id])
+  linkedDevices            LinkedDevice[]
+  memberships              Membership[]
+  outletChecklists         OutletChecklist[]
+  customChecklistItems     ChecklistItem[]
+  customChecklistTemplates ChecklistTemplate[]
+  checklistRuns            ChecklistRun[]
+  subscriptions            Subscription[]
+  bookings                 Booking[]
+  schedules                ServiceSchedule[]
+  jobs                     Job[]
+  certificates             Certificate[]
+  inspections              Inspection[]
+  licences                 Licence[]
+  documents                Document[]
+  issues                   Issue[]
+  scoreSnapshots           HygieneScoreSnapshot[]
+  invoices                 Invoice[]
+  staffMembers             StaffMember[]
+  foodItems                FoodItem[]
+  foodLabels               FoodLabel[]
+  attachments              Attachment[]
+  publicProfile            PublicProfile?
 
   @@index([organizationId])
 }
@@ -206,8 +207,13 @@ model ChecklistTemplate {
   isActive      Boolean       @default(true)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  /// Set when a restaurant created this checklist for one of its own outlets
+  /// (for example "Mid-day checklist"). Empty for ECCS's basic checklists.
+  outletId      String?
+  createdById   String?
 
   sopTemplate      SopTemplate?      @relation(fields: [sopTemplateId], references: [id])
+  outlet           Outlet?           @relation(fields: [outletId], references: [id])
   items            ChecklistItem[]
   outletChecklists OutletChecklist[]
   serviceTypes     ServiceType[]

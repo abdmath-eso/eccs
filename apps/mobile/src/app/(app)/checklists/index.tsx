@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { can, localize, type ChecklistRunDto, type ChecklistRunSummaryDto } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -11,6 +12,7 @@ import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
+import { formatTime } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
@@ -98,6 +100,7 @@ export default function ChecklistsScreen() {
       )}
       {runs?.map((run) => {
         const done = run.items.filter((item) => item.response).length;
+        const problems = run.items.filter((item) => item.response?.passed === false).length;
         return (
           <Pressable
             key={run.id}
@@ -107,14 +110,36 @@ export default function ChecklistsScreen() {
               styles.card,
               { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
             ]}>
-            <ThemedText type="default" style={styles.cardTitle}>
-              {localize(run.title, language)}
-            </ThemedText>
+            <View style={styles.cardHeader}>
+              <ThemedText type="default" style={styles.cardTitle}>
+                {localize(run.title, language)}
+              </ThemedText>
+              {/* Red warnings in the corner: past its due time, and problems reported inside. */}
+              {run.isOverdue && (
+                <Ionicons name="time" size={28} color={theme.danger} accessibilityLabel={t('checklists.overdue')} />
+              )}
+              {problems > 0 && (
+                <Ionicons
+                  name="alert-circle"
+                  size={28}
+                  color={theme.danger}
+                  accessibilityLabel={t('checklists.hasProblems', { count: problems })}
+                />
+              )}
+            </View>
             <StatusBadge status={run.status} reviewed={run.reviewedAt !== null} />
-            <ThemedText type="small" themeColor="textSecondary">
+            <ThemedText type="small" themeColor={run.isOverdue ? 'danger' : 'textSecondary'}>
               {t('checklists.progress', { done, total: run.items.length })}
-              {run.dueTime && run.status !== 'SUBMITTED' ? ` · ${t('checklists.due', { time: run.dueTime })}` : ''}
+              {run.dueTime && run.status !== 'SUBMITTED'
+                ? ` · ${t('checklists.due', { time: formatTime(run.dueTime, language) })}`
+                : ''}
+              {run.isOverdue ? ` · ${t('checklists.overdue')}` : ''}
             </ThemedText>
+            {problems > 0 && (
+              <ThemedText type="small" themeColor="danger">
+                {t('checklists.hasProblems', { count: problems })}
+              </ThemedText>
+            )}
           </Pressable>
         );
       })}
@@ -145,6 +170,14 @@ export default function ChecklistsScreen() {
               {row.problemCount > 0 ? ` · ${t('checklists.problems', { count: row.problemCount })}` : ''}
             </ThemedText>
           </View>
+          {row.problemCount > 0 && (
+            <Ionicons
+              name="alert-circle"
+              size={24}
+              color={theme.danger}
+              accessibilityLabel={t('checklists.hasProblems', { count: row.problemCount })}
+            />
+          )}
           <StatusBadge status={row.status} reviewed={row.reviewedAt !== null} />
         </Pressable>
       ))}
@@ -162,7 +195,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two, minHeight: MinTouchSize * 1.6 },
-  cardTitle: { fontWeight: 700, fontSize: 18 },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },
   sectionGap: { marginTop: Spacing.three },
   historyRow: {
     flexDirection: 'row',

@@ -18,7 +18,11 @@ const DEVICE = 'e2e-checklists';
 const PHOTO = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from('e2e sample photo bytes')]);
 
 type Item = { id: string; isCustom: boolean; label: Record<string, string>; response: null | Record<string, unknown> };
-type Run = { id: string; status: string; title: { en: string }; items: Item[]; [key: string]: unknown };
+type Run = { id: string; status: string; title: Record<string, string>; items: Item[]; [key: string]: unknown };
+type List = { id: string; title: Record<string, string>; dueTime: string | null; isCustom: boolean; items: unknown[] };
+
+/** A checklist's name, whichever language it was typed in. */
+const nameOf = (thing: { title: Record<string, string> }) => thing.title.en ?? Object.values(thing.title)[0];
 
 describe('Daily checklists (e2e)', () => {
   let app: INestApplication<App>;
@@ -37,6 +41,9 @@ describe('Daily checklists (e2e)', () => {
     await db.checklistRun.deleteMany({ where: { outletId } });
     await db.attachment.deleteMany({ where: { outletId } });
     await db.checklistItem.deleteMany({ where: { outletId } });
+    await db.outletChecklist.deleteMany({ where: { template: { outletId } } });
+    await db.checklistTemplate.deleteMany({ where: { outletId } });
+    await db.user.deleteMany({ where: { name: { startsWith: 'E2E ' } } });
     await db.session.deleteMany({ where: { deviceName: DEVICE } });
     await db.linkedDevice.deleteMany({ where: { name: DEVICE } });
   }
@@ -86,7 +93,7 @@ describe('Daily checklists (e2e)', () => {
 
   it("gives the head chef today's basic opening and closing checklists", async () => {
     const runs = await today(chef);
-    expect(runs.map((run) => run.title.en)).toEqual(['Opening checklist', 'Closing checklist']);
+    expect(runs.map(nameOf)).toEqual(['Opening checklist', 'Closing checklist']);
     for (const run of runs) {
       expect(run).toMatchObject({ status: 'PENDING', date: indiaDate(), submittedAt: null });
       expect(run.items).toHaveLength(5);
@@ -153,6 +160,17 @@ describe('Daily checklists (e2e)', () => {
 
     await http().get(response.photoPath.replace(/sig=.{4}/, 'sig=0000')).expect(403);
     await http().get(response.photoPath.replace(/exp=\d+/, 'exp=1')).expect(403);
+  });
+
+  it('needs a reason when a problem is reported', async () => {
+    const [opening] = await today(chef);
+    const item = opening!.items[0]!;
+    const attachmentId = (item.response as { photoPath: string }).photoPath.split('/')[2]!;
+    const refused = await answer(chef, opening!.id, item.id, { passed: false, attachmentId }).expect(400);
+    expect(refused.body.message).toBe('Describe the problem');
+    await answer(chef, opening!.id, item.id, { passed: false, note: '   ', attachmentId }).expect(400);
+    // Still recorded as fine.
+    expect((await today(chef))[0]!.items[0]!.response).toMatchObject({ passed: true });
   });
 
   it('does not let one photo stand as proof for two items', async () => {
@@ -247,5 +265,103 @@ describe('Daily checklists (e2e)', () => {
     ]);
     // Earlier days, when nobody opened the app, are recorded as missed (the seed is at most a few days old).
     expect(rows.filter((row) => row.date !== indiaDate()).every((row) => row.status === 'MISSED')).toBe(true);
+  });
+
+  it('shares one checklist between head chefs: once one submits, the other cannot change it', async () => {
+    const created = await http()
+      .post('/restaurant-users')
+      .set(bearer(owner))
+      .send({ name: 'E2E Second Chef', role: 'HEAD_CHEF', outletId })
+      .expect(201);
+    const secondChef = await login(CODES.kukatpally, created.body.pin as string);
+
+    // The second chef sees the same checklist, already submitted by the first.
+    const [opening, closing] = await today(secondChef);
+    expect(opening).toMatchObject({ status: 'SUBMITTED', submittedByName: 'Sample Head Chef (Kukatpally)' });
+
+    const photo = await uploadPhoto(secondChef);
+    await answer(secondChef, opening!.id, opening!.items[0]!.id, { passed: false, note: 'E2E too late', attachmentId: photo.id }).expect(409);
+    await http().post(`/checklists/runs/${opening!.id}/submit`).set(bearer(secondChef)).expect(409);
+
+    // A checklist that is still open is filled in together: each photo carries its own taker's name.
+    const shared = await answer(secondChef, closing!.id, closing!.items[0]!.id, { passed: true, attachmentId: photo.id }).expect(200);
+    expect((shared.body as Run).items[0]!.response).toMatchObject({ takenByName: 'E2E Second Chef' });
+    expect((await today(chef))[1]!.items[0]!.response).toMatchObject({ takenByName: 'E2E Second Chef' });
+  });
+
+  describe("the restaurant's own checklists", () => {
+    const setup = async (token: string): Promise<List[]> =>
+      (await http().get('/checklists/setup').query({ outletId }).set(bearer(token)).expect(200)).body;
+    let midDay: List;
+
+    it('lets the owner create an extra checklist with a name and due time', async () => {
+      const body = { outletId, title: 'E2E Mid-day checklist', dueTime: '14:30' };
+      await http().post('/checklists/setup').set(bearer(chef)).send(body).expect(403);
+      await http().post('/checklists/setup').set(bearer(otherManager)).send(body).expect(403);
+      await http().post('/checklists/setup').set(bearer(owner)).send({ ...body, dueTime: '25:00' }).expect(400);
+      await http().post('/checklists/setup').set(bearer(owner)).send({ ...body, title: '' }).expect(400);
+
+      const lists = (await http().post('/checklists/setup').set(bearer(owner)).send(body).expect(201)).body as List[];
+      // Listed in the order they fall due.
+      expect(lists.map(nameOf)).toEqual(['Opening checklist', 'E2E Mid-day checklist', 'Closing checklist']);
+      midDay = lists[1]!;
+      expect(midDay).toMatchObject({ isCustom: true, dueTime: '14:30', items: [] });
+    });
+
+    it('does not hand out a checklist until it has items', async () => {
+      expect(await today(chef)).toHaveLength(2);
+
+      await http()
+        .post(`/checklists/setup/${midDay.id}/items`)
+        .set(bearer(owner))
+        .send({ label: 'E2E Buffet counter wiped' })
+        .expect(201);
+
+      const runs = await today(chef);
+      expect(runs.map(nameOf)).toEqual(['Opening checklist', 'E2E Mid-day checklist', 'Closing checklist']);
+      expect(runs[1]).toMatchObject({ status: 'PENDING', dueTime: '14:30' });
+      expect(runs[1]!.items).toEqual([expect.objectContaining({ isCustom: true, response: null })]);
+    });
+
+    it('flags a checklist as overdue once its due time has passed, unless it was submitted', async () => {
+      const setDue = (dueTime: string | null) =>
+        http().patch(`/checklists/setup/${midDay.id}`).set(bearer(owner)).send({ dueTime }).expect(200);
+      const midDayRun = async () => (await today(chef)).find((run) => nameOf(run) === 'E2E Mid-day checklist')!;
+
+      await setDue('00:00');
+      expect((await midDayRun()).isOverdue).toBe(true);
+      await setDue('23:59');
+      expect((await midDayRun()).isOverdue).toBe(false);
+      await setDue(null);
+      expect(await midDayRun()).toMatchObject({ isOverdue: false, dueTime: null });
+
+      // The opening checklist was submitted earlier, so it is never overdue whatever the time.
+      const opening = (await setup(owner)).find((list) => nameOf(list) === 'Opening checklist')!;
+      await http().patch(`/checklists/setup/${opening.id}`).set(bearer(owner)).send({ dueTime: '00:00' }).expect(200);
+      expect((await today(chef)).find((run) => nameOf(run) === 'Opening checklist')!.isOverdue).toBe(false);
+      await http().patch(`/checklists/setup/${opening.id}`).set(bearer(owner)).send({ dueTime: '10:30' }).expect(200);
+    });
+
+    it("lets the restaurant rename and remove its own checklists, but not ECCS's basic ones", async () => {
+      const closing = (await setup(owner)).find((list) => nameOf(list) === 'Closing checklist')!;
+      expect(closing.isCustom).toBe(false);
+      await http().patch(`/checklists/setup/${closing.id}`).set(bearer(owner)).send({ title: 'E2E Renamed' }).expect(403);
+      await http().delete(`/checklists/setup/${closing.id}`).set(bearer(owner)).expect(403);
+
+      await http().patch(`/checklists/setup/${midDay.id}`).set(bearer(otherManager)).send({ dueTime: '09:00' }).expect(403);
+      await http().delete(`/checklists/setup/${midDay.id}`).set(bearer(chef)).expect(403);
+
+      const renamed = await http()
+        .patch(`/checklists/setup/${midDay.id}`)
+        .set(bearer(owner))
+        .send({ title: 'E2E Lunch checklist', dueTime: '15:00' })
+        .expect(200);
+      expect((renamed.body as List[]).map(nameOf)).toContain('E2E Lunch checklist');
+
+      const afterRemoval = await http().delete(`/checklists/setup/${midDay.id}`).set(bearer(owner)).expect(200);
+      expect((afterRemoval.body as List[]).map(nameOf)).toEqual(['Opening checklist', 'Closing checklist']);
+      expect(await today(chef)).toHaveLength(2);
+      await http().delete(`/checklists/setup/${midDay.id}`).set(bearer(owner)).expect(404);
+    });
   });
 });

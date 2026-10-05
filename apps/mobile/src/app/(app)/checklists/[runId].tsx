@@ -1,3 +1,4 @@
+import { ApiError } from '@eccs/api-client';
 import { can, localize, type ChecklistItemDto, type ChecklistRunDto } from '@eccs/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -57,13 +58,28 @@ export default function ChecklistRunScreen() {
     run.status === 'SUBMITTED' && !run.reviewedAt && can(memberships, 'checklists', 'approve', { outletId: run.outletId });
   const missing = run.items.filter((item) => !item.response?.photoPath).length;
 
+  /**
+   * Another person at the outlet submitted this checklist while it was open
+   * here. Loads what they submitted, which locks the screen, and says who.
+   */
+  async function showLocked() {
+    try {
+      const latest = await api.checklists.run(runId);
+      setRun(latest);
+      setError(latest.submittedByName ? t('checklists.lockedBy', { name: latest.submittedByName }) : null);
+    } catch (e) {
+      setError(errorMessage(e, t));
+    }
+  }
+
   async function act(action: () => Promise<ChecklistRunDto>) {
     setBusy(true);
     setError(null);
     try {
       setRun(await action());
     } catch (e) {
-      setError(errorMessage(e, t));
+      if (e instanceof ApiError && e.status === 409) await showLocked();
+      else setError(errorMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -92,6 +108,7 @@ export default function ChecklistRunScreen() {
           run={run}
           editable={mayFill}
           onSaved={setRun}
+          onLocked={() => void showLocked()}
         />
       ))}
 
@@ -129,9 +146,13 @@ interface ItemCardProps {
   run: ChecklistRunDto;
   editable: boolean;
   onSaved: (run: ChecklistRunDto) => void;
+  /** Called when the server says the checklist was already submitted by someone else. */
+  onLocked: () => void;
 }
 
-function ItemCard({ number, item, run, editable, onSaved }: ItemCardProps) {
+const isLocked = (error: unknown) => error instanceof ApiError && error.status === 409;
+
+function ItemCard({ number, item, run, editable, onSaved, onLocked }: ItemCardProps) {
   const theme = useTheme();
   const { t, api, language } = useSession();
   const response = item.response;
@@ -139,9 +160,12 @@ function ItemCard({ number, item, run, editable, onSaved }: ItemCardProps) {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState(response?.note ?? '');
   const [localPhoto, setLocalPhoto] = useState<string | null>(null);
+  // True after tapping Problem and before the reason has been saved.
+  const [describing, setDescribing] = useState(false);
 
   const photoUri = localPhoto ?? (response?.photoPath ? api.fileUrl(response.photoPath) : null);
   const problem = response?.passed === false;
+  const showProblem = problem || describing;
 
   async function takePhoto() {
     setError(null);
@@ -169,7 +193,8 @@ function ItemCard({ number, item, run, editable, onSaved }: ItemCardProps) {
       );
     } catch (e) {
       setLocalPhoto(null);
-      setError(errorMessage(e, t, { 0: 'error.upload' }));
+      if (isLocked(e)) onLocked();
+      else setError(errorMessage(e, t, { 0: 'error.upload' }));
     } finally {
       setUploading(false);
     }
@@ -189,7 +214,8 @@ function ItemCard({ number, item, run, editable, onSaved }: ItemCardProps) {
         }),
       );
     } catch (e) {
-      setError(errorMessage(e, t));
+      if (isLocked(e)) onLocked();
+      else setError(errorMessage(e, t));
     }
   }
 
@@ -239,26 +265,29 @@ function ItemCard({ number, item, run, editable, onSaved }: ItemCardProps) {
         <View style={styles.choices}>
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ selected: !problem }}
-            onPress={() => void update(true, '')}
-            style={choice(!problem, theme.primary)}>
-            <ThemedText type="default" themeColor={!problem ? 'primary' : 'text'}>
+            accessibilityState={{ selected: !showProblem }}
+            onPress={() => {
+              setDescribing(false);
+              if (problem) void update(true, '');
+            }}
+            style={choice(!showProblem, theme.primary)}>
+            <ThemedText type="default" themeColor={!showProblem ? 'primary' : 'text'}>
               ✓ {t('checklists.ok')}
             </ThemedText>
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ selected: problem }}
-            onPress={() => void update(false, note)}
-            style={choice(problem, theme.danger)}>
-            <ThemedText type="default" themeColor={problem ? 'danger' : 'text'}>
+            accessibilityState={{ selected: showProblem }}
+            onPress={() => setDescribing(true)}
+            style={choice(showProblem, theme.danger)}>
+            <ThemedText type="default" themeColor={showProblem ? 'danger' : 'text'}>
               ✕ {t('checklists.problem')}
             </ThemedText>
           </Pressable>
         </View>
       )}
 
-      {editable && problem && (
+      {editable && response && showProblem && (
         <>
           <TextField
             value={note}
@@ -269,7 +298,12 @@ function ItemCard({ number, item, run, editable, onSaved }: ItemCardProps) {
             style={styles.note}
           />
           {note.trim() !== (response?.note ?? '') && (
-            <Button label={t('checklists.saveNote')} variant="secondary" onPress={() => void update(false, note)} />
+            <Button
+              label={t('checklists.saveNote')}
+              variant="danger"
+              disabled={note.trim().length === 0}
+              onPress={() => void update(false, note.trim()).then(() => setDescribing(false))}
+            />
           )}
         </>
       )}

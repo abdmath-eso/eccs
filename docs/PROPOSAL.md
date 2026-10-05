@@ -236,7 +236,10 @@ Decided by the founder on 5 Oct 2026; source document `docs/FSSAI 2026 KITCHEN S
 - ECCS gives every restaurant a short basic list (Opening and Closing, five items each in the sample data).
 - The Owner or Manager adds items specific to their kitchen, and can remove what they added. ECCS's basic items cannot be removed by the restaurant.
 - A photo is mandatory for every item. A checklist cannot be submitted until each item has one. On a phone the photo comes from the camera, not the gallery.
-- Each item is answered OK or Problem, with a note for a problem.
+- Each item is answered OK or Problem. A problem must come with a reason.
+- There is one checklist per outlet per day, shared by everyone at the outlet. Several Head Chefs can fill it in together; once anyone submits it, it is locked for all.
+- The Owner or Manager can create extra checklists (for example a mid-day one) with a name and due time, and can change any checklist's due time. ECCS's basic checklists cannot be renamed or removed.
+- On the daily checklists page a red clock marks a checklist that is past its due time and not submitted, and a red exclamation mark marks one in which a problem was reported.
 - The document's ten detailed sections (92 checks) are the basis for the ECCS scored inspection, not the daily list.
 
 ### Hygiene score, version 1

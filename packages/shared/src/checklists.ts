@@ -46,6 +46,8 @@ export interface ChecklistRunDto {
   /** "HH:mm" local time by which it should be done, if set. */
   dueTime: string | null;
   status: ChecklistRunStatus;
+  /** True when the due time has passed today and it has not been submitted. */
+  isOverdue: boolean;
   submittedAt: string | null;
   submittedByName: string | null;
   reviewedAt: string | null;
@@ -72,10 +74,13 @@ export interface OutletChecklistDto {
   outletId: string;
   title: LocalizedText;
   dueTime: string | null;
+  /** True if the restaurant created this checklist; false for ECCS's basic ones. */
+  isCustom: boolean;
   items: { id: string; label: LocalizedText; isCustom: boolean }[];
 }
 
-export const answerChecklistItemSchema = z.object({
+export const answerChecklistItemSchema = z
+  .object({
   passed: z.boolean(),
   note: z
     .string()
@@ -87,13 +92,35 @@ export const answerChecklistItemSchema = z.object({
   attachmentId: z.string().min(1, "A photo is required"),
   /** When the answer was given on the phone, which may be before it was uploaded. */
   capturedAt: z.iso.datetime().optional(),
-});
+  })
+  // Reporting a problem always needs a reason, so whoever reviews it knows what was wrong.
+  .refine((answer) => answer.passed || Boolean(answer.note), {
+    message: "Describe the problem",
+    path: ["note"],
+  });
 export type AnswerChecklistItemInput = z.input<typeof answerChecklistItemSchema>;
 
 export const addChecklistItemSchema = z.object({
   label: z.string().trim().min(2, "Describe what to check").max(160),
 });
 export type AddChecklistItemInput = z.input<typeof addChecklistItemSchema>;
+
+const dueTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time as HH:MM, for example 14:30");
+
+/** The Owner or Manager creates an extra checklist for their outlet, such as "Mid-day checklist". */
+export const createChecklistSchema = z.object({
+  outletId: z.string().min(1),
+  title: z.string().trim().min(2, "Give the checklist a name").max(60),
+  dueTime: dueTimeSchema.optional(),
+});
+export type CreateChecklistInput = z.input<typeof createChecklistSchema>;
+
+/** Changes a checklist's due time (any checklist) or name (only ones the restaurant created). */
+export const updateChecklistSchema = z.object({
+  title: z.string().trim().min(2).max(60).optional(),
+  dueTime: dueTimeSchema.nullable().optional(),
+});
+export type UpdateChecklistInput = z.input<typeof updateChecklistSchema>;
 
 /** Returned when a photo is uploaded. */
 export interface AttachmentDto {

@@ -4,6 +4,7 @@ import type {
   AttachmentDto,
   ChecklistRunDto,
   ChecklistRunSummaryDto,
+  CreateChecklistInput,
   CreateOrganizationInput,
   CreateOutletInput,
   CreateRestaurantUserInput,
@@ -18,6 +19,7 @@ import type {
   RestaurantUserDto,
   RestaurantUserWithPinDto,
   SessionDto,
+  UpdateChecklistInput,
   UpdateProfileInput,
   UpdateRestaurantUserInput,
   VerifyOtpInput,
@@ -144,6 +146,11 @@ export function createApiClient(options: ApiClientOptions) {
       submit: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/submit`),
       review: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/review`),
       setup: (outletId: string) => call<OutletChecklistDto[]>("GET", `/checklists/setup${query({ outletId })}`),
+      createList: (input: CreateChecklistInput) => call<OutletChecklistDto[]>("POST", "/checklists/setup", input),
+      updateList: (outletChecklistId: string, input: UpdateChecklistInput) =>
+        call<OutletChecklistDto[]>("PATCH", `/checklists/setup/${id(outletChecklistId)}`, input),
+      removeList: (outletChecklistId: string) =>
+        call<OutletChecklistDto[]>("DELETE", `/checklists/setup/${id(outletChecklistId)}`),
       addItem: (outletChecklistId: string, input: AddChecklistItemInput) =>
         call<OutletChecklistDto[]>("POST", `/checklists/setup/${id(outletChecklistId)}/items`, input),
       removeItem: (itemId: string) => call<OutletChecklistDto[]>("DELETE", `/checklists/setup/items/${id(itemId)}`),

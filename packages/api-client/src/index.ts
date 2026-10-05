@@ -4,6 +4,7 @@ import type {
   AttachmentDto,
   ChecklistRunDto,
   ChecklistRunSummaryDto,
+  ChecklistSuggestionDto,
   CreateChecklistInput,
   CreateOrganizationInput,
   CreateOutletInput,
@@ -146,6 +147,12 @@ export function createApiClient(options: ApiClientOptions) {
       submit: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/submit`),
       review: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/review`),
       setup: (outletId: string) => call<OutletChecklistDto[]>("GET", `/checklists/setup${query({ outletId })}`),
+      /** Ready-made checks matching what was typed, leaving out ones already on the checklist. */
+      suggestions: (outletChecklistId: string, search: string) =>
+        call<ChecklistSuggestionDto[]>(
+          "GET",
+          `/checklists/setup/${id(outletChecklistId)}/suggestions${query({ q: search })}`,
+        ),
       createList: (input: CreateChecklistInput) => call<OutletChecklistDto[]>("POST", "/checklists/setup", input),
       updateList: (outletChecklistId: string, input: UpdateChecklistInput) =>
         call<OutletChecklistDto[]>("PATCH", `/checklists/setup/${id(outletChecklistId)}`, input),

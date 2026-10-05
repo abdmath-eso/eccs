@@ -235,15 +235,46 @@ model ChecklistItem {
   /// Empty for the basic items ECCS provides to everyone.
   outletId      String?
   createdById   String?
+  /// Set when the item was picked from the suggestion library rather than typed.
+  libraryItemId String?
   isActive      Boolean           @default(true)
 
-  template            ChecklistTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  outlet              Outlet?              @relation(fields: [outletId], references: [id])
+  template            ChecklistTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  outlet              Outlet?               @relation(fields: [outletId], references: [id])
+  libraryItem         ChecklistLibraryItem? @relation(fields: [libraryItemId], references: [id])
   responses           ChecklistResponse[]
   jobTaskResponses    JobTaskResponse[]
   inspectionResponses InspectionResponse[]
 
   @@index([templateId, position])
+}
+
+/// A ready-made check that an Owner or Manager can find by typing and add
+/// to their checklist. Loaded from docs/Restaurant_Master_Checklist_Library.xlsx
+/// plus ECCS's own additions; see packages/db/prisma/library.ts.
+model ChecklistLibraryItem {
+  id            String   @id @default(uuid())
+  /// Stable identifier from the source, e.g. "CHK-0003-07" or "ECCS-GAS-01".
+  code          String   @unique
+  /// "sheet" for the founder's master library, "eccs" for ECCS's additions.
+  source        String
+  checklistName String
+  category      String
+  area          String?
+  frequency     String?
+  role          String?
+  /// "HIGH" or "MEDIUM". High-priority checks are listed first.
+  priority      String   @default("MEDIUM")
+  text          Json
+  /// Everything searchable about the item, in lower case.
+  searchText    String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items ChecklistItem[]
+
+  @@index([isActive])
 }
 
 /// A checklist template switched on for an outlet, with its schedule.

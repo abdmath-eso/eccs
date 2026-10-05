@@ -130,8 +130,6 @@ export const en = {
   "setup.title": "Edit checklists",
   "setup.help": "ECCS provides the basic checklists and items. Add items, change due times, or create extra checklists for your kitchen. Every item needs a photo.",
   "setup.basic": "Basic item from ECCS",
-  "setup.addPlaceholder": "e.g. Tandoor ash emptied",
-  "setup.add": "Add item",
   "setup.remove": "Remove",
   "setup.removeConfirm": "Remove \"{name}\" from the checklist?",
   "error.camera": "Allow camera access to take the proof photo.",
@@ -160,6 +158,12 @@ export const en = {
   "setup.yourList": "Created by your restaurant",
   "setup.basicList": "Basic checklist from ECCS",
   "error.time": "Enter the time as HH:MM, for example 14:30.",
+
+  "setup.addLabel": "Add an item",
+  "setup.searchPlaceholder": "Type to search, e.g. fridge, gas, pest",
+  "setup.suggestions": "Tap a ready-made check to add it",
+  "setup.noMatches": "No ready-made check matches. You can add your own below.",
+  "setup.addOwn": "Add my own: \"{text}\"",
 
   "error.network": "Could not reach the server. Check your connection.",
   "error.generic": "Something went wrong. Try again.",

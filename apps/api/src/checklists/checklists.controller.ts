@@ -122,7 +122,17 @@ export class ChecklistsController {
     @Param('outletChecklistId') outletChecklistId: string,
     @Body(new ZodValidationPipe(addChecklistItemSchema)) body: z.output<typeof addChecklistItemSchema>,
   ) {
-    return this.checklists.addItem(user, outletChecklistId, body.label);
+    return this.checklists.addItem(user, outletChecklistId, body);
+  }
+
+  @Get('setup/:outletChecklistId/suggestions')
+  @RequirePermission('checklists', 'update')
+  suggestions(
+    @CurrentUser() user: AuthUser,
+    @Param('outletChecklistId') outletChecklistId: string,
+    @Query('q') search?: string,
+  ) {
+    return this.checklists.suggestions(user, outletChecklistId, (search ?? '').slice(0, 100));
   }
 
 }

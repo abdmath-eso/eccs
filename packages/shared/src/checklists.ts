@@ -100,9 +100,19 @@ export const answerChecklistItemSchema = z
   });
 export type AnswerChecklistItemInput = z.input<typeof answerChecklistItemSchema>;
 
-export const addChecklistItemSchema = z.object({
-  label: z.string().trim().min(2, "Describe what to check").max(160),
-});
+/**
+ * Adds an item to a checklist: either one picked from the suggestion
+ * library (libraryItemId) or one the person typed themselves (label).
+ */
+export const addChecklistItemSchema = z
+  .object({
+    label: z.string().trim().min(2, "Describe what to check").max(160).optional(),
+    libraryItemId: z.string().min(1).optional(),
+  })
+  .refine((input) => Boolean(input.label) !== Boolean(input.libraryItemId), {
+    message: "Describe what to check",
+    path: ["label"],
+  });
 export type AddChecklistItemInput = z.input<typeof addChecklistItemSchema>;
 
 const dueTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time as HH:MM, for example 14:30");
@@ -121,6 +131,16 @@ export const updateChecklistSchema = z.object({
   dueTime: dueTimeSchema.nullable().optional(),
 });
 export type UpdateChecklistInput = z.input<typeof updateChecklistSchema>;
+
+/** A ready-made check from the suggestion library, shown while the person types. */
+export interface ChecklistSuggestionDto {
+  id: string;
+  text: LocalizedText;
+  /** The checklist and category it comes from in the library, shown as a hint. */
+  checklistName: string;
+  category: string;
+  priority: "HIGH" | "MEDIUM";
+}
 
 /** Returned when a photo is uploaded. */
 export interface AttachmentDto {

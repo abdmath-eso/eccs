@@ -289,6 +289,93 @@ describe('Daily checklists (e2e)', () => {
     expect((await today(chef))[1]!.items[0]!.response).toMatchObject({ takenByName: 'E2E Second Chef' });
   });
 
+  describe('suggestions from the checklist library', () => {
+    type Suggestion = { id: string; text: { en: string }; checklistName: string; category: string };
+    let closingListId: string;
+    const suggest = async (token: string, search: string, listId = closingListId): Promise<Suggestion[]> =>
+      (await http().get(`/checklists/setup/${listId}/suggestions`).query({ q: search }).set(bearer(token)).expect(200)).body;
+
+    beforeAll(async () => {
+      const lists = (await http().get('/checklists/setup').query({ outletId }).set(bearer(owner)).expect(200)).body as List[];
+      closingListId = lists.find((list) => nameOf(list) === 'Closing checklist')!.id;
+    });
+
+    it('has the whole master sheet and the ECCS additions loaded', async () => {
+      const counts = await prisma.client.checklistLibraryItem.groupBy({ by: ['source'], where: { isActive: true }, _count: true });
+      const bySource = Object.fromEntries(counts.map((row) => [row.source, row._count]));
+      expect(bySource.sheet).toBe(588);
+      expect(bySource.eccs).toBeGreaterThanOrEqual(45);
+    });
+
+    it('finds checks by a word in the check itself', async () => {
+      const results = await suggest(owner, 'fridge');
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.length).toBeLessThanOrEqual(8);
+      expect(results[0]!.text.en.toLowerCase()).toContain('fridge');
+      expect(results[0]).toMatchObject({ checklistName: expect.any(String), category: expect.any(String) });
+    });
+
+    it('finds checks by keyword and category even when the word is not in the check', async () => {
+      // "fifo" is a keyword for the Storage & Inventory category in the sheet.
+      expect((await suggest(owner, 'fifo')).some((s) => s.category === 'Storage & Inventory')).toBe(true);
+      // "tandoor" and "lpg" only exist in the ECCS additions.
+      expect((await suggest(owner, 'tandoor')).every((s) => s.category === 'Indian Kitchen')).toBe(true);
+      expect((await suggest(owner, 'lpg cylinder'))[0]!.text.en).toContain('LPG cylinders');
+    });
+
+    it('understands everyday words for the same thing', async () => {
+      const texts = async (search: string) => (await suggest(owner, search)).map((s) => s.text.en.toLowerCase());
+      // The sheet says "refrigerator"; kitchens say "fridge".
+      expect((await texts('fridge temperature')).some((text) => text.includes('refrigerator temperature'))).toBe(true);
+      expect((await texts('chimney')).some((text) => text.includes('hood'))).toBe(true);
+      expect((await texts('toilet')).some((text) => text.includes('washroom'))).toBe(true);
+      expect((await texts('dustbin')).some((text) => text.includes('bins') || text.includes('waste'))).toBe(true);
+    });
+
+    it('narrows as more words are typed, and returns nothing for nonsense or very short input', async () => {
+      const broad = await suggest(owner, 'gas');
+      const narrow = await suggest(owner, 'gas hose');
+      expect(narrow.length).toBeGreaterThan(0);
+      expect(narrow.length).toBeLessThanOrEqual(broad.length);
+      expect(narrow[0]!.text.en.toLowerCase()).toContain('hose');
+
+      expect(await suggest(owner, 'zzqqxx')).toEqual([]);
+      expect(await suggest(owner, 'a')).toEqual([]);
+      expect(await suggest(owner, '')).toEqual([]);
+    });
+
+    it('is only for people who can edit that checklist', async () => {
+      await http().get(`/checklists/setup/${closingListId}/suggestions`).query({ q: 'gas' }).set(bearer(chef)).expect(403);
+      await http().get(`/checklists/setup/${closingListId}/suggestions`).query({ q: 'gas' }).set(bearer(otherManager)).expect(403);
+    });
+
+    it('adds a chosen suggestion to the checklist and then stops suggesting it', async () => {
+      const [choice] = await suggest(owner, 'gas valve closing');
+      expect(choice!.text.en).toContain('Main gas valve');
+
+      const lists = (
+        await http().post(`/checklists/setup/${closingListId}/items`).set(bearer(owner)).send({ libraryItemId: choice!.id }).expect(201)
+      ).body as List[];
+      const closing = lists.find((list) => list.id === closingListId)! as List & { items: { label: { en: string }; isCustom: boolean }[] };
+      expect(closing.items.at(-1)).toMatchObject({ label: { en: choice!.text.en }, isCustom: true });
+
+      // Staff now see it on today's checklist, needing a photo like the rest.
+      const todays = (await today(chef)).find((run) => nameOf(run) === 'Closing checklist')!;
+      expect(todays.items.at(-1)).toMatchObject({ label: { en: choice!.text.en }, response: null });
+
+      expect((await suggest(owner, 'gas valve closing')).map((s) => s.id)).not.toContain(choice!.id);
+    });
+
+    it('still lets the person type their own check, and rejects an empty or double request', async () => {
+      const post = (body: Record<string, unknown>) =>
+        http().post(`/checklists/setup/${closingListId}/items`).set(bearer(owner)).send(body);
+      await post({ label: 'E2E Handi lids washed' }).expect(201);
+      await post({}).expect(400);
+      await post({ label: 'E2E both', libraryItemId: 'something' }).expect(400);
+      await post({ libraryItemId: 'not-a-real-id' }).expect(404);
+    });
+  });
+
   describe("the restaurant's own checklists", () => {
     const setup = async (token: string): Promise<List[]> =>
       (await http().get('/checklists/setup').query({ outletId }).set(bearer(token)).expect(200)).body;

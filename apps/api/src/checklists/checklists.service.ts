@@ -12,6 +12,7 @@ import {
   type ChecklistRunDto,
   type ChecklistRunStatus,
   type ChecklistRunSummaryDto,
+  type ChecklistSuggestionDto,
   type LocalizedText,
   type OutletChecklistDto,
 } from '@eccs/shared';
@@ -20,6 +21,52 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 
 const MAX_HISTORY_DAYS = 31;
+const MAX_SUGGESTIONS = 8;
+
+// Words too common to help narrow a search of the library.
+const STOP_WORDS = new Set(['the', 'and', 'for', 'are', 'is', 'of', 'to', 'in', 'on', 'at', 'a', 'an', 'no', 'not', 'with']);
+
+// Everyday words people type, and the words the library uses for the same thing.
+// Each group is searched together: typing any one finds checks containing any other.
+const SYNONYM_GROUPS = [
+  ['fridge', 'refrigerator', 'refrigerated', 'refrigeration', 'chiller'],
+  ['freezer', 'frozen', 'deep freezer'],
+  ['chimney', 'hood', 'exhaust'],
+  ['gas', 'lpg'],
+  ['stove', 'burner', 'range', 'hob'],
+  ['toilet', 'washroom', 'restroom', 'bathroom'],
+  ['dustbin', 'bin', 'bins', 'garbage', 'waste', 'trash'],
+  ['rat', 'rats', 'rodent', 'mouse', 'mice'],
+  ['cockroach', 'cockroaches', 'roach', 'insects'],
+  ['fly', 'flies', 'insect'],
+  ['oil', 'frying', 'fryer'],
+  ['handwash', 'handwashing', 'hand wash', 'wash basin'],
+  ['uniform', 'apron', 'clothing'],
+  ['cap', 'hairnet', 'hair'],
+  ['expiry', 'expired', 'use-by', 'date'],
+  ['label', 'labelled', 'labelling', 'labeled'],
+  ['temperature', 'temp'],
+  ['floor', 'floors'],
+  ['drain', 'drains'],
+  ['knife', 'knives'],
+  ['licence', 'license'],
+  ['veg', 'vegetarian'],
+  ['masala', 'spice', 'spices'],
+  ['atta', 'flour', 'maida'],
+];
+const SYNONYMS = new Map<string, string[]>();
+for (const group of SYNONYM_GROUPS) {
+  for (const word of group) SYNONYMS.set(word, [...new Set([...(SYNONYMS.get(word) ?? []), ...group])]);
+}
+/** A typed word plus the other words that mean the same, the typed word first. */
+const alternatives = (term: string) => [term, ...(SYNONYMS.get(term) ?? []).filter((word) => word !== term)];
+
+/** The meaningful words in a string, lower case, for matching checks against each other. */
+const words = (text: string) =>
+  text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 1 && !STOP_WORDS.has(word));
 
 /** Today's calendar date in India as YYYY-MM-DD. Checklists belong to an Indian working day. */
 export function indiaDate(at: Date = new Date()): string {
@@ -318,9 +365,94 @@ export class ChecklistsService {
     }));
   }
 
-  /** The Owner or Manager adds a check specific to their kitchen. It needs a photo like every other item. */
-  async addItem(user: AuthUser, outletChecklistId: string, label: string): Promise<OutletChecklistDto[]> {
+  /**
+   * Ready-made checks from the library that match what the person has typed
+   * so far. Every word typed (or a word meaning the same, such as
+   * "refrigerator" for "fridge") must appear somewhere in the check, its
+   * checklist name, category or keywords. Checks already on this checklist
+   * are left out, and the most relevant come first.
+   */
+  async suggestions(user: AuthUser, outletChecklistId: string, search: string): Promise<ChecklistSuggestionDto[]> {
     const list = await this.requireList(user, outletChecklistId);
+    const terms = words(search).slice(0, 6);
+    if (terms.length === 0) return [];
+
+    const [candidates, existing] = await Promise.all([
+      this.db.checklistLibraryItem.findMany({
+        where: {
+          isActive: true,
+          AND: terms.map((term) => ({ OR: alternatives(term).map((word) => ({ searchText: { contains: word } })) })),
+        },
+        take: 120,
+      }),
+      this.db.checklistItem.findMany({
+        where: { templateId: list.templateId, isActive: true, OR: [{ outletId: null }, { outletId: list.outletId }] },
+        select: { libraryItemId: true, label: true },
+      }),
+    ]);
+
+    const usedIds = new Set(existing.map((item) => item.libraryItemId).filter(Boolean));
+    const usedTexts = new Set(existing.flatMap((item) => Object.values(item.label as LocalizedText)).map((t) => t.trim().toLowerCase()));
+
+    const seen = new Set<string>();
+    return candidates
+      .map((entry) => {
+        const text = (entry.text as LocalizedText).en ?? '';
+        const lower = text.toLowerCase();
+        const textWords = new Set(words(text));
+        // A word found in the check itself counts for more than one found only
+        // in its category or keywords. The exact word typed counts most, then
+        // a word meaning the same, then a partial match.
+        const termScore = (term: string) => {
+          if (textWords.has(term)) return 4;
+          const others = alternatives(term).slice(1);
+          if (others.some((word) => textWords.has(word) || (word.includes(' ') && lower.includes(word)))) return 3;
+          return lower.includes(term) ? 2 : 0;
+        };
+        const score =
+          terms.reduce((total, term) => total + termScore(term), 0) +
+          (entry.priority === 'HIGH' ? 1 : 0) +
+          (entry.source === 'eccs' ? 0.5 : 0);
+        return { entry, text, lower, score };
+      })
+      .filter(({ entry, lower }) => {
+        // The library repeats some checks across checklists; show each wording once.
+        if (usedIds.has(entry.id) || usedTexts.has(lower) || seen.has(lower)) return false;
+        seen.add(lower);
+        return true;
+      })
+      .sort((a, b) => b.score - a.score || a.text.length - b.text.length)
+      .slice(0, MAX_SUGGESTIONS)
+      .map(({ entry }) => ({
+        id: entry.id,
+        text: entry.text as LocalizedText,
+        checklistName: entry.checklistName,
+        category: entry.category,
+        priority: entry.priority === 'HIGH' ? ('HIGH' as const) : ('MEDIUM' as const),
+      }));
+  }
+
+  /**
+   * The Owner or Manager adds a check to a checklist: one picked from the
+   * library, or one typed for their own kitchen. Either way it needs a photo
+   * like every other item.
+   */
+  async addItem(
+    user: AuthUser,
+    outletChecklistId: string,
+    input: { label?: string | undefined; libraryItemId?: string | undefined },
+  ): Promise<OutletChecklistDto[]> {
+    const list = await this.requireList(user, outletChecklistId);
+
+    let label: Prisma.InputJsonValue;
+    if (input.libraryItemId) {
+      const entry = await this.db.checklistLibraryItem.findFirst({ where: { id: input.libraryItemId, isActive: true } });
+      if (!entry) throw new NotFoundException('That suggestion is no longer available');
+      label = entry.text as Prisma.InputJsonValue;
+    } else {
+      // Typed in one language; shown as typed to everyone at the outlet.
+      label = { [user.language.toLowerCase()]: input.label ?? '' };
+    }
 
     const last = await this.db.checklistItem.aggregate({
       where: { templateId: list.templateId },
@@ -332,8 +464,8 @@ export class ChecklistsService {
         outletId: list.outletId,
         createdById: user.id,
         position: (last._max.position ?? 0) + 1,
-        // Typed in one language; shown as typed to everyone at the outlet.
-        label: { [user.language.toLowerCase()]: label },
+        label,
+        libraryItemId: input.libraryItemId ?? null,
         type: 'YES_NO',
         photoRequired: true,
       },

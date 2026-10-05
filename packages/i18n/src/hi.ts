@@ -131,8 +131,6 @@ export const hi: Messages = {
   "setup.title": "चेकलिस्ट बदलें",
   "setup.help": "ECCS बुनियादी चेकलिस्ट और आइटम देता है। आइटम जोड़ें, समय बदलें या अपनी रसोई के लिए और चेकलिस्ट बनाएं। हर आइटम के लिए फ़ोटो ज़रूरी है।",
   "setup.basic": "ECCS का बुनियादी आइटम",
-  "setup.addPlaceholder": "जैसे तंदूर की राख निकाली गई",
-  "setup.add": "आइटम जोड़ें",
   "setup.remove": "हटाएं",
   "setup.removeConfirm": "\"{name}\" को चेकलिस्ट से हटाएं?",
   "error.camera": "सबूत की फ़ोटो लेने के लिए कैमरा की अनुमति दें।",
@@ -161,6 +159,12 @@ export const hi: Messages = {
   "setup.yourList": "आपके रेस्टोरेंट ने बनाया",
   "setup.basicList": "ECCS की बुनियादी चेकलिस्ट",
   "error.time": "समय HH:MM में लिखें, जैसे 14:30।",
+
+  "setup.addLabel": "आइटम जोड़ें",
+  "setup.searchPlaceholder": "खोजने के लिए लिखें, जैसे fridge, gas, pest",
+  "setup.suggestions": "जोड़ने के लिए तैयार आइटम पर टैप करें",
+  "setup.noMatches": "कोई तैयार आइटम नहीं मिला। आप नीचे अपना आइटम जोड़ सकते हैं।",
+  "setup.addOwn": "अपना जोड़ें: \"{text}\"",
 
   "error.network": "सर्वर से संपर्क नहीं हो सका। अपना कनेक्शन जांचें।",
   "error.generic": "कुछ गलत हो गया। फिर कोशिश करें।",

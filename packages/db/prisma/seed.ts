@@ -9,6 +9,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createPrismaClient, pinLookup, type Prisma } from "../src/index.js";
+import { loadChecklistLibrary } from "./library.js";
 
 // PIN_SECRET lives in the repo-root .env, shared with the API.
 const rootEnvFile = resolve(import.meta.dirname, "../../../.env");
@@ -466,6 +467,7 @@ async function main() {
   const templates = await seedSopsAndChecklists();
   const services = await seedServices(templates);
   await seedOutletData(outlets, templates, services, supervisor.id);
+  const library = await loadChecklistLibrary(prisma);
 
   const counts = {
     users: await prisma.user.count(),
@@ -480,6 +482,7 @@ async function main() {
     licences: await prisma.licence.count(),
     staffMembers: await prisma.staffMember.count(),
     foodItems: await prisma.foodItem.count(),
+    checklistLibraryItems: library.total,
   };
   console.log("Seeded sample data:", counts);
 }

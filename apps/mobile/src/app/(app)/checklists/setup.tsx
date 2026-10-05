@@ -3,6 +3,7 @@ import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { ChecklistItemSearch } from '@/components/checklist-item-search';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -39,7 +40,6 @@ export default function ChecklistSetupScreen() {
   const { t, api, user, language } = useSession();
   const { outletId } = useLocalSearchParams<{ outletId: string }>();
   const [lists, setLists] = useState<OutletChecklistDto[] | null>(null);
-  const [itemDrafts, setItemDrafts] = useState<Record<string, string>>({});
   const [timeDrafts, setTimeDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [removal, setRemoval] = useState<Removal | null>(null);
@@ -105,13 +105,6 @@ export default function ChecklistSetupScreen() {
     }
     const saved = await change(`time:${list.id}`, () => api.checklists.updateList(list.id, { dueTime }));
     if (saved) setTimeDrafts(({ [list.id]: _saved, ...rest }) => rest);
-  }
-
-  async function addItem(listId: string) {
-    const label = (itemDrafts[listId] ?? '').trim();
-    if (label.length < 2) return;
-    const added = await change(`item:${listId}`, () => api.checklists.addItem(listId, { label }));
-    if (added) setItemDrafts((current) => ({ ...current, [listId]: '' }));
   }
 
   async function confirmRemoval() {
@@ -181,20 +174,7 @@ export default function ChecklistSetupScreen() {
               </View>
             ))}
 
-            <TextField
-              value={itemDrafts[list.id] ?? ''}
-              onChangeText={(text) => setItemDrafts((current) => ({ ...current, [list.id]: text }))}
-              placeholder={t('setup.addPlaceholder')}
-              maxLength={160}
-              returnKeyType="done"
-              onSubmitEditing={() => void addItem(list.id)}
-            />
-            <Button
-              label={t('setup.add')}
-              onPress={() => void addItem(list.id)}
-              loading={busy === `item:${list.id}`}
-              disabled={(itemDrafts[list.id] ?? '').trim().length < 2}
-            />
+            <ChecklistItemSearch outletChecklistId={list.id} onAdded={setLists} onError={setError} />
 
             {list.isCustom && (
               <Button label={t('setup.removeList')} variant="link" onPress={() => setRemoval({ kind: 'list', list })} />

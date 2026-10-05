@@ -20,10 +20,10 @@ The team is the founder plus Claude Code. There are no other developers, so this
 |---|---|
 | **Phase** | Phase 0 (Foundation), in progress. |
 | **Plan approval** | Approved by the founder on 5 Oct 2026. Installing and scaffolding are allowed. |
-| **Code** | Monorepo with three untouched starter apps: `apps/web` (Next.js 16), `apps/api` (NestJS 12), `apps/mobile` (Expo SDK 57). `packages/db` holds the full database schema (about 45 tables), the first migration and sample seed data. No screens or API endpoints written yet. |
+| **Code** | `packages/db`: full schema (about 47 tables), migrations, sample seed. `packages/shared`: roles, the permission rules, login schemas. `apps/api`: login by phone + code, sessions, PIN, role and scope checks, a first scoped endpoint (`GET /v1/outlets`). `apps/web` and `apps/mobile` are still untouched starters: **there are no screens yet.** |
 | **Local services** | Running in Docker: PostgreSQL on 5432, Redis on 6379, SeaweedFS (S3 stand-in) on 8333. Database is migrated and seeded. |
 | **Blocked** | Nothing. |
-| **Next action (Claude)** | `packages/shared` (roles, permission rules, Zod schemas), then wire `@eccs/db` into the API and build auth: phone + fixed dev OTP login, memberships, role guards. |
+| **Next action (Claude)** | Login screens: mobile (phone, code, language choice, role-based home) and web (ECCS console and owner dashboard shells), using a shared API client and `packages/i18n`. Then Phase 1a, starting with the daily checklist. |
 | **Next action (founder)** | None required. Optional: the remaining items in section 6 (long paths, Android Studio). |
 
 ## 3. Decisions made
@@ -42,6 +42,9 @@ The team is the founder plus Claude Code. There are no other developers, so this
 | 5 Oct 2026 | Food labels are printed: food name, made time, expiry time. | Founder |
 | 5 Oct 2026 | The restaurant app is only for ECCS service clients; it will not be sold standalone. | Founder |
 | 5 Oct 2026 | Billing (catalogue, subscriptions, GST invoices, Razorpay, dues) is built in-app for the pilot. | Follows from whiteboard items |
+| 5 Oct 2026 | Login is our own module in the API (phone + code, sessions, PIN), not the Better Auth library named in the first draft. Reason and safeguards in PROPOSAL.md section 2. **Founder has not explicitly reviewed this change.** | Claude, during build |
+| 5 Oct 2026 | ECCS roles get no access to restaurant staff, attendance or salary data; it is the restaurant's private employee information. **Founder has not explicitly reviewed this.** | Claude, during build |
+| 5 Oct 2026 | Users cannot sign themselves up. An ECCS admin, Owner or Manager creates each login. | Claude, during build |
 | 5 Oct 2026 | Node is managed with fnm (no admin rights needed), pinned to Node 24 via `.node-version`. pnpm 12, Turborepo. `nodeLinker: hoisted` because of React Native. | Claude, during setup |
 
 ## 4. Open questions for the founder
@@ -70,9 +73,11 @@ Status values: not started, in progress, done, blocked.
 | Monorepo scaffolded (pnpm + Turborepo) | done | `apps/web`, `apps/api`, `apps/mobile` are generator defaults |
 | Local services (Postgres, Redis, S3 stand-in) | done | `pnpm services:up`. S3 bucket creation still to be verified when the storage module is built |
 | `packages/db` (Prisma schema, migrations, sample seed) | done | Prisma 7.10. Seed: 3 ECCS users, 2 sample brands, 3 outlets, 7 restaurant users, 5 checklist templates in en/te/hi, 4 service types, 2 plans, jobs, licences, staff, food items |
-| `packages/shared` (Zod schemas, roles, permissions) | not started | |
+| `packages/shared` (Zod schemas, roles, permissions) | done | `src/permissions.ts` is the one definition of who may do what; it mirrors PROPOSAL.md section 3 and has tests |
 | `packages/i18n` (en, te, hi) | not started | |
-| Auth: phone OTP (fixed dev OTP), PIN, biometric, memberships | not started | |
+| Auth in the API: phone + code, sessions, PIN, role and scope checks | done | 13 end-to-end tests. Fixed code `123456` in sample mode; real SMS not wired. Endpoints listed in section 6 |
+| Login screens (mobile and web), biometric unlock | not started | Biometric is a phone-side feature and comes with the mobile screens |
+| Admin screens to create users and assign roles | not started | Until then, users come from the seed |
 | API client shared by web and mobile | not started | |
 | CI (GitHub Actions) | not started | No GitHub remote yet |
 | Staging environment | not started | Deferred until there is something to deploy |
@@ -159,7 +164,11 @@ New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name
 - React is pinned to 19.2.3 in both web and mobile to keep one copy under the hoisted layout.
 - Prisma is pinned to 7.10.0. `pnpm add prisma` without a version pulls an 8.0 release candidate; do not upgrade until 8 is stable. Prisma 7 keeps the database URL in `packages/db/prisma.config.ts` (read from `packages/db/.env`, not committed), generates the client into `packages/db/generated/prisma` (not committed, run `pnpm --filter @eccs/db generate`), and needs the `@prisma/adapter-pg` driver adapter; use `createPrismaClient()` from `@eccs/db`.
 - `prisma init` installs agent "skills" folders (`.agents`, `.claude`, `.windsurf`) as a side effect; they were deleted. Do not re-run `prisma init`.
-- `@eccs/db` exports TypeScript source directly. Wiring it into the NestJS build is part of the next step and not yet proven.
+- `@eccs/db` and `@eccs/shared` compile to `dist/` and apps import the compiled output. After changing either, run `pnpm build` (Turborepo builds them first automatically for `build`, `dev`, `typecheck` and `test`).
+- API layout: `apps/api/src/auth` (login, guard, decorators), `src/prisma` (database access via `PrismaService.client`), `src/config/env.ts` (reads the repo-root `.env`), `src/common/zod-validation.pipe.ts`. Every endpoint needs a session unless marked `@Public()`; add `@RequirePermission(resource, action)` for the role check, and narrow rows in the service with `accessScope()` from `@eccs/shared` (see `src/outlets` for the pattern).
+- API endpoints so far (prefix `/v1`, port 4000): `GET /health`; `POST /auth/otp/request`; `POST /auth/otp/verify`; `GET /auth/me`; `PATCH /auth/me`; `POST /auth/logout`; `PUT /auth/pin`; `POST /auth/pin/verify`; `GET /outlets`.
+- API end-to-end tests (`pnpm test:e2e` in `apps/api`) run against the local seeded database, so Docker must be up and `pnpm seed` run at least once. They are not part of `pnpm test`.
+- If a package's `tsc` fails with MODULE_NOT_FOUND, delete that package's `node_modules` folder and run `pnpm install` (stale links after dependency changes).
 - pnpm blocks dependency install scripts unless listed under `allowBuilds` in `pnpm-workspace.yaml`.
 - The `minio/minio` image no longer exists on Docker Hub; local S3 is SeaweedFS on port 8333.
 - Database commands, run from `packages/db`: `pnpm migrate` (new migration after a schema change), `pnpm seed` (wipe and reload sample data), `pnpm reset` (drop everything, re-migrate, re-seed), `pnpm studio` (browse the data).
@@ -199,6 +208,7 @@ Other running costs: OTP SMS about ₹0.20 to ₹0.25 each; Razorpay about 2% pe
 | `apps/api` | NestJS REST API. |
 | `apps/mobile` | Expo app for restaurant staff and ECCS supervisors. |
 | `packages/db` | Prisma schema (`prisma/schema.prisma`), migrations, sample seed (`prisma/seed.ts`), client factory (`src/index.ts`). |
+| `packages/shared` | Roles, permission rules, phone number handling, login request and response schemas. Used by API, web and mobile. |
 | `infra/docker-compose.yml` | Local Postgres, Redis, SeaweedFS. |
 | `.env.example` | Local environment variables, including the fixed development OTP. |
 
@@ -208,6 +218,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 5 Oct 2026 | Login and roles built in the API: `packages/shared` (roles, permissions, schemas), Session and OtpChallenge tables, phone + code login, PIN, role and scope guard, `GET /v1/outlets`. Unit and end-to-end tests pass; verified against the running API. No screens yet. |
 | 5 Oct 2026 | Founder installed WSL2 and Docker. Local Postgres, Redis and SeaweedFS running (MinIO image no longer available). `packages/db` added: full schema, first migration applied, sample data seeded. "Contract" folded into Plan and Subscription in the data model. |
 | 5 Oct 2026 | Plan approved. Founder answered open questions (roles, platforms, sample data, languages, salary, QR). Installed Git, fnm, Node 24, pnpm, VS Code extensions. Initialised git. Scaffolded monorepo with Next.js, NestJS and Expo starters; all typecheck. Docker blocked on admin steps. Hosting cost estimate added. |
 | 5 Oct 2026 | Founder confirmed whiteboard open points; all twelve items in pilot. PROPOSAL.md updated. STATUS.md and CLAUDE.md created. |

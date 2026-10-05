@@ -91,15 +91,17 @@ model Outlet {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  phone     String   @unique
-  name      String
-  email     String?  @unique
-  language  Language @default(EN)
-  pinHash   String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String    @id @default(uuid())
+  phone             String    @unique
+  name              String
+  email             String?   @unique
+  language          Language  @default(EN)
+  pinHash           String?
+  pinFailedAttempts Int       @default(0)
+  pinLockedUntil    DateTime?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   memberships    Membership[]
   deviceTokens   DeviceToken[]
@@ -110,6 +112,7 @@ model User {
   raisedIssues   Issue[]        @relation("IssueRaisedBy")
   assignedIssues Issue[]        @relation("IssueAssignee")
   issueComments  IssueComment[]
+  sessions       Session[]
 }
 
 /// A user's role and where it applies. ECCS roles have no organization;
@@ -1030,6 +1033,35 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
+}
+
+/// A one-time login code sent to a phone. Only a hash of the code is stored.
+model OtpChallenge {
+  id         String    @id @default(uuid())
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, createdAt])
+}
+
+/// A logged-in device. Only a hash of the token is stored.
+model Session {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  deviceName String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model AuditLog {

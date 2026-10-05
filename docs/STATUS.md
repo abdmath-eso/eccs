@@ -263,7 +263,14 @@ Then open http://localhost:3000 and log in with `9000000001` and code `123456`.
 
 "Lock" on the home screen returns to the PIN pad for the next person. "Use a different restaurant" on the PIN pad unlinks the browser so another code can be entered. If sample PINs stop working, run `pnpm seed` in `packages/db`.
 
-On a real phone: not set up yet. It needs the phone and this computer on the same Wi-Fi and `EXPO_PUBLIC_API_URL` pointed at this computer's address.
+**On a real Android phone (set up 5 Oct 2026, awaiting the founder's first try):**
+
+1. Install **Expo Go** from the Play Store. Put the phone on the same Wi-Fi as this computer.
+2. `apps/mobile/.env.local` (not committed) points the app at this computer's Wi-Fi address, `http://192.168.1.40:4000/v1`. If the address changes, run `ipconfig`, update the file and restart Expo.
+3. With the API running, start the app with `pnpm --filter @eccs/mobile start` and scan the QR code in the terminal using Expo Go.
+4. Quick connection test: open `http://192.168.1.40:4000/v1/health` in the phone's browser; it should show `{"status":"ok"}`.
+
+The Windows firewall already allows Node on private networks, and the Wi-Fi is set as a private network. iPhone works the same way with Expo Go from the App Store, scanning the QR with the Camera app.
 
 ### Everyday commands
 

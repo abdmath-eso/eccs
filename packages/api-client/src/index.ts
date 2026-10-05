@@ -21,6 +21,7 @@ import type {
   RestaurantUserWithPinDto,
   SessionDto,
   UpdateChecklistInput,
+  UpdateChecklistItemInput,
   UpdateProfileInput,
   UpdateRestaurantUserInput,
   VerifyOtpInput,
@@ -144,6 +145,9 @@ export function createApiClient(options: ApiClientOptions) {
       run: (runId: string) => call<ChecklistRunDto>("GET", `/checklists/runs/${id(runId)}`),
       answer: (runId: string, itemId: string, input: AnswerChecklistItemInput) =>
         call<ChecklistRunDto>("PUT", `/checklists/runs/${id(runId)}/items/${id(itemId)}`, input),
+      /** Un-ticks a tick-only item that was marked by mistake. */
+      clearAnswer: (runId: string, itemId: string) =>
+        call<ChecklistRunDto>("DELETE", `/checklists/runs/${id(runId)}/items/${id(itemId)}`),
       submit: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/submit`),
       review: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/review`),
       setup: (outletId: string) => call<OutletChecklistDto[]>("GET", `/checklists/setup${query({ outletId })}`),
@@ -160,6 +164,8 @@ export function createApiClient(options: ApiClientOptions) {
         call<OutletChecklistDto[]>("DELETE", `/checklists/setup/${id(outletChecklistId)}`),
       addItem: (outletChecklistId: string, input: AddChecklistItemInput) =>
         call<OutletChecklistDto[]>("POST", `/checklists/setup/${id(outletChecklistId)}/items`, input),
+      updateItem: (itemId: string, input: UpdateChecklistItemInput) =>
+        call<OutletChecklistDto[]>("PATCH", `/checklists/setup/items/${id(itemId)}`, input),
       removeItem: (itemId: string) => call<OutletChecklistDto[]>("DELETE", `/checklists/setup/items/${id(itemId)}`),
     },
     auth: {

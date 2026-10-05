@@ -235,7 +235,8 @@ Decided by the founder on 5 Oct 2026; source document `docs/FSSAI 2026 KITCHEN S
 
 - ECCS gives every restaurant a short basic list (Opening and Closing, five items each in the sample data).
 - The Owner or Manager adds items specific to their kitchen, and can remove what they added. ECCS's basic items cannot be removed by the restaurant.
-- A photo is mandatory for every item. A checklist cannot be submitted until each item has one. On a phone the photo comes from the camera, not the gallery.
+- Items need a photo as proof by default, and a checklist cannot be submitted until each photo item has one. On a phone the photo comes from the camera, not the gallery.
+- When adding an item, the Owner or Manager can mark it "tick only" for checks where a photo is not possible; staff then tick it with one tap. ECCS's basic items always need a photo.
 - Each item is answered OK or Problem. A problem must come with a reason.
 - There is one checklist per outlet per day, shared by everyone at the outlet. Several Head Chefs can fill it in together; once anyone submits it, it is locked for all.
 - The Owner or Manager can create extra checklists (for example a mid-day one) with a name and due time, and can change any checklist's due time. ECCS's basic checklists cannot be renamed or removed.

@@ -15,6 +15,7 @@ import {
   addChecklistItemSchema,
   answerChecklistItemSchema,
   createChecklistSchema,
+  updateChecklistItemSchema,
   updateChecklistSchema,
 } from '@eccs/shared';
 import type { z } from 'zod';
@@ -63,6 +64,12 @@ export class ChecklistsController {
     return this.checklists.answer(user, runId, itemId, body);
   }
 
+  @Delete('runs/:runId/items/:itemId')
+  @RequirePermission('checklists', 'create')
+  clearAnswer(@CurrentUser() user: AuthUser, @Param('runId') runId: string, @Param('itemId') itemId: string) {
+    return this.checklists.clearAnswer(user, runId, itemId);
+  }
+
   @Post('runs/:runId/submit')
   @HttpCode(200)
   @RequirePermission('checklists', 'create')
@@ -97,6 +104,16 @@ export class ChecklistsController {
   @RequirePermission('checklists', 'update')
   removeItem(@CurrentUser() user: AuthUser, @Param('itemId') itemId: string) {
     return this.checklists.removeItem(user, itemId);
+  }
+
+  @Patch('setup/items/:itemId')
+  @RequirePermission('checklists', 'update')
+  updateItem(
+    @CurrentUser() user: AuthUser,
+    @Param('itemId') itemId: string,
+    @Body(new ZodValidationPipe(updateChecklistItemSchema)) body: z.output<typeof updateChecklistItemSchema>,
+  ) {
+    return this.checklists.updateItem(user, itemId, body);
   }
 
   @Patch('setup/:outletChecklistId')

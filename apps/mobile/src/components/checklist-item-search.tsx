@@ -34,6 +34,8 @@ export function ChecklistItemSearch({ outletChecklistId, onAdded, onError }: Che
   const [adding, setAdding] = useState<string | null>(null);
   // Bumped after adding a suggestion so the list refreshes without it.
   const [refresh, setRefresh] = useState(0);
+  // Whether the next item added needs a proof photo. Photo is the default.
+  const [photoRequired, setPhotoRequired] = useState(true);
 
   const search = text.trim();
   const searchable = search.length >= MIN_SEARCH_LENGTH;
@@ -63,7 +65,7 @@ export function ChecklistItemSearch({ outletChecklistId, onAdded, onError }: Che
     setAdding(key);
     onError(null);
     try {
-      onAdded(await api.checklists.addItem(outletChecklistId, input));
+      onAdded(await api.checklists.addItem(outletChecklistId, { ...input, photoRequired }));
       if ('label' in input) {
         setText('');
         setSuggestions(null);
@@ -88,6 +90,45 @@ export function ChecklistItemSearch({ outletChecklistId, onAdded, onError }: Che
         autoCorrect={false}
         returnKeyType="search"
       />
+
+      {searchable && (
+        <View style={styles.proof}>
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            {t('setup.proofLabel')}
+          </ThemedText>
+          <View style={styles.proofOptions}>
+            {([true, false] as const).map((value) => {
+              const selected = photoRequired === value;
+              return (
+                <Pressable
+                  key={String(value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  onPress={() => setPhotoRequired(value)}
+                  style={[
+                    styles.proofOption,
+                    { borderColor: selected ? theme.primary : theme.border },
+                    selected && { backgroundColor: theme.backgroundElement },
+                  ]}>
+                  <Ionicons
+                    name={value ? 'camera' : 'checkmark-circle-outline'}
+                    size={22}
+                    color={selected ? theme.primary : theme.textSecondary}
+                  />
+                  <ThemedText type="default" themeColor={selected ? 'primary' : 'text'}>
+                    {t(value ? 'setup.photoNeeded' : 'setup.tickOnly')}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+          {!photoRequired && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('setup.tickOnlyHelp')}
+            </ThemedText>
+          )}
+        </View>
+      )}
 
       {searchable && suggestions === null && <ActivityIndicator color={theme.primary} />}
 
@@ -144,6 +185,19 @@ export function ChecklistItemSearch({ outletChecklistId, onAdded, onError }: Che
 
 const styles = StyleSheet.create({
   wrapper: { gap: Spacing.two },
+  proof: { gap: Spacing.two },
+  proofOptions: { flexDirection: 'row', gap: Spacing.two },
+  proofOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    minHeight: MinTouchSize,
+    borderWidth: 2,
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.two,
+  },
   results: { borderWidth: 1, borderRadius: Spacing.three, overflow: 'hidden' },
   resultsTitle: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
   result: {

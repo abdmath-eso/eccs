@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { can, localize, type OutletChecklistDto } from '@eccs/shared';
 import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -160,16 +161,40 @@ export default function ChecklistSetupScreen() {
             )}
             {list.items.map((item, index) => (
               <View key={item.id} style={[styles.item, { borderColor: theme.border }]}>
-                <View style={styles.itemText}>
-                  <ThemedText type="default">
-                    {index + 1}. {localize(item.label, language)}
-                  </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {item.isCustom ? t('checklists.yourItem') : t('setup.basic')}
-                  </ThemedText>
+                <View style={styles.itemHeader}>
+                  <Ionicons
+                    name={item.photoRequired ? 'camera' : 'checkmark-circle-outline'}
+                    size={24}
+                    color={theme.textSecondary}
+                    accessibilityLabel={t(item.photoRequired ? 'setup.photoNeeded' : 'setup.tickOnly')}
+                  />
+                  <View style={styles.itemText}>
+                    <ThemedText type="default">
+                      {index + 1}. {localize(item.label, language)}
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {item.isCustom ? t('checklists.yourItem') : t('setup.basic')}
+                      {' · '}
+                      {t(item.photoRequired ? 'setup.photoNeeded' : 'setup.tickOnly')}
+                    </ThemedText>
+                  </View>
                 </View>
                 {item.isCustom && (
-                  <Button label={t('setup.remove')} variant="danger" onPress={() => setRemoval({ kind: 'item', item })} />
+                  <View style={styles.itemActions}>
+                    <View style={styles.itemAction}>
+                      <Button
+                        label={t(item.photoRequired ? 'setup.makeTickOnly' : 'setup.makePhoto')}
+                        variant="secondary"
+                        loading={busy === `proof:${item.id}`}
+                        onPress={() =>
+                          void change(`proof:${item.id}`, () =>
+                            api.checklists.updateItem(item.id, { photoRequired: !item.photoRequired }),
+                          )
+                        }
+                      />
+                    </View>
+                    <Button label={t('setup.remove')} variant="danger" onPress={() => setRemoval({ kind: 'item', item })} />
+                  </View>
                 )}
               </View>
             ))}
@@ -238,12 +263,9 @@ export default function ChecklistSetupScreen() {
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
   listTitle: { fontWeight: 700, fontSize: 20 },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    borderBottomWidth: 1,
-    paddingBottom: Spacing.two,
-  },
+  item: { gap: Spacing.two, borderBottomWidth: 1, paddingBottom: Spacing.two },
+  itemHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  itemActions: { flexDirection: 'row', gap: Spacing.two },
+  itemAction: { flex: 1 },
   itemText: { flex: 1, gap: Spacing.half },
 });

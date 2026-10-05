@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 // Daily checklists. ECCS provides a short basic list for every restaurant;
-// the Owner or Manager adds items for their own kitchen. Every item needs
-// a photo as proof before the checklist can be submitted.
+// the Owner or Manager adds items for their own kitchen. Items need a photo
+// as proof unless the Owner or Manager marked them "tick only" because a
+// photo is not practical; those are simply ticked off.
 
 /** Text in each language. Items a restaurant adds have only the language they typed. */
 export type LocalizedText = Partial<Record<"en" | "te" | "hi", string>>;
@@ -21,7 +22,7 @@ export interface ChecklistResponseDto {
   passed: boolean;
   note: string | null;
   capturedAt: string;
-  /** Who took the proof photo. */
+  /** Who answered: the person who took the proof photo, or who ticked a tick-only item. */
   takenByName: string | null;
   /** Path of the proof photo, relative to the API base URL. Valid for a limited time. */
   photoPath: string | null;
@@ -32,6 +33,8 @@ export interface ChecklistItemDto {
   label: LocalizedText;
   /** True if the restaurant added this item; false for ECCS's basic items. */
   isCustom: boolean;
+  /** True if the item needs a proof photo; false if it is only ticked off. */
+  photoRequired: boolean;
   response: ChecklistResponseDto | null;
 }
 
@@ -76,7 +79,7 @@ export interface OutletChecklistDto {
   dueTime: string | null;
   /** True if the restaurant created this checklist; false for ECCS's basic ones. */
   isCustom: boolean;
-  items: { id: string; label: LocalizedText; isCustom: boolean }[];
+  items: { id: string; label: LocalizedText; isCustom: boolean; photoRequired: boolean }[];
 }
 
 export const answerChecklistItemSchema = z
@@ -88,8 +91,8 @@ export const answerChecklistItemSchema = z
     .max(500)
     .optional()
     .transform((value) => (value ? value : undefined)),
-  /** The uploaded proof photo. Required: an item cannot be answered without one. */
-  attachmentId: z.string().min(1, "A photo is required"),
+  /** The uploaded proof photo. Needed unless the item is tick-only; the server checks which. */
+  attachmentId: z.string().min(1).optional(),
   /** When the answer was given on the phone, which may be before it was uploaded. */
   capturedAt: z.iso.datetime().optional(),
   })
@@ -108,6 +111,8 @@ export const addChecklistItemSchema = z
   .object({
     label: z.string().trim().min(2, "Describe what to check").max(160).optional(),
     libraryItemId: z.string().min(1).optional(),
+    /** False for a check where a photo is not practical, so staff only tick it. Defaults to true. */
+    photoRequired: z.boolean().default(true),
   })
   .refine((input) => Boolean(input.label) !== Boolean(input.libraryItemId), {
     message: "Describe what to check",
@@ -131,6 +136,10 @@ export const updateChecklistSchema = z.object({
   dueTime: dueTimeSchema.nullable().optional(),
 });
 export type UpdateChecklistInput = z.input<typeof updateChecklistSchema>;
+
+/** Changes whether one of the restaurant's own items needs a photo. */
+export const updateChecklistItemSchema = z.object({ photoRequired: z.boolean() });
+export type UpdateChecklistItemInput = z.input<typeof updateChecklistItemSchema>;
 
 /** A ready-made check from the suggestion library, shown while the person types. */
 export interface ChecklistSuggestionDto {

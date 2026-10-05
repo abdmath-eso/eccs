@@ -183,7 +183,7 @@ describe('Daily checklists (e2e)', () => {
   it('refuses to submit until every item has a photo, then locks the checklist', async () => {
     const [opening] = await today(chef);
     const refused = await http().post(`/checklists/runs/${opening!.id}/submit`).set(bearer(chef)).expect(400);
-    expect(refused.body.message).toBe('4 items still need a photo');
+    expect(refused.body.message).toBe('4 items are not done yet');
 
     for (const item of opening!.items.slice(1)) {
       const photo = await uploadPhoto(chef);
@@ -373,6 +373,86 @@ describe('Daily checklists (e2e)', () => {
       await post({}).expect(400);
       await post({ label: 'E2E both', libraryItemId: 'something' }).expect(400);
       await post({ libraryItemId: 'not-a-real-id' }).expect(404);
+    });
+  });
+
+  describe('tick-only items, for checks where a photo is not practical', () => {
+    type SetupItem = { id: string; label: Record<string, string>; isCustom: boolean; photoRequired: boolean };
+    type SetupList = { id: string; title: Record<string, string>; items: SetupItem[] };
+    let closingListId: string;
+    let tickItemId: string;
+    const closingRun = async (token: string) => (await today(token)).find((run) => nameOf(run) === 'Closing checklist')!;
+    const post = (token: string, body: Record<string, unknown>) =>
+      http().post(`/checklists/setup/${closingListId}/items`).set(bearer(token)).send(body);
+
+    beforeAll(async () => {
+      const lists = (await http().get('/checklists/setup').query({ outletId }).set(bearer(owner)).expect(200)).body as SetupList[];
+      closingListId = lists.find((list) => nameOf(list) === 'Closing checklist')!.id;
+    });
+
+    it('lets the owner add an item as tick only; photo stays the default', async () => {
+      const withPhoto = (await post(owner, { label: 'E2E Photo by default' }).expect(201)).body as SetupList[];
+      expect(withPhoto.find((l) => l.id === closingListId)!.items.at(-1)).toMatchObject({ photoRequired: true });
+
+      const tickOnly = (await post(owner, { label: 'E2E Cash drawer counted', photoRequired: false }).expect(201)).body as SetupList[];
+      const item = tickOnly.find((l) => l.id === closingListId)!.items.at(-1)!;
+      expect(item).toMatchObject({ photoRequired: false, isCustom: true });
+      tickItemId = item.id;
+
+      // ECCS's basic items always need a photo.
+      expect(tickOnly.find((l) => l.id === closingListId)!.items.filter((i) => !i.isCustom).every((i) => i.photoRequired)).toBe(true);
+    });
+
+    it('lets staff tick a tick-only item without a photo, recording who and when', async () => {
+      const run = await closingRun(chef);
+      const item = run.items.find((i) => i.id === tickItemId)!;
+      expect(item).toMatchObject({ photoRequired: false, response: null });
+
+      const ticked = await answer(chef, run.id, tickItemId, { passed: true }).expect(200);
+      const response = (ticked.body as Run).items.find((i) => i.id === tickItemId)!.response;
+      expect(response).toMatchObject({ passed: true, photoPath: null, takenByName: 'Sample Head Chef (Kukatpally)' });
+
+      // A photo item still cannot be answered without one.
+      const photoItem = run.items.find((i) => (i as unknown as { photoRequired: boolean }).photoRequired && !i.response)!;
+      await answer(chef, run.id, photoItem.id, { passed: true }).expect(400);
+    });
+
+    it('lets staff undo a tick made by mistake, and report a problem with a reason', async () => {
+      const run = await closingRun(chef);
+      const cleared = await http().delete(`/checklists/runs/${run.id}/items/${tickItemId}`).set(bearer(chef)).expect(200);
+      expect((cleared.body as Run).items.find((i) => i.id === tickItemId)!.response).toBeNull();
+
+      await answer(chef, run.id, tickItemId, { passed: false }).expect(400);
+      const problem = await answer(chef, run.id, tickItemId, { passed: false, note: 'E2E drawer short by 200' }).expect(200);
+      expect((problem.body as Run).items.find((i) => i.id === tickItemId)!.response).toMatchObject({
+        passed: false,
+        note: 'E2E drawer short by 200',
+        photoPath: null,
+      });
+    });
+
+    it('lets the owner switch their own items between photo and tick only, but not basic items', async () => {
+      const patchItem = (token: string, itemId: string, photoRequired: boolean) =>
+        http().patch(`/checklists/setup/items/${itemId}`).set(bearer(token)).send({ photoRequired });
+
+      await patchItem(chef, tickItemId, true).expect(403);
+      await patchItem(otherManager, tickItemId, true).expect(403);
+
+      const lists = (await patchItem(owner, tickItemId, true).expect(200)).body as SetupList[];
+      expect(lists.find((l) => l.id === closingListId)!.items.find((i) => i.id === tickItemId)!.photoRequired).toBe(true);
+      await patchItem(owner, tickItemId, false).expect(200);
+
+      const basic = lists.find((l) => l.id === closingListId)!.items.find((i) => !i.isCustom)!;
+      await patchItem(owner, basic.id, false).expect(404);
+    });
+
+    it('counts a tick-only item as done when submitting, and a photo item only with its photo', async () => {
+      const run = await closingRun(chef);
+      const waiting = run.items.filter((i) => !i.response).length;
+      const refused = await http().post(`/checklists/runs/${run.id}/submit`).set(bearer(chef)).expect(400);
+      // The tick-only item is answered, so it is not among the ones still waiting.
+      expect(refused.body.message).toBe(`${waiting} items are not done yet`);
+      expect(run.items.find((i) => i.id === tickItemId)!.response).not.toBeNull();
     });
   });
 

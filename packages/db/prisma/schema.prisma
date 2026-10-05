@@ -318,15 +318,17 @@ model ChecklistRun {
 }
 
 model ChecklistResponse {
-  id          String   @id @default(uuid())
-  runId       String
-  itemId      String
-  valueBool   Boolean?
-  valueNumber Float?
-  valueText   String?
-  passed      Boolean?
-  note        String?
-  capturedAt  DateTime /// time on the phone when answered, may precede upload
+  id           String   @id @default(uuid())
+  runId        String
+  itemId       String
+  valueBool    Boolean?
+  valueNumber  Float?
+  valueText    String?
+  passed       Boolean?
+  note         String?
+  /// Who gave this answer. For photo items this is also who took the photo.
+  answeredById String?
+  capturedAt   DateTime /// time on the phone when answered, may precede upload
 
   run         ChecklistRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
   item        ChecklistItem @relation(fields: [itemId], references: [id])

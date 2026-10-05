@@ -145,12 +145,20 @@ export class ChecklistsService {
     return (await this.toDtos([run], indiaDate()))[0]!;
   }
 
-  /** Records the answer to one item. A proof photo is required. Safe to repeat. */
+  /**
+   * Records the answer to one item. A proof photo is required unless the
+   * item is tick-only. Safe to repeat.
+   */
   async answer(
     user: AuthUser,
     runId: string,
     itemId: string,
-    input: { passed: boolean; note?: string | undefined; attachmentId: string; capturedAt?: string | undefined },
+    input: {
+      passed: boolean;
+      note?: string | undefined;
+      attachmentId?: string | undefined;
+      capturedAt?: string | undefined;
+    },
   ): Promise<ChecklistRunDto> {
     const run = await this.requireRun(user, 'create', runId);
     this.requireOpen(run);
@@ -158,14 +166,18 @@ export class ChecklistsService {
     const item = itemsFor(run.outletChecklist.template.items, run.outletId).find((candidate) => candidate.id === itemId);
     if (!item) throw new NotFoundException('That item is not on this checklist');
 
-    const photo = await this.db.attachment.findUnique({ where: { id: input.attachmentId } });
     const existing = run.responses.find((response) => response.itemId === itemId);
+    const photo = input.attachmentId
+      ? await this.db.attachment.findUnique({ where: { id: input.attachmentId } })
+      : null;
     const usable =
       photo &&
       photo.outletId === run.outletId &&
       photo.kind === 'PROOF' &&
       (photo.checklistResponseId === null || photo.checklistResponseId === existing?.id);
-    if (!usable) throw new BadRequestException('A photo is required for every item');
+    if (input.attachmentId ? !usable : item.photoRequired) {
+      throw new BadRequestException('This item needs a photo');
+    }
 
     const capturedAt = input.capturedAt ? new Date(input.capturedAt) : new Date();
     const answer = { valueBool: input.passed, passed: input.passed, note: input.note ?? null, capturedAt };
@@ -173,15 +185,18 @@ export class ChecklistsService {
     await this.db.$transaction(async (tx) => {
       const response = await tx.checklistResponse.upsert({
         where: { runId_itemId: { runId, itemId } },
-        create: { runId, itemId, ...answer },
+        // Changing OK / Problem later does not change who first answered.
+        create: { runId, itemId, answeredById: user.id, ...answer },
         update: answer,
       });
-      // One proof photo per answer: retaking the photo replaces the old link.
-      await tx.attachment.updateMany({
-        where: { checklistResponseId: response.id, id: { not: photo.id } },
-        data: { checklistResponseId: null },
-      });
-      await tx.attachment.update({ where: { id: photo.id }, data: { checklistResponseId: response.id } });
+      if (photo) {
+        // One proof photo per answer: retaking the photo replaces the old link.
+        await tx.attachment.updateMany({
+          where: { checklistResponseId: response.id, id: { not: photo.id } },
+          data: { checklistResponseId: null },
+        });
+        await tx.attachment.update({ where: { id: photo.id }, data: { checklistResponseId: response.id } });
+      }
       if (run.status === 'PENDING') {
         await tx.checklistRun.update({ where: { id: runId }, data: { status: 'IN_PROGRESS' } });
       }
@@ -190,18 +205,33 @@ export class ChecklistsService {
     return this.getRun(user, runId);
   }
 
-  /** Hands the checklist in. Every item must have an answer with a photo. */
+  /** Removes the answer to an item, for example a tick made by mistake. Only while the checklist is open. */
+  async clearAnswer(user: AuthUser, runId: string, itemId: string): Promise<ChecklistRunDto> {
+    const run = await this.requireRun(user, 'create', runId);
+    this.requireOpen(run);
+    const existing = run.responses.find((response) => response.itemId === itemId);
+    if (existing) {
+      await this.db.$transaction([
+        this.db.attachment.updateMany({ where: { checklistResponseId: existing.id }, data: { checklistResponseId: null } }),
+        this.db.checklistResponse.delete({ where: { id: existing.id } }),
+      ]);
+    }
+    return this.getRun(user, runId);
+  }
+
+  /** Hands the checklist in. Every item must be answered, with a photo where the item needs one. */
   async submit(user: AuthUser, runId: string): Promise<ChecklistRunDto> {
     const run = await this.requireRun(user, 'create', runId);
     this.requireOpen(run);
 
     const items = itemsFor(run.outletChecklist.template.items, run.outletId);
-    const answered = new Set(run.responses.filter((response) => response.attachments.length > 0).map((r) => r.itemId));
-    const missing = items.filter((item) => !answered.has(item.id)).length;
+    const responses = new Map(run.responses.map((response) => [response.itemId, response]));
+    const missing = items.filter((item) => {
+      const response = responses.get(item.id);
+      return !response || (item.photoRequired && response.attachments.length === 0);
+    }).length;
     if (missing > 0) {
-      throw new BadRequestException(
-        missing === 1 ? '1 item still needs a photo' : `${missing} items still need a photo`,
-      );
+      throw new BadRequestException(missing === 1 ? '1 item is not done yet' : `${missing} items are not done yet`);
     }
 
     await this.db.checklistRun.update({
@@ -361,6 +391,7 @@ export class ChecklistsService {
         id: item.id,
         label: item.label as LocalizedText,
         isCustom: item.outletId !== null,
+        photoRequired: item.photoRequired,
       })),
     }));
   }
@@ -440,7 +471,7 @@ export class ChecklistsService {
   async addItem(
     user: AuthUser,
     outletChecklistId: string,
-    input: { label?: string | undefined; libraryItemId?: string | undefined },
+    input: { label?: string | undefined; libraryItemId?: string | undefined; photoRequired: boolean },
   ): Promise<OutletChecklistDto[]> {
     const list = await this.requireList(user, outletChecklistId);
 
@@ -467,10 +498,19 @@ export class ChecklistsService {
         label,
         libraryItemId: input.libraryItemId ?? null,
         type: 'YES_NO',
-        photoRequired: true,
+        photoRequired: input.photoRequired,
       },
     });
     return this.outletChecklists(user, list.outletId);
+  }
+
+  /** Switches one of the restaurant's own items between "photo needed" and "tick only". */
+  async updateItem(user: AuthUser, itemId: string, input: { photoRequired: boolean }): Promise<OutletChecklistDto[]> {
+    const item = await this.db.checklistItem.findFirst({ where: { id: itemId, isActive: true } });
+    if (!item?.outletId) throw new NotFoundException('Only items your restaurant added can be changed');
+    await this.requireOutlet(user, 'update', item.outletId);
+    await this.db.checklistItem.update({ where: { id: itemId }, data: { photoRequired: input.photoRequired } });
+    return this.outletChecklists(user, item.outletId);
   }
 
   /** Removes an item the restaurant added. ECCS's basic items cannot be removed. Past answers are kept. */
@@ -521,7 +561,7 @@ export class ChecklistsService {
     for (const run of runs) {
       if (run.reviewedById) personIds.add(run.reviewedById);
       for (const response of run.responses) {
-        const takenBy = response.attachments[0]?.uploadedById;
+        const takenBy = response.attachments[0]?.uploadedById ?? response.answeredById;
         if (takenBy) personIds.add(takenBy);
       }
     }
@@ -560,16 +600,18 @@ export class ChecklistsService {
         items: items.map((item) => {
           const response = responses.get(item.id);
           const photo = response?.attachments[0];
+          const answeredBy = photo?.uploadedById ?? response?.answeredById;
           return {
             id: item.id,
             label: item.label as LocalizedText,
             isCustom: item.outletId !== null,
+            photoRequired: item.photoRequired,
             response: response
               ? {
                   passed: response.passed ?? true,
                   note: response.note,
                   capturedAt: response.capturedAt.toISOString(),
-                  takenByName: photo?.uploadedById ? (personName.get(photo.uploadedById) ?? null) : null,
+                  takenByName: answeredBy ? (personName.get(answeredBy) ?? null) : null,
                   photoPath: photo ? this.storage.signedPath(photo.id) : null,
                 }
               : null,

@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ApiError } from '@eccs/api-client';
 import { can, localize, type ChecklistItemDto, type ChecklistRunDto } from '@eccs/shared';
 import { useLocalSearchParams } from 'expo-router';
@@ -56,7 +57,8 @@ export default function ChecklistRunScreen() {
   const mayFill = open && can(memberships, 'checklists', 'create', { outletId: run.outletId });
   const mayReview =
     run.status === 'SUBMITTED' && !run.reviewedAt && can(memberships, 'checklists', 'approve', { outletId: run.outletId });
-  const missing = run.items.filter((item) => !item.response?.photoPath).length;
+  // A photo item is done once it has its photo; a tick-only item once it is ticked or reported.
+  const missing = run.items.filter((item) => (item.photoRequired ? !item.response?.photoPath : !item.response)).length;
 
   /**
    * Another person at the outlet submitted this checklist while it was open
@@ -162,6 +164,8 @@ function ItemCard({ number, item, run, editable, onSaved, onLocked }: ItemCardPr
   const [localPhoto, setLocalPhoto] = useState<string | null>(null);
   // True after tapping Problem and before the reason has been saved.
   const [describing, setDescribing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const tickOnly = !item.photoRequired;
 
   const photoUri = localPhoto ?? (response?.photoPath ? api.fileUrl(response.photoPath) : null);
   const problem = response?.passed === false;
@@ -200,22 +204,48 @@ function ItemCard({ number, item, run, editable, onSaved, onLocked }: ItemCardPr
     }
   }
 
-  /** Changes OK / Problem or the note, keeping the photo already taken. */
+  /**
+   * Saves OK / Problem and the note. A photo item keeps the photo already
+   * taken and cannot be answered before it has one; a tick-only item can.
+   */
   async function update(passed: boolean, nextNote: string) {
-    if (!response?.photoPath) return;
+    if (item.photoRequired && !response?.photoPath) return;
     setError(null);
+    setSaving(true);
     try {
       onSaved(
         await api.checklists.answer(run.id, item.id, {
           passed,
           note: passed ? undefined : nextNote,
-          attachmentId: photoId(response.photoPath),
-          capturedAt: response.capturedAt,
+          attachmentId: response?.photoPath ? photoId(response.photoPath) : undefined,
+          capturedAt: response?.capturedAt ?? new Date().toISOString(),
         }),
       );
     } catch (e) {
       if (isLocked(e)) onLocked();
       else setError(errorMessage(e, t));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /** Tick-only items: one tap marks it done, another tap takes the tick back. */
+  async function toggleTick() {
+    if (saving) return;
+    if (!response) {
+      await update(true, '');
+      return;
+    }
+    setError(null);
+    setSaving(true);
+    try {
+      onSaved(await api.checklists.clearAnswer(run.id, item.id));
+      setNote('');
+    } catch (e) {
+      if (isLocked(e)) onLocked();
+      else setError(errorMessage(e, t));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -230,7 +260,7 @@ function ItemCard({ number, item, run, editable, onSaved, onLocked }: ItemCardPr
   const stamp = when ? (response?.takenByName ? `${when} · ${response.takenByName}` : when) : null;
 
   const state = !response
-    ? { mark: '○', text: t('checklists.photoNeeded'), color: theme.textSecondary }
+    ? { mark: '○', text: t(tickOnly ? 'checklists.toDo' : 'checklists.photoNeeded'), color: theme.textSecondary }
     : problem
       ? { mark: '!', text: t('checklists.problemFound'), color: theme.danger }
       : { mark: '✓', text: t('checklists.done'), color: theme.primary };
@@ -252,7 +282,7 @@ function ItemCard({ number, item, run, editable, onSaved, onLocked }: ItemCardPr
 
       {photoUri && <ProofPhoto uri={photoUri} label={localize(item.label, language)} stamp={uploading ? null : stamp} />}
 
-      {editable && (
+      {editable && !tickOnly && (
         <Button
           label={uploading ? t('checklists.uploading') : response ? t('checklists.retakePhoto') : `📷  ${t('checklists.takePhoto')}`}
           variant={response ? 'secondary' : 'primary'}
@@ -261,7 +291,43 @@ function ItemCard({ number, item, run, editable, onSaved, onLocked }: ItemCardPr
         />
       )}
 
-      {editable && response && (
+      {/* Tick-only items: one large tap target instead of the camera. */}
+      {editable && tickOnly && !problem && (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: response !== null, busy: saving }}
+          accessibilityLabel={localize(item.label, language)}
+          onPress={() => void toggleTick()}
+          style={({ pressed }) => [
+            styles.tickRow,
+            { borderColor: response ? theme.primary : theme.border },
+            (response || pressed) && { backgroundColor: theme.backgroundElement },
+          ]}>
+          <Ionicons
+            name={response ? 'checkmark-circle' : 'ellipse-outline'}
+            size={44}
+            color={response ? theme.primary : theme.textSecondary}
+          />
+          <View style={styles.tickText}>
+            <ThemedText type="default" style={styles.tickLabel} themeColor={response ? 'primary' : 'text'}>
+              {response ? t('checklists.done') : t('checklists.tapToTick')}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {response ? `${stamp}  ·  ${t('checklists.tapToUndo')}` : t('checklists.noPhotoNeeded')}
+            </ThemedText>
+          </View>
+        </Pressable>
+      )}
+      {editable && tickOnly && !problem && !describing && (
+        <Button label={`✕  ${t('checklists.reportProblem')}`} variant="link" onPress={() => setDescribing(true)} />
+      )}
+      {tickOnly && response && (problem || !editable) && stamp && (
+        <ThemedText type="small" themeColor="textSecondary">
+          {stamp}
+        </ThemedText>
+      )}
+
+      {editable && response && (!tickOnly || problem) && (
         <View style={styles.choices}>
           <Pressable
             accessibilityRole="button"
@@ -287,7 +353,7 @@ function ItemCard({ number, item, run, editable, onSaved, onLocked }: ItemCardPr
         </View>
       )}
 
-      {editable && response && showProblem && (
+      {editable && showProblem && (response || tickOnly) && (
         <>
           <TextField
             value={note}
@@ -304,6 +370,9 @@ function ItemCard({ number, item, run, editable, onSaved, onLocked }: ItemCardPr
               disabled={note.trim().length === 0}
               onPress={() => void update(false, note.trim()).then(() => setDescribing(false))}
             />
+          )}
+          {tickOnly && !problem && (
+            <Button label={t('common.cancel')} variant="link" onPress={() => setDescribing(false)} />
           )}
         </>
       )}
@@ -336,5 +405,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   center: { textAlign: 'center' },
+  tickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    minHeight: MinTouchSize * 1.4,
+    borderWidth: 2,
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  tickText: { flex: 1, gap: Spacing.half },
+  tickLabel: { fontWeight: 700, fontSize: 18 },
   note: { minHeight: 88, paddingVertical: Spacing.two, fontSize: 17, textAlignVertical: 'top' },
 });

@@ -137,8 +137,15 @@ describe('Daily checklists (e2e)', () => {
 
     const updated = await answer(chef, opening!.id, item.id, { passed: true, attachmentId: photo.id }).expect(200);
     expect(updated.body.status).toBe('IN_PROGRESS');
-    const response = (updated.body as Run).items[0]!.response as { passed: boolean; photoPath: string };
+    const response = (updated.body as Run).items[0]!.response as {
+      passed: boolean;
+      photoPath: string;
+      takenByName: string;
+      capturedAt: string;
+    };
     expect(response.passed).toBe(true);
+    expect(response.takenByName).toBe('Sample Head Chef (Kukatpally)');
+    expect(Math.abs(Date.now() - new Date(response.capturedAt).getTime())).toBeLessThan(60_000);
 
     const image = await http().get(response.photoPath).expect(200);
     expect(image.headers['content-type']).toBe('image/jpeg');

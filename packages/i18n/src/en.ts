@@ -137,6 +137,12 @@ export const en = {
   "error.camera": "Allow camera access to take the proof photo.",
   "error.upload": "Could not upload the photo. Check your connection and try again.",
 
+  "checklists.done": "Done",
+  "checklists.photoNeeded": "Photo needed",
+  "checklists.problemFound": "Problem reported",
+  "checklists.viewPhoto": "Tap the photo to see it full size",
+  "common.close": "Close",
+
   "error.network": "Could not reach the server. Check your connection.",
   "error.generic": "Something went wrong. Try again.",
   "error.phone": "Enter a valid 10-digit mobile number.",

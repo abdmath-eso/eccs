@@ -21,6 +21,8 @@ export interface ChecklistResponseDto {
   passed: boolean;
   note: string | null;
   capturedAt: string;
+  /** Who took the proof photo. */
+  takenByName: string | null;
   /** Path of the proof photo, relative to the API base URL. Valid for a limited time. */
   photoPath: string | null;
 }

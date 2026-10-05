@@ -104,7 +104,7 @@ Status values: not started, in progress, done, blocked.
 |---|---|---|
 | Basic checklist templates | done | Opening and Closing, five items each, in en/te/hi. Editing ECCS's basic lists from the console is not built; they come from the seed |
 | SOP library (readable SOPs) | not started | |
-| Daily checklists with mandatory photos | done, online only | Mobile: today's lists, photo per item, OK or Problem with note, submit, review, last 7 days, add or remove own items. API has 11 end-to-end tests including photo upload and retrieval. Screens clicked through in Chrome except taking a photo, which needs a real camera or file picker. **Not yet tried on a real phone** |
+| Daily checklists with mandatory photos | done, online only | Mobile: today's lists, photo per item, OK or Problem with note, submit, review, last 7 days, add or remove own items. After a photo is added the item shows a tick and "Done" (or a red mark and "Problem reported"), and the photo carries a stamp with the date, time and the name of the person who took it; tapping the photo shows it full size. API has 11 end-to-end tests including photo upload and retrieval. The founder has uploaded a photo through the browser preview. **Not yet tried on a real phone** |
 | Checklists without signal | not started | Answers and photos should be saved on the phone and uploaded when signal returns. The API already accepts retries safely |
 | Checklist reminders and notifications | not started | |
 | Issues and ECCS support screen | not started | |
@@ -286,6 +286,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 5 Oct 2026 | Checklist items now show proof details after a photo is added: done or problem mark, and a date, time and name stamp on the photo; photos open full size. API returns who took each photo. |
 | 5 Oct 2026 | Daily checklists built end to end (online): basic Opening and Closing lists from the founder's FSSAI document, restaurant-added items, mandatory photo per item, submit, review, history. Photo storage with signed links. Sample data reseeded (wiped the founder's test entries). Recorded that all restaurant-side features must work in the mobile app. |
 | 5 Oct 2026 | Restaurant codes now shown to Owners and Managers in the app. ECCS web console built: login, client list, restaurant onboarding, add outlet. API: `/organizations` endpoints; outlet list carries the code for people who hand it out. 31 end-to-end tests. Clicked through in Chrome on test ports. |
 | 5 Oct 2026 | Restaurant login redesigned to the founder's spec: restaurant code links a phone once, then PIN only; Owner onboarded by one-time code; staff logins with generated PINs; no biometrics. Added `packages/api-client` and `packages/i18n`. Built the mobile login, home and staff screens and clicked through them in Chrome. Web login not started. |

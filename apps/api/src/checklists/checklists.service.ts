@@ -307,11 +307,19 @@ export class ChecklistsService {
   }
 
   private async toDtos(runs: RunRow[], today: string): Promise<ChecklistRunDto[]> {
-    const reviewerIds = [...new Set(runs.map((run) => run.reviewedById).filter((id): id is string => id !== null))];
-    const reviewers = reviewerIds.length
-      ? await this.db.user.findMany({ where: { id: { in: reviewerIds } }, select: { id: true, name: true } })
+    // Names of everyone who reviewed a run or took a proof photo, in one query.
+    const personIds = new Set<string>();
+    for (const run of runs) {
+      if (run.reviewedById) personIds.add(run.reviewedById);
+      for (const response of run.responses) {
+        const takenBy = response.attachments[0]?.uploadedById;
+        if (takenBy) personIds.add(takenBy);
+      }
+    }
+    const people = personIds.size
+      ? await this.db.user.findMany({ where: { id: { in: [...personIds] } }, select: { id: true, name: true } })
       : [];
-    const reviewerName = new Map(reviewers.map((reviewer) => [reviewer.id, reviewer.name]));
+    const personName = new Map(people.map((person) => [person.id, person.name]));
 
     return runs.map((run) => {
       const responses = new Map(run.responses.map((response) => [response.itemId, response]));
@@ -335,7 +343,7 @@ export class ChecklistsService {
         submittedAt: run.submittedAt?.toISOString() ?? null,
         submittedByName: run.submittedBy?.name ?? null,
         reviewedAt: run.reviewedAt?.toISOString() ?? null,
-        reviewedByName: run.reviewedById ? (reviewerName.get(run.reviewedById) ?? null) : null,
+        reviewedByName: run.reviewedById ? (personName.get(run.reviewedById) ?? null) : null,
         items: items.map((item) => {
           const response = responses.get(item.id);
           const photo = response?.attachments[0];
@@ -348,6 +356,7 @@ export class ChecklistsService {
                   passed: response.passed ?? true,
                   note: response.note,
                   capturedAt: response.capturedAt.toISOString(),
+                  takenByName: photo?.uploadedById ? (personName.get(photo.uploadedById) ?? null) : null,
                   photoPath: photo ? this.storage.signedPath(photo.id) : null,
                 }
               : null,

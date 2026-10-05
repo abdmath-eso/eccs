@@ -138,6 +138,12 @@ export const hi: Messages = {
   "error.camera": "सबूत की फ़ोटो लेने के लिए कैमरा की अनुमति दें।",
   "error.upload": "फ़ोटो अपलोड नहीं हो सकी। अपना कनेक्शन जांचकर फिर कोशिश करें।",
 
+  "checklists.done": "पूरा हुआ",
+  "checklists.photoNeeded": "फ़ोटो चाहिए",
+  "checklists.problemFound": "समस्या दर्ज की गई",
+  "checklists.viewPhoto": "पूरा आकार देखने के लिए फ़ोटो पर टैप करें",
+  "common.close": "बंद करें",
+
   "error.network": "सर्वर से संपर्क नहीं हो सका। अपना कनेक्शन जांचें।",
   "error.generic": "कुछ गलत हो गया। फिर कोशिश करें।",
   "error.phone": "सही 10-अंकों का मोबाइल नंबर दर्ज करें।",

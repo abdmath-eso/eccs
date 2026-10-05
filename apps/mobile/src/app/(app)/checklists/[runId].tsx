@@ -1,8 +1,9 @@
 import { can, localize, type ChecklistItemDto, type ChecklistRunDto } from '@eccs/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { ProofPhoto } from '@/components/proof-photo';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
+import { formatDateTime } from '@/lib/format';
 import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
 import { useSession } from '@/lib/session';
 
@@ -197,25 +199,32 @@ function ItemCard({ number, item, run, editable, onSaved }: ItemCardProps) {
     selected && { backgroundColor: theme.backgroundElement },
   ];
 
-  return (
-    <View style={[styles.card, { borderColor: response ? (problem ? theme.danger : theme.primary) : theme.border }]}>
-      <ThemedText type="default" style={styles.label}>
-        {number}. {localize(item.label, language)}
-      </ThemedText>
-      {item.isCustom && (
-        <ThemedText type="small" themeColor="textSecondary">
-          {t('checklists.yourItem')}
-        </ThemedText>
-      )}
+  // The proof details shown on the photo: when it was taken and by whom.
+  const when = response ? formatDateTime(response.capturedAt, language) : null;
+  const stamp = when ? (response?.takenByName ? `${when} · ${response.takenByName}` : when) : null;
 
-      {photoUri && (
-        <Image
-          source={{ uri: photoUri }}
-          style={[styles.photo, { backgroundColor: theme.backgroundElement }]}
-          resizeMode="cover"
-          accessibilityLabel={localize(item.label, language)}
-        />
-      )}
+  const state = !response
+    ? { mark: '○', text: t('checklists.photoNeeded'), color: theme.textSecondary }
+    : problem
+      ? { mark: '!', text: t('checklists.problemFound'), color: theme.danger }
+      : { mark: '✓', text: t('checklists.done'), color: theme.primary };
+
+  return (
+    <View style={[styles.card, { borderColor: response ? state.color : theme.border }]}>
+      <View style={styles.header}>
+        <ThemedText type="default" style={styles.label}>
+          {number}. {localize(item.label, language)}
+        </ThemedText>
+        <View style={[styles.mark, { borderColor: state.color }, response && { backgroundColor: state.color }]}>
+          <ThemedText style={[styles.markText, { color: response ? theme.onPrimary : state.color }]}>{state.mark}</ThemedText>
+        </View>
+      </View>
+      <ThemedText type="smallBold" style={{ color: state.color }}>
+        {state.text}
+        {item.isCustom ? `  ·  ${t('checklists.yourItem')}` : ''}
+      </ThemedText>
+
+      {photoUri && <ProofPhoto uri={photoUri} label={localize(item.label, language)} stamp={uploading ? null : stamp} />}
 
       {editable && (
         <Button
@@ -251,7 +260,14 @@ function ItemCard({ number, item, run, editable, onSaved }: ItemCardProps) {
 
       {editable && problem && (
         <>
-          <TextField value={note} onChangeText={setNote} placeholder={t('checklists.notePlaceholder')} maxLength={500} />
+          <TextField
+            value={note}
+            onChangeText={setNote}
+            placeholder={t('checklists.notePlaceholder')}
+            maxLength={500}
+            multiline
+            style={styles.note}
+          />
           {note.trim() !== (response?.note ?? '') && (
             <Button label={t('checklists.saveNote')} variant="secondary" onPress={() => void update(false, note)} />
           )}
@@ -272,8 +288,10 @@ function ItemCard({ number, item, run, editable, onSaved }: ItemCardProps) {
 
 const styles = StyleSheet.create({
   card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  label: { fontWeight: 700, fontSize: 18, lineHeight: 26 },
-  photo: { width: '100%', height: 180, borderRadius: Spacing.two },
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  label: { flex: 1, fontWeight: 700, fontSize: 18, lineHeight: 26 },
+  mark: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  markText: { fontSize: 18, lineHeight: 22, fontWeight: 700 },
   choices: { flexDirection: 'row', gap: Spacing.two },
   choice: {
     flex: 1,
@@ -284,4 +302,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   center: { textAlign: 'center' },
+  note: { minHeight: 88, paddingVertical: Spacing.two, fontSize: 17, textAlignVertical: 'top' },
 });

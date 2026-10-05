@@ -1,4 +1,5 @@
 import type { UploadFile } from '@eccs/api-client';
+import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
@@ -40,9 +41,11 @@ export async function takeProofPhoto(): Promise<ProofPhoto | null> {
   const rendered = await context.renderAsync();
   const saved = await rendered.saveAsync({ compress: JPEG_QUALITY, format: SaveFormat.JPEG });
 
+  // On a phone the photo is handed over as an Expo `File`, which reads the
+  // saved image from disk when it is sent. React Native's older
+  // `{ uri, name, type }` form is NOT accepted by Expo's fetch and fails with
+  // a misleading "network" error, so do not go back to it.
   const file: UploadFile =
-    Platform.OS === 'web'
-      ? await (await fetch(saved.uri)).blob()
-      : { uri: saved.uri, name: 'proof.jpg', type: 'image/jpeg' };
+    Platform.OS === 'web' ? await (await fetch(saved.uri)).blob() : (new File(saved.uri) as unknown as Blob);
   return { file, uri: saved.uri };
 }

@@ -55,10 +55,10 @@ export interface ApiClientOptions {
 }
 
 /**
- * A photo to upload. In a browser this is a Blob; in the mobile app it is
- * the local file the camera wrote, described by its uri.
+ * A photo to upload. In a browser this is a Blob; in the mobile app it is an
+ * Expo `File` (from expo-file-system), which behaves like one.
  */
-export type UploadFile = Blob | { uri: string; name: string; type: string };
+export type UploadFile = Blob;
 
 export type ApiClient = ReturnType<typeof createApiClient>;
 
@@ -132,8 +132,7 @@ export function createApiClient(options: ApiClientOptions) {
         form.append("outletId", input.outletId);
         if (input.id) form.append("id", input.id);
         if (input.capturedAt) form.append("capturedAt", input.capturedAt);
-        // React Native's FormData accepts a { uri, name, type } object where a browser takes a Blob.
-        form.append("file", input.file as Blob, "name" in input.file ? input.file.name : "photo.jpg");
+        form.append("file", input.file, "photo.jpg");
         // The content type is left unset so the boundary is filled in automatically.
         return send<AttachmentDto>("POST", "/attachments", form, undefined, true);
       },

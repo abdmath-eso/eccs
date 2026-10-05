@@ -18,13 +18,13 @@ The team is the founder plus Claude Code. There are no other developers, so this
 
 | | |
 |---|---|
-| **Phase** | Phase 0 (Foundation), in progress. |
+| **Phase** | Phase 1a (Restaurant loop), in progress. Phase 0 is done apart from CI and a staging environment. |
 | **Plan approval** | Approved by the founder on 5 Oct 2026. Installing and scaffolding are allowed. |
-| **Code** | `packages/db`: schema (about 48 tables), migrations, sample seed. `packages/shared`: roles, permission rules, request schemas. `packages/api-client`: the one typed client web and mobile use. `packages/i18n`: English, Telugu, Hindi text. `apps/api`: login (restaurant code + PIN, one-time code), sessions, role and scope checks, staff logins, outlets, client onboarding. `apps/mobile`: welcome, restaurant code, PIN pad, phone, one-time code, role-based home, staff logins (shows restaurant codes). `apps/web`: ECCS console with login, client list and restaurant onboarding. |
+| **Code** | `packages/db`: schema (about 48 tables), migrations, sample seed. `packages/shared`: roles, permission rules, request schemas. `packages/api-client`: the one typed client web and mobile use. `packages/i18n`: English, Telugu, Hindi text. `apps/api`: login, sessions, role and scope checks, staff logins, outlets, client onboarding, daily checklists, photo storage. `apps/mobile`: login screens, role-based home, staff logins, daily checklists (today, fill in with photos, add own items, history). `apps/web`: ECCS console with login, client list and restaurant onboarding. |
 | **Local services** | Running in Docker: PostgreSQL on 5432, Redis on 6379, SeaweedFS (S3 stand-in) on 8333. Database is migrated and seeded. |
 | **Blocked** | Nothing. |
-| **Next action (Claude)** | Phase 1a, starting with the daily checklist on mobile (offline, with photos). |
-| **Next action (founder)** | Try both apps (section 6, "See it running") and give feedback. Restart any terminals left running from before, so they pick up new code. |
+| **Next action (Claude)** | Make checklists work without signal (save on the phone, upload later) and add reminders. Then the rest of Phase 1a: issues and support, licences and documents, SOP library, restaurant dashboard, history calendar. |
+| **Next action (founder)** | Restart the three terminals (section 6) and try the daily checklist. Ideally also try it on a real Android phone, since the camera has only been exercised through automated tests and a desktop browser. |
 
 ## 3. Decisions made
 
@@ -44,6 +44,11 @@ The team is the founder plus Claude Code. There are no other developers, so this
 | 5 Oct 2026 | Food labels are printed: food name, made time, expiry time. | Founder |
 | 5 Oct 2026 | The restaurant app is only for ECCS service clients; it will not be sold standalone. | Founder |
 | 5 Oct 2026 | Billing (catalogue, subscriptions, GST invoices, Razorpay, dues) is built in-app for the pilot. | Follows from whiteboard items |
+| 5 Oct 2026 | **Everything on the restaurant side must work in the mobile app.** Owners and Managers run their whole console from the phone; any web version for restaurants is an extra, never the only place a feature lives. | Founder |
+| 5 Oct 2026 | **Daily checklists:** ECCS provides a short basic list to every restaurant. The Owner or Manager adds items for their own kitchen and can remove what they added, but not ECCS's basic items. **A photo is mandatory for every item**; a checklist cannot be submitted without one per item. | Founder |
+| 5 Oct 2026 | The founder's document `docs/FSSAI 2026 KITCHEN SAFETY CHECKLIST.docx` is the source for checklists. Its Daily Opening and Closing Checks were cut down to five basic items each for the sample lists. Its ten detailed sections (92 checks), corrective-action record and sign-off are reserved for the ECCS scored inspection in Phase 1b. | Founder, applied by Claude |
+| 5 Oct 2026 | Checklist details chosen during build, **not yet reviewed by the founder**: each item is answered OK or Problem (with a note), always with a photo; on a phone the photo must come from the camera, not the gallery; the Owner and Manager can also fill in a checklist, not only the Head Chef; a checklist belongs to an Indian calendar day and one left unfinished becomes Missed the next day; the Manager or Owner can mark a submitted checklist as reviewed; items a restaurant adds are stored in the language they were typed in. | Claude, during build |
+| 5 Oct 2026 | Photos are uploaded through the API (not straight from phone to storage as first proposed) and shown through signed links that expire after an hour. Simpler and safer to start; direct upload can come later if volume needs it. | Claude, during build |
 | 5 Oct 2026 | Login is our own module in the API, not the Better Auth library named in the first draft. Reason and safeguards in PROPOSAL.md section 2. **Founder has not explicitly reviewed this change.** | Claude, during build |
 | 5 Oct 2026 | ECCS staff keep logging in with mobile number + one-time code. A Manager may add and reset Head Chefs at their own outlet but not other Managers. Owner logins are created by ECCS, not by other Owners. **Assumptions; founder has not reviewed.** | Claude, during build |
 | 5 Oct 2026 | Translations are a small typed dictionary in `packages/i18n` rather than the i18next library named in the first draft; it can be swapped later if plural rules or similar are needed. | Claude, during build |
@@ -62,7 +67,7 @@ The team is the founder plus Claude Code. There are no other developers, so this
 | 5 | Monthly cloud budget? | Hosting choice at deployment | Lean setup, see section 7. |
 | 6 | Real company details, prices, SOPs, certificate formats | Going live, not building | Sample data. |
 | 7 | Should the Owner's one-time code go to the mobile number, the email, or both? | Real code delivery | Mobile number. Email is stored but nothing is sent to it yet. |
-| 8 | How should an Owner log in on the web dashboard: restaurant code + PIN like the app, or one-time code? | Web login for restaurants | Not built; ECCS console first. |
+| 8 | Is a web version of the restaurant side wanted at all, now that everything must work in the mobile app? If so, how does an Owner log in there? | Nothing now | Mobile only for restaurants; no restaurant web login. |
 | 9 | Are 4-digit PINs acceptable given the known limit in PROPOSAL.md section 2 ("Safeguards")? Options later: longer PINs for Owner and Manager, or showing the Owner a list of linked phones to remove. | Nothing now | 4 digits, as chosen. |
 
 Before the pilot goes live (not needed for building), the founder will need: company registration and GSTIN, a domain, Google Play developer account (US$25 once), Apple Developer account (US$99/year), AWS account, MSG91 with DLT registration for OTP SMS, and Razorpay onboarding. Several take one to three weeks.
@@ -97,8 +102,10 @@ Status values: not started, in progress, done, blocked.
 ### Phase 1a: Restaurant loop
 | Item | Status | Notes |
 |---|---|---|
-| SOP library and checklist templates | not started | Sample SOPs |
-| Daily checklists, offline, with photos | not started | |
+| Basic checklist templates | done | Opening and Closing, five items each, in en/te/hi. Editing ECCS's basic lists from the console is not built; they come from the seed |
+| SOP library (readable SOPs) | not started | |
+| Daily checklists with mandatory photos | done, online only | Mobile: today's lists, photo per item, OK or Problem with note, submit, review, last 7 days, add or remove own items. API has 11 end-to-end tests including photo upload and retrieval. Screens clicked through in Chrome except taking a photo, which needs a real camera or file picker. **Not yet tried on a real phone** |
+| Checklists without signal | not started | Answers and photos should be saved on the phone and uploaded when signal returns. The API already accepts retries safely |
 | Checklist reminders and notifications | not started | |
 | Issues and ECCS support screen | not started | |
 | Licence tracker and document vault | not started | |
@@ -178,7 +185,7 @@ New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name
 - `prisma init` installs agent "skills" folders (`.agents`, `.claude`, `.windsurf`) as a side effect; they were deleted. Do not re-run `prisma init`.
 - `@eccs/db` and `@eccs/shared` compile to `dist/` and apps import the compiled output. After changing either, run `pnpm build` (Turborepo builds them first automatically for `build`, `dev`, `typecheck` and `test`).
 - API layout: `apps/api/src/auth` (login, guard, decorators), `src/prisma` (database access via `PrismaService.client`), `src/config/env.ts` (reads the repo-root `.env`), `src/common/zod-validation.pipe.ts`. Every endpoint needs a session unless marked `@Public()`; add `@RequirePermission(resource, action)` for the role check, and narrow rows in the service with `accessScope()` from `@eccs/shared` (see `src/outlets` for the pattern).
-- API endpoints so far (prefix `/v1`, port 4000): `GET /health`; `POST /auth/otp/request`; `POST /auth/otp/verify`; `POST /auth/device/link`; `POST /auth/pin/login`; `GET /auth/me`; `PATCH /auth/me`; `POST /auth/logout`; `GET /outlets`; `GET /organizations`; `POST /organizations`; `POST /organizations/:id/outlets`; `GET /restaurant-users`; `POST /restaurant-users`; `POST /restaurant-users/:id/reset-pin`; `PATCH /restaurant-users/:id`.
+- API endpoints so far (prefix `/v1`, port 4000): `GET /health`; `POST /auth/otp/request`; `POST /auth/otp/verify`; `POST /auth/device/link`; `POST /auth/pin/login`; `GET /auth/me`; `PATCH /auth/me`; `POST /auth/logout`; `GET /outlets`; `POST /attachments`; `GET /attachments/:id/content` (signed link); `GET /checklists/today`; `GET /checklists/history`; `GET /checklists/runs/:id`; `PUT /checklists/runs/:id/items/:itemId`; `POST /checklists/runs/:id/submit`; `POST /checklists/runs/:id/review`; `GET /checklists/setup`; `POST /checklists/setup/:id/items`; `DELETE /checklists/setup/items/:id`; `GET /organizations`; `POST /organizations`; `POST /organizations/:id/outlets`; `GET /restaurant-users`; `POST /restaurant-users`; `POST /restaurant-users/:id/reset-pin`; `PATCH /restaurant-users/:id`.
 - API end-to-end tests (`pnpm test:e2e` in `apps/api`) run against the local seeded database, so Docker must be up and `pnpm seed` run at least once. They are not part of `pnpm test`.
 - If a package's `tsc` fails with MODULE_NOT_FOUND, delete that package's `node_modules` folder and run `pnpm install` (stale links after dependency changes).
 - pnpm blocks dependency install scripts unless listed under `allowBuilds` in `pnpm-workspace.yaml`.
@@ -187,6 +194,11 @@ New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name
 - Sample logins are in the "See it running" table below. `PIN_SECRET` in the root `.env` must match the one used when seeding, or the sample PINs stop working (re-run `pnpm seed`).
 - `prisma migrate dev` refuses to run without a terminal when it has warnings. Workaround used for the `pin_login` migration: write the SQL with `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` into a new folder under `prisma/migrations`, then `prisma migrate deploy`.
 - Mobile: screens live in `apps/mobile/src/app` (`(auth)` before login, `(app)` after; the root layout swaps them). Shared pieces are in `src/components/ui`; login state is `src/lib/session.tsx`; all text goes through `t()` from `@eccs/i18n`. The React Compiler lint rules are on: no reading refs during render, no setState directly in effects.
+- Checklists: `apps/api/src/checklists` and `apps/mobile/src/app/(app)/checklists`. Custom items are `ChecklistItem` rows with `outletId` set; basic items have it empty. Dates use `indiaDate()` (Asia/Kolkata). Photos: `apps/api/src/storage` (S3 client, signed links); mobile capture and shrinking in `apps/mobile/src/lib/photo.ts`.
+- The root `.env` gained `FILE_URL_SECRET` and uses the `S3_*` values; copy new keys from `.env.example` if the API refuses to start.
+- End-to-end suites run one after another (`fileParallelism: false`) because they share the database. The checklist suite uses the Deccan Biryani outlet and cleans up after itself.
+- `apps/mobile/.expo/types/router.d.ts` is generated by the Expo dev server and can go stale while a server is running, causing false route type errors in `pnpm typecheck`. Delete that file (or restart the dev server) and re-run.
+- `pnpm seed` wipes all data, including anything the founder added while trying the app.
 - Web: `apps/web/src/app/login` and `apps/web/src/app/(console)` (its layout redirects to login). All pages are client components that call the API through `src/lib/api.ts`; shared pieces in `src/components/ui.tsx`. `NEXT_PUBLIC_API_URL` overrides the API address.
 - The founder often has the API (4000) and mobile preview (8081) running in their own terminals. Do not stop those. To test, run copies on other ports: `API_PORT=4001` for the API, `NEXT_PUBLIC_API_URL` with `next dev --port 3001`, `EXPO_PUBLIC_API_URL` with `expo start --web --port 8082`, and stop only those afterwards.
 - To view the mobile app from a Claude session, start the API and `expo start --web` in the background, then use the Claude in Chrome tools. The API allows any browser origin in development only.
@@ -256,6 +268,7 @@ Other running costs: OTP SMS about ₹0.20 to ₹0.25 each; Razorpay about 2% pe
 | `CLAUDE.md` | Instructions loaded automatically by Claude Code. Points here. |
 | `docs/STATUS.md` | This tracker. |
 | `docs/PROPOSAL.md` | Specification: stack, roles, data model, scope, roadmap, folder structure. |
+| `docs/FSSAI 2026 KITCHEN SAFETY CHECKLIST.docx` | Founder's checklist and inspection source document. See the decision dated 5 Oct 2026. |
 | `image.png` | Founder's whiteboard photo. Transcribed in PROPOSAL.md section 8. |
 | `apps/web` | Next.js: ECCS admin console, restaurant owner dashboard, public QR page. |
 | `apps/api` | NestJS REST API. |
@@ -273,6 +286,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 5 Oct 2026 | Daily checklists built end to end (online): basic Opening and Closing lists from the founder's FSSAI document, restaurant-added items, mandatory photo per item, submit, review, history. Photo storage with signed links. Sample data reseeded (wiped the founder's test entries). Recorded that all restaurant-side features must work in the mobile app. |
 | 5 Oct 2026 | Restaurant codes now shown to Owners and Managers in the app. ECCS web console built: login, client list, restaurant onboarding, add outlet. API: `/organizations` endpoints; outlet list carries the code for people who hand it out. 31 end-to-end tests. Clicked through in Chrome on test ports. |
 | 5 Oct 2026 | Restaurant login redesigned to the founder's spec: restaurant code links a phone once, then PIN only; Owner onboarded by one-time code; staff logins with generated PINs; no biometrics. Added `packages/api-client` and `packages/i18n`. Built the mobile login, home and staff screens and clicked through them in Chrome. Web login not started. |
 | 5 Oct 2026 | Login and roles built in the API: `packages/shared` (roles, permissions, schemas), Session and OtpChallenge tables, phone + code login, PIN, role and scope guard, `GET /v1/outlets`. Unit and end-to-end tests pass; verified against the running API. No screens yet. |

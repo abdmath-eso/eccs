@@ -46,6 +46,8 @@ Each has the assumption I have planned around. Correct any that are wrong; quest
 | Background jobs | **BullMQ on Redis** | Generating recurring visits, sending reminders, building PDFs, recalculating hygiene scores. |
 | Auth | **Our own small auth module in the API**, stored in our Postgres. See "How login works" below | Keeping auth in our own database avoids per-user fees and keeps data in India. The first draft named the Better Auth library; the need turned out to be small and specific to us, so it was written directly. |
 
+**Mobile first for restaurants (decided by the founder, 5 Oct 2026).** Every restaurant-side feature, including everything the Owner and Manager do, must work in the mobile app. A web version for restaurants would be an extra, never the only place a feature lives. The web app is primarily the ECCS console.
+
 **How login works (decided by the founder, 5 Oct 2026)**
 
 *Restaurant side: PIN only, no biometrics.*
@@ -226,6 +228,16 @@ Outlet 1─* Licence, 1─* Document, 1─* Issue, 1─* HygieneScoreSnapshot
 Contract 1─* Invoice 1─* Payment
 User 1─* Membership (role + scope)
 ```
+
+### Daily checklist rules
+
+Decided by the founder on 5 Oct 2026; source document `docs/FSSAI 2026 KITCHEN SAFETY CHECKLIST.docx`.
+
+- ECCS gives every restaurant a short basic list (Opening and Closing, five items each in the sample data).
+- The Owner or Manager adds items specific to their kitchen, and can remove what they added. ECCS's basic items cannot be removed by the restaurant.
+- A photo is mandatory for every item. A checklist cannot be submitted until each item has one. On a phone the photo comes from the camera, not the gallery.
+- Each item is answered OK or Problem, with a note for a problem.
+- The document's ten detailed sections (92 checks) are the basis for the ECCS scored inspection, not the daily list.
 
 ### Hygiene score, version 1
 A 0–100 score per outlet, recalculated nightly, with the breakdown always visible so nobody has to trust a black box:

@@ -22,7 +22,7 @@ const STAFF: Tile = { label: 'tile.staff', href: '/staff' };
 
 // What each role sees on its home screen. Mirrors docs/PROPOSAL.md section 8.
 const HEAD_CHEF_TILES: Tile[] = [
-  { label: 'tile.checklists' },
+  { label: 'tile.checklists', href: '/checklists' },
   { label: 'tile.labels' },
   { label: 'tile.issues' },
   { label: 'tile.attendance' },

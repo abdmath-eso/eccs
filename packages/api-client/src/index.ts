@@ -1,9 +1,15 @@
 import type {
+  AddChecklistItemInput,
+  AnswerChecklistItemInput,
+  AttachmentDto,
+  ChecklistRunDto,
+  ChecklistRunSummaryDto,
   CreateOrganizationInput,
   CreateOutletInput,
   CreateRestaurantUserInput,
   OrganizationDto,
   OrganizationOutletDto,
+  OutletChecklistDto,
   CurrentUserDto,
   LinkDeviceInput,
   LinkedDeviceDto,
@@ -44,25 +50,33 @@ export interface ApiClientOptions {
   onUnauthorized?: () => void;
 }
 
+/**
+ * A photo to upload. In a browser this is a Blob; in the mobile app it is
+ * the local file the camera wrote, described by its uri.
+ */
+export type UploadFile = Blob | { uri: string; name: string; type: string };
+
 export type ApiClient = ReturnType<typeof createApiClient>;
 
 /** The one way web and mobile talk to the API. */
 export function createApiClient(options: ApiClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
 
-  async function call<T>(method: string, path: string, body?: unknown, authenticated = true): Promise<T> {
+  async function send<T>(
+    method: string,
+    path: string,
+    body: BodyInit | undefined,
+    contentType: string | undefined,
+    authenticated: boolean,
+  ): Promise<T> {
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (contentType) headers["Content-Type"] = contentType;
     const token = authenticated ? options.getToken?.() : null;
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
     let response: Response;
     try {
-      response = await fetch(`${baseUrl}${path}`, {
-        method,
-        headers,
-        ...(body !== undefined && { body: JSON.stringify(body) }),
-      });
+      response = await fetch(`${baseUrl}${path}`, { method, headers, ...(body !== undefined && { body }) });
     } catch {
       throw new ApiError("Could not reach the server. Check your connection.", 0);
     }
@@ -87,7 +101,53 @@ export function createApiClient(options: ApiClientOptions) {
     return data as T;
   }
 
+  const call = <T>(method: string, path: string, body?: unknown, authenticated = true) =>
+    send<T>(
+      method,
+      path,
+      body === undefined ? undefined : JSON.stringify(body),
+      body === undefined ? undefined : "application/json",
+      authenticated,
+    );
+
+  const query = (params: Record<string, string | number>) =>
+    "?" + Object.entries(params).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&");
+
+  const id = encodeURIComponent;
+
   return {
+    /** Turns a photo path from the API into a full address an image can load. */
+    fileUrl: (path: string) => `${baseUrl}${path}`,
+    attachments: {
+      /**
+       * Uploads a proof photo. Pass an id generated on the device so that
+       * retrying after a dropped connection does not store it twice.
+       */
+      upload(input: { outletId: string; file: UploadFile; id?: string; capturedAt?: string }) {
+        const form = new FormData();
+        form.append("outletId", input.outletId);
+        if (input.id) form.append("id", input.id);
+        if (input.capturedAt) form.append("capturedAt", input.capturedAt);
+        // React Native's FormData accepts a { uri, name, type } object where a browser takes a Blob.
+        form.append("file", input.file as Blob, "name" in input.file ? input.file.name : "photo.jpg");
+        // The content type is left unset so the boundary is filled in automatically.
+        return send<AttachmentDto>("POST", "/attachments", form, undefined, true);
+      },
+    },
+    checklists: {
+      today: (outletId: string) => call<ChecklistRunDto[]>("GET", `/checklists/today${query({ outletId })}`),
+      history: (outletId: string, days = 7) =>
+        call<ChecklistRunSummaryDto[]>("GET", `/checklists/history${query({ outletId, days })}`),
+      run: (runId: string) => call<ChecklistRunDto>("GET", `/checklists/runs/${id(runId)}`),
+      answer: (runId: string, itemId: string, input: AnswerChecklistItemInput) =>
+        call<ChecklistRunDto>("PUT", `/checklists/runs/${id(runId)}/items/${id(itemId)}`, input),
+      submit: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/submit`),
+      review: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/review`),
+      setup: (outletId: string) => call<OutletChecklistDto[]>("GET", `/checklists/setup${query({ outletId })}`),
+      addItem: (outletChecklistId: string, input: AddChecklistItemInput) =>
+        call<OutletChecklistDto[]>("POST", `/checklists/setup/${id(outletChecklistId)}/items`, input),
+      removeItem: (itemId: string) => call<OutletChecklistDto[]>("DELETE", `/checklists/setup/items/${id(itemId)}`),
+    },
     auth: {
       requestOtp: (phone: string) =>
         call<{ expiresInSeconds: number }>("POST", "/auth/otp/request", { phone }, false),

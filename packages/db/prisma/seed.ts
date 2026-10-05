@@ -192,22 +192,39 @@ async function seedSopsAndChecklists() {
     },
   });
 
-  const daily = await prisma.checklistTemplate.create({
+  // The basic daily lists ECCS gives every restaurant. Deliberately short:
+  // each restaurant adds its own items in the app. Every item needs a photo.
+  // Drawn from the Daily Opening and Closing Checks in
+  // docs/FSSAI 2026 KITCHEN SAFETY CHECKLIST.docx.
+  const opening = await prisma.checklistTemplate.create({
     data: {
       sopTemplateId: dailySop.id,
       kind: "DAILY",
       title: t("Opening checklist", "ప్రారంభ చెక్‌లిస్ట్", "ओपनिंग चेकलिस्ट"),
       items: {
         create: items([
-          { section: "Personal hygiene", label: t("Staff in clean uniform, hair covered", "సిబ్బంది శుభ్రమైన యూనిఫాంలో, జుట్టు కప్పి ఉన్నారు", "स्टाफ साफ यूनिफॉर्म में, बाल ढके हुए") },
-          { section: "Personal hygiene", label: t("Handwash station has soap and water", "చేతులు కడుక్కునే చోట సబ్బు, నీరు ఉన్నాయి", "हाथ धोने की जगह पर साबुन और पानी है") },
-          { section: "Surfaces", label: t("Prep surfaces sanitised", "ప్రిపరేషన్ ఉపరితలాలు శుభ్రపరచబడ్డాయి", "तैयारी की सतहें सैनिटाइज़ की गईं"), photoRequired: true },
-          { section: "Cold storage", label: t("Fridge temperature (°C)", "ఫ్రిజ్ ఉష్ణోగ్రత (°C)", "फ्रिज का तापमान (°C)"), type: "NUMBER", minValue: 0, maxValue: 5 },
-          { section: "Cold storage", label: t("Freezer temperature (°C)", "ఫ్రీజర్ ఉష్ణోగ్రత (°C)", "फ्रीज़र का तापमान (°C)"), type: "NUMBER", minValue: -25, maxValue: -18 },
-          { section: "Cold storage", label: t("Raw and cooked food stored separately", "పచ్చి, వండిన ఆహారం వేరుగా నిల్వ చేయబడింది", "कच्चा और पका खाना अलग रखा गया है") },
-          { section: "Pest", label: t("No signs of pests", "పురుగుల ఆనవాళ్లు లేవు", "कीटों के कोई निशान नहीं") },
-          { section: "Waste", label: t("Bins emptied and lined", "చెత్త డబ్బాలు ఖాళీ చేసి కవర్ వేశారు", "कूड़ेदान खाली और लाइनर लगा हुआ") },
-          { section: "Exhaust", label: t("Hood filters free of visible grease", "హుడ్ ఫిల్టర్లపై జిడ్డు కనిపించడం లేదు", "हुड फ़िल्टर पर ग्रीस नहीं दिख रही"), photoRequired: true },
+          { section: "Opening", photoRequired: true, label: t("Kitchen floor and counters are clean", "వంటగది నేల మరియు కౌంటర్లు శుభ్రంగా ఉన్నాయి", "रसोई का फर्श और काउंटर साफ हैं") },
+          { section: "Opening", photoRequired: true, label: t("Handwash station has soap and water", "చేతులు కడుక్కునే చోట సబ్బు, నీరు ఉన్నాయి", "हाथ धोने की जगह पर साबुन और पानी है") },
+          { section: "Opening", photoRequired: true, label: t("Staff in clean uniform, hair covered", "సిబ్బంది శుభ్రమైన యూనిఫాంలో, జుట్టు కప్పి ఉన్నారు", "स्टाफ साफ यूनिफॉर्म में, बाल ढके हुए") },
+          { section: "Opening", photoRequired: true, label: t("Fridge and freezer working, food covered", "ఫ్రిజ్, ఫ్రీజర్ పనిచేస్తున్నాయి, ఆహారం కప్పి ఉంది", "फ्रिज और फ्रीज़र चल रहे हैं, खाना ढका हुआ है") },
+          { section: "Opening", photoRequired: true, label: t("No signs of pests", "పురుగుల ఆనవాళ్లు లేవు", "कीटों के कोई निशान नहीं") },
+        ]),
+      },
+    },
+  });
+
+  const closing = await prisma.checklistTemplate.create({
+    data: {
+      sopTemplateId: dailySop.id,
+      kind: "DAILY",
+      title: t("Closing checklist", "ముగింపు చెక్‌లిస్ట్", "क्लोज़िंग चेकलिस्ट"),
+      items: {
+        create: items([
+          { section: "Closing", photoRequired: true, label: t("All food covered, labelled and stored", "ఆహారం అంతా కప్పి, లేబుల్ వేసి, నిల్వ చేయబడింది", "सारा खाना ढका, लेबल किया और रखा गया है") },
+          { section: "Closing", photoRequired: true, label: t("Counters and equipment cleaned", "కౌంటర్లు మరియు పరికరాలు శుభ్రం చేయబడ్డాయి", "काउंटर और उपकरण साफ किए गए") },
+          { section: "Closing", photoRequired: true, label: t("Floor and drains cleaned", "నేల మరియు డ్రైన్‌లు శుభ్రం చేయబడ్డాయి", "फर्श और नालियां साफ की गईं") },
+          { section: "Closing", photoRequired: true, label: t("Waste bins emptied", "చెత్త డబ్బాలు ఖాళీ చేయబడ్డాయి", "कूड़ेदान खाली किए गए") },
+          { section: "Closing", photoRequired: true, label: t("Gas and equipment switched off", "గ్యాస్ మరియు పరికరాలు ఆఫ్ చేయబడ్డాయి", "गैस और उपकरण बंद किए गए") },
         ]),
       },
     },
@@ -280,7 +297,7 @@ async function seedSopsAndChecklists() {
     },
   });
 
-  return { daily, pestService, deepCleanService, chimneyService, inspection };
+  return { opening, closing, pestService, deepCleanService, chimneyService, inspection };
 }
 
 async function seedServices(templates: Awaited<ReturnType<typeof seedSopsAndChecklists>>) {
@@ -373,8 +390,11 @@ async function seedOutletData(
   supervisorId: string,
 ) {
   for (const [index, outlet] of outlets.entries()) {
-    await prisma.outletChecklist.create({
-      data: { outletId: outlet.id, templateId: templates.daily.id, frequency: "DAILY", dueTime: "10:30" },
+    await prisma.outletChecklist.createMany({
+      data: [
+        { outletId: outlet.id, templateId: templates.opening.id, frequency: "DAILY", dueTime: "10:30" },
+        { outletId: outlet.id, templateId: templates.closing.id, frequency: "DAILY", dueTime: "23:30" },
+      ],
     });
 
     const plan = index === 0 ? services.plans.complete : services.plans.essential;

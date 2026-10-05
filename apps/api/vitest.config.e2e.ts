@@ -7,5 +7,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    // The suites share one local database and its sample logins, so they run one after another.
+    fileParallelism: false,
   },
 });

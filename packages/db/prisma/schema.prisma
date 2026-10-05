@@ -69,27 +69,28 @@ model Outlet {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization     Organization           @relation(fields: [organizationId], references: [id])
-  linkedDevices    LinkedDevice[]
-  memberships      Membership[]
-  outletChecklists OutletChecklist[]
-  checklistRuns    ChecklistRun[]
-  subscriptions    Subscription[]
-  bookings         Booking[]
-  schedules        ServiceSchedule[]
-  jobs             Job[]
-  certificates     Certificate[]
-  inspections      Inspection[]
-  licences         Licence[]
-  documents        Document[]
-  issues           Issue[]
-  scoreSnapshots   HygieneScoreSnapshot[]
-  invoices         Invoice[]
-  staffMembers     StaffMember[]
-  foodItems        FoodItem[]
-  foodLabels       FoodLabel[]
-  attachments      Attachment[]
-  publicProfile    PublicProfile?
+  organization         Organization           @relation(fields: [organizationId], references: [id])
+  linkedDevices        LinkedDevice[]
+  memberships          Membership[]
+  outletChecklists     OutletChecklist[]
+  customChecklistItems ChecklistItem[]
+  checklistRuns        ChecklistRun[]
+  subscriptions        Subscription[]
+  bookings             Booking[]
+  schedules            ServiceSchedule[]
+  jobs                 Job[]
+  certificates         Certificate[]
+  inspections          Inspection[]
+  licences             Licence[]
+  documents            Document[]
+  issues               Issue[]
+  scoreSnapshots       HygieneScoreSnapshot[]
+  invoices             Invoice[]
+  staffMembers         StaffMember[]
+  foodItems            FoodItem[]
+  foodLabels           FoodLabel[]
+  attachments          Attachment[]
+  publicProfile        PublicProfile?
 
   @@index([organizationId])
 }
@@ -224,8 +225,14 @@ model ChecklistItem {
   weight        Int               @default(1) /// used for inspection scoring
   minValue      Float? /// for NUMBER items, e.g. fridge temperature range
   maxValue      Float?
+  /// Set when a restaurant added this item for one of its own outlets.
+  /// Empty for the basic items ECCS provides to everyone.
+  outletId      String?
+  createdById   String?
+  isActive      Boolean           @default(true)
 
   template            ChecklistTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  outlet              Outlet?              @relation(fields: [outletId], references: [id])
   responses           ChecklistResponse[]
   jobTaskResponses    JobTaskResponse[]
   inspectionResponses InspectionResponse[]

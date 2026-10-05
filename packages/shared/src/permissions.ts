@@ -39,6 +39,8 @@ export type Action = (typeof ACTIONS)[number];
 const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A: "approve" };
 
 // C = create, R = read, U = update, A = approve or sign off.
+// For checklists: C = fill one in, U = add or remove the outlet's own items,
+// A = mark a submitted checklist as reviewed.
 // ECCS roles get nothing on staff, attendance and salary: that is the
 // restaurant's private employee data.
 const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
@@ -63,14 +65,14 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     documents: "R", scores: "R",
   },
   OWNER: {
-    clients: "R", restaurantUsers: "CRU", sopTemplates: "R", checklists: "R",
+    clients: "R", restaurantUsers: "CRU", sopTemplates: "R", checklists: "CRUA",
     foodLabels: "CRU", issues: "CR", catalog: "R", bookings: "CRU", subscriptions: "CRU",
     schedule: "R", jobs: "R", inspections: "R", reports: "R", publicPage: "RU",
     licences: "CRU", documents: "CRU", scores: "R", staff: "CRU", attendance: "CRU",
     salary: "CRU", invoices: "R", payments: "C",
   },
   MANAGER: {
-    clients: "R", restaurantUsers: "CRU", sopTemplates: "R", checklists: "RA",
+    clients: "R", restaurantUsers: "CRU", sopTemplates: "R", checklists: "CRUA",
     foodLabels: "CRU", issues: "CRU", catalog: "R", bookings: "CRU", subscriptions: "R",
     schedule: "R", jobs: "RA", inspections: "R", reports: "R", publicPage: "R",
     licences: "CRU", documents: "CRU", scores: "R", staff: "CRU", attendance: "CRU",

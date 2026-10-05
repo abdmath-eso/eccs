@@ -18,6 +18,14 @@ const schema = z
     SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
     // Key for storing restaurant PINs. Changing it invalidates every PIN.
     PIN_SECRET: z.string().min(16),
+    // Key for signing the short-lived links that display photos.
+    FILE_URL_SECRET: z.string().min(16),
+    // Object storage for photos and documents. Locally this is SeaweedFS; in production, Amazon S3.
+    S3_ENDPOINT: z.string().optional(),
+    S3_REGION: z.string().default('ap-south-1'),
+    S3_BUCKET: z.string().min(1),
+    S3_ACCESS_KEY: z.string().optional(),
+    S3_SECRET_KEY: z.string().optional(),
     // Sample mode: every login code is this value and no SMS is sent.
     DEV_FIXED_OTP: z
       .string()
@@ -27,9 +35,11 @@ const schema = z
   .refine((env) => !(env.NODE_ENV === 'production' && env.DEV_FIXED_OTP), {
     message: 'DEV_FIXED_OTP must not be set in production',
   })
-  .refine((env) => !(env.NODE_ENV === 'production' && env.PIN_SECRET.startsWith('dev-only')), {
-    message: 'PIN_SECRET must be replaced with a random secret in production',
-  });
+  .refine(
+    (env) =>
+      !(env.NODE_ENV === 'production' && (env.PIN_SECRET.startsWith('dev-only') || env.FILE_URL_SECRET.startsWith('dev-only'))),
+    { message: 'PIN_SECRET and FILE_URL_SECRET must be replaced with random secrets in production' },
+  );
 
 export type Env = z.infer<typeof schema>;
 

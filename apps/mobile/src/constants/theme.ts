@@ -1,26 +1,29 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import '@/global.css';
 
 import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
+    text: '#11181C',
     background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    backgroundElement: '#F0F3F4',
+    backgroundSelected: '#DDE3E6',
+    textSecondary: '#5B6770',
+    primary: '#0B7A6E',
+    onPrimary: '#ffffff',
+    danger: '#C62828',
+    border: '#D5DBDF',
   },
   dark: {
     text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    background: '#0B0F10',
+    backgroundElement: '#1C2225',
+    backgroundSelected: '#2B3338',
+    textSecondary: '#A9B4BA',
+    primary: '#2BB5A5',
+    onPrimary: '#06201D',
+    danger: '#FF8A80',
+    border: '#333D42',
   },
 } as const;
 
@@ -28,13 +31,9 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
@@ -61,5 +60,8 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+/** Screens are laid out for a phone; on a wide browser window they stay phone-width. */
+export const MaxContentWidth = 480;
+
+/** Kitchen staff may have wet or gloved hands: keep every tap target at least this tall. */
+export const MinTouchSize = 52;

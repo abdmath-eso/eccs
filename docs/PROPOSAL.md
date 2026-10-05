@@ -44,7 +44,21 @@ Each has the assumption I have planned around. Correct any that are wrong; quest
 | API | **NestJS** (REST), request and response shapes defined once in **Zod** and shared with clients | Modular structure suits a system with many domains (scheduling, jobs, compliance, billing). Guards give a single place to enforce roles. |
 | Database | **PostgreSQL 16** with **Prisma** | Relational data with strong integrity needs (contracts, invoices, audit records). JSONB for checklist definitions and translations. |
 | Background jobs | **BullMQ on Redis** | Generating recurring visits, sending reminders, building PDFs, recalculating hygiene scores. |
-| Auth | **Our own small auth module in the API**, stored in our Postgres. Phone number + one-time code for everyone, long-lived sessions per device, 4-digit PIN (and device biometric) to unlock Manager and Owner areas | Staff have phone numbers, not work email. Keeping auth in our own database avoids per-user fees and keeps data in India. The first draft named the Better Auth library; the need turned out to be small (codes, sessions, PIN), so it was written directly to avoid fitting a library around our existing User and Membership tables. Only hashes of codes, tokens and PINs are stored, and attempts are rate-limited. A second factor for ECCS admins on the web is still to add. |
+| Auth | **Our own small auth module in the API**, stored in our Postgres. See "How login works" below | Keeping auth in our own database avoids per-user fees and keeps data in India. The first draft named the Better Auth library; the need turned out to be small and specific to us, so it was written directly. |
+
+**How login works (decided by the founder, 5 Oct 2026)**
+
+*Restaurant side: PIN only, no biometrics.*
+
+1. **Onboarding, once.** ECCS creates the restaurant and its Owner with a mobile number and email. The Owner opens the app, enters the number and a one-time code. That links the Owner's phone to the restaurant and shows the Owner a 4-digit PIN.
+2. **After that, nobody at the restaurant needs a one-time code.** Everyone logs in with a 4-digit PIN, and whose PIN it is decides what they see: Owner, Manager or Head Chef.
+3. **Adding people.** The Owner adds a Manager or Head Chef in the app and is shown a generated PIN once, to hand over. A Manager can add Head Chefs at their own outlet.
+4. **Linking a phone.** A PIN alone cannot say which restaurant it belongs to, so each outlet has a restaurant code such as `SPICE-JH2K7M`. A new phone types it once; from then on that phone asks only for a PIN.
+5. **Forgotten PIN.** Staff ask the Owner or Manager for a new one (the old one stops working and they are logged out). The Owner gets a new one with a one-time code.
+
+*Company side:* ECCS staff log in with mobile number and one-time code.
+
+*Safeguards.* PINs are unique within a restaurant and stored as a keyed hash, so the database alone does not reveal them. A PIN only works from a linked phone, and five wrong PINs lock that phone for 15 minutes. Restaurant codes have six random characters and are not guessable. Session and device tokens are stored only as hashes. **Known limit:** a 4-digit PIN is weak by itself; the protection is that an attacker also needs the restaurant code or a linked phone. Anyone who has both a linked phone and patience could eventually guess a PIN, so restaurant codes should be treated as private and changed if leaked (changing a code and unlinking phones from the app is not built yet).
 | Files and photos | **Amazon S3, Mumbai region**, direct upload from the phone via pre-signed URLs; photos compressed on-device to about 300 KB | Photos never pass through the API server, so uploads survive weak connections better and the server stays small. |
 | Offline | **SQLite on the device** (expo-sqlite) with an **outbox queue** | Checklists and jobs are downloaded ahead of time. Submissions get an ID generated on the phone and queue until online; the server accepts each ID once, so retries are safe. This is simpler than a full two-way sync engine and is enough because the phone mostly creates new records rather than editing shared ones. |
 | Notifications | **Push** via Firebase Cloud Messaging (through Expo). **SMS OTP and WhatsApp** via MSG91. **Email** via Amazon SES | Owners in India read WhatsApp, not email, so licence-expiry and overdue alerts go there from Phase 2. |
@@ -116,7 +130,7 @@ ECCS roles see across all client organisations; a Supervisor is limited to the j
 
 #### Restaurant side (client)
 
-Restaurant roles never see another organisation's data. Owner covers all outlets of the brand; Manager and Head Chef cover only their assigned outlets. On a shared device, Manager and Owner areas unlock with PIN or biometric.
+Restaurant roles never see another organisation's data. Owner covers all outlets of the brand; Manager and Head Chef cover only their assigned outlets. Everyone logs in with their own PIN, so on a shared phone one person locks the app and the next enters theirs. No biometrics on the restaurant side.
 
 | Capability | Owner | Manager | Head Chef |
 |---|---|---|---|

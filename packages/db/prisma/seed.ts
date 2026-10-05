@@ -6,7 +6,15 @@
 
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
-import { createPrismaClient, type Prisma } from "../src/index.js";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { createPrismaClient, pinLookup, type Prisma } from "../src/index.js";
+
+// PIN_SECRET lives in the repo-root .env, shared with the API.
+const rootEnvFile = resolve(import.meta.dirname, "../../../.env");
+if (existsSync(rootEnvFile)) process.loadEnvFile(rootEnvFile);
+const PIN_SECRET = process.env["PIN_SECRET"];
+if (!PIN_SECRET) throw new Error("PIN_SECRET is not set (copy .env.example to .env at the repo root)");
 
 const prisma = createPrismaClient();
 
@@ -62,6 +70,7 @@ async function seedClients() {
         create: [
           {
             name: "Spice Route, Jubilee Hills",
+            code: "SPICE-JH2K7M",
             address: "Plot 12, Road No. 36, Jubilee Hills",
             pincode: "500033",
             latitude: 17.4326,
@@ -71,6 +80,7 @@ async function seedClients() {
           },
           {
             name: "Spice Route, Gachibowli",
+            code: "SPICE-GB4N8P",
             address: "DLF Cyber City Road, Gachibowli",
             pincode: "500032",
             latitude: 17.4401,
@@ -96,6 +106,7 @@ async function seedClients() {
         create: [
           {
             name: "Deccan Biryani House, Kukatpally",
+            code: "DECCA-KP6R3T",
             address: "Main Road, Kukatpally",
             pincode: "500072",
             latitude: 17.4849,
@@ -112,29 +123,37 @@ async function seedClients() {
   const [jubilee, gachibowli] = spice.outlets;
   const [kukatpally] = biryani.outlets;
 
+  // Restaurant users log in with a PIN. Only owners have a phone and email,
+  // used once for the one-time code at onboarding. Real PINs are random;
+  // these are fixed so the sample logins in docs/STATUS.md keep working.
   const people: {
-    phone: string;
+    pin: string;
+    phone?: string;
+    email?: string;
     name: string;
     language: "EN" | "TE" | "HI";
     role: "OWNER" | "MANAGER" | "HEAD_CHEF";
     organizationId: string;
     outletId?: string;
   }[] = [
-    { phone: "+919100000001", name: "Sample Owner (Spice Route)", language: "EN", role: "OWNER", organizationId: spice.id },
-    { phone: "+919100000011", name: "Sample Manager (Jubilee Hills)", language: "EN", role: "MANAGER", organizationId: spice.id, outletId: jubilee!.id },
-    { phone: "+919100000012", name: "Sample Head Chef (Jubilee Hills)", language: "TE", role: "HEAD_CHEF", organizationId: spice.id, outletId: jubilee!.id },
-    { phone: "+919100000013", name: "Sample Manager (Gachibowli)", language: "HI", role: "MANAGER", organizationId: spice.id, outletId: gachibowli!.id },
-    { phone: "+919100000014", name: "Sample Head Chef (Gachibowli)", language: "HI", role: "HEAD_CHEF", organizationId: spice.id, outletId: gachibowli!.id },
-    { phone: "+919100000002", name: "Sample Owner (Deccan Biryani)", language: "TE", role: "OWNER", organizationId: biryani.id },
-    { phone: "+919100000021", name: "Sample Head Chef (Kukatpally)", language: "TE", role: "HEAD_CHEF", organizationId: biryani.id, outletId: kukatpally!.id },
+    { pin: "2580", phone: "+919100000001", email: "owner@spiceroute.example", name: "Sample Owner (Spice Route)", language: "EN", role: "OWNER", organizationId: spice.id },
+    { pin: "4821", name: "Sample Manager (Jubilee Hills)", language: "EN", role: "MANAGER", organizationId: spice.id, outletId: jubilee!.id },
+    { pin: "7306", name: "Sample Head Chef (Jubilee Hills)", language: "TE", role: "HEAD_CHEF", organizationId: spice.id, outletId: jubilee!.id },
+    { pin: "1593", name: "Sample Manager (Gachibowli)", language: "HI", role: "MANAGER", organizationId: spice.id, outletId: gachibowli!.id },
+    { pin: "6042", name: "Sample Head Chef (Gachibowli)", language: "HI", role: "HEAD_CHEF", organizationId: spice.id, outletId: gachibowli!.id },
+    { pin: "3917", phone: "+919100000002", email: "owner@deccanbiryani.example", name: "Sample Owner (Deccan Biryani)", language: "TE", role: "OWNER", organizationId: biryani.id },
+    { pin: "8264", name: "Sample Head Chef (Kukatpally)", language: "TE", role: "HEAD_CHEF", organizationId: biryani.id, outletId: kukatpally!.id },
   ];
 
   for (const person of people) {
     await prisma.user.create({
       data: {
-        phone: person.phone,
+        phone: person.phone ?? null,
+        email: person.email ?? null,
         name: person.name,
         language: person.language,
+        pinOrganizationId: person.organizationId,
+        pinLookup: pinLookup(PIN_SECRET!, person.organizationId, person.pin),
         memberships: {
           create: { role: person.role, organizationId: person.organizationId, outletId: person.outletId ?? null },
         },

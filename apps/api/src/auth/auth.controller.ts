@@ -1,10 +1,12 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Patch, Post } from '@nestjs/common';
 import {
-  pinSchema,
+  linkDeviceSchema,
+  pinLoginSchema,
   requestOtpSchema,
   updateProfileSchema,
   verifyOtpSchema,
   type CurrentUserDto,
+  type LinkedDeviceDto,
   type SessionDto,
 } from '@eccs/shared';
 import type { z } from 'zod';
@@ -28,7 +30,24 @@ export class AuthController {
   @Post('otp/verify')
   @HttpCode(200)
   verifyOtp(@Body(new ZodValidationPipe(verifyOtpSchema)) body: z.output<typeof verifyOtpSchema>): Promise<SessionDto> {
-    return this.auth.verifyOtp(body.phone, body.code, body.deviceName);
+    return this.auth.verifyOtp(body.phone, body.code, body.deviceName, body.resetPin);
+  }
+
+  @Public()
+  @Post('device/link')
+  @HttpCode(200)
+  linkDevice(
+    @Body(new ZodValidationPipe(linkDeviceSchema)) body: z.output<typeof linkDeviceSchema>,
+    @Ip() clientAddress: string,
+  ): Promise<LinkedDeviceDto> {
+    return this.auth.linkDevice(body.code, body.deviceName, clientAddress);
+  }
+
+  @Public()
+  @Post('pin/login')
+  @HttpCode(200)
+  pinLogin(@Body(new ZodValidationPipe(pinLoginSchema)) body: z.output<typeof pinLoginSchema>): Promise<SessionDto> {
+    return this.auth.pinLogin(body.deviceToken, body.pin);
   }
 
   @Get('me')
@@ -49,23 +68,5 @@ export class AuthController {
   @HttpCode(204)
   async logout(@CurrentUser() user: AuthUser): Promise<void> {
     await this.auth.logout(user.sessionId);
-  }
-
-  @Put('pin')
-  @HttpCode(204)
-  async setPin(
-    @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(pinSchema)) body: z.output<typeof pinSchema>,
-  ): Promise<void> {
-    await this.auth.setPin(user.id, body.pin);
-  }
-
-  @Post('pin/verify')
-  @HttpCode(204)
-  async verifyPin(
-    @CurrentUser() user: AuthUser,
-    @Body(new ZodValidationPipe(pinSchema)) body: z.output<typeof pinSchema>,
-  ): Promise<void> {
-    await this.auth.verifyPin(user.id, body.pin);
   }
 }

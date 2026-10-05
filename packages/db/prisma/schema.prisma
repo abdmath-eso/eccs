@@ -46,15 +46,18 @@ model Organization {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  outlets     Outlet[]
-  memberships Membership[]
-  invoices    Invoice[]
+  outlets       Outlet[]
+  memberships   Membership[]
+  invoices      Invoice[]
+  linkedDevices LinkedDevice[]
 }
 
 model Outlet {
   id             String   @id @default(uuid())
   organizationId String
   name           String
+  /// The restaurant code typed once on each new phone to link it, e.g. "SPICE-7K2M9Q".
+  code           String   @unique
   address        String
   city           String   @default("Hyderabad")
   pincode        String?
@@ -67,6 +70,7 @@ model Outlet {
   updatedAt      DateTime @updatedAt
 
   organization     Organization           @relation(fields: [organizationId], references: [id])
+  linkedDevices    LinkedDevice[]
   memberships      Membership[]
   outletChecklists OutletChecklist[]
   checklistRuns    ChecklistRun[]
@@ -91,17 +95,20 @@ model Outlet {
 }
 
 model User {
-  id                String    @id @default(uuid())
-  phone             String    @unique
+  id                String   @id @default(uuid())
+  /// ECCS users and restaurant owners have a phone (for the one-time code).
+  /// Other restaurant staff log in with a PIN only and need no phone.
+  phone             String?  @unique
   name              String
-  email             String?   @unique
-  language          Language  @default(EN)
-  pinHash           String?
-  pinFailedAttempts Int       @default(0)
-  pinLockedUntil    DateTime?
-  isActive          Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  email             String?  @unique
+  language          Language @default(EN)
+  /// Restaurant users only. The PIN is unique within its organisation and is
+  /// stored as a keyed hash (see pinLookup in packages/db/src/pin.ts).
+  pinOrganizationId String?
+  pinLookup         String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   memberships    Membership[]
   deviceTokens   DeviceToken[]
@@ -113,6 +120,8 @@ model User {
   assignedIssues Issue[]        @relation("IssueAssignee")
   issueComments  IssueComment[]
   sessions       Session[]
+
+  @@unique([pinOrganizationId, pinLookup])
 }
 
 /// A user's role and where it applies. ECCS roles have no organization;
@@ -1050,18 +1059,44 @@ model OtpChallenge {
 
 /// A logged-in device. Only a hash of the token is stored.
 model Session {
-  id         String    @id @default(uuid())
-  userId     String
-  tokenHash  String    @unique
-  deviceName String?
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  lastUsedAt DateTime  @default(now())
-  createdAt  DateTime  @default(now())
+  id             String    @id @default(uuid())
+  userId         String
+  tokenHash      String    @unique
+  deviceName     String?
+  linkedDeviceId String?
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  lastUsedAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedDevice LinkedDevice? @relation(fields: [linkedDeviceId], references: [id])
 
   @@index([userId])
+}
+
+/// A phone that has been linked to a restaurant, by typing the outlet's
+/// restaurant code or by the owner's one-time code. PIN login only works
+/// from a linked device. Only a hash of the device token is stored.
+model LinkedDevice {
+  id                String    @id @default(uuid())
+  organizationId    String
+  /// Set when linked with an outlet's restaurant code; empty for an owner's device.
+  outletId          String?
+  tokenHash         String    @unique
+  name              String?
+  failedPinAttempts Int       @default(0)
+  pinLockedUntil    DateTime?
+  lastUsedAt        DateTime  @default(now())
+  revokedAt         DateTime?
+  createdAt         DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  outlet       Outlet?      @relation(fields: [outletId], references: [id])
+  sessions     Session[]
+
+  @@index([organizationId])
+  @@index([outletId])
 }
 
 model AuditLog {

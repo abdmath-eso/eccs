@@ -16,6 +16,8 @@ const schema = z
     API_PORT: z.coerce.number().int().default(4000),
     WEB_URL: z.string().optional(),
     SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
+    // Key for storing restaurant PINs. Changing it invalidates every PIN.
+    PIN_SECRET: z.string().min(16),
     // Sample mode: every login code is this value and no SMS is sent.
     DEV_FIXED_OTP: z
       .string()
@@ -24,6 +26,9 @@ const schema = z
   })
   .refine((env) => !(env.NODE_ENV === 'production' && env.DEV_FIXED_OTP), {
     message: 'DEV_FIXED_OTP must not be set in production',
+  })
+  .refine((env) => !(env.NODE_ENV === 'production' && env.PIN_SECRET.startsWith('dev-only')), {
+    message: 'PIN_SECRET must be replaced with a random secret in production',
   });
 
 export type Env = z.infer<typeof schema>;

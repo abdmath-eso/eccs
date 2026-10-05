@@ -1,0 +1,23 @@
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+.expo/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store
+Thumbs.db
+
+# Expo / React Native native builds
+apps/mobile/android/
+apps/mobile/ios/
+*.apk
+*.aab
+*.ipa

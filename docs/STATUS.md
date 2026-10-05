@@ -20,11 +20,11 @@ The team is the founder plus Claude Code. There are no other developers, so this
 |---|---|
 | **Phase** | Phase 0 (Foundation), in progress. |
 | **Plan approval** | Approved by the founder on 5 Oct 2026. Installing and scaffolding are allowed. |
-| **Code** | `packages/db`: schema (about 48 tables), migrations, sample seed. `packages/shared`: roles, permission rules, login schemas. `packages/api-client`: the one typed client web and mobile use. `packages/i18n`: English, Telugu, Hindi text. `apps/api`: login (restaurant code + PIN, one-time code), sessions, role and scope checks, staff logins, outlet list. `apps/mobile`: welcome, restaurant code, PIN pad, phone, one-time code, role-based home, staff logins. `apps/web` is still the untouched Next.js starter. |
+| **Code** | `packages/db`: schema (about 48 tables), migrations, sample seed. `packages/shared`: roles, permission rules, request schemas. `packages/api-client`: the one typed client web and mobile use. `packages/i18n`: English, Telugu, Hindi text. `apps/api`: login (restaurant code + PIN, one-time code), sessions, role and scope checks, staff logins, outlets, client onboarding. `apps/mobile`: welcome, restaurant code, PIN pad, phone, one-time code, role-based home, staff logins (shows restaurant codes). `apps/web`: ECCS console with login, client list and restaurant onboarding. |
 | **Local services** | Running in Docker: PostgreSQL on 5432, Redis on 6379, SeaweedFS (S3 stand-in) on 8333. Database is migrated and seeded. |
 | **Blocked** | Nothing. |
-| **Next action (Claude)** | Web: ECCS console login and shell (and decide with the founder how an Owner logs in on the web). Then Phase 1a, starting with the daily checklist on mobile. |
-| **Next action (founder)** | Try the app in the browser (section 6, "See it running") and give feedback on the login flow and screens. |
+| **Next action (Claude)** | Phase 1a, starting with the daily checklist on mobile (offline, with photos). |
+| **Next action (founder)** | Try both apps (section 6, "See it running") and give feedback. Restart any terminals left running from before, so they pick up new code. |
 
 ## 3. Decisions made
 
@@ -85,9 +85,11 @@ Status values: not started, in progress, done, blocked.
 | Auth in the API | done | Restaurant code links a phone; PIN login decides the role; one-time code for ECCS staff and Owner onboarding; staff logins with generated PINs; lockouts. 26 end-to-end tests. Code is fixed at `123456` in sample mode; real SMS and email not wired |
 | Mobile login and home screens | done | Clicked through in Chrome via the browser preview: restaurant code, PIN pad, owner home, staff list, adding a person and seeing their PIN. **Not yet tried on a real Android or iOS phone, and the one-time-code screens were not clicked through** (their API is tested) |
 | `packages/api-client` | done | |
-| Web login (ECCS console) | not started | |
+| Web console: login, client list, onboarding | done | ECCS staff log in with mobile number + one-time code. Clients page lists every restaurant, its owner, outlets and restaurant codes; "Onboard a restaurant" creates the brand, first outlet, code and owner, then shows what to tell the owner; outlets can be added. Clicked through in Chrome. Super Admin and Ops Manager only; a Supervisor sees a "nothing here" page |
+| Web console hardening | not started | The session token is in browser storage. Before real client data, move it to an httpOnly cookie behind a same-site proxy and add a second factor for admins |
 | Staff logins screen (Owner and Manager add people, new PIN, remove access) | done | Mobile |
-| ECCS screens to onboard a restaurant and its Owner, change a restaurant code, unlink phones | not started | Until then, restaurants and owners come from the seed |
+| Console: edit or deactivate a client or outlet, change a restaurant code, unlink phones, manage ECCS users | not started | ECCS users still come from the seed |
+| Restaurant codes shown to Owner and Manager | done | Top of the Staff logins screen, and next to each newly generated PIN. Sent by the API only to people who may add staff at that outlet |
 | API client shared by web and mobile | not started | |
 | CI (GitHub Actions) | not started | No GitHub remote yet |
 | Staging environment | not started | Deferred until there is something to deploy |
@@ -176,7 +178,7 @@ New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name
 - `prisma init` installs agent "skills" folders (`.agents`, `.claude`, `.windsurf`) as a side effect; they were deleted. Do not re-run `prisma init`.
 - `@eccs/db` and `@eccs/shared` compile to `dist/` and apps import the compiled output. After changing either, run `pnpm build` (Turborepo builds them first automatically for `build`, `dev`, `typecheck` and `test`).
 - API layout: `apps/api/src/auth` (login, guard, decorators), `src/prisma` (database access via `PrismaService.client`), `src/config/env.ts` (reads the repo-root `.env`), `src/common/zod-validation.pipe.ts`. Every endpoint needs a session unless marked `@Public()`; add `@RequirePermission(resource, action)` for the role check, and narrow rows in the service with `accessScope()` from `@eccs/shared` (see `src/outlets` for the pattern).
-- API endpoints so far (prefix `/v1`, port 4000): `GET /health`; `POST /auth/otp/request`; `POST /auth/otp/verify`; `POST /auth/device/link`; `POST /auth/pin/login`; `GET /auth/me`; `PATCH /auth/me`; `POST /auth/logout`; `GET /outlets`; `GET /restaurant-users`; `POST /restaurant-users`; `POST /restaurant-users/:id/reset-pin`; `PATCH /restaurant-users/:id`.
+- API endpoints so far (prefix `/v1`, port 4000): `GET /health`; `POST /auth/otp/request`; `POST /auth/otp/verify`; `POST /auth/device/link`; `POST /auth/pin/login`; `GET /auth/me`; `PATCH /auth/me`; `POST /auth/logout`; `GET /outlets`; `GET /organizations`; `POST /organizations`; `POST /organizations/:id/outlets`; `GET /restaurant-users`; `POST /restaurant-users`; `POST /restaurant-users/:id/reset-pin`; `PATCH /restaurant-users/:id`.
 - API end-to-end tests (`pnpm test:e2e` in `apps/api`) run against the local seeded database, so Docker must be up and `pnpm seed` run at least once. They are not part of `pnpm test`.
 - If a package's `tsc` fails with MODULE_NOT_FOUND, delete that package's `node_modules` folder and run `pnpm install` (stale links after dependency changes).
 - pnpm blocks dependency install scripts unless listed under `allowBuilds` in `pnpm-workspace.yaml`.
@@ -185,23 +187,31 @@ New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name
 - Sample logins are in the "See it running" table below. `PIN_SECRET` in the root `.env` must match the one used when seeding, or the sample PINs stop working (re-run `pnpm seed`).
 - `prisma migrate dev` refuses to run without a terminal when it has warnings. Workaround used for the `pin_login` migration: write the SQL with `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` into a new folder under `prisma/migrations`, then `prisma migrate deploy`.
 - Mobile: screens live in `apps/mobile/src/app` (`(auth)` before login, `(app)` after; the root layout swaps them). Shared pieces are in `src/components/ui`; login state is `src/lib/session.tsx`; all text goes through `t()` from `@eccs/i18n`. The React Compiler lint rules are on: no reading refs during render, no setState directly in effects.
+- Web: `apps/web/src/app/login` and `apps/web/src/app/(console)` (its layout redirects to login). All pages are client components that call the API through `src/lib/api.ts`; shared pieces in `src/components/ui.tsx`. `NEXT_PUBLIC_API_URL` overrides the API address.
+- The founder often has the API (4000) and mobile preview (8081) running in their own terminals. Do not stop those. To test, run copies on other ports: `API_PORT=4001` for the API, `NEXT_PUBLIC_API_URL` with `next dev --port 3001`, `EXPO_PUBLIC_API_URL` with `expo start --web --port 8082`, and stop only those afterwards.
 - To view the mobile app from a Claude session, start the API and `expo start --web` in the background, then use the Claude in Chrome tools. The API allows any browser origin in development only.
 - Do not pass JavaScript to `node -e` from PowerShell when it contains double quotes; write a script file in the scratchpad and run that.
 
-### See it running (browser preview of the mobile app)
+### See it running
 
-Docker Desktop must be running. Open two terminals in VS Code at `C:\Users\eosfera\eccs`.
+Docker Desktop must be running. Open three terminals in VS Code at `C:\Users\eosfera\eccs`. If any are still running from an earlier session, stop them first with Ctrl+C so they pick up new code.
 
 Terminal 1, the API:
 ```powershell
 pnpm build
 pnpm --filter @eccs/api start
 ```
-Terminal 2, the app:
+Terminal 2, the mobile app in a browser:
 ```powershell
 pnpm --filter @eccs/mobile web
 ```
 Then open http://localhost:8081 in Chrome. Narrow the window to phone width for a truer picture.
+
+Terminal 3, the ECCS web console:
+```powershell
+pnpm --filter @eccs/web dev
+```
+Then open http://localhost:3000 and log in with `9000000001` and code `123456`.
 
 | To log in as | Do this |
 |---|---|
@@ -263,6 +273,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 5 Oct 2026 | Restaurant codes now shown to Owners and Managers in the app. ECCS web console built: login, client list, restaurant onboarding, add outlet. API: `/organizations` endpoints; outlet list carries the code for people who hand it out. 31 end-to-end tests. Clicked through in Chrome on test ports. |
 | 5 Oct 2026 | Restaurant login redesigned to the founder's spec: restaurant code links a phone once, then PIN only; Owner onboarded by one-time code; staff logins with generated PINs; no biometrics. Added `packages/api-client` and `packages/i18n`. Built the mobile login, home and staff screens and clicked through them in Chrome. Web login not started. |
 | 5 Oct 2026 | Login and roles built in the API: `packages/shared` (roles, permissions, schemas), Session and OtpChallenge tables, phone + code login, PIN, role and scope guard, `GET /v1/outlets`. Unit and end-to-end tests pass; verified against the running API. No screens yet. |
 | 5 Oct 2026 | Founder installed WSL2 and Docker. Local Postgres, Redis and SeaweedFS running (MinIO image no longer available). `packages/db` added: full schema, first migration applied, sample data seeded. "Contract" folded into Plan and Subscription in the data model. |

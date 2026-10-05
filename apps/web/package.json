@@ -10,6 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@eccs/api-client": "workspace:*",
+    "@eccs/shared": "workspace:*",
     "next": "16.3.8",
     "react": "19.2.3",
     "react-dom": "19.2.3"

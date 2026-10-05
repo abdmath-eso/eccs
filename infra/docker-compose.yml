@@ -17,19 +17,15 @@ services:
     ports:
       - "6379:6379"
 
-  # Stands in for Amazon S3 locally. Console at http://localhost:9001
-  minio:
-    image: minio/minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: eccs
-      MINIO_ROOT_PASSWORD: eccs-secret
+  # Stands in for Amazon S3 locally (S3 API on http://localhost:8333, no credentials checked).
+  s3:
+    image: chrislusf/seaweedfs
+    command: server -s3 -dir=/data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "8333:8333"
     volumes:
-      - minio-data:/data
+      - s3-data:/data
 
 volumes:
   postgres-data:
-  minio-data:
+  s3-data:

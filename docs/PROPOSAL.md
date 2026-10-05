@@ -160,8 +160,7 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 
 ### Services and field work
 - **ServiceType**: deep clean, pest control, chimney/hood, fire and equipment inspection.
-- **Contract** (AMC): Organization or Outlet, start and end dates, price. Has **ContractLines** (ServiceType + frequency, for example pest control every 15 days).
-- **ServiceSchedule**: recurrence rule per Outlet and ServiceType, generated from ContractLines.
+- **ServiceSchedule**: recurrence rule per Outlet and ServiceType, generated from the PlanLines of the outlet's Subscription (see Booking and billing). The earlier "Contract" entity was folded into Plan and Subscription.
 - **Job**: one visit. Outlet, ServiceType, planned window, status (scheduled, assigned, en route, checked in, completed, approved, cancelled), assigned Technicians.
 - **JobCheckIn**: time, GPS position, distance from outlet.
 - **JobTaskResponse**: the technician's service checklist answers.
@@ -179,8 +178,8 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 
 ### Booking and billing
 - **ServiceCatalogItem**: ServiceType, price, duration, SAC code, GST rate.
-- **Plan**: a subscription bundle (included services and frequencies, monthly or annual price).
-- **Subscription**: Outlet + Plan, billing cycle, status, renewal date. Creates ContractLines and therefore ServiceSchedules.
+- **Plan**: a subscription bundle with a price per billing cycle. Has **PlanLines** (ServiceType + interval in days, for example pest control every 15 days).
+- **Subscription**: Outlet + Plan, status, start date, next billing date. Creates ServiceSchedules from the PlanLines.
 - **Booking**: a one-time service request from a restaurant for a catalogue item and preferred slot. On confirmation it creates a Job.
 - **Invoice** and **InvoiceLines**: SAC code, taxable value, CGST/SGST or IGST, sequential invoice number per financial year. Raised per booking or per subscription cycle.
 - **Payment**: amount, method, Razorpay reference. Dues for an outlet are unpaid invoice balances.
@@ -378,7 +377,7 @@ code --install-extension usernamehw.errorlens
 ```
 
 ### Step 8. Local services (after the repo exists)
-A `docker-compose.yml` in the repo will start PostgreSQL 16, Redis and MinIO (stands in for S3 locally):
+A `docker-compose.yml` in the repo starts PostgreSQL 16, Redis and SeaweedFS (stands in for S3 locally; MinIO's image is no longer published on Docker Hub):
 ```powershell
 docker compose -f infra/docker-compose.yml up -d
 ```
@@ -418,7 +417,7 @@ eccs/
 │  ├─ pdf-templates/       service report and certificate layouts
 │  └─ config/              shared ESLint, TypeScript and Prettier settings
 ├─ infra/
-│  ├─ docker-compose.yml   local Postgres, Redis, MinIO
+│  ├─ docker-compose.yml   local Postgres, Redis, SeaweedFS (S3)
 │  └─ terraform/           AWS environments
 ├─ docs/
 │  ├─ PROPOSAL.md          this file

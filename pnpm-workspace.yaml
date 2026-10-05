@@ -8,3 +8,6 @@ nodeLinker: hoisted
 allowBuilds:
   sharp: false
   unrs-resolver: false
+  esbuild: true
+  prisma: true
+  '@prisma/engines': true

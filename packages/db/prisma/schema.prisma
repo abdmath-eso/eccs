@@ -1,0 +1,1047 @@
+// ECCS data model. Specification: docs/PROPOSAL.md section 4.
+//
+// Conventions
+// - Ids are UUIDs so phones can create records offline and upload them later.
+// - Money is stored as whole paise (Int) to avoid rounding errors.
+// - Text shown to restaurant staff is Json of the form { "en": "...", "te": "...", "hi": "..." }.
+// - Fields ending in "ById" without a relation are audit pointers to User.id.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Tenancy and people ─────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  OPS_MANAGER
+  SUPERVISOR
+  OWNER
+  MANAGER
+  HEAD_CHEF
+}
+
+enum Language {
+  EN
+  TE
+  HI
+}
+
+/// A restaurant brand (the client).
+model Organization {
+  id             String   @id @default(uuid())
+  name           String
+  legalName      String?
+  gstin          String?
+  billingAddress String?
+  stateCode      String? /// GST state code, decides CGST+SGST versus IGST
+  contactPhone   String?
+  contactEmail   String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  outlets     Outlet[]
+  memberships Membership[]
+  invoices    Invoice[]
+}
+
+model Outlet {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  address        String
+  city           String   @default("Hyderabad")
+  pincode        String?
+  latitude       Float?
+  longitude      Float?
+  fssaiNumber    String?
+  kitchenType    String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization     Organization           @relation(fields: [organizationId], references: [id])
+  memberships      Membership[]
+  outletChecklists OutletChecklist[]
+  checklistRuns    ChecklistRun[]
+  subscriptions    Subscription[]
+  bookings         Booking[]
+  schedules        ServiceSchedule[]
+  jobs             Job[]
+  certificates     Certificate[]
+  inspections      Inspection[]
+  licences         Licence[]
+  documents        Document[]
+  issues           Issue[]
+  scoreSnapshots   HygieneScoreSnapshot[]
+  invoices         Invoice[]
+  staffMembers     StaffMember[]
+  foodItems        FoodItem[]
+  foodLabels       FoodLabel[]
+  attachments      Attachment[]
+  publicProfile    PublicProfile?
+
+  @@index([organizationId])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  name      String
+  email     String?  @unique
+  language  Language @default(EN)
+  pinHash   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships    Membership[]
+  deviceTokens   DeviceToken[]
+  notifications  Notification[]
+  submittedRuns  ChecklistRun[]
+  supervisedJobs Job[]
+  inspections    Inspection[]
+  raisedIssues   Issue[]        @relation("IssueRaisedBy")
+  assignedIssues Issue[]        @relation("IssueAssignee")
+  issueComments  IssueComment[]
+}
+
+/// A user's role and where it applies. ECCS roles have no organization;
+/// OWNER has an organization; MANAGER and HEAD_CHEF have an outlet too.
+model Membership {
+  id             String   @id @default(uuid())
+  userId         String
+  role           Role
+  organizationId String?
+  outletId       String?
+  createdAt      DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  outlet       Outlet?       @relation(fields: [outletId], references: [id])
+
+  @@unique([userId, role, organizationId, outletId])
+  @@index([organizationId])
+  @@index([outletId])
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  String /// "android" or "ios"
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ───────────────────────── SOPs and checklists ─────────────────────────
+
+enum ChecklistKind {
+  DAILY /// filled by the restaurant
+  SERVICE /// filled by the ECCS supervisor during a visit
+  INSPECTION /// scored ECCS audit
+}
+
+enum ChecklistItemType {
+  YES_NO
+  NUMBER
+  TEXT
+  PHOTO
+}
+
+enum ChecklistFrequency {
+  DAILY
+  PER_SHIFT
+  WEEKLY
+}
+
+enum ChecklistRunStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  MISSED
+}
+
+model SopTemplate {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  title       Json
+  body        Json /// the SOP text per language, Markdown
+  category    String
+  version     Int      @default(1)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  checklistTemplates ChecklistTemplate[]
+}
+
+model ChecklistTemplate {
+  id            String        @id @default(uuid())
+  sopTemplateId String?
+  kind          ChecklistKind
+  title         Json
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  sopTemplate      SopTemplate?      @relation(fields: [sopTemplateId], references: [id])
+  items            ChecklistItem[]
+  outletChecklists OutletChecklist[]
+  serviceTypes     ServiceType[]
+  inspections      Inspection[]
+}
+
+model ChecklistItem {
+  id            String            @id @default(uuid())
+  templateId    String
+  position      Int
+  section       String?
+  label         Json
+  type          ChecklistItemType @default(YES_NO)
+  photoRequired Boolean           @default(false)
+  weight        Int               @default(1) /// used for inspection scoring
+  minValue      Float? /// for NUMBER items, e.g. fridge temperature range
+  maxValue      Float?
+
+  template            ChecklistTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  responses           ChecklistResponse[]
+  jobTaskResponses    JobTaskResponse[]
+  inspectionResponses InspectionResponse[]
+
+  @@index([templateId, position])
+}
+
+/// A checklist template switched on for an outlet, with its schedule.
+model OutletChecklist {
+  id         String             @id @default(uuid())
+  outletId   String
+  templateId String
+  frequency  ChecklistFrequency @default(DAILY)
+  shifts     String[] /// e.g. ["opening", "closing"] when PER_SHIFT
+  dueTime    String? /// "HH:mm" local time, drives reminders
+  isActive   Boolean            @default(true)
+  createdAt  DateTime           @default(now())
+
+  outlet   Outlet            @relation(fields: [outletId], references: [id])
+  template ChecklistTemplate @relation(fields: [templateId], references: [id])
+  runs     ChecklistRun[]
+
+  @@index([outletId])
+}
+
+model ChecklistRun {
+  id                String             @id @default(uuid())
+  outletChecklistId String
+  outletId          String
+  date              DateTime           @db.Date
+  shift             String             @default("")
+  status            ChecklistRunStatus @default(PENDING)
+  submittedById     String?
+  submittedAt       DateTime?
+  reviewedById      String?
+  reviewedAt        DateTime?
+  createdAt         DateTime           @default(now())
+
+  outletChecklist OutletChecklist     @relation(fields: [outletChecklistId], references: [id])
+  outlet          Outlet              @relation(fields: [outletId], references: [id])
+  submittedBy     User?               @relation(fields: [submittedById], references: [id])
+  responses       ChecklistResponse[]
+
+  @@unique([outletChecklistId, date, shift])
+  @@index([outletId, date])
+}
+
+model ChecklistResponse {
+  id          String   @id @default(uuid())
+  runId       String
+  itemId      String
+  valueBool   Boolean?
+  valueNumber Float?
+  valueText   String?
+  passed      Boolean?
+  note        String?
+  capturedAt  DateTime /// time on the phone when answered, may precede upload
+
+  run         ChecklistRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  item        ChecklistItem @relation(fields: [itemId], references: [id])
+  attachments Attachment[]
+
+  @@unique([runId, itemId])
+}
+
+// ───────────────────────── Files ─────────────────────────
+
+enum AttachmentKind {
+  PROOF
+  BEFORE
+  AFTER
+  DOCUMENT
+  SIGNATURE
+  REPORT
+}
+
+/// A photo or file in object storage. At most one of the owner links is set.
+model Attachment {
+  id           String         @id @default(uuid())
+  outletId     String?
+  kind         AttachmentKind
+  storageKey   String         @unique
+  mimeType     String
+  sizeBytes    Int?
+  capturedAt   DateTime?
+  uploadedById String?
+  createdAt    DateTime       @default(now())
+
+  checklistResponseId String?
+  jobId               String?
+  issueId             String?
+  inspectionFindingId String?
+
+  outlet            Outlet?            @relation(fields: [outletId], references: [id])
+  checklistResponse ChecklistResponse? @relation(fields: [checklistResponseId], references: [id])
+  job               Job?               @relation(fields: [jobId], references: [id])
+  issue             Issue?             @relation(fields: [issueId], references: [id])
+  inspectionFinding InspectionFinding? @relation(fields: [inspectionFindingId], references: [id])
+  documents         Document[]
+  publicPhotos      PublicPhoto[]
+  signOffs          SignOff[]
+
+  @@index([outletId])
+  @@index([checklistResponseId])
+  @@index([jobId])
+  @@index([issueId])
+}
+
+// ───────────────────────── Services, booking, scheduling ─────────────────────────
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum JobStatus {
+  SCHEDULED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  APPROVED
+  CANCELLED
+}
+
+/// Deep clean, pest control, chimney and hood, safety inspection.
+model ServiceType {
+  id                   String   @id @default(uuid())
+  code                 String   @unique
+  name                 Json
+  sacCode              String /// GST service accounting code
+  gstRatePercent       Float    @default(18)
+  checklistTemplateId  String?
+  issuesCertificate    Boolean  @default(false)
+  certificateValidDays Int?
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+
+  checklistTemplate ChecklistTemplate?   @relation(fields: [checklistTemplateId], references: [id])
+  catalogItems      ServiceCatalogItem[]
+  planLines         PlanLine[]
+  schedules         ServiceSchedule[]
+  jobs              Job[]
+  certificates      Certificate[]
+}
+
+/// A priced, bookable one-time service.
+model ServiceCatalogItem {
+  id              String   @id @default(uuid())
+  serviceTypeId   String
+  name            Json
+  description     Json?
+  pricePaise      Int
+  durationMinutes Int
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  serviceType ServiceType @relation(fields: [serviceTypeId], references: [id])
+  bookings    Booking[]
+}
+
+/// A subscription bundle.
+model Plan {
+  id           String       @id @default(uuid())
+  code         String       @unique
+  name         Json
+  description  Json?
+  pricePaise   Int /// per billing cycle, before GST
+  billingCycle BillingCycle @default(MONTHLY)
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+
+  lines         PlanLine[]
+  subscriptions Subscription[]
+}
+
+/// One included service and how often it happens, e.g. pest control every 15 days.
+model PlanLine {
+  id            String @id @default(uuid())
+  planId        String
+  serviceTypeId String
+  intervalDays  Int
+
+  plan        Plan        @relation(fields: [planId], references: [id], onDelete: Cascade)
+  serviceType ServiceType @relation(fields: [serviceTypeId], references: [id])
+
+  @@unique([planId, serviceTypeId])
+}
+
+model Subscription {
+  id              String             @id @default(uuid())
+  outletId        String
+  planId          String
+  status          SubscriptionStatus @default(ACTIVE)
+  startDate       DateTime           @db.Date
+  endDate         DateTime?          @db.Date
+  nextBillingDate DateTime?          @db.Date
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  outlet    Outlet            @relation(fields: [outletId], references: [id])
+  plan      Plan              @relation(fields: [planId], references: [id])
+  schedules ServiceSchedule[]
+  invoices  Invoice[]
+
+  @@index([outletId])
+}
+
+/// A one-time service request from a restaurant.
+model Booking {
+  id            String        @id @default(uuid())
+  outletId      String
+  catalogItemId String
+  preferredDate DateTime      @db.Date
+  preferredSlot String? /// e.g. "morning", "after closing"
+  notes         String?
+  status        BookingStatus @default(REQUESTED)
+  requestedById String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  outlet      Outlet             @relation(fields: [outletId], references: [id])
+  catalogItem ServiceCatalogItem @relation(fields: [catalogItemId], references: [id])
+  job         Job?
+  invoices    Invoice[]
+
+  @@index([outletId])
+}
+
+/// A recurring service for an outlet. The worker creates Jobs from this.
+model ServiceSchedule {
+  id             String   @id @default(uuid())
+  outletId       String
+  serviceTypeId  String
+  subscriptionId String?
+  intervalDays   Int
+  nextDueDate    DateTime @db.Date
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  outlet       Outlet        @relation(fields: [outletId], references: [id])
+  serviceType  ServiceType   @relation(fields: [serviceTypeId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  jobs         Job[]
+
+  @@index([outletId])
+  @@index([nextDueDate])
+}
+
+/// One service visit. Recorded on site by the ECCS supervisor.
+model Job {
+  id               String    @id @default(uuid())
+  outletId         String
+  serviceTypeId    String
+  scheduleId       String?
+  bookingId        String?   @unique
+  scheduledDate    DateTime  @db.Date
+  scheduledSlot    String?
+  status           JobStatus @default(SCHEDULED)
+  supervisorId     String?
+  technicianNames  String[] /// technicians have no login; names are recorded for the report
+  checkInAt        DateTime?
+  checkInLatitude  Float?
+  checkInLongitude Float?
+  checkInDistanceM Int? /// metres from the outlet's saved location
+  completedAt      DateTime?
+  approvedById     String?
+  approvedAt       DateTime?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  outlet         Outlet             @relation(fields: [outletId], references: [id])
+  serviceType    ServiceType        @relation(fields: [serviceTypeId], references: [id])
+  schedule       ServiceSchedule?   @relation(fields: [scheduleId], references: [id])
+  booking        Booking?           @relation(fields: [bookingId], references: [id])
+  supervisor     User?              @relation(fields: [supervisorId], references: [id])
+  taskResponses  JobTaskResponse[]
+  chemicalUsages JobChemicalUsage[]
+  attachments    Attachment[]
+  signOff        SignOff?
+  serviceReport  ServiceReport?
+  certificates   Certificate[]
+  issues         Issue[]
+
+  @@index([outletId, scheduledDate])
+  @@index([supervisorId, scheduledDate])
+  @@index([status])
+}
+
+model JobTaskResponse {
+  id          String   @id @default(uuid())
+  jobId       String
+  itemId      String
+  valueBool   Boolean?
+  valueNumber Float?
+  valueText   String?
+  note        String?
+  capturedAt  DateTime
+
+  job  Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  item ChecklistItem @relation(fields: [itemId], references: [id])
+
+  @@unique([jobId, itemId])
+}
+
+model Chemical {
+  id               String  @id @default(uuid())
+  name             String  @unique
+  activeIngredient String?
+  unit             String /// "ml", "g", "L"
+  safetyNotes      String?
+  isActive         Boolean @default(true)
+
+  usages JobChemicalUsage[]
+}
+
+model JobChemicalUsage {
+  id          String  @id @default(uuid())
+  jobId       String
+  chemicalId  String
+  quantity    Float
+  dilution    String?
+  areaApplied String?
+
+  job      Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  chemical Chemical @relation(fields: [chemicalId], references: [id])
+
+  @@index([jobId])
+}
+
+/// The restaurant's sign-off at the end of a visit.
+model SignOff {
+  id                    String   @id @default(uuid())
+  jobId                 String   @unique
+  signerName            String
+  signerRole            String?
+  signatureAttachmentId String?
+  signedAt              DateTime
+
+  job       Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  signature Attachment? @relation(fields: [signatureAttachmentId], references: [id])
+}
+
+model ServiceReport {
+  id          String   @id @default(uuid())
+  jobId       String   @unique
+  number      String   @unique
+  pdfKey      String?
+  generatedAt DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id])
+}
+
+model Certificate {
+  id            String   @id @default(uuid())
+  outletId      String
+  serviceTypeId String
+  jobId         String?
+  number        String   @unique
+  validFrom     DateTime @db.Date
+  validUntil    DateTime @db.Date
+  pdfKey        String?
+  createdAt     DateTime @default(now())
+
+  outlet      Outlet      @relation(fields: [outletId], references: [id])
+  serviceType ServiceType @relation(fields: [serviceTypeId], references: [id])
+  job         Job?        @relation(fields: [jobId], references: [id])
+
+  @@index([outletId])
+}
+
+// ───────────────────────── Inspections ─────────────────────────
+
+enum InspectionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+/// A scored ECCS audit of an outlet, modelled on FSSAI Schedule 4.
+model Inspection {
+  id            String           @id @default(uuid())
+  outletId      String
+  templateId    String
+  supervisorId  String
+  status        InspectionStatus @default(DRAFT)
+  conductedAt   DateTime
+  overallScore  Float? /// 0 to 100
+  sectionScores Json?
+  reportNumber  String?          @unique
+  pdfKey        String?
+  approvedById  String?
+  approvedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  outlet     Outlet               @relation(fields: [outletId], references: [id])
+  template   ChecklistTemplate    @relation(fields: [templateId], references: [id])
+  supervisor User                 @relation(fields: [supervisorId], references: [id])
+  responses  InspectionResponse[]
+  findings   InspectionFinding[]
+
+  @@index([outletId, conductedAt])
+}
+
+model InspectionResponse {
+  id           String   @id @default(uuid())
+  inspectionId String
+  itemId       String
+  passed       Boolean?
+  score        Float?
+  note         String?
+
+  inspection Inspection    @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  item       ChecklistItem @relation(fields: [itemId], references: [id])
+
+  @@unique([inspectionId, itemId])
+}
+
+/// A non-conformity found during an inspection.
+model InspectionFinding {
+  id               String    @id @default(uuid())
+  inspectionId     String
+  severity         Severity
+  description      String
+  correctiveAction String?
+  dueDate          DateTime? @db.Date
+  resolvedAt       DateTime?
+
+  inspection  Inspection   @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+  issues      Issue[]
+
+  @@index([inspectionId])
+}
+
+// ───────────────────────── Compliance, issues, score ─────────────────────────
+
+enum LicenceType {
+  FSSAI
+  FIRE_NOC
+  TRADE_LICENCE
+  PEST_CONTROL
+  OTHER
+}
+
+enum IssueCategory {
+  PEST_SIGHTING
+  CHIMNEY
+  EQUIPMENT
+  HYGIENE
+  SUPPORT
+  OTHER
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model Licence {
+  id         String      @id @default(uuid())
+  outletId   String
+  type       LicenceType
+  name       String?
+  number     String?
+  issuedOn   DateTime?   @db.Date
+  expiresOn  DateTime    @db.Date
+  documentId String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  outlet   Outlet    @relation(fields: [outletId], references: [id])
+  document Document? @relation(fields: [documentId], references: [id])
+
+  @@index([outletId])
+  @@index([expiresOn])
+}
+
+/// The document vault.
+model Document {
+  id           String   @id @default(uuid())
+  outletId     String
+  category     String /// "licence", "service-report", "certificate", "invoice", "other"
+  title        String
+  attachmentId String
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  outlet     Outlet     @relation(fields: [outletId], references: [id])
+  attachment Attachment @relation(fields: [attachmentId], references: [id])
+  licences   Licence[]
+
+  @@index([outletId, category])
+}
+
+/// Problems and requests raised by a restaurant or by ECCS. Category SUPPORT is a support ticket.
+model Issue {
+  id                  String        @id @default(uuid())
+  outletId            String
+  category            IssueCategory
+  severity            Severity      @default(MEDIUM)
+  title               String
+  description         String?
+  status              IssueStatus   @default(OPEN)
+  raisedById          String
+  assigneeId          String?
+  jobId               String?
+  inspectionFindingId String?
+  resolvedAt          DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  outlet            Outlet             @relation(fields: [outletId], references: [id])
+  raisedBy          User               @relation("IssueRaisedBy", fields: [raisedById], references: [id])
+  assignee          User?              @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  job               Job?               @relation(fields: [jobId], references: [id])
+  inspectionFinding InspectionFinding? @relation(fields: [inspectionFindingId], references: [id])
+  comments          IssueComment[]
+  attachments       Attachment[]
+
+  @@index([outletId, status])
+}
+
+model IssueComment {
+  id        String   @id @default(uuid())
+  issueId   String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  issue  Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author User  @relation(fields: [authorId], references: [id])
+
+  @@index([issueId])
+}
+
+model HygieneScoreSnapshot {
+  id        String   @id @default(uuid())
+  outletId  String
+  date      DateTime @db.Date
+  score     Float /// 0 to 100
+  breakdown Json /// points per component, see PROPOSAL.md "Hygiene score"
+
+  outlet Outlet @relation(fields: [outletId], references: [id])
+
+  @@unique([outletId, date])
+}
+
+// ───────────────────────── Billing ─────────────────────────
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  VOID
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  organizationId String
+  outletId       String?
+  subscriptionId String?
+  bookingId      String?
+  number         String        @unique /// sequential per financial year
+  issueDate      DateTime      @db.Date
+  dueDate        DateTime      @db.Date
+  status         InvoiceStatus @default(DRAFT)
+  subtotalPaise  Int
+  cgstPaise      Int           @default(0)
+  sgstPaise      Int           @default(0)
+  igstPaise      Int           @default(0)
+  totalPaise     Int
+  paidPaise      Int           @default(0)
+  pdfKey         String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  outlet       Outlet?       @relation(fields: [outletId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  booking      Booking?      @relation(fields: [bookingId], references: [id])
+  lines        InvoiceLine[]
+  payments     Payment[]
+
+  @@index([organizationId, status])
+  @@index([outletId])
+}
+
+model InvoiceLine {
+  id             String @id @default(uuid())
+  invoiceId      String
+  description    String
+  sacCode        String
+  quantity       Float  @default(1)
+  unitPricePaise Int
+  gstRatePercent Float
+  amountPaise    Int /// taxable value of the line
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  invoiceId         String
+  amountPaise       Int
+  method            String /// "upi", "card", "netbanking", "cash", "bank-transfer"
+  status            PaymentStatus @default(PENDING)
+  reference         String?
+  razorpayOrderId   String?
+  razorpayPaymentId String?       @unique
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+}
+
+// ───────────────────────── Restaurant staff management ─────────────────────────
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
+  WEEKLY_OFF
+}
+
+/// A restaurant employee. Not a User: most staff never log in.
+model StaffMember {
+  id                 String    @id @default(uuid())
+  outletId           String
+  name               String
+  jobTitle           String?
+  phone              String?
+  monthlySalaryPaise Int
+  overtimeRatePaise  Int? /// per hour
+  joinedOn           DateTime? @db.Date
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  outlet     Outlet             @relation(fields: [outletId], references: [id])
+  attendance AttendanceRecord[]
+  salaries   SalaryRecord[]
+
+  @@index([outletId])
+}
+
+model AttendanceRecord {
+  id            String           @id @default(uuid())
+  staffMemberId String
+  date          DateTime         @db.Date
+  status        AttendanceStatus
+  overtimeHours Float            @default(0)
+  note          String?
+  markedById    String?
+  createdAt     DateTime         @default(now())
+
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([staffMemberId, date])
+}
+
+/// One month's pay for one employee. A record, not a payroll calculation.
+model SalaryRecord {
+  id              String    @id @default(uuid())
+  staffMemberId   String
+  month           DateTime  @db.Date /// first day of the month
+  basePaise       Int
+  daysWorked      Float
+  overtimeHours   Float     @default(0)
+  overtimePaise   Int       @default(0)
+  bonusPaise      Int       @default(0)
+  advancesPaise   Int       @default(0)
+  deductionsPaise Int       @default(0)
+  netPaise        Int
+  paidPaise       Int       @default(0)
+  paidOn          DateTime? @db.Date
+  note            String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([staffMemberId, month])
+}
+
+// ───────────────────────── Food labels ─────────────────────────
+
+enum StorageType {
+  AMBIENT
+  CHILLED
+  FROZEN
+}
+
+model FoodItem {
+  id             String      @id @default(uuid())
+  outletId       String
+  name           Json
+  shelfLifeHours Int
+  storage        StorageType @default(CHILLED)
+  isActive       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+
+  outlet Outlet      @relation(fields: [outletId], references: [id])
+  labels FoodLabel[]
+
+  @@index([outletId])
+}
+
+model FoodLabel {
+  id           String    @id @default(uuid())
+  outletId     String
+  foodItemId   String
+  preparedAt   DateTime
+  expiresAt    DateTime
+  preparedById String?
+  printedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  outlet   Outlet   @relation(fields: [outletId], references: [id])
+  foodItem FoodItem @relation(fields: [foodItemId], references: [id])
+
+  @@index([outletId, expiresAt])
+}
+
+// ───────────────────────── Customer QR page ─────────────────────────
+
+enum PublicPhotoStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+}
+
+/// The public page a diner sees after scanning the outlet's QR code.
+model PublicProfile {
+  id        String   @id @default(uuid())
+  outletId  String   @unique
+  token     String   @unique /// random, goes in the QR URL
+  isEnabled Boolean  @default(true) /// the restaurant can switch its page off
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  outlet Outlet        @relation(fields: [outletId], references: [id])
+  photos PublicPhoto[]
+}
+
+model PublicPhoto {
+  id           String            @id @default(uuid())
+  profileId    String
+  attachmentId String
+  caption      Json?
+  status       PublicPhotoStatus @default(PROPOSED)
+  position     Int               @default(0)
+  proposedById String?
+  approvedById String?
+  createdAt    DateTime          @default(now())
+
+  profile    PublicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  attachment Attachment    @relation(fields: [attachmentId], references: [id])
+
+  @@index([profileId, status])
+}
+
+// ───────────────────────── Cross-cutting ─────────────────────────
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  channel   String /// "push", "sms", "email"
+  title     String
+  body      String
+  data      Json?
+  sentAt    DateTime?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  actorId        String?
+  action         String /// e.g. "job.approve"
+  entity         String
+  entityId       String?
+  organizationId String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([organizationId, createdAt])
+}

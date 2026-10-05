@@ -20,10 +20,11 @@ The team is the founder plus Claude Code. There are no other developers, so this
 |---|---|
 | **Phase** | Phase 0 (Foundation), in progress. |
 | **Plan approval** | Approved by the founder on 5 Oct 2026. Installing and scaffolding are allowed. |
-| **Code** | Monorepo scaffolded with three untouched starter apps: `apps/web` (Next.js 16), `apps/api` (NestJS 12), `apps/mobile` (Expo SDK 57). All typecheck; web and API build. No ECCS features written yet. |
-| **Blocked** | Local database. Docker cannot be installed until the founder completes the admin steps in section 6. |
-| **Next action (Claude)** | Create `packages/shared` and `packages/db` with the Prisma schema from PROPOSAL.md section 4, then sample seed data. Schema can be written without Docker; migrations need it. |
-| **Next action (founder)** | The admin steps in section 6. |
+| **Code** | Monorepo with three untouched starter apps: `apps/web` (Next.js 16), `apps/api` (NestJS 12), `apps/mobile` (Expo SDK 57). `packages/db` holds the full database schema (about 45 tables), the first migration and sample seed data. No screens or API endpoints written yet. |
+| **Local services** | Running in Docker: PostgreSQL on 5432, Redis on 6379, SeaweedFS (S3 stand-in) on 8333. Database is migrated and seeded. |
+| **Blocked** | Nothing. |
+| **Next action (Claude)** | `packages/shared` (roles, permission rules, Zod schemas), then wire `@eccs/db` into the API and build auth: phone + fixed dev OTP login, memberships, role guards. |
+| **Next action (founder)** | None required. Optional: the remaining items in section 6 (long paths, Android Studio). |
 
 ## 3. Decisions made
 
@@ -64,11 +65,12 @@ Status values: not started, in progress, done, blocked.
 | Item | Status | Notes |
 |---|---|---|
 | Git, Node 24, pnpm, VS Code extensions | done | See section 6 |
-| Docker, WSL2, JDK 17, Android Studio | blocked | Needs founder: admin rights and BIOS virtualisation |
+| WSL2, Docker Desktop | done | Installed by the founder |
+| JDK 17, Android Studio | not started | Optional for now; only needed for a local Android emulator |
 | Monorepo scaffolded (pnpm + Turborepo) | done | `apps/web`, `apps/api`, `apps/mobile` are generator defaults |
-| `infra/docker-compose.yml` (Postgres, Redis, MinIO) | done | Written, not yet run |
+| Local services (Postgres, Redis, S3 stand-in) | done | `pnpm services:up`. S3 bucket creation still to be verified when the storage module is built |
+| `packages/db` (Prisma schema, migrations, sample seed) | done | Prisma 7.10. Seed: 3 ECCS users, 2 sample brands, 3 outlets, 7 restaurant users, 5 checklist templates in en/te/hi, 4 service types, 2 plans, jobs, licences, staff, food items |
 | `packages/shared` (Zod schemas, roles, permissions) | not started | |
-| `packages/db` (Prisma schema, migrations, sample seed) | not started | |
 | `packages/i18n` (en, te, hi) | not started | |
 | Auth: phone OTP (fixed dev OTP), PIN, biometric, memberships | not started | |
 | API client shared by web and mobile | not started | |
@@ -132,25 +134,17 @@ Founder's machine: `C:\Users\eosfera`, Windows 11 Home, x64, Intel i5-13420H, 16
 | VS Code | installed | Extensions: ESLint, Prettier, Prisma, Tailwind, Expo Tools, Containers, Error Lens. `code` is not on PATH; open VS Code from the Start menu. |
 | winget 1.6 | present, outdated | Works only with `--source winget` (its Store source fails with a certificate error). Not on PATH; full path is `%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe`. Updating "App Installer" in the Microsoft Store fixes both. |
 | GitHub CLI | not installed | Needed when we create the GitHub remote. |
-| WSL2 | not installed | Admin |
-| Docker Desktop | not installed | Admin, needs WSL2 and virtualisation |
+| WSL2 | installed | |
+| Docker Desktop 29.8 | installed, engine running | Must be started (Start menu) before `pnpm services:up` after a reboot. |
 | JDK 17, Android Studio | not installed | Admin. Only needed for a local Android emulator; a real phone with Expo works without them. |
-| Windows long paths | off | Admin |
-| CPU virtualisation | **reported off in firmware** | Must be enabled in BIOS before WSL2, Docker or the Android emulator will work. |
+| Windows long paths | not confirmed | Was off on 5 Oct. Admin command below. Needed before local Android builds. |
 
-### Founder's admin steps (not yet done)
+### Optional admin step for the founder
 
-1. Restart, enter BIOS setup (usually F2 or Del at power-on), enable "Intel Virtualization Technology" (VT-x), save and exit.
-2. Open PowerShell with "Run as administrator" and run:
-   ```powershell
-   New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
-   wsl --install
-   ```
-3. Restart when asked. Then in an administrator PowerShell:
-   ```powershell
-   & "$env:LOCALAPPDATA\Microsoft\WindowsApps\winget.exe" install --id Docker.DockerDesktop -e --source winget
-   ```
-4. Start Docker Desktop once and accept its terms. Tell Claude when done.
+In PowerShell opened with "Run as administrator" (include the leading `&` where shown):
+```powershell
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+```
 
 ### Notes for Claude sessions on this machine
 
@@ -163,6 +157,13 @@ Founder's machine: `C:\Users\eosfera`, Windows 11 Home, x64, Intel i5-13420H, 16
 - Next.js 16, Expo SDK 57 and NestJS 12 are newer than Claude's training data. Read `apps/web/AGENTS.md` and `apps/mobile/AGENTS.md` and the docs they point to before writing framework code. NestJS 12 is ESM and uses Vitest and oxlint.
 - In `apps/mobile`, add packages with `npx expo install <package>` so versions match the SDK.
 - React is pinned to 19.2.3 in both web and mobile to keep one copy under the hoisted layout.
+- Prisma is pinned to 7.10.0. `pnpm add prisma` without a version pulls an 8.0 release candidate; do not upgrade until 8 is stable. Prisma 7 keeps the database URL in `packages/db/prisma.config.ts` (read from `packages/db/.env`, not committed), generates the client into `packages/db/generated/prisma` (not committed, run `pnpm --filter @eccs/db generate`), and needs the `@prisma/adapter-pg` driver adapter; use `createPrismaClient()` from `@eccs/db`.
+- `prisma init` installs agent "skills" folders (`.agents`, `.claude`, `.windsurf`) as a side effect; they were deleted. Do not re-run `prisma init`.
+- `@eccs/db` exports TypeScript source directly. Wiring it into the NestJS build is part of the next step and not yet proven.
+- pnpm blocks dependency install scripts unless listed under `allowBuilds` in `pnpm-workspace.yaml`.
+- The `minio/minio` image no longer exists on Docker Hub; local S3 is SeaweedFS on port 8333.
+- Database commands, run from `packages/db`: `pnpm migrate` (new migration after a schema change), `pnpm seed` (wipe and reload sample data), `pnpm reset` (drop everything, re-migrate, re-seed), `pnpm studio` (browse the data).
+- Sample logins (phone numbers, any of them with the fixed dev OTP once auth exists): ECCS `+919000000001` Super Admin, `…002` Ops Manager, `…003` Supervisor; restaurant `+919100000001` Owner, `…011` Manager, `…012` Head Chef.
 
 ### Everyday commands
 
@@ -197,8 +198,8 @@ Other running costs: OTP SMS about ₹0.20 to ₹0.25 each; Razorpay about 2% pe
 | `apps/web` | Next.js: ECCS admin console, restaurant owner dashboard, public QR page. |
 | `apps/api` | NestJS REST API. |
 | `apps/mobile` | Expo app for restaurant staff and ECCS supervisors. |
-| `packages/` | Shared code. Empty so far. |
-| `infra/docker-compose.yml` | Local Postgres, Redis, MinIO. |
+| `packages/db` | Prisma schema (`prisma/schema.prisma`), migrations, sample seed (`prisma/seed.ts`), client factory (`src/index.ts`). |
+| `infra/docker-compose.yml` | Local Postgres, Redis, SeaweedFS. |
 | `.env.example` | Local environment variables, including the fixed development OTP. |
 
 ## 9. Change log
@@ -207,6 +208,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 5 Oct 2026 | Founder installed WSL2 and Docker. Local Postgres, Redis and SeaweedFS running (MinIO image no longer available). `packages/db` added: full schema, first migration applied, sample data seeded. "Contract" folded into Plan and Subscription in the data model. |
 | 5 Oct 2026 | Plan approved. Founder answered open questions (roles, platforms, sample data, languages, salary, QR). Installed Git, fnm, Node 24, pnpm, VS Code extensions. Initialised git. Scaffolded monorepo with Next.js, NestJS and Expo starters; all typecheck. Docker blocked on admin steps. Hosting cost estimate added. |
 | 5 Oct 2026 | Founder confirmed whiteboard open points; all twelve items in pilot. PROPOSAL.md updated. STATUS.md and CLAUDE.md created. |
 | 5 Oct 2026 | Whiteboard (`image.png`) reviewed; section 8 added to PROPOSAL.md. |

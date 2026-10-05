@@ -31,7 +31,7 @@ export default function StaffScreen() {
   const [role, setRole] = useState<StaffRole>('HEAD_CHEF');
   const [outletId, setOutletId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [revealed, setRevealed] = useState<{ pin: string; name: string } | null>(null);
+  const [revealed, setRevealed] = useState<{ pin: string; name: string; outletId: string | null } | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
 
   const memberships = user?.memberships ?? [];
@@ -72,7 +72,7 @@ export default function StaffScreen() {
     setError(null);
     try {
       const created = await api.restaurantUsers.create({ name, role, outletId });
-      setRevealed({ pin: created.pin, name: created.user.name });
+      setRevealed({ pin: created.pin, name: created.user.name, outletId: created.user.outletId });
       setAdding(false);
       setName('');
       await reload();
@@ -91,7 +91,7 @@ export default function StaffScreen() {
     try {
       if (kind === 'reset') {
         const result = await api.restaurantUsers.resetPin(person.id);
-        setRevealed({ pin: result.pin, name: person.name });
+        setRevealed({ pin: result.pin, name: person.name, outletId: person.outletId });
       } else {
         await api.restaurantUsers.update(person.id, { isActive: false });
       }
@@ -107,6 +107,7 @@ export default function StaffScreen() {
         <PinReveal
           pin={revealed.pin}
           message={t('newPin.staffHelp', { name: revealed.name })}
+          restaurantCode={outlets.find((outlet) => outlet.id === revealed.outletId)?.code}
           onDone={() => setRevealed(null)}
         />
       </Screen>
@@ -122,6 +123,28 @@ export default function StaffScreen() {
   return (
     <Screen back title={t('staff.title')} subtitle={t('staff.help')}>
       <ErrorText message={error} />
+
+      {outlets.some((outlet) => outlet.code) && (
+        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            {t('staff.code')}
+          </ThemedText>
+          {outlets.map(
+            (outlet) =>
+              outlet.code && (
+                <View key={outlet.id}>
+                  {outlets.length > 1 && <ThemedText type="small">{outlet.name}</ThemedText>}
+                  <ThemedText type="default" themeColor="primary" style={styles.code} selectable>
+                    {outlet.code}
+                  </ThemedText>
+                </View>
+              ),
+          )}
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('staff.codeHelp')}
+          </ThemedText>
+        </View>
+      )}
 
       {adding ? (
         <View style={[styles.card, { borderColor: theme.border }]}>
@@ -228,6 +251,7 @@ export default function StaffScreen() {
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   personName: { fontWeight: 700 },
+  code: { fontSize: 24, lineHeight: 32, fontWeight: 700, letterSpacing: 1 },
   options: { flexDirection: 'row', gap: Spacing.two },
   optionsColumn: { gap: Spacing.two },
   option: {

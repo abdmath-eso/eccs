@@ -17,6 +17,7 @@ const PHONES = {
   spiceOwner: '+919100000001',
   deccanOwner: '+919100000002',
   unknown: '+919999999999',
+  newOwner: '+919888800001',
 };
 const CODES = { jubilee: 'SPICE-JH2K7M', gachibowli: 'SPICE-GB4N8P', kukatpally: 'DECCA-KP6R3T' };
 const PINS = {
@@ -46,6 +47,8 @@ describe('Login and roles (e2e)', () => {
     await db.session.deleteMany({ where: { deviceName: DEVICE } });
     await db.linkedDevice.deleteMany({ where: { name: DEVICE } });
     await db.user.deleteMany({ where: { name: { startsWith: 'E2E ' } } });
+    await db.outlet.deleteMany({ where: { name: { startsWith: 'E2E ' } } });
+    await db.organization.deleteMany({ where: { name: { startsWith: 'E2E ' } } });
 
     await restoreDeccanOwnerPin();
   }
@@ -342,6 +345,112 @@ describe('Login and roles (e2e)', () => {
       const otherOwner = await pinLogin(kukatpallyPhone, PINS.deccanOwner);
       await http().post(`/restaurant-users/${id}/reset-pin`).set(bearer(otherOwner)).expect(404);
       await http().post(`/restaurant-users/${id}/reset-pin`).set(bearer(manager)).expect(404);
+    });
+  });
+
+  describe('restaurant codes and onboarding (ECCS console)', () => {
+    // One admin login for the whole group: one-time codes are rate-limited per phone.
+    let admin: string;
+    beforeAll(async () => {
+      admin = (await otpLogin(PHONES.superAdmin)).token;
+    });
+
+    type OutletRow = { name: string; code: string | null };
+    const outletsFor = async (token: string) =>
+      (await http().get('/outlets').set(bearer(token)).expect(200)).body as OutletRow[];
+
+    it('shows the restaurant code only to people who hand it out', async () => {
+      const owner = await outletsFor(await pinLogin(jubileePhone, PINS.spiceOwner));
+      expect(new Set(owner.map((o) => o.code))).toEqual(new Set([CODES.gachibowli, CODES.jubilee]));
+
+      const manager = await outletsFor(await pinLogin(jubileePhone, PINS.jubileeManager));
+      expect(manager).toEqual([expect.objectContaining({ code: CODES.jubilee })]);
+
+      const supervisor = await outletsFor((await otpLogin(PHONES.supervisor)).token);
+      expect(supervisor.length).toBeGreaterThan(0);
+      expect(supervisor.every((o) => o.code === null)).toBe(true);
+    });
+
+    it('keeps the client list and onboarding to ECCS admins', async () => {
+      const owner = await pinLogin(jubileePhone, PINS.spiceOwner);
+      const supervisor = (await otpLogin(PHONES.supervisor)).token;
+      for (const token of [owner, supervisor]) {
+        await http().get('/organizations').set(bearer(token)).expect(403);
+        await http().post('/organizations').set(bearer(token)).send({}).expect(403);
+      }
+    });
+
+    it('onboards a restaurant end to end: client, outlet code, owner, PIN, first staff member', async () => {
+
+      const created = await http()
+        .post('/organizations')
+        .set(bearer(admin))
+        .send({
+          name: 'E2E Tandoor House',
+          ownerName: 'E2E Owner',
+          ownerPhone: '98888 00001',
+          ownerEmail: 'Owner@E2E-Tandoor.example',
+          outletName: 'E2E Tandoor House, Madhapur',
+          outletAddress: 'Hitech City Road, Madhapur',
+          pincode: '500081',
+          gstin: '',
+        })
+        .expect(201);
+      expect(created.body.owners).toEqual([
+        expect.objectContaining({ name: 'E2E Owner', phone: PHONES.newOwner, email: 'owner@e2e-tandoor.example', hasPin: false }),
+      ]);
+      const outlet = created.body.outlets[0] as { id: string; code: string };
+      expect(outlet.code).toMatch(/^[A-Z]{1,5}-[2-9A-Z]{6}$/);
+
+      const list = await http().get('/organizations').set(bearer(admin)).expect(200);
+      expect((list.body as { name: string }[]).map((o) => o.name)).toContain('E2E Tandoor House');
+
+      // The owner sets up with their number and a one-time code, and is given a PIN.
+      const ownerSession = await otpLogin(PHONES.newOwner);
+      expect(ownerSession.generatedPin).toMatch(/^\d{4}$/);
+      expect(ownerSession.linkedDevice.organizationName).toBe('E2E Tandoor House');
+
+      // The owner adds a head chef, who links a phone with the restaurant code and logs in by PIN.
+      const chef = await http()
+        .post('/restaurant-users')
+        .set(bearer(ownerSession.token))
+        .send({ name: 'E2E First Chef', role: 'HEAD_CHEF', outletId: outlet.id })
+        .expect(201);
+      const chefPhone = await http().post('/auth/device/link').send({ code: outlet.code, deviceName: DEVICE }).expect(200);
+      const chefSession = await http()
+        .post('/auth/pin/login')
+        .send({ deviceToken: chefPhone.body.deviceToken, pin: chef.body.pin })
+        .expect(200);
+      expect(chefSession.body.user.name).toBe('E2E First Chef');
+    });
+
+    it('refuses a second login with the same mobile number, and validates input', async () => {
+      const body = {
+        name: 'E2E Duplicate',
+        ownerName: 'E2E Someone',
+        ownerPhone: PHONES.spiceOwner,
+        outletName: 'E2E Duplicate, Ameerpet',
+        outletAddress: 'Ameerpet',
+      };
+      await http().post('/organizations').set(bearer(admin)).send(body).expect(409);
+      await http().post('/organizations').set(bearer(admin)).send({ ...body, ownerPhone: '123' }).expect(400);
+      await http().post('/organizations').set(bearer(admin)).send({ ...body, name: '' }).expect(400);
+    });
+
+    it('adds a second outlet with its own code', async () => {
+      const list = await http().get('/organizations').set(bearer(admin)).expect(200);
+      const client = (list.body as { id: string; name: string; outlets: { code: string }[] }[]).find(
+        (o) => o.name === 'E2E Tandoor House',
+      )!;
+
+      const outlet = await http()
+        .post(`/organizations/${client.id}/outlets`)
+        .set(bearer(admin))
+        .send({ outletName: 'E2E Tandoor House, Kondapur', outletAddress: 'Kondapur Main Road' })
+        .expect(201);
+      expect(outlet.body.code).not.toBe(client.outlets[0]!.code);
+
+      await http().post('/organizations/not-a-real-id/outlets').set(bearer(admin)).send({ outletName: 'E2E X', outletAddress: 'Y' }).expect(404);
     });
   });
 

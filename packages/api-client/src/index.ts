@@ -1,5 +1,9 @@
 import type {
+  CreateOrganizationInput,
+  CreateOutletInput,
   CreateRestaurantUserInput,
+  OrganizationDto,
+  OrganizationOutletDto,
   CurrentUserDto,
   LinkDeviceInput,
   LinkedDeviceDto,
@@ -96,6 +100,12 @@ export function createApiClient(options: ApiClientOptions) {
     },
     outlets: {
       list: () => call<OutletSummaryDto[]>("GET", "/outlets"),
+    },
+    organizations: {
+      list: () => call<OrganizationDto[]>("GET", "/organizations"),
+      create: (input: CreateOrganizationInput) => call<OrganizationDto>("POST", "/organizations", input),
+      addOutlet: (organizationId: string, input: CreateOutletInput) =>
+        call<OrganizationOutletDto>("POST", `/organizations/${encodeURIComponent(organizationId)}/outlets`, input),
     },
     restaurantUsers: {
       list: () => call<RestaurantUserDto[]>("GET", "/restaurant-users"),

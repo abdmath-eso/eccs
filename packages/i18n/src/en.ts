@@ -94,6 +94,9 @@ export const en = {
   "staff.deactivateConfirm": "{name} will no longer be able to log in. Continue?",
   "staff.inactive": "No access",
   "staff.empty": "No one has been added yet.",
+  "staff.code": "Restaurant code",
+  "staff.codeHelp": "A new phone types this code once. After that it only asks for a PIN. Share it only with your staff.",
+  "staff.pin": "PIN",
 
   "error.network": "Could not reach the server. Check your connection.",
   "error.generic": "Something went wrong. Try again.",

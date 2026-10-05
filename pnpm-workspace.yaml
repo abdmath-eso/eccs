@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Expo / React Native resolve native modules most reliably with a flat node_modules.
+nodeLinker: hoisted
+
+allowBuilds:
+  sharp: false
+  unrs-resolver: false

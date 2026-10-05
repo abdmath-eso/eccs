@@ -1,0 +1,20 @@
+{
+  "name": "eccs",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "services:up": "docker compose -f infra/docker-compose.yml up -d",
+    "services:down": "docker compose -f infra/docker-compose.yml down"
+  },
+  "devDependencies": {
+    "turbo": "latest"
+  },
+  "packageManager": "pnpm@12.9.1",
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -87,6 +87,7 @@ export const en = {
   "visitState.IN_PROGRESS": "In progress",
   "visitState.DONE": "Done",
   "visitState.NOT_DONE": "Not done",
+  "home.useMenu": "Open the menu to get started.",
   "tile.checklists": "Daily checklist",
   "tile.labels": "Food labels",
   "tile.issues": "Raise an issue",

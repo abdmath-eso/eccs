@@ -88,6 +88,7 @@ export const te: Messages = {
   "visitState.IN_PROGRESS": "జరుగుతోంది",
   "visitState.DONE": "పూర్తయింది",
   "visitState.NOT_DONE": "జరగలేదు",
+  "home.useMenu": "ప్రారంభించడానికి మెనూ తెరవండి.",
   "tile.checklists": "రోజువారీ చెక్‌లిస్ట్",
   "tile.labels": "ఆహార లేబుల్స్",
   "tile.issues": "సమస్యను తెలియజేయండి",

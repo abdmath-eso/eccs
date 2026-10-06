@@ -88,6 +88,7 @@ export const hi: Messages = {
   "visitState.IN_PROGRESS": "चल रहा है",
   "visitState.DONE": "पूरा हुआ",
   "visitState.NOT_DONE": "नहीं हुआ",
+  "home.useMenu": "शुरू करने के लिए मेनू खोलें।",
   "tile.checklists": "दैनिक चेकलिस्ट",
   "tile.labels": "फ़ूड लेबल",
   "tile.issues": "समस्या दर्ज करें",

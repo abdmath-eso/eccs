@@ -20,7 +20,7 @@ const MAX_LICENCES = 3;
  * (for the Owner and Manager), today's checklists, and any licences that
  * need renewing. Everything opens the screen where it can be dealt with.
  */
-export function OutletOverview({ outlet, showName }: { outlet: OutletDashboardDto; showName: boolean }) {
+export function OutletOverview({ outlet }: { outlet: OutletDashboardDto }) {
   const theme = useTheme();
   const { t, language } = useSession();
 
@@ -60,12 +60,6 @@ export function OutletOverview({ outlet, showName }: { outlet: OutletDashboardDt
 
   return (
     <View style={styles.outlet}>
-      {showName && (
-        <ThemedText type="default" style={styles.name}>
-          {outlet.outletName}
-        </ThemedText>
-      )}
-
       {licences && (
         <View style={styles.stats}>
           {stat(
@@ -168,7 +162,6 @@ export function OutletOverview({ outlet, showName }: { outlet: OutletDashboardDt
 
 const styles = StyleSheet.create({
   outlet: { gap: Spacing.two },
-  name: { fontWeight: 700, fontSize: 18 },
   stats: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.two },
   stat: {
     flex: 1,

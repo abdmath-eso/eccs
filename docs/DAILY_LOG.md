@@ -39,6 +39,8 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Built it. The History tile opens a month grid with small coloured labels in each day: checklists done ("2/2", red when missed), ECCS services, a licence expiring, a holiday. Tapping a day lists everything for it underneath, and a checklist there opens the full record. A "Coming up" list shows the next services and licence due dates. It goes a year back and a year ahead. For the Owner and Manager only.
 - Holidays are a sample list written by Claude and need checking against the Telangana government list. Added 12 sample past service visits to the local data so past days have completed services to show.
 - Tested with 6 new end-to-end tests (101 in total) and in Chrome as the Owner. Not tried on the phone.
+- Founder feedback: the calendar looks nice. On the dashboard, showing every branch one under another was wrong; the Owner should pick a branch at the top, as in checklists and the calendar. And the menu should move off the home screen into a side menu.
+- Changed the home screen accordingly: a branch selector at the top for the Owner (the choice is remembered and shared with the other screens), and a menu button that slides a panel in from the left with every section, the language choice and the Lock button. Checked in Chrome as the Owner: switching branch, opening the menu, opening a section from it.
 - Switched off Expo's generated route types, which kept causing false type errors while a dev server was running.
 
 **Carried over from yesterday**

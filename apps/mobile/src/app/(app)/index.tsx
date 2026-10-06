@@ -1,90 +1,93 @@
-import type { MessageKey } from '@eccs/i18n';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { isEccsRole, type OutletDashboardDto, type Role } from '@eccs/shared';
-import { router, useFocusEffect, type Href } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
-import { LanguagePicker } from '@/components/language-picker';
 import { OutletOverview } from '@/components/outlet-overview';
 import { PinReveal } from '@/components/pin-reveal';
+import { SideMenu, type MenuItem } from '@/components/side-menu';
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { useSession } from '@/lib/session';
+import { recallOutlet, rememberOutlet } from '@/lib/use-outlet';
 
-interface Tile {
-  label: MessageKey;
-  /** Where the tile goes. Tiles without a destination are not built yet. */
-  href?: Href;
-}
+const STAFF: MenuItem = { label: 'tile.staff', icon: 'key-outline', href: '/staff' };
 
-const STAFF: Tile = { label: 'tile.staff', href: '/staff' };
-
-// What each role sees on its home screen. Mirrors docs/PROPOSAL.md section 8.
-const HEAD_CHEF_TILES: Tile[] = [
-  { label: 'tile.checklists', href: '/checklists' },
-  { label: 'tile.labels' },
-  { label: 'tile.issues', href: '/support' },
-  { label: 'tile.attendance' },
-  { label: 'tile.sops' },
+// What each role finds in its menu. Mirrors docs/PROPOSAL.md section 8.
+const HEAD_CHEF_MENU: MenuItem[] = [
+  { label: 'tile.checklists', icon: 'checkbox-outline', href: '/checklists' },
+  { label: 'tile.labels', icon: 'pricetag-outline' },
+  { label: 'tile.issues', icon: 'chatbubble-ellipses-outline', href: '/support' },
+  { label: 'tile.attendance', icon: 'people-outline' },
+  { label: 'tile.sops', icon: 'book-outline' },
 ];
-const MANAGER_TILES: Tile[] = [
-  ...HEAD_CHEF_TILES,
-  { label: 'tile.services' },
-  { label: 'tile.dues' },
-  { label: 'tile.salary' },
-  { label: 'tile.history', href: '/history' },
-  { label: 'tile.documents', href: '/documents' },
+const MANAGER_MENU: MenuItem[] = [
+  ...HEAD_CHEF_MENU,
+  { label: 'tile.services', icon: 'construct-outline' },
+  { label: 'tile.dues', icon: 'receipt-outline' },
+  { label: 'tile.salary', icon: 'wallet-outline' },
+  { label: 'tile.history', icon: 'calendar-outline', href: '/history' },
+  { label: 'tile.documents', icon: 'document-text-outline', href: '/documents' },
   STAFF,
 ];
-const TILES: Record<Role, Tile[]> = {
-  HEAD_CHEF: HEAD_CHEF_TILES,
-  MANAGER: MANAGER_TILES,
-  OWNER: [...MANAGER_TILES, { label: 'tile.subscription' }, { label: 'tile.qr' }],
+const ECCS_MENU: MenuItem[] = [
+  { label: 'tile.clients', icon: 'business-outline' },
+  { label: 'tile.monitoring', icon: 'pulse-outline' },
+  { label: 'tile.jobs', icon: 'construct-outline' },
+  { label: 'tile.inspections', icon: 'clipboard-outline' },
+];
+const MENU: Record<Role, MenuItem[]> = {
+  HEAD_CHEF: HEAD_CHEF_MENU,
+  MANAGER: MANAGER_MENU,
+  OWNER: [
+    ...MANAGER_MENU,
+    { label: 'tile.subscription', icon: 'card-outline' },
+    { label: 'tile.qr', icon: 'qr-code-outline' },
+  ],
   SUPERVISOR: [
-    { label: 'tile.jobs' },
-    { label: 'tile.inspections' },
-    { label: 'tile.issues' },
-    { label: 'tile.clients' },
+    { label: 'tile.jobs', icon: 'construct-outline' },
+    { label: 'tile.inspections', icon: 'clipboard-outline' },
+    { label: 'tile.issues', icon: 'chatbubble-ellipses-outline' },
+    { label: 'tile.clients', icon: 'business-outline' },
   ],
-  OPS_MANAGER: [
-    { label: 'tile.clients' },
-    { label: 'tile.monitoring' },
-    { label: 'tile.jobs' },
-    { label: 'tile.inspections' },
-  ],
-  SUPER_ADMIN: [
-    { label: 'tile.clients' },
-    { label: 'tile.monitoring' },
-    { label: 'tile.jobs' },
-    { label: 'tile.inspections' },
-  ],
+  OPS_MANAGER: ECCS_MENU,
+  SUPER_ADMIN: ECCS_MENU,
 };
 
+/**
+ * Home: how today is going at the outlet. An Owner with several outlets
+ * picks one at the top. Everything else is in the menu, opened from the
+ * button in the corner.
+ */
 export default function HomeScreen() {
   const theme = useTheme();
-  const { t, api, user, newPin, dismissNewPin, signOut, linkedDevice } = useSession();
+  const { t, api, user, newPin, dismissNewPin } = useSession();
   const [overview, setOverview] = useState<OutletDashboardDto[] | null>(null);
+  const [chosenOutlet, setChosenOutlet] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const membership = user?.memberships[0];
   // The restaurant's home opens with how today is going. ECCS staff have the web console for that.
   const showsOverview = membership !== undefined && !isEccsRole(membership.role) && !newPin;
 
-  // Reloads whenever the home screen comes back into view, so it reflects what was just done.
+  // Reloads whenever the home screen comes back into view, so it reflects what was just
+  // done, and follows the outlet last chosen on any other screen.
   useFocusEffect(
     useCallback(() => {
       if (!showsOverview) return;
       let cancelled = false;
       (async () => {
         try {
-          const outlets = await api.dashboard.get();
+          const [outlets, remembered] = await Promise.all([api.dashboard.get(), recallOutlet()]);
           if (cancelled) return;
           setOverview(outlets);
+          setChosenOutlet(remembered);
           setError(null);
         } catch (e) {
           if (!cancelled) setError(errorMessage(e, t));
@@ -111,93 +114,108 @@ export default function HomeScreen() {
 
   const place =
     membership.outletName ?? membership.organizationName ?? (membership.role === 'OWNER' ? t('home.allOutlets') : null);
+  const roleAndPlace = `${t(`role.${membership.role}`)}${place ? ` · ${place}` : ''}`;
+  const outlet = overview?.find((entry) => entry.outletId === chosenOutlet) ?? overview?.[0];
 
   return (
     <Screen>
       <View style={styles.header}>
-        <ThemedText type="subtitle" style={styles.greeting}>
-          {t('home.greeting', { name: user.name })}
-        </ThemedText>
-        <ThemedText type="default" themeColor="primary">
-          {t(`role.${membership.role}`)}
-          {place ? ` · ${place}` : ''}
-        </ThemedText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('dash.menu')}
+          onPress={() => setMenuOpen(true)}
+          style={({ pressed }) => [
+            styles.menuButton,
+            { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
+          ]}>
+          <Ionicons name="menu" size={28} color={theme.text} />
+        </Pressable>
+        <View style={styles.headerText}>
+          <ThemedText type="subtitle" style={styles.greeting}>
+            {t('home.greeting', { name: user.name })}
+          </ThemedText>
+          <ThemedText type="default" themeColor="primary">
+            {roleAndPlace}
+          </ThemedText>
+        </View>
       </View>
 
-      {showsOverview && (
-        <View style={styles.overview}>
+      {showsOverview ? (
+        <>
+          {overview && overview.length > 1 && (
+            <View style={styles.outlets} accessibilityLabel={t('checklists.chooseOutlet')}>
+              {overview.map((entry) => {
+                const selected = entry.outletId === outlet?.outletId;
+                return (
+                  <Pressable
+                    key={entry.outletId}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => {
+                      setChosenOutlet(entry.outletId);
+                      void rememberOutlet(entry.outletId);
+                    }}
+                    style={[
+                      styles.outlet,
+                      { borderColor: selected ? theme.primary : theme.border },
+                      selected && { backgroundColor: theme.backgroundElement },
+                    ]}>
+                    <ThemedText type="small" themeColor={selected ? 'primary' : 'text'}>
+                      {entry.outletName}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
           <ErrorText message={error} />
           {overview === null && !error && <ActivityIndicator color={theme.primary} />}
-          {overview?.map((outlet) => (
-            <OutletOverview key={outlet.outletId} outlet={outlet} showName={overview.length > 1} />
-          ))}
-          {overview && membership.role !== 'HEAD_CHEF' && (
+          {outlet && <OutletOverview outlet={outlet} />}
+          {outlet && membership.role !== 'HEAD_CHEF' && (
             <ThemedText type="small" themeColor="textSecondary">
               {t('dash.soon')}
             </ThemedText>
           )}
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.menu}>
-            {t('dash.menu')}
-          </ThemedText>
-        </View>
+        </>
+      ) : (
+        <ThemedText type="default" themeColor="textSecondary">
+          {t('home.useMenu')}
+        </ThemedText>
       )}
 
-      <View style={styles.tiles}>
-        {TILES[membership.role].map((tile) => {
-          const href = tile.href;
-          return (
-            <Pressable
-              key={tile.label}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !href }}
-              disabled={!href}
-              onPress={() => href && router.push(href)}
-              style={({ pressed }) => [
-                styles.tile,
-                { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
-              ]}>
-              <ThemedText type="default" style={[styles.tileLabel, !href && styles.muted]}>
-                {t(tile.label)}
-              </ThemedText>
-              {!href && (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t('home.comingSoon')}
-                </ThemedText>
-              )}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={styles.footer}>
-        <LanguagePicker />
-        {/* On a restaurant's phone, logging out returns to the PIN pad for the next person. */}
-        <Button
-          label={linkedDevice ? t('home.lock') : t('home.logout')}
-          variant="secondary"
-          onPress={() => void signOut()}
-        />
-      </View>
+      <SideMenu
+        visible={menuOpen}
+        title={user.name}
+        subtitle={roleAndPlace}
+        items={MENU[membership.role]}
+        onClose={() => setMenuOpen(false)}
+        onSelect={(href) => {
+          setMenuOpen(false);
+          router.push(href);
+        }}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { gap: Spacing.one, paddingTop: Spacing.two },
-  greeting: { fontSize: 26, lineHeight: 34 },
-  overview: { gap: Spacing.four },
-  menu: { marginBottom: -Spacing.two },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
-  tile: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    minHeight: MinTouchSize * 1.7,
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingTop: Spacing.two },
+  menuButton: {
+    width: MinTouchSize,
+    height: MinTouchSize,
     borderRadius: Spacing.three,
-    padding: Spacing.three,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.one,
   },
-  tileLabel: { fontWeight: 700 },
-  muted: { opacity: 0.55 },
-  footer: { gap: Spacing.three, marginTop: Spacing.four },
+  headerText: { flex: 1, gap: Spacing.one },
+  greeting: { fontSize: 24, lineHeight: 30 },
+  outlets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  outlet: {
+    minHeight: MinTouchSize - 8,
+    borderWidth: 2,
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    justifyContent: 'center',
+  },
 });

@@ -12,12 +12,21 @@ import {
   type SopCategory,
   type SopDto,
   type SopLanguage,
+  type SopLibraryItemDto,
+  type SopLibraryOverviewDto,
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
+import { alternatives, words } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+
+const MAX_LIBRARY_RESULTS = 60;
 
 const sopInclude = { outlet: { select: { organizationId: true } } } as const satisfies Prisma.SopTemplateInclude;
 type SopRow = Prisma.SopTemplateGetPayload<{ include: typeof sopInclude }>;
+type LibraryRow = Prisma.SopLibraryItemGetPayload<object>;
+
+const toCategory = (value: string): SopCategory =>
+  (SOP_CATEGORIES as readonly string[]).includes(value) ? (value as SopCategory) : 'OTHER';
 
 /**
  * The SOP library. A standard SOP (no outlet) is written by ECCS and read by
@@ -118,6 +127,129 @@ export class SopsService {
     await this.db.sopTemplate.delete({ where: { id: sop.id } });
   }
 
+  // ───────────────────────── The library ─────────────────────────
+  //
+  // Several hundred ready-made SOPs. A restaurant never gets them all at
+  // once: the Owner or Manager searches or browses, reads one, and copies
+  // the ones they want into their own SOPs, where the wording is theirs to change.
+
+  /** What the library holds: each category with the sections inside it, for browsing. */
+  async libraryOverview(user: AuthUser, outletId: string): Promise<SopLibraryOverviewDto> {
+    await this.requireOutlet(user, 'create', outletId);
+    const groups = await this.db.sopLibraryItem.groupBy({
+      by: ['category', 'section'],
+      where: { isActive: true },
+      _count: { _all: true },
+      orderBy: { section: 'asc' },
+    });
+    const categories = SOP_CATEGORIES.map((category) => {
+      const sections = groups
+        .filter((group) => toCategory(group.category) === category)
+        .map((group) => ({ name: group.section, count: group._count._all }));
+      return { category, sections, count: sections.reduce((total, section) => total + section.count, 0) };
+    }).filter((entry) => entry.count > 0);
+    return { total: categories.reduce((total, entry) => total + entry.count, 0), categories };
+  }
+
+  /**
+   * Library SOPs matching what was typed, or those in a category or section.
+   * Every word typed (or a word meaning the same, such as "refrigerated" for
+   * "fridge") must appear in the SOP's name, section, area, role or keywords;
+   * a match in the name itself comes first. Nothing asked for returns nothing.
+   */
+  async searchLibrary(
+    user: AuthUser,
+    filter: { outletId: string; search?: string | undefined; category?: string | undefined; section?: string | undefined },
+  ): Promise<SopLibraryItemDto[]> {
+    await this.requireOutlet(user, 'create', filter.outletId);
+    const terms = words(filter.search ?? '').slice(0, 6);
+    if (terms.length === 0 && !filter.category && !filter.section) return [];
+
+    const candidates = await this.db.sopLibraryItem.findMany({
+      where: {
+        isActive: true,
+        ...(filter.category && { category: filter.category }),
+        ...(filter.section && { section: filter.section }),
+        AND: terms.map((term) => ({ OR: alternatives(term).map((word) => ({ searchText: { contains: word } })) })),
+      },
+      orderBy: { name: 'asc' },
+      take: 400,
+    });
+
+    const scored = candidates.map((item) => {
+      const name = item.name.toLowerCase();
+      const nameWords = new Set(words(item.name));
+      const score = terms.reduce((total, term) => total + (nameWords.has(term) ? 4 : name.includes(term) ? 2 : 0), 0);
+      return { item, score };
+    });
+    const best = scored
+      // How the restaurant is run comes before recipes when both match equally.
+      .sort((a, b) => b.score - a.score || a.item.kind.localeCompare(b.item.kind) || a.item.name.length - b.item.name.length)
+      .slice(0, MAX_LIBRARY_RESULTS)
+      .map(({ item }) => item);
+    return this.toLibraryDtos(best, filter.outletId);
+  }
+
+  async libraryItem(user: AuthUser, outletId: string, itemId: string): Promise<SopLibraryItemDto> {
+    await this.requireOutlet(user, 'create', outletId);
+    const item = await this.db.sopLibraryItem.findFirst({ where: { id: itemId, isActive: true } });
+    if (!item) throw new NotFoundException('That SOP is no longer in the library');
+    return (await this.toLibraryDtos([item], outletId))[0]!;
+  }
+
+  /**
+   * Copies a library SOP into the outlet's own SOPs. From then on it is the
+   * restaurant's to change. Adding the same one twice returns the copy it already has.
+   */
+  async addFromLibrary(user: AuthUser, outletId: string, itemId: string): Promise<SopDto> {
+    await this.requireOutlet(user, 'create', outletId);
+    const item = await this.db.sopLibraryItem.findFirst({ where: { id: itemId, isActive: true } });
+    if (!item) throw new NotFoundException('That SOP is no longer in the library');
+
+    const existing = await this.db.sopTemplate.findFirst({ where: { outletId, libraryItemId: item.id }, include: sopInclude });
+    if (existing) return this.toDto(user, existing);
+
+    const sop = await this.db.sopTemplate.create({
+      data: {
+        code: `SOP-${randomUUID().slice(0, 8).toUpperCase()}`,
+        category: toCategory(item.category),
+        // The library is written in English.
+        title: { en: item.name },
+        body: { en: item.steps },
+        outletId,
+        createdById: user.id,
+        libraryItemId: item.id,
+        isPublished: true,
+      },
+      include: sopInclude,
+    });
+    return this.toDto(user, sop);
+  }
+
+  private async toLibraryDtos(items: LibraryRow[], outletId: string): Promise<SopLibraryItemDto[]> {
+    const copies = items.length
+      ? await this.db.sopTemplate.findMany({
+          where: { outletId, libraryItemId: { in: items.map((item) => item.id) } },
+          select: { id: true, libraryItemId: true },
+        })
+      : [];
+    const copyOf = new Map(copies.map((copy) => [copy.libraryItemId, copy.id]));
+    return items.map((item) => ({
+      id: item.id,
+      kind: item.kind === 'RECIPE' ? ('RECIPE' as const) : ('OPERATION' as const),
+      name: item.name,
+      category: toCategory(item.category),
+      section: item.section,
+      purpose: item.purpose,
+      steps: item.steps.split('\n').filter(Boolean),
+      controls: item.controls,
+      role: item.role,
+      area: item.area,
+      frequency: item.frequency,
+      addedSopId: copyOf.get(item.id) ?? null,
+    }));
+  }
+
   // ───────────────────────── Helpers ─────────────────────────
 
   /** True if the user holds an ECCS role that allows the action on standard SOPs. */
@@ -172,7 +304,7 @@ export class SopsService {
     }
     return {
       id: sop.id,
-      category: (SOP_CATEGORIES as readonly string[]).includes(sop.category) ? (sop.category as SopCategory) : 'OTHER',
+      category: toCategory(sop.category),
       title: sop.title as LocalizedText,
       steps,
       isCustom: sop.outletId !== null,

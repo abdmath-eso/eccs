@@ -59,10 +59,10 @@ for (const group of SYNONYM_GROUPS) {
   for (const word of group) SYNONYMS.set(word, [...new Set([...(SYNONYMS.get(word) ?? []), ...group])]);
 }
 /** A typed word plus the other words that mean the same, the typed word first. */
-const alternatives = (term: string) => [term, ...(SYNONYMS.get(term) ?? []).filter((word) => word !== term)];
+export const alternatives = (term: string) => [term, ...(SYNONYMS.get(term) ?? []).filter((word) => word !== term)];
 
 /** The meaningful words in a string, lower case, for matching checks against each other. */
-const words = (text: string) =>
+export const words = (text: string) =>
   text
     .toLowerCase()
     .split(/[^a-z0-9]+/)

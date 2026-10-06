@@ -5,14 +5,22 @@ import type { LocalizedText } from "./checklists.js";
 // ECCS provides a standard set for every restaurant; the Owner or Manager
 // can add SOPs for their own outlet alongside them.
 
+// The keys are stored in the database, so a key is never renamed; only its
+// label in the apps changes. PERSONAL_HYGIENE is shown as "Food safety and
+// hygiene", FOOD_STORAGE as "Storage, stock and receiving", and so on.
 export const SOP_CATEGORIES = [
   "PERSONAL_HYGIENE",
+  "FOOD_PREP",
   "FOOD_STORAGE",
   "CLEANING",
   "EQUIPMENT",
   "PEST_CONTROL",
   "WASTE",
   "SAFETY",
+  "SERVICE",
+  "STAFF",
+  "MANAGEMENT",
+  "RECIPES",
   "OTHER",
 ] as const;
 export type SopCategory = (typeof SOP_CATEGORIES)[number];
@@ -68,6 +76,38 @@ export interface SopDto {
   canEdit: boolean;
   updatedAt: string;
 }
+
+// ───────── The SOP library: ready-made SOPs to search, browse and copy ─────────
+
+/** A ready-made SOP from the library. English only. */
+export interface SopLibraryItemDto {
+  id: string;
+  /** OPERATION = how the restaurant is run; RECIPE = a dish, sauce or cooking method. */
+  kind: "OPERATION" | "RECIPE";
+  name: string;
+  category: SopCategory;
+  /** The grouping inside the category: a module, or for recipes a cuisine. */
+  section: string;
+  purpose: string;
+  steps: string[];
+  /** What to take particular care over, where the library says something specific. */
+  controls: string | null;
+  role: string | null;
+  area: string | null;
+  frequency: string | null;
+  /** The outlet's own copy of this SOP, if it has already been added. */
+  addedSopId: string | null;
+}
+
+/** What the library holds, for browsing: categories, and the sections inside each. */
+export interface SopLibraryOverviewDto {
+  total: number;
+  categories: { category: SopCategory; count: number; sections: { name: string; count: number }[] }[];
+}
+
+/** Copies a library SOP into an outlet's own SOPs. */
+export const addSopFromLibrarySchema = z.object({ outletId: z.string().min(1) });
+export type AddSopFromLibraryInput = z.input<typeof addSopFromLibrarySchema>;
 
 /** The steps in a language, falling back to English and then to whatever exists. */
 export function sopSteps(sop: Pick<SopDto, "steps">, language: "EN" | "TE" | "HI"): string[] {

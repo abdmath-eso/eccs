@@ -53,6 +53,8 @@ describe('SOP library (e2e)', () => {
 
   async function cleanUp() {
     const db = prisma.client;
+    // Copies made from the library by these tests.
+    await db.sopTemplate.deleteMany({ where: { outletId, libraryItemId: { not: null } } });
     for (const language of ['en', 'te', 'hi']) {
       await db.sopTemplate.deleteMany({ where: { title: { path: [language], string_starts_with: 'E2E' } } });
     }
@@ -197,6 +199,99 @@ describe('SOP library (e2e)', () => {
   it('will not delete a standard SOP that checklists are based on', async () => {
     const linked = await prisma.client.sopTemplate.findFirstOrThrow({ where: { checklistTemplates: { some: {} } } });
     await http().delete(`/sops/${linked.id}`).set(bearer(admin)).expect(409);
+  });
+
+  describe('the library of ready-made SOPs', () => {
+    type Item = { id: string; kind: string; name: string; category: string; section: string; steps: string[]; addedSopId: string | null };
+    const search = async (token: string, query: Record<string, string>) =>
+      (await http().get('/sops/library').query({ outletId, ...query }).set(bearer(token)).expect(200)).body as Item[];
+
+    it('lists what it holds by category and section', async () => {
+      const overview = (await http().get('/sops/library/overview').query({ outletId }).set(bearer(owner)).expect(200)).body as {
+        total: number;
+        categories: { category: string; count: number; sections: { name: string; count: number }[] }[];
+      };
+      expect(overview.total).toBeGreaterThan(700);
+      expect(overview.categories.reduce((total, entry) => total + entry.count, 0)).toBe(overview.total);
+      const recipes = overview.categories.find((entry) => entry.category === 'RECIPES')!;
+      expect(recipes.sections.map((section) => section.name)).toContain('Indian - South');
+      const cleaning = overview.categories.find((entry) => entry.category === 'CLEANING')!;
+      expect(cleaning.sections.map((section) => section.name)).toEqual(['Cleaning & Sanitation', 'Dishwashing & Stewarding']);
+    });
+
+    it('finds SOPs by what is typed, the closest name first, and understands everyday words', async () => {
+      expect(await search(owner, {})).toEqual([]);
+
+      const chicken = await search(owner, { q: 'butter chicken' });
+      expect(chicken[0]).toMatchObject({ name: 'Butter Chicken', kind: 'RECIPE', category: 'RECIPES', section: 'Indian - North' });
+
+      const washing = await search(owner, { q: 'handwash' });
+      expect(washing.map((item) => item.name)).toContain('Handwashing');
+
+      // "fridge" is not in any name; the library says "refrigerator" and "refrigerated".
+      const fridge = await search(owner, { q: 'fridge' });
+      expect(fridge.map((item) => item.name)).toEqual(expect.arrayContaining(['Refrigerated Storage', 'Refrigerator Temperature Monitoring']));
+
+      expect(await search(owner, { q: 'zzzqqq' })).toEqual([]);
+    });
+
+    it('browses a category or a section', async () => {
+      const pests = await search(owner, { category: 'PEST_CONTROL' });
+      expect(pests.map((item) => item.name).sort()).toEqual([
+        'Pest Control Records',
+        'Pest Inspection',
+        'Pest Prevention',
+        'Pest Sighting Reporting',
+        'Pest Treatment Coordination',
+      ]);
+      const thai = await search(owner, { section: 'Thai' });
+      expect(thai.length).toBe(17);
+      for (const item of thai) expect(item).toMatchObject({ category: 'RECIPES', section: 'Thai' });
+    });
+
+    it("copies one into the outlet's own SOPs, once, to be changed freely", async () => {
+      const [item] = await search(owner, { q: 'restaurant opening' });
+      expect(item).toMatchObject({ name: 'Restaurant Opening', addedSopId: null });
+      expect(item!.steps.length).toBe(6);
+      // Step numbers from the workbook are dropped; the app numbers the steps itself.
+      expect(item!.steps[0]).toBe('Complete access/opening security checks.');
+
+      const added = (await http().post(`/sops/library/${item!.id}/add`).set(bearer(owner)).send({ outletId }).expect(201)).body as Sop;
+      expect(added).toMatchObject({
+        title: { en: 'Restaurant Opening' },
+        category: 'MANAGEMENT',
+        steps: { en: item!.steps },
+        isCustom: true,
+        outletId,
+        canEdit: true,
+      });
+
+      // It now shows as added, and adding again gives back the same copy.
+      const again = (await http().get(`/sops/library/${item!.id}`).query({ outletId }).set(bearer(owner)).expect(200)).body as Item;
+      expect(again.addedSopId).toBe(added.id);
+      const second = await http().post(`/sops/library/${item!.id}/add`).set(bearer(owner)).send({ outletId }).expect(201);
+      expect(second.body.id).toBe(added.id);
+
+      // It is the restaurant's own: staff see it, and the Owner can reword it.
+      expect((await list(chef, outletId)).map((sop) => sop.id)).toContain(added.id);
+      const reworded = await patch(owner, added.id, { steps: ['Unlock and switch on the lights', 'Check the gas'], language: 'en' }).expect(200);
+      expect(reworded.body.steps.en).toEqual(['Unlock and switch on the lights', 'Check the gas']);
+
+      // Deleting the copy makes the library SOP available to add again.
+      await http().delete(`/sops/${added.id}`).set(bearer(owner)).expect(204);
+      const after = (await http().get(`/sops/library/${item!.id}`).query({ outletId }).set(bearer(owner)).expect(200)).body as Item;
+      expect(after.addedSopId).toBeNull();
+    });
+
+    it('is for the Owner and Manager of the outlet only', async () => {
+      const [item] = await search(owner, { q: 'handwashing' });
+      await http().get('/sops/library').query({ outletId, q: 'cleaning' }).set(bearer(chef)).expect(403);
+      await http().get('/sops/library/overview').query({ outletId }).set(bearer(chef)).expect(403);
+      await http().get('/sops/library').query({ outletId, q: 'cleaning' }).set(bearer(otherManager)).expect(403);
+      await http().post(`/sops/library/${item!.id}/add`).set(bearer(otherManager)).send({ outletId }).expect(403);
+      await http().get('/sops/library').query({ q: 'cleaning' }).set(bearer(owner)).expect(400);
+      await http().post('/sops/library/made-up/add').set(bearer(owner)).send({ outletId }).expect(404);
+    });
   });
 
   it('gives the standard list only to ECCS when no outlet is named', async () => {

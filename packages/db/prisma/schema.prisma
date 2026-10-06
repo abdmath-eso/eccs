@@ -200,11 +200,47 @@ model SopTemplate {
   /// Empty for ECCS's standard SOPs, which every restaurant reads.
   outletId    String?
   createdById String?
+  /// The library SOP this was copied from, if it was. Lets the app show it as already added.
+  libraryItemId String?
 
   outlet             Outlet?             @relation(fields: [outletId], references: [id])
+  libraryItem        SopLibraryItem?     @relation(fields: [libraryItemId], references: [id])
   checklistTemplates ChecklistTemplate[]
 
   @@index([outletId])
+}
+
+/// A ready-made SOP that a restaurant can find by searching or browsing and
+/// copy into its own SOPs. Loaded from the founder's workbook; English only.
+model SopLibraryItem {
+  id        String   @id @default(uuid())
+  /// Stable identifier from the workbook, e.g. "SOP-0042" or "CSP-0007".
+  code      String   @unique
+  /// "OPERATION" for how the restaurant is run, "RECIPE" for dishes, sauces and cooking methods.
+  kind      String
+  name      String
+  /// One of the app's SOP categories (SOP_CATEGORIES in @eccs/shared).
+  category  String
+  /// The workbook's own grouping inside the category: a module such as
+  /// "Cleaning & Sanitation", or for recipes a cuisine such as "Indian - South".
+  section   String
+  role      String?
+  area      String?
+  frequency String?
+  purpose   String
+  /// One step per line.
+  steps     String
+  /// What to take particular care over, where the workbook says something specific.
+  controls  String?
+  /// Everything searchable about the item, in lower case.
+  searchText String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sops SopTemplate[]
+
+  @@index([isActive, category, section])
 }
 
 model ChecklistTemplate {

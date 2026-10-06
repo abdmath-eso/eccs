@@ -24,6 +24,8 @@ import type {
   CreateRestaurantUserInput,
   CreateSopInput,
   SopDto,
+  SopLibraryItemDto,
+  SopLibraryOverviewDto,
   UpdateSopInput,
   OrganizationDto,
   OrganizationOutletDto,
@@ -255,6 +257,25 @@ export function createApiClient(options: ApiClientOptions) {
       /** The title and steps are saved for one language at a time. */
       update: (sopId: string, input: UpdateSopInput) => call<SopDto>("PATCH", `/sops/${id(sopId)}`, input),
       remove: (sopId: string) => call<void>("DELETE", `/sops/${id(sopId)}`),
+      /** Ready-made SOPs to search, browse and copy into an outlet's own. */
+      library: {
+        overview: (outletId: string) => call<SopLibraryOverviewDto>("GET", `/sops/library/overview${query({ outletId })}`),
+        /** Give a search, a category, a section, or a mix; with none of them the answer is empty. */
+        search: (outletId: string, filter: { search?: string; category?: string; section?: string }) =>
+          call<SopLibraryItemDto[]>(
+            "GET",
+            `/sops/library${query({
+              outletId,
+              ...(filter.search && { q: filter.search }),
+              ...(filter.category && { category: filter.category }),
+              ...(filter.section && { section: filter.section }),
+            })}`,
+          ),
+        get: (outletId: string, itemId: string) =>
+          call<SopLibraryItemDto>("GET", `/sops/library/${id(itemId)}${query({ outletId })}`),
+        /** Copies it into the outlet's own SOPs and returns the copy. */
+        add: (outletId: string, itemId: string) => call<SopDto>("POST", `/sops/library/${id(itemId)}/add`, { outletId }),
+      },
     },
     /** One month ("2026-10") of an outlet's history calendar. */
     calendar: {

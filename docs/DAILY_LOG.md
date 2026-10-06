@@ -51,6 +51,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Found while importing: the workbook's steps are mostly shared between SOPs (20 different step sets across the 265 operating SOPs; one identical set for all 527 dishes), and a few do not fit their title. Recorded as an open question for the founder.
 - Tested with 5 more end-to-end tests (112 in total) and in Chrome as the Owner. Not tried on the phone.
 - Founder decision on the thin workbook content: Claude writes real steps for the most important SOPs and they go straight into the app, with no draft label and no separate review. Wrote 50 (397 steps in all) covering food safety, cooking and cooling temperatures, storage, receiving, cleaning, chemicals, dishwashing, pests, waste, fire, gas and injuries, and loaded them into the library. The temperatures and other limits follow FSSAI and FoSTaC guidance as Claude understands them and have not been checked by a food-safety professional.
+- Founder asked for the rewritten SOPs in the other languages too. Translated all 50 into Telugu and Hindi (794 steps), made the library answer in the reader's language and searchable in it, and made copies carry all three languages. Checked by program that every translated step has the same numbers as the English and none is missing; not read by a native speaker. 113 end-to-end tests pass.
 - Switched off Expo's generated route types, which kept causing false type errors while a dev server was running.
 
 **Carried over from yesterday**

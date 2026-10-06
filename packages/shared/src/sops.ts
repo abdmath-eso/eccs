@@ -79,7 +79,7 @@ export interface SopDto {
 
 // ───────── The SOP library: ready-made SOPs to search, browse and copy ─────────
 
-/** A ready-made SOP from the library. English only. */
+/** A ready-made SOP from the library, in the reader's language where it has been translated, otherwise in English. */
 export interface SopLibraryItemDto {
   id: string;
   /** OPERATION = how the restaurant is run; RECIPE = a dish, sauce or cooking method. */

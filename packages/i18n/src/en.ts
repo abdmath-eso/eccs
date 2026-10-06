@@ -126,7 +126,7 @@ export const en = {
   "sops.fromLibraryHint": "Search or browse the library",
   "sops.writeOwn": "Write your own",
   "soplib.title": "Ready-made SOPs",
-  "soplib.help": "The library has {count} SOPs, in English. Type what you are looking for, or pick a category. Open one to read it and add it to your SOPs; you can change the wording afterwards.",
+  "soplib.help": "The library has {count} SOPs. Type what you are looking for, or pick a category. Open one to read it and add it to your SOPs; you can change the wording afterwards.",
   "soplib.search": "Search, e.g. fridge, cash, butter chicken",
   "soplib.browse": "Or pick a category",
   "soplib.allCategories": "All categories",

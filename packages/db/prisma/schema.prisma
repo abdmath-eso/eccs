@@ -232,7 +232,11 @@ model SopLibraryItem {
   steps     String
   /// What to take particular care over, where the workbook says something specific.
   controls  String?
-  /// Everything searchable about the item, in lower case.
+  /// The same SOP in other languages, where it has been translated:
+  /// { "te": { "name", "purpose", "steps" (one per line), "controls" }, "hi": { ... } }.
+  /// The columns above are always the English.
+  translations Json?
+  /// Everything searchable about the item, in lower case, in every language it has.
   searchText String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

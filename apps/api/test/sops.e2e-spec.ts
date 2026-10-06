@@ -203,8 +203,10 @@ describe('SOP library (e2e)', () => {
 
   describe('the library of ready-made SOPs', () => {
     type Item = { id: string; kind: string; name: string; category: string; section: string; steps: string[]; addedSopId: string | null };
-    const search = async (token: string, query: Record<string, string>) =>
-      (await http().get('/sops/library').query({ outletId, ...query }).set(bearer(token)).expect(200)).body as Item[];
+    const search = async (token: string, query: Record<string, string>, forOutlet = outletId) =>
+      (await http().get('/sops/library').query({ outletId: forOutlet, ...query }).set(bearer(token)).expect(200)).body as Item[];
+    // The Deccan Biryani owner uses the app in Telugu; the Jubilee Hills manager in English.
+    const inEnglish = (query: Record<string, string>) => search(otherManager, query, otherOutletId);
 
     it('lists what it holds by category and section', async () => {
       const overview = (await http().get('/sops/library/overview').query({ outletId }).set(bearer(owner)).expect(200)).body as {
@@ -225,18 +227,18 @@ describe('SOP library (e2e)', () => {
       const chicken = await search(owner, { q: 'butter chicken' });
       expect(chicken[0]).toMatchObject({ name: 'Butter Chicken', kind: 'RECIPE', category: 'RECIPES', section: 'Indian - North' });
 
-      const washing = await search(owner, { q: 'handwash' });
+      const washing = await inEnglish({ q: 'handwash' });
       expect(washing.map((item) => item.name)).toContain('Handwashing');
 
       // "fridge" is not in any name; the library says "refrigerator" and "refrigerated".
-      const fridge = await search(owner, { q: 'fridge' });
+      const fridge = await inEnglish({ q: 'fridge' });
       expect(fridge.map((item) => item.name)).toEqual(expect.arrayContaining(['Refrigerated Storage', 'Refrigerator Temperature Monitoring']));
 
       expect(await search(owner, { q: 'zzzqqq' })).toEqual([]);
     });
 
     it('browses a category or a section', async () => {
-      const pests = await search(owner, { category: 'PEST_CONTROL' });
+      const pests = await inEnglish({ category: 'PEST_CONTROL' });
       expect(pests.map((item) => item.name).sort()).toEqual([
         'Pest Control Records',
         'Pest Inspection',
@@ -281,6 +283,35 @@ describe('SOP library (e2e)', () => {
       await http().delete(`/sops/${added.id}`).set(bearer(owner)).expect(204);
       const after = (await http().get(`/sops/library/${item!.id}`).query({ outletId }).set(bearer(owner)).expect(200)).body as Item;
       expect(after.addedSopId).toBeNull();
+    });
+
+    it("shows a translated SOP in the reader's language, and the copy carries every language", async () => {
+      const english = (await inEnglish({ q: 'handwashing' })).find((item) => item.name === 'Handwashing')!;
+      expect(english.steps[2]).toContain('20 seconds');
+
+      // The same SOP, asked for by someone who uses the app in Telugu.
+      const telugu = (await search(owner, { q: 'handwashing' })).find((item) => item.id === english.id)!;
+      expect(telugu.name).toMatch(/[\u0c00-\u0c7f]/);
+      expect(telugu.steps).toHaveLength(english.steps.length);
+      expect(telugu.steps[2]).toMatch(/[\u0c00-\u0c7f]/);
+      // Numbers are kept as they are.
+      expect(telugu.steps[2]).toContain('20');
+
+      // It can be found by typing its Telugu name.
+      const [firstWord] = telugu.name.split(' ');
+      expect((await search(owner, { q: firstWord! })).map((item) => item.id)).toContain(english.id);
+
+      // An SOP that has not been translated comes in English.
+      expect((await search(owner, { q: 'restaurant opening' }))[0]!.name).toBe('Restaurant Opening');
+
+      const added = (await http().post(`/sops/library/${english.id}/add`).set(bearer(owner)).send({ outletId }).expect(201)).body as Sop;
+      expect(added.title.en).toBe('Handwashing');
+      expect(added.title.te).toBe(telugu.name);
+      expect(added.title.hi).toMatch(/[\u0900-\u097f]/);
+      expect(added.steps.en).toEqual(english.steps);
+      expect(added.steps.te).toEqual(telugu.steps);
+      expect(added.steps.hi).toHaveLength(english.steps.length);
+      await http().delete(`/sops/${added.id}`).set(bearer(owner)).expect(204);
     });
 
     it('is for the Owner and Manager of the outlet only', async () => {

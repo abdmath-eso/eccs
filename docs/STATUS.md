@@ -283,6 +283,8 @@ pnpm --filter @eccs/web dev
 ```
 Then open http://localhost:3000 and log in with `9000000001` and code `123456`.
 
+All sample logins are also listed, with more detail, in `docs/TEST_LOGINS.md`.
+
 | To log in as | Do this |
 |---|---|
 | Owner, Spice Route | "I have a restaurant code" → `SPICE-JH2K7M` → PIN `2580` |
@@ -333,6 +335,7 @@ Other running costs: OTP SMS about ₹0.20 to ₹0.25 each; Razorpay about 2% pe
 | `CLAUDE.md` | Instructions loaded automatically by Claude Code. Points here. |
 | `docs/STATUS.md` | This tracker. |
 | `docs/DAILY_LOG.md` | What was done each day, newest first. Written at the end of each working day. |
+| `docs/TEST_LOGINS.md` | Every sample login in one place: restaurant codes, PINs, ECCS phone numbers, the one-time code. Update it whenever the seed's people or codes change. |
 | `docs/PROPOSAL.md` | Specification: stack, roles, data model, scope, roadmap, folder structure. |
 | `docs/FSSAI 2026 KITCHEN SAFETY CHECKLIST.docx` | Founder's checklist and inspection source document. See the decision dated 5 Oct 2026. |
 | `docs/Restaurant_Master_Checklist_Library.xlsx` | Founder's master library of 588 restaurant checks. Loaded into the app as add-item suggestions. |
@@ -354,6 +357,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 6 Oct 2026 | Added `docs/TEST_LOGINS.md`, a single sheet of every sample login, at the founder's request. |
 | 6 Oct 2026 | SOP library built: standard SOPs from ECCS (written in the console) and restaurants' own (added in the app by the Owner or Manager). Seven sample SOPs loaded. |
 | 6 Oct 2026 | Home screen changed on the founder's feedback: branch selector at the top for the Owner, and the menu moved into a slide-out side menu. |
 | 6 Oct 2026 | History calendar built in the app in the style of the iPhone calendar: checklists, ECCS services, licence due dates and holidays per day, and what is coming up. Sample holiday list and sample past visits added. |

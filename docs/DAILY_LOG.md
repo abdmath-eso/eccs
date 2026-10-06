@@ -44,6 +44,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Founder decision: restaurants can add their own SOPs, not only read ECCS's.
 - Built the SOP library. In the app everyone can read SOPs as numbered steps, grouped by category; the Owner and Manager can add, change and delete SOPs for their own outlet. In the console ECCS writes the standard SOPs, one language at a time, and publishes them. Loaded seven sample SOPs in English, Telugu and Hindi (hand washing, fridge storage, daily hygiene, chimney filters, pests, waste, gas and fire safety); the wording is Claude's and needs replacing with ECCS's own.
 - Tested with 6 new end-to-end tests (107 in total) and in Chrome: read an SOP and added one as the Owner in the app, and opened the console page. Not tried on the phone.
+- Founder asked for all the test logins in one document: wrote `docs/TEST_LOGINS.md` (restaurant codes, PINs, ECCS phone numbers, one-time code, what each role can open).
 - Switched off Expo's generated route types, which kept causing false type errors while a dev server was running.
 
 **Carried over from yesterday**

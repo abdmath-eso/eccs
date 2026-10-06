@@ -7,6 +7,7 @@ Enterprise platform for ECCS (Eosfera Commercial Cleaning Services), Hyderabad: 
 1. Read `docs/STATUS.md` before doing anything. It holds the current phase, decisions, open questions and build progress.
 2. Read `docs/PROPOSAL.md` for the specification: stack, roles, data model, scope, roadmap, folder structure.
 3. Skim the latest entries in `docs/DAILY_LOG.md` for what happened recently and what was left open.
+4. Sample logins for testing are in `docs/TEST_LOGINS.md`; keep it in step with the seed.
 
 ## Rules
 

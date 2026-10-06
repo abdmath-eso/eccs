@@ -63,6 +63,13 @@ export const te: Messages = {
   "role.MANAGER": "మేనేజర్",
   "role.HEAD_CHEF": "హెడ్ చెఫ్",
 
+  "dash.todayChecklists": "ఈ రోజు చెక్‌లిస్ట్‌లు",
+  "dash.checklistsDone": "పూర్తయిన చెక్‌లిస్ట్‌లు",
+  "dash.licencesToRenew": "రెన్యూ చేయాల్సిన లైసెన్స్‌లు",
+  "dash.openIssues": "తెరిచి ఉన్న సమస్యలు",
+  "dash.licencesAttention": "శ్రద్ధ అవసరమైన లైసెన్స్‌లు",
+  "dash.soon": "సర్వీస్ విజిట్‌లు మొదలైన తర్వాత మీ హైజీన్ స్కోర్, రాబోయే ECCS విజిట్‌లు ఇక్కడ కనిపిస్తాయి.",
+  "dash.menu": "మెనూ",
   "tile.checklists": "రోజువారీ చెక్‌లిస్ట్",
   "tile.labels": "ఆహార లేబుల్స్",
   "tile.issues": "సమస్యను తెలియజేయండి",

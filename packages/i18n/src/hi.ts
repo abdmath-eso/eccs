@@ -63,6 +63,13 @@ export const hi: Messages = {
   "role.MANAGER": "मैनेजर",
   "role.HEAD_CHEF": "हेड शेफ़",
 
+  "dash.todayChecklists": "आज की चेकलिस्ट",
+  "dash.checklistsDone": "पूरी हुई चेकलिस्ट",
+  "dash.licencesToRenew": "नवीनीकरण वाले लाइसेंस",
+  "dash.openIssues": "खुली समस्याएं",
+  "dash.licencesAttention": "ध्यान देने वाले लाइसेंस",
+  "dash.soon": "सर्विस विज़िट शुरू होने के बाद आपका हाइजीन स्कोर और आने वाली ECCS विज़िट यहां दिखेंगी।",
+  "dash.menu": "मेनू",
   "tile.checklists": "दैनिक चेकलिस्ट",
   "tile.labels": "फ़ूड लेबल",
   "tile.issues": "समस्या दर्ज करें",

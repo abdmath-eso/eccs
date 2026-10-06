@@ -1,15 +1,19 @@
 import type { MessageKey } from '@eccs/i18n';
-import type { Role } from '@eccs/shared';
-import { router, type Href } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { isEccsRole, type OutletDashboardDto, type Role } from '@eccs/shared';
+import { router, useFocusEffect, type Href } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { LanguagePicker } from '@/components/language-picker';
+import { OutletOverview } from '@/components/outlet-overview';
 import { PinReveal } from '@/components/pin-reveal';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { ErrorText } from '@/components/ui/error-text';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { errorMessage } from '@/lib/errors';
 import { useSession } from '@/lib/session';
 
 interface Tile {
@@ -41,16 +45,59 @@ const TILES: Record<Role, Tile[]> = {
   HEAD_CHEF: HEAD_CHEF_TILES,
   MANAGER: MANAGER_TILES,
   OWNER: [...MANAGER_TILES, { label: 'tile.subscription' }, { label: 'tile.qr' }],
-  SUPERVISOR: [{ label: 'tile.jobs' }, { label: 'tile.inspections' }, { label: 'tile.issues' }, { label: 'tile.clients' }],
-  OPS_MANAGER: [{ label: 'tile.clients' }, { label: 'tile.monitoring' }, { label: 'tile.jobs' }, { label: 'tile.inspections' }],
-  SUPER_ADMIN: [{ label: 'tile.clients' }, { label: 'tile.monitoring' }, { label: 'tile.jobs' }, { label: 'tile.inspections' }],
+  SUPERVISOR: [
+    { label: 'tile.jobs' },
+    { label: 'tile.inspections' },
+    { label: 'tile.issues' },
+    { label: 'tile.clients' },
+  ],
+  OPS_MANAGER: [
+    { label: 'tile.clients' },
+    { label: 'tile.monitoring' },
+    { label: 'tile.jobs' },
+    { label: 'tile.inspections' },
+  ],
+  SUPER_ADMIN: [
+    { label: 'tile.clients' },
+    { label: 'tile.monitoring' },
+    { label: 'tile.jobs' },
+    { label: 'tile.inspections' },
+  ],
 };
 
 export default function HomeScreen() {
   const theme = useTheme();
-  const { t, user, newPin, dismissNewPin, signOut, linkedDevice } = useSession();
+  const { t, api, user, newPin, dismissNewPin, signOut, linkedDevice } = useSession();
+  const [overview, setOverview] = useState<OutletDashboardDto[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const membership = user?.memberships[0];
+  // The restaurant's home opens with how today is going. ECCS staff have the web console for that.
+  const showsOverview = membership !== undefined && !isEccsRole(membership.role) && !newPin;
+
+  // Reloads whenever the home screen comes back into view, so it reflects what was just done.
+  useFocusEffect(
+    useCallback(() => {
+      if (!showsOverview) return;
+      let cancelled = false;
+      (async () => {
+        try {
+          const outlets = await api.dashboard.get();
+          if (cancelled) return;
+          setOverview(outlets);
+          setError(null);
+        } catch (e) {
+          if (!cancelled) setError(errorMessage(e, t));
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+      // `t` changes with language; reloading for that is unnecessary.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [api, showsOverview]),
+  );
+
   if (!user || !membership) return null;
 
   // An owner who has just been given a PIN must see it before anything else.
@@ -62,7 +109,8 @@ export default function HomeScreen() {
     );
   }
 
-  const place = membership.outletName ?? membership.organizationName ?? (membership.role === 'OWNER' ? t('home.allOutlets') : null);
+  const place =
+    membership.outletName ?? membership.organizationName ?? (membership.role === 'OWNER' ? t('home.allOutlets') : null);
 
   return (
     <Screen>
@@ -75,6 +123,24 @@ export default function HomeScreen() {
           {place ? ` · ${place}` : ''}
         </ThemedText>
       </View>
+
+      {showsOverview && (
+        <View style={styles.overview}>
+          <ErrorText message={error} />
+          {overview === null && !error && <ActivityIndicator color={theme.primary} />}
+          {overview?.map((outlet) => (
+            <OutletOverview key={outlet.outletId} outlet={outlet} showName={overview.length > 1} />
+          ))}
+          {overview && membership.role !== 'HEAD_CHEF' && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('dash.soon')}
+            </ThemedText>
+          )}
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.menu}>
+            {t('dash.menu')}
+          </ThemedText>
+        </View>
+      )}
 
       <View style={styles.tiles}>
         {TILES[membership.role].map((tile) => {
@@ -106,7 +172,11 @@ export default function HomeScreen() {
       <View style={styles.footer}>
         <LanguagePicker />
         {/* On a restaurant's phone, logging out returns to the PIN pad for the next person. */}
-        <Button label={linkedDevice ? t('home.lock') : t('home.logout')} variant="secondary" onPress={() => void signOut()} />
+        <Button
+          label={linkedDevice ? t('home.lock') : t('home.logout')}
+          variant="secondary"
+          onPress={() => void signOut()}
+        />
       </View>
     </Screen>
   );
@@ -115,6 +185,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   header: { gap: Spacing.one, paddingTop: Spacing.two },
   greeting: { fontSize: 26, lineHeight: 34 },
+  overview: { gap: Spacing.four },
+  menu: { marginBottom: -Spacing.two },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
   tile: {
     flexBasis: '47%',

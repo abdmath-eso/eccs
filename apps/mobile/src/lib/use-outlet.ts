@@ -6,6 +6,9 @@ import { getItem, setItem } from './storage';
 
 const KEY = 'eccs.outlet';
 
+/** Makes this the outlet the per-outlet screens open on, for someone who has several. */
+export const rememberOutlet = (outletId: string) => setItem(KEY, outletId);
+
 /**
  * Which outlet the person is working in. A Manager or Head Chef belongs to
  * one outlet. An Owner covers several, so they choose, and the choice is

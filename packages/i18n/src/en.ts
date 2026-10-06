@@ -62,6 +62,13 @@ export const en = {
   "role.MANAGER": "Manager",
   "role.HEAD_CHEF": "Head Chef",
 
+  "dash.todayChecklists": "Today's checklists",
+  "dash.checklistsDone": "Checklists done",
+  "dash.licencesToRenew": "Licences to renew",
+  "dash.openIssues": "Open issues",
+  "dash.licencesAttention": "Licences needing attention",
+  "dash.soon": "Your hygiene score and upcoming ECCS visits will appear here once service visits begin.",
+  "dash.menu": "Menu",
   "tile.checklists": "Daily checklist",
   "tile.labels": "Food labels",
   "tile.issues": "Raise an issue",

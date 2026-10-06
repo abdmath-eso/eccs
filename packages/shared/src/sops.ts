@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { LocalizedText } from "./checklists.js";
+import type { Language } from "./roles.js";
 
 // The SOP library: step-by-step procedures staff can read in the app.
 // ECCS provides a standard set for every restaurant; the Owner or Manager
@@ -113,7 +114,8 @@ export const addSopFromLibrarySchema = z.object({ outletId: z.string().min(1) })
 export type AddSopFromLibraryInput = z.input<typeof addSopFromLibrarySchema>;
 
 /** The steps in a language, falling back to English and then to whatever exists. */
-export function sopSteps(sop: Pick<SopDto, "steps">, language: "EN" | "TE" | "HI"): string[] {
-  const key = language.toLowerCase() as SopLanguage;
-  return sop.steps[key] ?? sop.steps.en ?? sop.steps.te ?? sop.steps.hi ?? [];
+export function sopSteps(sop: Pick<SopDto, "steps">, language: Language): string[] {
+  // SOPs exist in English, Telugu and Hindi so far; any other language reads the English.
+  const own = (sop.steps as Partial<Record<string, string[]>>)[language.toLowerCase()];
+  return own ?? sop.steps.en ?? sop.steps.te ?? sop.steps.hi ?? [];
 }

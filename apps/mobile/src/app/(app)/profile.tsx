@@ -199,7 +199,11 @@ export default function ProfileScreen() {
           </ThemedText>
           <View style={[styles.card, { borderColor: theme.border }]}>
             {line(t('profile.role'), t(`role.${profile.role}`))}
-            {profile.phone && line(t('profile.phone'), profile.phone.replace(/^\+91(\d{5})(\d{5})$/, '+91 $1 $2'))}
+            {profile.phone &&
+              line(
+                t('profile.phone'), // Wrapped in left-to-right marks so the groups keep their order when the app is in Urdu.
+                `⁦${profile.phone.replace(/^\+91(\d{5})(\d{5})$/, '+91 $1 $2')}⁩`,
+              )}
             {profile.email && line(t('profile.email'), profile.email)}
             {line(t('profile.memberSince'), formatDate(profile.memberSince.slice(0, 10), language))}
           </View>

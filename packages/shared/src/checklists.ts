@@ -1,18 +1,23 @@
 import { z } from "zod";
+import type { Language } from "./roles.js";
 
 // Daily checklists. ECCS provides a short basic list for every restaurant;
 // the Owner or Manager adds items for their own kitchen. Items need a photo
 // as proof unless the Owner or Manager marked them "tick only" because a
 // photo is not practical; those are simply ticked off.
 
-/** Text in each language. Items a restaurant adds have only the language they typed. */
-export type LocalizedText = Partial<Record<"en" | "te" | "hi", string>>;
+/**
+ * Text in each language, keyed by the language code in lower case ("en",
+ * "te", "kn", ...). ECCS's own text has English and whichever translations
+ * exist; items a restaurant adds have only the language they typed.
+ */
+export type LocalizedText = Partial<Record<Lowercase<Language>, string>>;
 
 /** Picks the text for a language, falling back to English and then to anything present. */
-export function localize(text: LocalizedText | null | undefined, language: "EN" | "TE" | "HI"): string {
+export function localize(text: LocalizedText | null | undefined, language: Language): string {
   if (!text) return "";
-  const key = language.toLowerCase() as "en" | "te" | "hi";
-  return text[key] ?? text.en ?? text.te ?? text.hi ?? "";
+  const key = language.toLowerCase() as Lowercase<Language>;
+  return text[key] ?? text.en ?? Object.values(text).find(Boolean) ?? "";
 }
 
 export type ChecklistRunStatus = "PENDING" | "IN_PROGRESS" | "SUBMITTED" | "MISSED";

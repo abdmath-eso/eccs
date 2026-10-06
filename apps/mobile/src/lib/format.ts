@@ -1,6 +1,21 @@
 import type { LanguageCode } from '@eccs/i18n';
 
-const LOCALES: Record<LanguageCode, string> = { EN: 'en-IN', TE: 'te-IN', HI: 'hi-IN' };
+// "-u-nu-latn" asks for ordinary digits (0-9). Without it Bengali, Marathi and Urdu
+// dates come out in their own numerals, which the rest of the app does not use.
+const LOCALES: Record<LanguageCode, string> = {
+  EN: 'en-IN',
+  HI: 'hi-IN-u-nu-latn',
+  TE: 'te-IN-u-nu-latn',
+  TA: 'ta-IN-u-nu-latn',
+  KN: 'kn-IN-u-nu-latn',
+  ML: 'ml-IN-u-nu-latn',
+  MR: 'mr-IN-u-nu-latn',
+  BN: 'bn-IN-u-nu-latn',
+  GU: 'gu-IN-u-nu-latn',
+  PA: 'pa-IN-u-nu-latn',
+  OR: 'or-IN-u-nu-latn',
+  UR: 'ur-IN-u-nu-latn',
+};
 
 /** A checklist due time such as "14:30" as people read it, e.g. "2:30 pm". */
 export function formatTime(hhmm: string, language: LanguageCode): string {

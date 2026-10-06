@@ -66,7 +66,7 @@ Each has the assumption I have planned around. Correct any that are wrong; quest
 | Notifications | **Push** via Firebase Cloud Messaging (through Expo). **SMS OTP and WhatsApp** via MSG91. **Email** via Amazon SES | Owners in India read WhatsApp, not email, so licence-expiry and overdue alerts go there from Phase 2. |
 | PDFs | HTML templates rendered to PDF with headless Chromium in the worker | Service reports and certificates share branding with the web UI. |
 | Payments (Phase 2) | **Razorpay** payment links and UPI | Standard for Indian B2B collections. |
-| Translations | **i18next**, with `en`, `te`, `hi` | SOP and checklist text is stored per language in the database so ECCS can edit it without a release. |
+| Translations | **i18next**, with `en`, `te`, `hi` (the app's own screens are also in Tamil, Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi, Odia and Urdu) | SOP and checklist text is stored per language in the database so ECCS can edit it without a release. |
 | Hosting | **AWS Mumbai (ap-south-1)**: API and worker on ECS Fargate, RDS PostgreSQL, ElastiCache Redis, S3. Web on the same cluster behind CloudFront | Data stays in India, one vendor, room to grow. Infrastructure defined in Terraform. |
 | CI/CD and monitoring | GitHub Actions, EAS Build for Android, Sentry for errors | |
 

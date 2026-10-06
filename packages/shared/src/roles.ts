@@ -17,7 +17,8 @@ export const RESTAURANT_ROLES = ["OWNER", "MANAGER", "HEAD_CHEF"] as const satis
 
 export const isEccsRole = (role: Role): boolean => (ECCS_ROLES as readonly Role[]).includes(role);
 
-export const LANGUAGES = ["EN", "TE", "HI"] as const;
+// Keep in step with the Language enum in the database and the dictionaries in packages/i18n.
+export const LANGUAGES = ["EN", "HI", "TE", "TA", "KN", "ML", "MR", "BN", "GU", "PA", "OR", "UR"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 /** A user's role and where it applies. Mirrors the Membership table. */

@@ -26,10 +26,21 @@ enum Role {
   HEAD_CHEF
 }
 
+/// The languages the apps can be used in. Keep in step with LANGUAGES in @eccs/shared
+/// and the dictionaries in packages/i18n.
 enum Language {
   EN
   TE
   HI
+  TA /// Tamil
+  KN /// Kannada
+  ML /// Malayalam
+  MR /// Marathi
+  BN /// Bengali
+  GU /// Gujarati
+  PA /// Punjabi
+  OR /// Odia
+  UR /// Urdu
 }
 
 /// A restaurant brand (the client).

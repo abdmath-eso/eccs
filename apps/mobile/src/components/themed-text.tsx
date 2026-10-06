@@ -1,7 +1,10 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
+import { isRightToLeft } from '@eccs/i18n';
+
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSession } from '@/lib/session';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
@@ -10,11 +13,14 @@ export type ThemedTextProps = TextProps & {
 
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
+  const { language } = useSession();
 
   return (
     <Text
       style={[
         { color: theme[themeColor ?? 'text'] },
+        // Urdu reads right to left. The screens themselves are not mirrored yet.
+        isRightToLeft(language) && styles.rightToLeft,
         type === 'default' && styles.default,
         type === 'title' && styles.title,
         type === 'small' && styles.small,
@@ -31,6 +37,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 }
 
 const styles = StyleSheet.create({
+  rightToLeft: { writingDirection: 'rtl' },
   small: {
     fontSize: 14,
     lineHeight: 20,

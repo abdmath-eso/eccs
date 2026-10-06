@@ -1,5 +1,5 @@
 import { ApiError, type ApiClient } from '@eccs/api-client';
-import { createTranslator, type LanguageCode, type Translator } from '@eccs/i18n';
+import { createTranslator, LANGUAGE_CODES, type LanguageCode, type Translator } from '@eccs/i18n';
 import type { CurrentUserDto, LinkedDeviceDto, SessionDto } from '@eccs/shared';
 import { createContext, use, useEffect, useState, type ReactNode } from 'react';
 
@@ -72,9 +72,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
 
-      if (storedLanguage === 'EN' || storedLanguage === 'TE' || storedLanguage === 'HI') {
-        setLanguageState(storedLanguage);
-      }
+      const known = LANGUAGE_CODES.find((code) => code === storedLanguage);
+      if (known) setLanguageState(known);
       setLinkedDevice(storedDevice);
       if (storedToken && storedUser) {
         // Show the last known user straight away so the app opens without

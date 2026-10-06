@@ -52,7 +52,7 @@ export function OutletOverview({ outlet }: { outlet: OutletDashboardDto }) {
       <ThemedText type="subtitle" style={[styles.statValue, { color }]}>
         {value}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel}>
         {t(label)}
       </ThemedText>
     </Pressable>
@@ -172,6 +172,8 @@ const styles = StyleSheet.create({
     gap: Spacing.half,
   },
   statValue: { fontSize: 26, lineHeight: 32 },
+  // Smaller than other small text: in Tamil or Malayalam these labels run to three lines.
+  statLabel: { fontSize: 12, lineHeight: 16 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

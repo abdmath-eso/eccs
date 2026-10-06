@@ -2,9 +2,11 @@
 
 **Read this first.** It is the single source of truth for where the project stands. `docs/PROPOSAL.md` is the specification (what we are building and why); this file is the tracker (what is done, what is decided, what is blocked).
 
+**Daily log:** `docs/DAILY_LOG.md` records what happened each day and is written up at the end of the day. This file stays the place for the current state.
+
 **Rule for anyone working on this repo, human or Claude:** update this file in the same session as any change that affects it: a feature started or finished, a decision made, a question answered, a tool installed. Add a line to the change log at the bottom every time, and commit.
 
-**Last updated:** 5 Oct 2026
+**Last updated:** 6 Oct 2026
 
 ---
 
@@ -301,6 +303,7 @@ Other running costs: OTP SMS about ₹0.20 to ₹0.25 each; Razorpay about 2% pe
 |---|---|
 | `CLAUDE.md` | Instructions loaded automatically by Claude Code. Points here. |
 | `docs/STATUS.md` | This tracker. |
+| `docs/DAILY_LOG.md` | What was done each day, newest first. Written at the end of each working day. |
 | `docs/PROPOSAL.md` | Specification: stack, roles, data model, scope, roadmap, folder structure. |
 | `docs/FSSAI 2026 KITCHEN SAFETY CHECKLIST.docx` | Founder's checklist and inspection source document. See the decision dated 5 Oct 2026. |
 | `docs/Restaurant_Master_Checklist_Library.xlsx` | Founder's master library of 588 restaurant checks. Loaded into the app as add-item suggestions. |
@@ -322,6 +325,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 6 Oct 2026 | Daily log started (`docs/DAILY_LOG.md`), with the 5 Oct entry written up. `CLAUDE.md` now tells every session to keep it. |
 | 5 Oct 2026 | First test on the founder's Android phone through Expo Go: login, checklists and photo display work. Photo upload failed; cause found and fixed (see section 6 notes). Fix awaits the founder's retest. |
 | 5 Oct 2026 | Founder: daily checklists are done for now. Tracker tidied: parked checklist follow-ups listed, stale scaffold notes removed, next step awaiting the founder's choice. |
 | 5 Oct 2026 | Checklist items can be "tick only": chosen when adding, staff tick with one tap, undo, or report a problem. Whoever answers is now recorded on every answer. Library packs benched by the founder. |

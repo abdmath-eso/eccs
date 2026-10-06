@@ -83,6 +83,7 @@ model Outlet {
   certificates             Certificate[]
   inspections              Inspection[]
   licences                 Licence[]
+  sopTemplates             SopTemplate[]
   documents                Document[]
   issues                   Issue[]
   scoreSnapshots           HygieneScoreSnapshot[]
@@ -195,8 +196,15 @@ model SopTemplate {
   isPublished Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  /// Set when a restaurant wrote this SOP for one of its own outlets.
+  /// Empty for ECCS's standard SOPs, which every restaurant reads.
+  outletId    String?
+  createdById String?
 
+  outlet             Outlet?             @relation(fields: [outletId], references: [id])
   checklistTemplates ChecklistTemplate[]
+
+  @@index([outletId])
 }
 
 model ChecklistTemplate {

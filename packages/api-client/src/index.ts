@@ -22,6 +22,9 @@ import type {
   CreateOrganizationInput,
   CreateOutletInput,
   CreateRestaurantUserInput,
+  CreateSopInput,
+  SopDto,
+  UpdateSopInput,
   OrganizationDto,
   OrganizationOutletDto,
   OutletDashboardDto,
@@ -242,6 +245,16 @@ export function createApiClient(options: ApiClientOptions) {
     },
     outlets: {
       list: () => call<OutletSummaryDto[]>("GET", "/outlets"),
+    },
+    /** The SOP library: ECCS's standard SOPs and each outlet's own. */
+    sops: {
+      /** With an outlet: what its staff see. Without: ECCS's standard SOPs, for the console. */
+      list: (outletId?: string) => call<SopDto[]>("GET", `/sops${query(outletId ? { outletId } : {})}`),
+      get: (sopId: string) => call<SopDto>("GET", `/sops/${id(sopId)}`),
+      create: (input: CreateSopInput) => call<SopDto>("POST", "/sops", input),
+      /** The title and steps are saved for one language at a time. */
+      update: (sopId: string, input: UpdateSopInput) => call<SopDto>("PATCH", `/sops/${id(sopId)}`, input),
+      remove: (sopId: string) => call<void>("DELETE", `/sops/${id(sopId)}`),
     },
     /** One month ("2026-10") of an outlet's history calendar. */
     calendar: {

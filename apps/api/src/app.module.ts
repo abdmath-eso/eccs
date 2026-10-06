@@ -10,6 +10,7 @@ import { OrganizationsModule } from './organizations/organizations.module.js';
 import { OutletsModule } from './outlets/outlets.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { RestaurantUsersModule } from './restaurant-users/restaurant-users.module.js';
+import { SopsModule } from './sops/sops.module.js';
 import { StorageModule } from './storage/storage.module.js';
 
 @Module({
@@ -25,6 +26,7 @@ import { StorageModule } from './storage/storage.module.js';
     LicencesModule,
     DashboardModule,
     CalendarModule,
+    SopsModule,
   ],
   controllers: [AppController],
 })

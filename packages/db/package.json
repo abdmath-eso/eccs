@@ -18,6 +18,7 @@
     "library:import": "node scripts/import-checklist-library.mjs",
     "library:load": "tsx prisma/load-library.ts",
     "visits:load": "tsx prisma/load-sample-visits.ts",
+    "sops:load": "tsx prisma/load-sops.ts",
     "reset": "prisma migrate reset --force",
     "studio": "prisma studio",
     "typecheck": "prisma generate && tsc --noEmit"

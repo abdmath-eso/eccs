@@ -85,11 +85,18 @@ export default function SopsScreen() {
       )}
 
       {mayAdd && outletId && sops !== null && (
-        <Button
-          label={`+  ${t('sops.add')}`}
-          variant="secondary"
-          onPress={() => router.push({ pathname: '/sops/edit', params: { outletId } })}
-        />
+        <View style={styles.adding}>
+          <Button
+            label={t('sops.fromLibrary')}
+            hint={t('sops.fromLibraryHint')}
+            onPress={() => router.push({ pathname: '/sops/library', params: { outletId } })}
+          />
+          <Button
+            label={`+  ${t('sops.writeOwn')}`}
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/sops/edit', params: { outletId } })}
+          />
+        </View>
       )}
 
       {SOP_CATEGORIES.map((category) => {
@@ -137,6 +144,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     justifyContent: 'center',
   },
+  adding: { gap: Spacing.two },
   group: { gap: Spacing.two, marginTop: Spacing.two },
   row: {
     flexDirection: 'row',

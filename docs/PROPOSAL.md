@@ -277,7 +277,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Service booking from a priced catalogue: one-time or subscription
 - Dues, GST invoices and online payment through Razorpay
 - Service certificates stored in the vault
-- SOP library, separate from checklists: ECCS's standard SOPs to read, plus SOPs the Owner or Manager writes for their own outlet
+- SOP library, separate from checklists: ECCS's standard SOPs to read, plus SOPs the Owner or Manager writes for their own outlet or copies from a searchable library of ready-made SOPs
 - Attendance tracker (calendar based) and salary tracker for the restaurant's own staff
 - Food labels: pick an item, the app sets prepared and expiry times, prints to a Bluetooth label printer
 - Customer QR: a public web page per outlet showing the cleanliness score, timestamps of recent services and a few approved photos (grill, hood and similar)

@@ -46,6 +46,10 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Tested with 6 new end-to-end tests (107 in total) and in Chrome: read an SOP and added one as the Owner in the app, and opened the console page. Not tried on the phone.
 - Founder asked for all the test logins in one document: wrote `docs/TEST_LOGINS.md` (restaurant codes, PINs, ECCS phone numbers, one-time code, what each role can open).
 - Founder tested on the Android phone and sent two screenshots. Faults found: on a licence, "View document" was squeezed into a narrow column beside Renew and Remove; in Staff logins, New PIN and Remove access were different heights. Fixed both (the document button has its own row; side-by-side buttons now match in height). Waiting for the founder to recheck on the phone.
+- Founder added a workbook of SOPs (`docs/Restaurant_SOP_Knowledge_Base_Expanded_Cuisine_Dishes.xlsx`) and asked for it to be fed in like the checklist library, delivered sensibly given how many there are, and categorised.
+- Built the SOP library. Imported 792 SOPs (265 on running the restaurant, 527 dishes and recipes), sorted the workbook's 27 modules into 13 app categories, and added "Find a ready-made SOP" to the app: type and matches appear, or pick a category and section; open one to read it; "Add to my SOPs" makes the restaurant's own copy to reword.
+- Found while importing: the workbook's steps are mostly shared between SOPs (20 different step sets across the 265 operating SOPs; one identical set for all 527 dishes), and a few do not fit their title. Recorded as an open question for the founder.
+- Tested with 5 more end-to-end tests (112 in total) and in Chrome as the Owner. Not tried on the phone.
 - Switched off Expo's generated route types, which kept causing false type errors while a dev server was running.
 
 **Carried over from yesterday**

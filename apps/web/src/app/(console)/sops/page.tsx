@@ -9,13 +9,18 @@ import { api } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 const CATEGORY: Record<SopCategory, string> = {
-  PERSONAL_HYGIENE: "Personal hygiene",
-  FOOD_STORAGE: "Food storage",
-  CLEANING: "Cleaning",
-  EQUIPMENT: "Equipment",
+  PERSONAL_HYGIENE: "Food safety and hygiene",
+  FOOD_PREP: "Food preparation and cooking",
+  FOOD_STORAGE: "Storage, stock and receiving",
+  CLEANING: "Cleaning and dishwashing",
+  EQUIPMENT: "Equipment and utilities",
   PEST_CONTROL: "Pest control",
   WASTE: "Waste",
-  SAFETY: "Safety",
+  SAFETY: "Safety and security",
+  SERVICE: "Service, billing and delivery",
+  STAFF: "Staff and training",
+  MANAGEMENT: "Management and records",
+  RECIPES: "Recipes and dishes",
   OTHER: "Other",
 };
 

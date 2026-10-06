@@ -2,6 +2,7 @@
 // sample seed loaded and local object storage running. Uses the Deccan
 // Biryani outlet and removes what it creates.
 
+import { readFileSync } from 'node:fs';
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -29,6 +30,33 @@ type Licence = {
   [key: string]: unknown;
 };
 type Doc = { id: string; category: string; title: string; file: { path: string; mimeType: string }; uploadedByEccs: boolean; [key: string]: unknown };
+
+/** A clear, typed sample licence as an image, for the OCR test. */
+const LICENCE_IMAGE = readFileSync(new URL('./fixtures/sample-fssai-licence.png', import.meta.url));
+
+/** Builds a small one-page PDF with real (selectable) text, one line per entry. */
+function textPdf(lines: string[]): Buffer {
+  const escape = (text: string) => text.replace(/[\\()]/g, (ch) => '\\' + ch);
+  const content = ['BT', '/F1 14 Tf', '72 740 Td', ...lines.flatMap((line) => [`(${escape(line)}) Tj`, '0 -24 Td']), 'ET'].join('\n');
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objects.forEach((body, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  pdf += offsets.map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(pdf, 'latin1');
+}
 
 /** A date this many days from today in India, as YYYY-MM-DD. */
 const inDays = (days: number) => indiaDate(new Date(Date.now() + days * 86_400_000));
@@ -77,7 +105,7 @@ describe('Licences and document vault (e2e)', () => {
       .field('kind', kind)
       .attach('file', file, { filename, contentType: 'application/octet-stream' });
 
-  const uploadId = async (token: string, file = PDF, filename = 'licence.pdf') =>
+  const uploadId = async (token: string, file: Buffer = PDF, filename = 'licence.pdf') =>
     (await upload(token, file, filename).expect(201)).body.id as string;
 
   const licences = async (token: string, query: Record<string, string> = {}): Promise<Licence[]> =>
@@ -253,6 +281,63 @@ describe('Licences and document vault (e2e)', () => {
       await http().delete(`/licences/${music.id}`).set(bearer(owner)).expect(204);
       expect((await licences(owner)).some(isMusic)).toBe(false);
       expect((await documents(owner)).map((d) => d.title)).toContain('E2E Music licence');
+    });
+  });
+
+  describe('reading the details off an uploaded licence', () => {
+    const readDetails = (token: string, attachmentId: string) =>
+      http().post('/licences/read').set(bearer(token)).send({ attachmentId });
+
+    it(
+      'reads the type, number and dates off a photo of a licence',
+      async () => {
+        const attachmentId = await uploadId(owner, LICENCE_IMAGE, 'fssai.png');
+        const reading = await readDetails(owner, attachmentId).expect(200);
+        expect(reading.body).toEqual({
+          type: 'FSSAI',
+          number: '13622012000456',
+          issuedOn: '2026-04-01',
+          expiresOn: '2027-03-31',
+          textFound: true,
+        });
+      },
+      // The first run downloads the OCR language data and starts the recogniser.
+      120_000,
+    );
+
+    it('reads the details from the text of a PDF', async () => {
+      const pdf = textPdf([
+        'TELANGANA STATE DISASTER RESPONSE AND FIRE SERVICES DEPARTMENT',
+        'NO OBJECTION CERTIFICATE',
+        'NOC No: FIRE/HYD/2026/00871',
+        'Date of Issue: 12 June 2026',
+        'This certificate is valid till 11 June 2027.',
+      ]);
+      const reading = await readDetails(owner, await uploadId(owner, pdf, 'fire-noc.pdf')).expect(200);
+      expect(reading.body).toEqual({
+        type: 'FIRE_NOC',
+        number: 'FIRE/HYD/2026/00871',
+        issuedOn: '2026-06-12',
+        expiresOn: '2027-06-11',
+        textFound: true,
+      });
+    });
+
+    it('returns empty fields, not an error, when nothing can be read', async () => {
+      // A "scanned" PDF with no text in it, and an image that is not really an image.
+      const blankPdf = await readDetails(owner, await uploadId(owner, textPdf([]), 'blank.pdf')).expect(200);
+      expect(blankPdf.body).toEqual({ type: null, number: null, issuedOn: null, expiresOn: null, textFound: false });
+
+      const broken = await readDetails(owner, await uploadId(owner, JPEG, 'broken.jpg')).expect(200);
+      expect(broken.body).toMatchObject({ number: null, expiresOn: null });
+    }, 60_000);
+
+    it("will not read someone else's upload, or anything for a head chef", async () => {
+      const mine = await uploadId(owner);
+      await readDetails(admin, mine).expect(400);
+      await readDetails(otherManager, mine).expect(400);
+      await readDetails(chef, mine).expect(403);
+      await readDetails(owner, 'made-up').expect(400);
     });
   });
 

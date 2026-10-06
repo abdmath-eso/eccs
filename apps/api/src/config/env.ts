@@ -20,6 +20,9 @@ const schema = z
     PIN_SECRET: z.string().min(16),
     // Key for signing the short-lived links that display photos.
     FILE_URL_SECRET: z.string().min(16),
+    // Reading licence numbers and dates off uploaded documents: "ocr" uses the
+    // free reader on this server; "off" disables it. An AI reader can be added later.
+    LICENCE_READER: z.enum(['ocr', 'off']).default('ocr'),
     // How restaurants reach ECCS directly. Sample numbers until the real ones are supplied.
     SUPPORT_PHONE: z.string().default('+919000000000'),
     SUPPORT_WHATSAPP: z.string().default('919000000000'),

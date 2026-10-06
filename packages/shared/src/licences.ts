@@ -66,6 +66,9 @@ export const updateLicenceSchema = z.object({
 });
 export type UpdateLicenceInput = z.input<typeof updateLicenceSchema>;
 
+/** Asks the server to read the details off an uploaded licence document. */
+export const readLicenceSchema = z.object({ attachmentId: z.string().min(1) });
+
 export const createDocumentSchema = z.object({
   outletId: z.string().min(1),
   category: z.enum(DOCUMENT_CATEGORIES).exclude(["licence"]),

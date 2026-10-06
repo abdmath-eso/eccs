@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
-import { createDocumentSchema, createLicenceSchema, updateLicenceSchema } from '@eccs/shared';
+import { createDocumentSchema, createLicenceSchema, readLicenceSchema, updateLicenceSchema } from '@eccs/shared';
 import type { z } from 'zod';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
@@ -25,6 +25,17 @@ export class LicencesController {
     @Body(new ZodValidationPipe(createLicenceSchema)) body: z.output<typeof createLicenceSchema>,
   ) {
     return this.licences.createLicence(user, body);
+  }
+
+  /** Reads the number and dates off an uploaded licence document, to pre-fill the form. */
+  @Post('licences/read')
+  @HttpCode(200)
+  @RequirePermission('licences', 'create')
+  read(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(readLicenceSchema)) body: z.output<typeof readLicenceSchema>,
+  ) {
+    return this.licences.readDocument(user, body.attachmentId);
   }
 
   @Patch('licences/:id')

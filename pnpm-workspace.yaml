@@ -9,5 +9,7 @@ allowBuilds:
   sharp: false
   unrs-resolver: false
   esbuild: true
+  # Its install script only prints a funding message.
+  tesseract.js: false
   prisma: true
   '@prisma/engines': true

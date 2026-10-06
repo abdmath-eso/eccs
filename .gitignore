@@ -21,3 +21,6 @@ apps/mobile/ios/
 *.apk
 *.aab
 *.ipa
+
+# OCR language data, downloaded on first use
+*.traineddata

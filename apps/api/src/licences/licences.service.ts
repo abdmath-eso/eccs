@@ -9,6 +9,7 @@ import {
   type DocumentCategory,
   type DocumentDto,
   type LicenceDto,
+  type LicenceReadingDto,
   type LicenceState,
   type LicenceType,
   type Resource,
@@ -17,6 +18,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
+import { LicenceReaderService } from './licence-reader.service.js';
 
 const licenceInclude = {
   outlet: { select: { name: true, organizationId: true, organization: { select: { name: true } } } },
@@ -45,6 +47,7 @@ export class LicencesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly reader: LicenceReaderService,
   ) {}
 
   private get db() {
@@ -76,6 +79,19 @@ export class LicencesService {
       orderBy: { expiresOn: 'asc' },
     });
     return licences.map((licence) => this.toLicenceDto(licence, today));
+  }
+
+  /**
+   * Reads the licence number and dates off a document the person has just
+   * uploaded, to fill in the form for them to check. Nothing is saved.
+   */
+  async readDocument(user: AuthUser, attachmentId: string): Promise<LicenceReadingDto> {
+    const attachment = await this.db.attachment.findFirst({
+      where: { id: attachmentId, uploadedById: user.id, kind: 'DOCUMENT' },
+    });
+    if (!attachment?.outletId) throw new BadRequestException('The file could not be read. Upload it again.');
+    await this.requireOutlet(user, 'licences', 'create', attachment.outletId);
+    return this.reader.read(await this.storage.getBuffer(attachment.storageKey), attachment.mimeType);
   }
 
   /**

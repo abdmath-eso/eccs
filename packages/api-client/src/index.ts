@@ -11,6 +11,7 @@ import type {
   CreateLicenceInput,
   DocumentDto,
   LicenceDto,
+  LicenceReadingDto,
   UpdateLicenceInput,
   CreateIssueInput,
   IssueDto,
@@ -167,6 +168,8 @@ export function createApiClient(options: ApiClientOptions) {
           "GET",
           `/licences${query({ ...(filter.outletId && { outletId: filter.outletId }), ...(filter.attentionOnly && { attention: "1" }) })}`,
         ),
+      /** Reads the licence number and dates off an uploaded document, to pre-fill the form. May take several seconds. */
+      read: (attachmentId: string) => call<LicenceReadingDto>("POST", "/licences/read", { attachmentId }),
       create: (input: CreateLicenceInput) => call<LicenceDto>("POST", "/licences", input),
       update: (licenceId: string, input: UpdateLicenceInput) =>
         call<LicenceDto>("PATCH", `/licences/${id(licenceId)}`, input),

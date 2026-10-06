@@ -54,6 +54,13 @@ export class StorageService implements OnModuleInit {
     return result.Body as Readable;
   }
 
+  /** The whole file in memory. Only for files we need to process, such as a licence to be read. */
+  async getBuffer(key: string): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    for await (const chunk of await this.get(key)) chunks.push(Buffer.from(chunk as Uint8Array));
+    return Buffer.concat(chunks);
+  }
+
   async remove(key: string): Promise<void> {
     await this.s3.send(new DeleteObjectCommand({ Bucket: env.S3_BUCKET, Key: key }));
   }

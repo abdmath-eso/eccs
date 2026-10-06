@@ -16,9 +16,14 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 *In progress. To be written up at the end of the day.*
 
+**So far today**
+
+- Started this daily log and wrote up 5 October.
+- The founder retested photo upload on the Android phone: it works.
+
 **Carried over from yesterday**
 
-- The phone photo-upload fix needs the founder's retest.
+- ~~The phone photo-upload fix needs the founder's retest.~~ Done, works.
 - The founder has not yet chosen the next feature. Recommended: issues and ECCS support.
 
 ---

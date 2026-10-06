@@ -130,7 +130,7 @@ The founder called the checklist feature done for now on 5 Oct 2026. These are k
 
 | Item | Why it matters |
 |---|---|
-| Try it on a real Android phone and an iPhone | The camera, photo shrinking and upload have only run in automated tests and a desktop browser |
+| Try it on an iPhone | Confirmed working on the founder's Android phone on 6 Oct 2026 (login, checklists, camera, photo upload). Not yet tried on an iPhone |
 | Work without signal | Kitchens have patchy connectivity; today a checklist needs a connection |
 | Reminders when a checklist is due or overdue | Listed on the whiteboard (item 5) |
 | Telugu and Hindi wording for the library, and a native speaker's review of all translations | The library is English only |
@@ -266,7 +266,7 @@ Then open http://localhost:3000 and log in with `9000000001` and code `123456`.
 
 "Lock" on the home screen returns to the PIN pad for the next person. "Use a different restaurant" on the PIN pad unlinks the browser so another code can be entered. If sample PINs stop working, run `pnpm seed` in `packages/db`.
 
-**On a real Android phone (set up 5 Oct 2026, awaiting the founder's first try):**
+**On a real Android phone (working; confirmed by the founder on 6 Oct 2026):**
 
 1. Install **Expo Go** from the Play Store. Put the phone on the same Wi-Fi as this computer.
 2. `apps/mobile/.env.local` (not committed) points the app at this computer's Wi-Fi address, `http://192.168.1.40:4000/v1`. If the address changes, run `ipconfig`, update the file and restart Expo.
@@ -325,6 +325,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 6 Oct 2026 | Founder confirmed photo upload works on the Android phone after the fix. |
 | 6 Oct 2026 | Daily log started (`docs/DAILY_LOG.md`), with the 5 Oct entry written up. `CLAUDE.md` now tells every session to keep it. |
 | 5 Oct 2026 | First test on the founder's Android phone through Expo Go: login, checklists and photo display work. Photo upload failed; cause found and fixed (see section 6 notes). Fix awaits the founder's retest. |
 | 5 Oct 2026 | Founder: daily checklists are done for now. Tracker tidied: parked checklist follow-ups listed, stale scaffold notes removed, next step awaiting the founder's choice. |

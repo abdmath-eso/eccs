@@ -15,6 +15,7 @@ Enterprise platform for ECCS (Eosfera Commercial Cleaning Services), Hyderabad: 
 - When scope or design changes, update `docs/PROPOSAL.md` too so the two files never disagree.
 - The plan is approved (5 Oct 2026). Build in the order of the phases in STATUS.md section 5.
 - The team is the founder and Claude only. Commit after each working step with a clear message so progress is recoverable.
+- **Push to GitHub (`origin`, https://github.com/abdmath-eso/eccs) once a day, at end of day, when the founder says the day is done.** Do not push at other times unless asked. End of day means: write the day's entry in `docs/DAILY_LOG.md`, update `docs/STATUS.md`, commit, then push.
 - Use sample data for company details, prices, SOPs and certificates until the founder supplies real ones. No real SMS or payments.
 - Read STATUS.md section 6 "Notes for Claude sessions on this machine" before running commands.
 - Record the founder's decisions in STATUS.md section 3 with the date; move answered questions out of section 4.

@@ -20,6 +20,9 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 - Started this daily log and wrote up 5 October.
 - The founder retested photo upload on the Android phone: it works.
+- Founder decision: problems noted on a checklist stay inside the restaurant and are never sent to ECCS. ECCS support is a separate channel; Head Chefs can raise issues there too.
+- Built ECCS support. In the app: raise an issue (category, description, optional photos), see its status, exchange messages with ECCS, call or WhatsApp ECCS; the Owner or Manager can close or reopen an issue. In the console: an Issues page across all clients where ECCS replies and marks issues in progress or resolved.
+- Tested with 8 new end-to-end tests (69 in total) and by clicking through the whole loop in Chrome: raised an issue in the app, replied and changed status in the console, saw the reply in the app. Not yet tried on the phone.
 
 **Carried over from yesterday**
 

@@ -5,7 +5,13 @@ import type {
   ChecklistRunDto,
   ChecklistRunSummaryDto,
   ChecklistSuggestionDto,
+  AddIssueCommentInput,
   CreateChecklistInput,
+  CreateIssueInput,
+  IssueDto,
+  IssueStatus,
+  IssueSummaryDto,
+  SupportContactDto,
   CreateOrganizationInput,
   CreateOutletInput,
   CreateRestaurantUserInput,
@@ -114,8 +120,10 @@ export function createApiClient(options: ApiClientOptions) {
       authenticated,
     );
 
-  const query = (params: Record<string, string | number>) =>
-    "?" + Object.entries(params).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&");
+  const query = (params: Record<string, string | number>) => {
+    const pairs = Object.entries(params).map(([key, value]) => `${key}=${encodeURIComponent(value)}`);
+    return pairs.length > 0 ? "?" + pairs.join("&") : "";
+  };
 
   const id = encodeURIComponent;
 
@@ -136,6 +144,23 @@ export function createApiClient(options: ApiClientOptions) {
         // The content type is left unset so the boundary is filled in automatically.
         return send<AttachmentDto>("POST", "/attachments", form, undefined, true);
       },
+    },
+    support: {
+      contact: () => call<SupportContactDto>("GET", "/support/contact"),
+    },
+    /** ECCS support issues. Checklist problems are not issues and never appear here. */
+    issues: {
+      list: (filter: { outletId?: string; openOnly?: boolean } = {}) =>
+        call<IssueSummaryDto[]>(
+          "GET",
+          `/issues${query({ ...(filter.outletId && { outletId: filter.outletId }), ...(filter.openOnly && { status: "open" }) })}`,
+        ),
+      get: (issueId: string) => call<IssueDto>("GET", `/issues/${id(issueId)}`),
+      create: (input: CreateIssueInput) => call<IssueDto>("POST", "/issues", input),
+      comment: (issueId: string, input: AddIssueCommentInput) =>
+        call<IssueDto>("POST", `/issues/${id(issueId)}/comments`, input),
+      setStatus: (issueId: string, status: IssueStatus) =>
+        call<IssueDto>("PATCH", `/issues/${id(issueId)}`, { status }),
     },
     checklists: {
       today: (outletId: string) => call<ChecklistRunDto[]>("GET", `/checklists/today${query({ outletId })}`),

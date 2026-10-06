@@ -189,7 +189,7 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 ### Compliance
 - **Licence**: Outlet, type (FSSAI, fire NOC, trade licence, pest control contract, others), number, issue and expiry dates, linked document, reminder schedule.
 - **Document**: the vault. Categorised files per Outlet, including auto-filed service reports.
-- **Issue**: raised by restaurant or ECCS. Category (pest sighting, chimney, equipment, hygiene, other), severity, photos, status, assignee, optional linked Job. Has **IssueComments**.
+- **Issue**: raised by a restaurant through ECCS support for ECCS to act on. Problems noted on a daily checklist are not issues and are never sent to ECCS (founder, 6 Oct 2026). Category (pest sighting, chimney, equipment, hygiene, other), severity, photos, status, assignee, optional linked Job. Has **IssueComments**.
 - **HygieneScoreSnapshot**: daily score per Outlet with its component breakdown.
 
 ### Booking and billing

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { LanguagePicker } from '@/components/language-picker';
+import { Avatar } from '@/components/avatar';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { MinTouchSize, Spacing } from '@/constants/theme';
@@ -27,6 +27,10 @@ interface SideMenuProps {
   /** The person's name, and their role and place, shown at the top. */
   title: string;
   subtitle: string;
+  /** The person's profile photo, if they have set one. */
+  photoUrl?: string | null;
+  /** Opens "My profile". */
+  onOpenProfile: () => void;
   items: MenuItem[];
   onSelect: (href: Href) => void;
   onClose: () => void;
@@ -34,9 +38,19 @@ interface SideMenuProps {
 
 /**
  * The app's menu: a panel that slides in from the left with every section
- * the person can open, the language choice and the lock button.
+ * the person can open and the lock button. Their photo and name at the top
+ * open "My profile", which is also where the language is chosen.
  */
-export function SideMenu({ visible, title, subtitle, items, onSelect, onClose }: SideMenuProps) {
+export function SideMenu({
+  visible,
+  title,
+  subtitle,
+  photoUrl,
+  onOpenProfile,
+  items,
+  onSelect,
+  onClose,
+}: SideMenuProps) {
   const theme = useTheme();
   const { t, signOut, linkedDevice } = useSession();
   // Kept in state, not `useAnimatedValue`, which the browser build of React Native does not have.
@@ -61,14 +75,24 @@ export function SideMenu({ visible, title, subtitle, items, onSelect, onClose }:
           style={[styles.panel, { backgroundColor: theme.background, transform: [{ translateX: slide }] }]}>
           <SafeAreaView style={styles.safeArea}>
             <View style={[styles.header, { borderColor: theme.border }]}>
-              <View style={styles.headerText}>
-                <ThemedText type="default" style={styles.title}>
-                  {title}
-                </ThemedText>
-                <ThemedText type="small" themeColor="primary">
-                  {subtitle}
-                </ThemedText>
-              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.open')}
+                onPress={onOpenProfile}
+                style={({ pressed }) => [styles.profile, pressed && { opacity: 0.7 }]}>
+                <Avatar name={title} photoUrl={photoUrl} size={52} />
+                <View style={styles.headerText}>
+                  <ThemedText type="default" style={styles.title}>
+                    {title}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="primary">
+                    {subtitle}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {t('profile.open')} ›
+                  </ThemedText>
+                </View>
+              </Pressable>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('common.close')}
@@ -113,7 +137,6 @@ export function SideMenu({ visible, title, subtitle, items, onSelect, onClose }:
             </ScrollView>
 
             <View style={[styles.footer, { borderColor: theme.border }]}>
-              <LanguagePicker />
               {/* On a restaurant's phone, logging out returns to the PIN pad for the next person. */}
               <Button
                 label={linkedDevice ? t('home.lock') : t('home.logout')}
@@ -145,6 +168,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     borderBottomWidth: 1,
   },
+  profile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   headerText: { flex: 1, gap: Spacing.half },
   title: { fontWeight: 700, fontSize: 18 },
   close: { minWidth: MinTouchSize, minHeight: MinTouchSize, alignItems: 'center', justifyContent: 'center' },

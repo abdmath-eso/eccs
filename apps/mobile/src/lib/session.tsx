@@ -25,6 +25,8 @@ interface SessionContextValue {
   linkDevice: (device: LinkedDeviceDto) => Promise<void>;
   unlinkDevice: () => Promise<void>;
   user: CurrentUserDto | null;
+  /** Reads the person's details again from the server, after they have changed them. */
+  refreshUser: () => Promise<void>;
   /** A PIN that was just generated for this user and must be shown once. */
   newPin: string | null;
   dismissNewPin: () => void;
@@ -124,6 +126,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await removeItem(KEYS.linkedDevice);
     },
     user,
+    async refreshUser() {
+      const fresh = await api.auth.me();
+      setUser(fresh);
+      await setJson(KEYS.user, fresh);
+    },
     newPin,
     dismissNewPin: () => setNewPin(null),
     async signIn(session) {

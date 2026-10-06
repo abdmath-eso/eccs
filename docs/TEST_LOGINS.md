@@ -42,7 +42,7 @@ Deccan Biryani has no Manager in the sample data. Add one from **Staff logins** 
 
 - **Next person on the same phone:** open the menu (top left of the home screen) and tap **Lock**. The PIN pad comes back.
 - **A different branch or restaurant:** on the PIN pad tap **"Use a different restaurant"**, then enter another code.
-- The language can be changed at the bottom of the menu.
+- The language is changed in **My profile** (tap your name at the top of the menu), under Preferences.
 
 ### Owner's login by phone and one-time code
 

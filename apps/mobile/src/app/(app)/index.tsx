@@ -70,6 +70,7 @@ export default function HomeScreen() {
   const [overview, setOverview] = useState<OutletDashboardDto[] | null>(null);
   const [chosenOutlet, setChosenOutlet] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const membership = user?.memberships[0];
@@ -99,6 +100,22 @@ export default function HomeScreen() {
       // `t` changes with language; reloading for that is unnecessary.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [api, showsOverview]),
+  );
+
+  // The person's photo for the top of the menu; read again on coming back, in case they changed it.
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      let cancelled = false;
+      api.profile
+        .get()
+        .then((profile) => !cancelled && setPhotoPath(profile.photoPath))
+        .catch(() => undefined);
+      return () => {
+        cancelled = true;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [api, user?.id]),
   );
 
   if (!user || !membership) return null;
@@ -188,6 +205,11 @@ export default function HomeScreen() {
         visible={menuOpen}
         title={user.name}
         subtitle={roleAndPlace}
+        photoUrl={photoPath ? api.fileUrl(photoPath) : null}
+        onOpenProfile={() => {
+          setMenuOpen(false);
+          router.push('/profile');
+        }}
         items={MENU[membership.role]}
         onClose={() => setMenuOpen(false)}
         onSelect={(href) => {

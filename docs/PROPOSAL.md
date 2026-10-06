@@ -271,6 +271,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Daily and per-shift checklists with photo proof and timestamps, working offline
 - Raise an issue with photo and category; track its status
 - Dashboard: hygiene score, today's checklist status, upcoming visits, open issues
+- My profile: photo, name, role, restaurant and branches, and preferences (language)
 - Licence tracker with expiry reminders by push at 60, 30, 15 and 7 days. One licence of each kind per outlet: a new one replaces the old one and its document. The number and expiry date are read off the uploaded document (free OCR first, an AI reader later) for the person to check
 - Document vault: upload and view; service reports filed automatically
 - Visit history with service reports, and a one-year history calendar in the style of a phone calendar: each day shows its checklists, ECCS services, licences falling due and public holidays, and upcoming services and due dates are listed

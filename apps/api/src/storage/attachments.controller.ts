@@ -23,6 +23,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from './storage.service.js';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 
 /** The parts of an uploaded file this controller uses. Files are held in memory, not on disk. */
 interface UploadedPhoto {
@@ -32,13 +33,18 @@ interface UploadedPhoto {
 
 const uploadFieldsSchema = z.object({
   outletId: z.string().min(1),
+  /** PROOF: a photo for a checklist or issue. DOCUMENT: a photo or PDF for licences and the vault. */
+  kind: z.enum(['PROOF', 'DOCUMENT']).default('PROOF'),
   /** Chosen by the phone so that retrying an upload does not create a second copy. */
   id: z.uuid().optional(),
   capturedAt: z.iso.datetime().optional(),
 });
 
-/** Works out the real image type from the file's first bytes, ignoring what the client claims. */
-function sniffImage(bytes: Buffer): { mimeType: string; extension: string } | null {
+/** Works out the real file type from its first bytes, ignoring what the client claims. */
+function sniffFile(bytes: Buffer, allowPdf: boolean): { mimeType: string; extension: string } | null {
+  if (allowPdf && bytes.length > 5 && bytes.toString('ascii', 0, 5) === '%PDF-') {
+    return { mimeType: 'application/pdf', extension: 'pdf' };
+  }
   if (bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
     return { mimeType: 'image/jpeg', extension: 'jpg' };
   }
@@ -58,9 +64,12 @@ export class AttachmentsController {
     private readonly storage: StorageService,
   ) {}
 
-  /** Uploads a proof photo for an outlet. It is linked to a checklist answer or issue afterwards. */
+  /**
+   * Uploads a file for an outlet: a proof photo (linked to a checklist answer
+   * or issue afterwards) or a document (filed as a licence or in the vault).
+   */
   @Post()
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_PHOTO_BYTES, files: 1 } }))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_DOCUMENT_BYTES, files: 1 } }))
   async upload(
     @CurrentUser() user: AuthUser,
     @UploadedFile() file: UploadedPhoto | undefined,
@@ -68,9 +77,15 @@ export class AttachmentsController {
   ): Promise<AttachmentDto> {
     const fields = uploadFieldsSchema.safeParse(body);
     if (!fields.success) throw new BadRequestException('Invalid upload');
-    if (!file) throw new BadRequestException('A photo is required');
-    const image = sniffImage(file.buffer);
-    if (!image) throw new BadRequestException('Only JPEG, PNG or WebP photos are accepted');
+    const isDocument = fields.data.kind === 'DOCUMENT';
+    if (!file) throw new BadRequestException(isDocument ? 'A file is required' : 'A photo is required');
+    const image = sniffFile(file.buffer, isDocument);
+    if (!image) {
+      throw new BadRequestException(
+        isDocument ? 'Only PDF, JPEG, PNG or WebP files are accepted' : 'Only JPEG, PNG or WebP photos are accepted',
+      );
+    }
+    if (!isDocument && file.size > MAX_PHOTO_BYTES) throw new BadRequestException('That photo is too large');
 
     const outlet = await this.prisma.client.outlet.findUnique({
       where: { id: fields.data.outletId },
@@ -79,8 +94,10 @@ export class AttachmentsController {
     const target = outlet ? { organizationId: outlet.organizationId, outletId: outlet.id } : null;
     const allowed =
       target &&
-      (can(user.memberships, 'checklists', 'create', target) || can(user.memberships, 'issues', 'create', target));
-    if (!outlet || !allowed) throw new ForbiddenException('You cannot add photos for this outlet');
+      (isDocument
+        ? can(user.memberships, 'documents', 'create', target) || can(user.memberships, 'licences', 'create', target)
+        : can(user.memberships, 'checklists', 'create', target) || can(user.memberships, 'issues', 'create', target));
+    if (!outlet || !allowed) throw new ForbiddenException('You cannot add files for this outlet');
 
     const id = fields.data.id ?? randomUUID();
     const existing = await this.prisma.client.attachment.findUnique({ where: { id } });
@@ -100,7 +117,7 @@ export class AttachmentsController {
       data: {
         id,
         outletId: outlet.id,
-        kind: 'PROOF',
+        kind: fields.data.kind,
         storageKey,
         mimeType: image.mimeType,
         sizeBytes: file.size,
@@ -131,6 +148,8 @@ export class AttachmentsController {
 
     const body = await this.storage.get(attachment.storageKey);
     response.setHeader('Content-Type', attachment.mimeType);
+    // Show PDFs in the browser or viewer rather than forcing a download.
+    if (attachment.mimeType === 'application/pdf') response.setHeader('Content-Disposition', 'inline; filename="document.pdf"');
     response.setHeader('Cache-Control', 'private, max-age=3600');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     body.pipe(response);

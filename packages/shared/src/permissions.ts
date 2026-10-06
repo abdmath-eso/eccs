@@ -50,14 +50,14 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     clients: "CRU", eccsUsers: "CRU", restaurantUsers: "CRU", sopTemplates: "CRU",
     checklists: "R", foodLabels: "R", issues: "CRU", catalog: "CRU", bookings: "CRU",
     subscriptions: "CRU", schedule: "CRU", jobs: "CRUA", inspections: "CRUA", reports: "CRA",
-    publicPage: "RUA", licences: "R", documents: "R", scores: "R",
+    publicPage: "RUA", licences: "CRU", documents: "CRU", scores: "R",
     invoices: "CRU", payments: "CRU", auditLog: "R", settings: "RU",
   },
   OPS_MANAGER: {
     clients: "CRU", eccsUsers: "R", restaurantUsers: "CRU", sopTemplates: "CRU",
     checklists: "R", foodLabels: "R", issues: "CRU", catalog: "CRU", bookings: "CRU",
     subscriptions: "CRU", schedule: "CRU", jobs: "CRUA", inspections: "CRUA", reports: "CRA",
-    publicPage: "RUA", licences: "R", documents: "R", scores: "R",
+    publicPage: "RUA", licences: "CRU", documents: "CRU", scores: "R",
     invoices: "CRU", payments: "CRU", auditLog: "R",
   },
   SUPERVISOR: {

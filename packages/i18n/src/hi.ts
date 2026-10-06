@@ -219,6 +219,7 @@ export const hi: Messages = {
   "docs.addLicence": "लाइसेंस जोड़ें",
   "docs.addDocument": "दस्तावेज़ जोड़ें",
   "docs.licenceType": "कौन सा लाइसेंस?",
+  "docs.replaces": "आपके पास पहले से {name} है। सेव करने पर यह बदल जाएगा और इसका पुराना दस्तावेज़ हटा दिया जाएगा।",
   "docs.licenceName": "लाइसेंस का नाम",
   "docs.number": "लाइसेंस नंबर (वैकल्पिक)",
   "docs.expiresOn": "समाप्ति तिथि (DD/MM/YYYY)",

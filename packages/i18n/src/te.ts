@@ -219,6 +219,7 @@ export const te: Messages = {
   "docs.addLicence": "లైసెన్స్ జోడించండి",
   "docs.addDocument": "పత్రాన్ని జోడించండి",
   "docs.licenceType": "ఏ లైసెన్స్?",
+  "docs.replaces": "మీకు ఇప్పటికే {name} ఉంది. సేవ్ చేస్తే అది మారిపోతుంది, దాని పాత పత్రం తొలగించబడుతుంది.",
   "docs.licenceName": "లైసెన్స్ పేరు",
   "docs.number": "లైసెన్స్ నంబర్ (ఐచ్ఛికం)",
   "docs.expiresOn": "గడువు తేదీ (DD/MM/YYYY)",

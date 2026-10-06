@@ -49,7 +49,7 @@ describe('Licences and document vault (e2e)', () => {
 
   async function cleanUp() {
     const db = prisma.client;
-    await db.licence.deleteMany({ where: { outletId, name: { startsWith: 'E2E' } } });
+    await db.licence.deleteMany({ where: { outletId, name: { startsWith: 'E2E', mode: 'insensitive' } } });
     await db.document.deleteMany({ where: { outletId } });
     await db.attachment.deleteMany({ where: { outletId, kind: 'DOCUMENT' } });
     await db.session.deleteMany({ where: { deviceName: DEVICE } });
@@ -181,8 +181,16 @@ describe('Licences and document vault (e2e)', () => {
       expect(attention[0]!.name).toBe('E2E Expired yesterday');
     });
 
-    it('renews a licence: new expiry date and a new copy, keeping the old copy in the vault', async () => {
+    it('renews a licence: new expiry date, and the new copy replaces the old one', async () => {
       const expired = (await licences(owner)).find((l) => l.name === 'E2E Expired yesterday')!;
+      // Give it a first copy, then renew with a second.
+      const firstCopy = await uploadId(owner);
+      const before = await http().patch(`/licences/${expired.id}`).set(bearer(owner)).send({ attachmentId: firstCopy }).expect(200);
+      const oldPath = (before.body as Licence).file!.path;
+      await http().get(oldPath).expect(200);
+      const copiesBefore = (await documents(owner)).filter((d) => d.title === 'E2E Expired yesterday').length;
+      expect(copiesBefore).toBe(1);
+
       const attachmentId = await uploadId(owner, JPEG, 'renewed.jpg');
       const renewed = await http()
         .patch(`/licences/${expired.id}`)
@@ -191,15 +199,59 @@ describe('Licences and document vault (e2e)', () => {
         .expect(200);
       expect(renewed.body).toMatchObject({ state: 'VALID', daysLeft: 365, file: { mimeType: 'image/jpeg' } });
 
+      // Still one copy in the vault, and it is the new one; the old file is gone.
+      const copies = (await documents(owner)).filter((d) => d.title === 'E2E Expired yesterday');
+      expect(copies).toEqual([expect.objectContaining({ file: expect.objectContaining({ mimeType: 'image/jpeg' }) })]);
+      await http().get(oldPath).expect(404);
+
       await http().patch(`/licences/${expired.id}`).set(bearer(otherManager)).send({ expiresOn: inDays(1) }).expect(404);
       await http().patch(`/licences/${expired.id}`).set(bearer(chef)).send({ expiresOn: inDays(1) }).expect(403);
     });
 
+    it('replaces the existing licence when the same kind is added again', async () => {
+      const fire = (await licences(owner)).find((l) => l.type === 'FIRE_NOC')!;
+      const original = { number: fire.number as string | null, expiresOn: fire.expiresOn };
+      const countBefore = (await licences(owner)).length;
+
+      const attachmentId = await uploadId(owner);
+      const added = await http()
+        .post('/licences')
+        .set(bearer(owner))
+        .send({ outletId, type: 'FIRE_NOC', number: 'E2E-FIRE-NEW', expiresOn: inDays(400), attachmentId })
+        .expect(201);
+      // Same entry, updated: not a second fire NOC.
+      expect(added.body).toMatchObject({ id: fire.id, number: 'E2E-FIRE-NEW', daysLeft: 400, file: { mimeType: 'application/pdf' } });
+      expect((await licences(owner)).length).toBe(countBefore);
+      expect((await licences(owner)).filter((l) => l.type === 'FIRE_NOC')).toHaveLength(1);
+
+      // Adding it yet again with a newer copy leaves exactly one copy in the vault.
+      const newer = await uploadId(owner, JPEG, 'fire-newer.jpg');
+      await http().post('/licences').set(bearer(owner)).send({ outletId, type: 'FIRE_NOC', expiresOn: inDays(500), attachmentId: newer }).expect(201);
+      expect((await documents(owner)).filter((d) => d.title === 'Fire NOC')).toEqual([
+        expect.objectContaining({ file: expect.objectContaining({ mimeType: 'image/jpeg' }) }),
+      ]);
+
+      // "Other" licences are matched by name, ignoring case; a different name is a different licence.
+      const sameName = await http().post('/licences').set(bearer(owner)).send({ outletId, type: 'OTHER', name: 'e2e music LICENCE', expiresOn: inDays(10) }).expect(201);
+      expect((await licences(owner)).filter((l) => l.name?.toLowerCase() === 'e2e music licence')).toHaveLength(1);
+      expect(sameName.body.daysLeft).toBe(10);
+      await http().post('/licences').set(bearer(owner)).send({ outletId, type: 'OTHER', name: 'E2E Liquor licence', expiresOn: inDays(10) }).expect(201);
+      expect((await licences(owner)).length).toBe(countBefore + 1);
+
+      // Put the sample fire NOC back as it was.
+      await prisma.client.licence.update({
+        where: { id: fire.id },
+        data: { number: original.number, expiresOn: new Date(`${original.expiresOn}T00:00:00.000Z`), documentId: null },
+      });
+    });
+
     it('removes a licence but keeps its document', async () => {
-      const music = (await licences(owner)).find((l) => l.name === 'E2E Music licence')!;
+      // The replacement test above re-added this one with different capitals, which renamed it.
+      const isMusic = (l: Licence) => l.name?.toLowerCase() === 'e2e music licence';
+      const music = (await licences(owner)).find(isMusic)!;
       await http().delete(`/licences/${music.id}`).set(bearer(otherManager)).expect(404);
       await http().delete(`/licences/${music.id}`).set(bearer(owner)).expect(204);
-      expect((await licences(owner)).map((l) => l.name)).not.toContain('E2E Music licence');
+      expect((await licences(owner)).some(isMusic)).toBe(false);
       expect((await documents(owner)).map((d) => d.title)).toContain('E2E Music licence');
     });
   });

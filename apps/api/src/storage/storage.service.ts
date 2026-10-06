@@ -1,7 +1,14 @@
 import { createHmac } from 'node:crypto';
 import type { Readable } from 'node:stream';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { CreateBucketCommand, GetObjectCommand, HeadBucketCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  CreateBucketCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadBucketCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { safeEqualHex } from '../auth/auth.crypto.js';
 import { env } from '../config/env.js';
 
@@ -45,6 +52,10 @@ export class StorageService implements OnModuleInit {
   async get(key: string): Promise<Readable> {
     const result = await this.s3.send(new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: key }));
     return result.Body as Readable;
+  }
+
+  async remove(key: string): Promise<void> {
+    await this.s3.send(new DeleteObjectCommand({ Bucket: env.S3_BUCKET, Key: key }));
   }
 
   /** A link to an attachment's content that works for the next hour without logging in. */

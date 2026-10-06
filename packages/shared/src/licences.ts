@@ -3,6 +3,9 @@ import { z } from "zod";
 // Licences and the document vault. The Owner and Manager keep their outlet's
 // licences and documents here; ECCS admins can add and update them too, for
 // example while onboarding a client. Files are photos or PDFs.
+//
+// An outlet holds one licence of each kind: adding one that already exists
+// replaces it, and a new copy of a licence's document replaces the old copy.
 
 export const LICENCE_TYPES = ["FSSAI", "FIRE_NOC", "TRADE_LICENCE", "PEST_CONTROL", "OTHER"] as const;
 export type LicenceType = (typeof LICENCE_TYPES)[number];

@@ -149,6 +149,16 @@ export default function DocumentsScreen() {
     );
   }
 
+  // An outlet holds one licence of each kind, so adding the same kind again replaces the current one.
+  const replacing =
+    form === 'licence'
+      ? (licences?.find((licence) =>
+          type === 'OTHER'
+            ? licence.type === 'OTHER' && licence.name?.trim().toLowerCase() === name.trim().toLowerCase()
+            : licence.type === type,
+        ) ?? null)
+      : null;
+
   const openFile = (path: string) => void Linking.openURL(api.fileUrl(path));
   const option = (selected: boolean) => [
     styles.option,
@@ -282,6 +292,11 @@ export default function DocumentsScreen() {
               ))}
             </View>
             {type === 'OTHER' && <TextField label={t('docs.licenceName')} value={name} onChangeText={setName} maxLength={80} />}
+            {replacing && (
+              <ThemedText type="small" themeColor="warning">
+                {t('docs.replaces', { name: licenceName(replacing) })}
+              </ThemedText>
+            )}
             <TextField label={t('docs.number')} value={number} onChangeText={setNumber} maxLength={60} autoCapitalize="characters" />
             <TextField
               label={t('docs.expiresOn')}

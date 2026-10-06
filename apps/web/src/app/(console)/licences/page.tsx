@@ -225,7 +225,7 @@ export default function LicencesPage() {
             {licences.map((licence) => (
               <LicenceRow key={licence.id} licence={licence} mayEdit={mayEdit} outletId={outletId} onChange={change} />
             ))}
-            {mayEdit && <AddLicenceForm outletId={outletId} onChange={change} />}
+            {mayEdit && <AddLicenceForm outletId={outletId} existing={licences} onChange={change} />}
           </section>
         )}
 
@@ -348,10 +348,12 @@ function LicenceRow({ licence, mayEdit, outletId, onChange }: { licence: Licence
   );
 }
 
-function AddLicenceForm({ outletId, onChange }: { outletId: string; onChange: Change }) {
+function AddLicenceForm({ outletId, existing, onChange }: { outletId: string; existing: LicenceDto[]; onChange: Change }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<LicenceType>("FSSAI");
   const [busy, setBusy] = useState(false);
+  // An outlet holds one licence of each standard kind, so adding the same kind again replaces the current one.
+  const replacing = type === "OTHER" ? undefined : existing.find((licence) => licence.type === type);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -399,9 +401,14 @@ function AddLicenceForm({ outletId, onChange }: { outletId: string; onChange: Ch
       <Field label="Licence number" name="number" maxLength={60} />
       <Field label="Expiry date" name="expiresOn" type="date" required />
       <Field label="Document (PDF or image)" name="file" type="file" accept="application/pdf,image/*" />
+      {replacing && (
+        <p className="text-sm text-amber-700 sm:col-span-2">
+          This outlet already has a {replacing.name ?? TYPE[replacing.type]}. Saving will replace it, and its old document will be deleted.
+        </p>
+      )}
       <div className="flex items-end gap-3">
         <Button type="submit" loading={busy}>
-          Add licence
+          {replacing ? "Replace licence" : "Add licence"}
         </Button>
         <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
           Cancel

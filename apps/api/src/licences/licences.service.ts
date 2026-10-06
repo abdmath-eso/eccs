@@ -78,6 +78,12 @@ export class LicencesService {
     return licences.map((licence) => this.toLicenceDto(licence, today));
   }
 
+  /**
+   * Adds a licence. An outlet holds one licence of each kind, so adding one
+   * that already exists (the same type, or for "other" licences the same
+   * name) replaces it: the details are updated and the old copy of the
+   * document is deleted in favour of the new one.
+   */
   async createLicence(
     user: AuthUser,
     input: {
@@ -92,10 +98,29 @@ export class LicencesService {
   ): Promise<LicenceDto> {
     await this.requireOutlet(user, 'licences', 'create', input.outletId);
     const name = input.name ?? DEFAULT_NAMES[input.type];
+
+    const existing = await this.db.licence.findFirst({
+      where: {
+        outletId: input.outletId,
+        type: input.type,
+        ...(input.type === 'OTHER' && { name: { equals: name, mode: 'insensitive' } }),
+      },
+      orderBy: { expiresOn: 'desc' },
+    });
+    if (existing) {
+      return this.updateLicence(user, existing.id, {
+        // An "other" licence keeps its name; a standard one keeps a custom name unless a new one is given.
+        ...(input.name !== undefined && { name: input.name }),
+        number: input.number ?? null,
+        issuedOn: input.issuedOn ?? null,
+        expiresOn: input.expiresOn,
+        attachmentId: input.attachmentId,
+      });
+    }
+
     const documentId = input.attachmentId
       ? await this.fileDocument(user, input.outletId, input.attachmentId, 'licence', name)
       : null;
-
     const licence = await this.db.licence.create({
       data: {
         outletId: input.outletId,
@@ -111,14 +136,18 @@ export class LicencesService {
     return this.toLicenceDto(licence, indiaDate());
   }
 
-  /** Updates a licence, typically after renewal: a new expiry date and a new copy of the document. */
+  /**
+   * Updates a licence, typically after renewal: a new expiry date and a new
+   * copy of the document. A new copy replaces the old one, which is deleted.
+   * Passing null for the number or issue date clears it.
+   */
   async updateLicence(
     user: AuthUser,
     licenceId: string,
     input: {
       name?: string | undefined;
-      number?: string | undefined;
-      issuedOn?: string | undefined;
+      number?: string | null | undefined;
+      issuedOn?: string | null | undefined;
       expiresOn?: string | undefined;
       attachmentId?: string | undefined;
     },
@@ -134,13 +163,17 @@ export class LicencesService {
       data: {
         ...(input.name !== undefined && { name: input.name }),
         ...(input.number !== undefined && { number: input.number }),
-        ...(input.issuedOn !== undefined && { issuedOn: toDbDate(input.issuedOn) }),
+        ...(input.issuedOn !== undefined && { issuedOn: input.issuedOn ? toDbDate(input.issuedOn) : null }),
         ...(input.expiresOn !== undefined && { expiresOn: toDbDate(input.expiresOn) }),
-        // The earlier copy stays in the vault as a record; the licence points at the new one.
         ...(documentId !== undefined && { documentId }),
       },
       include: licenceInclude,
     });
+
+    // The out-of-date copy goes, so the vault only ever holds the current licence document.
+    if (documentId !== undefined && existing.documentId && existing.documentId !== documentId) {
+      await this.deleteDocument(existing.documentId);
+    }
     return this.toLicenceDto(licence, indiaDate());
   }
 
@@ -194,14 +227,24 @@ export class LicencesService {
     if (!document) throw new NotFoundException('Document not found');
     await this.requireOutlet(user, 'documents', 'update', document.outletId, true);
 
-    await this.db.$transaction([
-      this.db.licence.updateMany({ where: { documentId }, data: { documentId: null } }),
-      this.db.document.delete({ where: { id: documentId } }),
-    ]);
+    await this.deleteDocument(documentId);
     return this.listDocuments(user, document.outletId);
   }
 
   // ───────────────────────── Helpers ─────────────────────────
+
+  /** Deletes a vault document completely: its entry, its file record and the stored file. */
+  private async deleteDocument(documentId: string): Promise<void> {
+    const document = await this.db.document.findUnique({ where: { id: documentId }, include: { attachment: true } });
+    if (!document) return;
+    await this.db.$transaction([
+      this.db.licence.updateMany({ where: { documentId }, data: { documentId: null } }),
+      this.db.document.delete({ where: { id: documentId } }),
+      this.db.attachment.delete({ where: { id: document.attachmentId } }),
+    ]);
+    // The database no longer points at the file; removing the stored bytes is best effort.
+    await this.storage.remove(document.attachment.storageKey).catch(() => undefined);
+  }
 
   /** Turns an uploaded file into a vault document for the outlet and returns the document's id. */
   private async fileDocument(

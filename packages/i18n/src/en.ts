@@ -218,6 +218,7 @@ export const en = {
   "docs.addLicence": "Add a licence",
   "docs.addDocument": "Add a document",
   "docs.licenceType": "Which licence?",
+  "docs.replaces": "You already have a {name}. Saving will replace it, and its old document will be deleted.",
   "docs.licenceName": "Name of the licence",
   "docs.number": "Licence number (optional)",
   "docs.expiresOn": "Expiry date (DD/MM/YYYY)",

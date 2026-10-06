@@ -3,7 +3,7 @@ import type { MessageKey } from '@eccs/i18n';
 import type { Href } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useEffect, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -62,7 +62,9 @@ export function SideMenu({
   useEffect(() => {
     if (!visible) return;
     slide.setValue(-WIDTH);
-    Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: true }).start();
+    // The phone's own animation engine keeps the slide smooth. A browser has none, and
+    // React Native warns if asked for it there, so the browser preview animates in script.
+    Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: Platform.OS !== 'web' }).start();
   }, [visible, slide]);
 
   return (

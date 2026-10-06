@@ -34,7 +34,14 @@ type LibraryRow = Prisma.SopLibraryItemGetPayload<object>;
 type LibraryTranslations = Partial<
   Record<
     SopLanguage,
-    { name: string; purpose: string; steps: string; controls: string | null }
+    {
+      name: string;
+      purpose: string;
+      steps: string;
+      controls: string | null;
+      section?: string;
+      frequency?: string | null;
+    }
   >
 >;
 
@@ -191,16 +198,36 @@ export class SopsService {
     outletId: string,
   ): Promise<SopLibraryOverviewDto> {
     await this.requireOutlet(user, 'create', outletId);
-    const groups = await this.db.sopLibraryItem.groupBy({
-      by: ['category', 'section'],
-      where: { isActive: true },
-      _count: { _all: true },
-      orderBy: { section: 'asc' },
-    });
+    const language = this.languageOf(user);
+    const [groups, examples] = await Promise.all([
+      this.db.sopLibraryItem.groupBy({
+        by: ['category', 'section'],
+        where: { isActive: true },
+        _count: { _all: true },
+        orderBy: { section: 'asc' },
+      }),
+      // One SOP from each section, to read the section's name in the reader's language.
+      this.db.sopLibraryItem.findMany({
+        where: { isActive: true },
+        distinct: ['section'],
+        select: { section: true, translations: true },
+      }),
+    ]);
+    const labelOf = new Map(
+      examples.map((item) => [
+        item.section,
+        (item.translations as LibraryTranslations | null)?.[language]
+          ?.section ?? item.section,
+      ]),
+    );
     const categories = SOP_CATEGORIES.map((category) => {
       const sections = groups
         .filter((group) => toCategory(group.category) === category)
-        .map((group) => ({ name: group.section, count: group._count._all }));
+        .map((group) => ({
+          name: group.section,
+          label: labelOf.get(group.section) ?? group.section,
+          count: group._count._all,
+        }));
       return {
         category,
         sections,
@@ -367,8 +394,10 @@ export class SopsService {
       : [];
     const copyOf = new Map(copies.map((copy) => [copy.libraryItemId, copy.id]));
     return items.map((item) => {
-      const text =
-        (item.translations as LibraryTranslations | null)?.[language] ?? item;
+      const translation = (item.translations as LibraryTranslations | null)?.[
+        language
+      ];
+      const text = translation ?? item;
       return {
         id: item.id,
         kind:
@@ -376,12 +405,13 @@ export class SopsService {
         name: text.name,
         category: toCategory(item.category),
         section: item.section,
+        sectionLabel: translation?.section ?? item.section,
         purpose: text.purpose,
         steps: text.steps.split('\n').filter(Boolean),
         controls: text.controls,
         role: item.role,
         area: item.area,
-        frequency: item.frequency,
+        frequency: translation?.frequency ?? item.frequency,
         addedSopId: copyOf.get(item.id) ?? null,
       };
     });

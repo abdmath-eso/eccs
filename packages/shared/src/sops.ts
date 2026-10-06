@@ -86,8 +86,10 @@ export interface SopLibraryItemDto {
   kind: "OPERATION" | "RECIPE";
   name: string;
   category: SopCategory;
-  /** The grouping inside the category: a module, or for recipes a cuisine. */
+  /** The grouping inside the category: a module, or for recipes a cuisine. This is the key to filter by. */
   section: string;
+  /** The section's name in the reader's language, for showing. */
+  sectionLabel: string;
   purpose: string;
   steps: string[];
   /** What to take particular care over, where the library says something specific. */
@@ -102,7 +104,8 @@ export interface SopLibraryItemDto {
 /** What the library holds, for browsing: categories, and the sections inside each. */
 export interface SopLibraryOverviewDto {
   total: number;
-  categories: { category: SopCategory; count: number; sections: { name: string; count: number }[] }[];
+  /** A section's `name` is the key to filter by; its `label` is the name to show. */
+  categories: { category: SopCategory; count: number; sections: { name: string; label: string; count: number }[] }[];
 }
 
 /** Copies a library SOP into an outlet's own SOPs. */

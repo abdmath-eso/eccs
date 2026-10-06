@@ -163,7 +163,7 @@ export default function SopLibraryScreen() {
                       selected && { backgroundColor: theme.backgroundElement },
                     ]}>
                     <ThemedText type="small" themeColor={selected ? 'primary' : 'text'}>
-                      {entry.name} · {entry.count}
+                      {entry.label} · {entry.count}
                     </ThemedText>
                   </Pressable>
                 );
@@ -195,7 +195,7 @@ export default function SopLibraryScreen() {
                 {item.name}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {item.section}
+                {item.sectionLabel}
               </ThemedText>
             </View>
             {item.addedSopId ? (

@@ -202,7 +202,17 @@ describe('SOP library (e2e)', () => {
   });
 
   describe('the library of ready-made SOPs', () => {
-    type Item = { id: string; kind: string; name: string; category: string; section: string; steps: string[]; addedSopId: string | null };
+    type Item = {
+      id: string;
+      kind: string;
+      name: string;
+      category: string;
+      section: string;
+      sectionLabel: string;
+      purpose: string;
+      steps: string[];
+      addedSopId: string | null;
+    };
     const search = async (token: string, query: Record<string, string>, forOutlet = outletId) =>
       (await http().get('/sops/library').query({ outletId: forOutlet, ...query }).set(bearer(token)).expect(200)).body as Item[];
     // The Deccan Biryani owner uses the app in Telugu; the Jubilee Hills manager in English.
@@ -219,12 +229,14 @@ describe('SOP library (e2e)', () => {
       expect(recipes.sections.map((section) => section.name)).toContain('Indian - South');
       const cleaning = overview.categories.find((entry) => entry.category === 'CLEANING')!;
       expect(cleaning.sections.map((section) => section.name)).toEqual(['Cleaning & Sanitation', 'Dishwashing & Stewarding']);
+      // The owner asking uses Telugu, so the names to show are in Telugu.
+      for (const section of cleaning.sections as { name: string; label?: string }[]) expect(section.label).toMatch(/[\u0c00-\u0c7f]/);
     });
 
     it('finds SOPs by what is typed, the closest name first, and understands everyday words', async () => {
       expect(await search(owner, {})).toEqual([]);
 
-      const chicken = await search(owner, { q: 'butter chicken' });
+      const chicken = await inEnglish({ q: 'butter chicken' });
       expect(chicken[0]).toMatchObject({ name: 'Butter Chicken', kind: 'RECIPE', category: 'RECIPES', section: 'Indian - North' });
 
       const washing = await inEnglish({ q: 'handwash' });
@@ -252,7 +264,7 @@ describe('SOP library (e2e)', () => {
     });
 
     it("copies one into the outlet's own SOPs, once, to be changed freely", async () => {
-      const [item] = await search(owner, { q: 'restaurant opening' });
+      const [item] = await inEnglish({ q: 'restaurant opening' });
       expect(item).toMatchObject({ name: 'Restaurant Opening', addedSopId: null });
       expect(item!.steps.length).toBe(6);
       // Step numbers from the workbook are dropped; the app numbers the steps itself.
@@ -301,8 +313,20 @@ describe('SOP library (e2e)', () => {
       const [firstWord] = telugu.name.split(' ');
       expect((await search(owner, { q: firstWord! })).map((item) => item.id)).toContain(english.id);
 
-      // An SOP that has not been translated comes in English.
-      expect((await search(owner, { q: 'restaurant opening' }))[0]!.name).toBe('Restaurant Opening');
+      // The workbook's own SOPs are translated too, and so are section names and dishes.
+      const [opening] = await search(owner, { q: 'restaurant opening' });
+      expect(opening!.name).toMatch(/[\u0c00-\u0c7f]/);
+      expect(opening!.steps).toHaveLength(6);
+      for (const step of opening!.steps) expect(step).toMatch(/[\u0c00-\u0c7f]/);
+      expect(opening!.section).toBe('General Operations');
+      expect(opening!.sectionLabel).toMatch(/[\u0c00-\u0c7f]/);
+
+      const [dish] = await search(owner, { q: 'butter chicken' });
+      expect(dish!.name).toMatch(/[\u0c00-\u0c7f]/);
+      // The dish's own name is written into the sentences about it.
+      expect(dish!.purpose).toContain(dish!.name);
+      expect(dish!.steps[0]).toContain(dish!.name);
+      expect((await search(owner, { q: dish!.name })).map((item) => item.id)).toContain(dish!.id);
 
       const added = (await http().post(`/sops/library/${english.id}/add`).set(bearer(owner)).send({ outletId }).expect(201)).body as Sop;
       expect(added.title.en).toBe('Handwashing');

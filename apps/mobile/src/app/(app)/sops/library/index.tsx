@@ -126,7 +126,7 @@ export default function SopLibraryScreen() {
                 {t(`sopCategory.${entry.category}`)}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {entry.count}
+                {t('soplib.count', { count: entry.count })}
               </ThemedText>
               <Ionicons name="chevron-forward" size={22} color={theme.textSecondary} />
             </Pressable>
@@ -163,7 +163,7 @@ export default function SopLibraryScreen() {
                       selected && { backgroundColor: theme.backgroundElement },
                     ]}>
                     <ThemedText type="small" themeColor={selected ? 'primary' : 'text'}>
-                      {entry.label} · {entry.count}
+                      {entry.label} · {t('soplib.count', { count: entry.count })}
                     </ThemedText>
                   </Pressable>
                 );

@@ -126,6 +126,7 @@ export const hi: Messages = {
   "sops.fromLibrary": "तैयार SOP खोजें",
   "sops.fromLibraryHint": "लाइब्रेरी में खोजें या देखें",
   "sops.writeOwn": "अपना खुद का लिखें",
+  "soplib.count": "{count} SOP",
   "soplib.title": "तैयार SOP",
   "soplib.help": "लाइब्रेरी में {count} SOP हैं। जो चाहिए वह लिखें या कोई श्रेणी चुनें। किसी को खोलकर पढ़ें और अपने SOP में जोड़ें; बाद में शब्द बदल सकते हैं।",
   "soplib.search": "खोजें, जैसे fridge, cash, butter chicken",

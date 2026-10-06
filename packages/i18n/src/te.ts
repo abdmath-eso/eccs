@@ -126,6 +126,7 @@ export const te: Messages = {
   "sops.fromLibrary": "సిద్ధంగా ఉన్న SOP వెతకండి",
   "sops.fromLibraryHint": "లైబ్రరీలో వెతకండి లేదా చూడండి",
   "sops.writeOwn": "మీ సొంతది రాయండి",
+  "soplib.count": "{count} SOPలు",
   "soplib.title": "సిద్ధంగా ఉన్న SOPలు",
   "soplib.help": "లైబ్రరీలో {count} SOPలు ఉన్నాయి. మీకు కావలసింది టైప్ చేయండి లేదా వర్గాన్ని ఎంచుకోండి. ఒకదాన్ని తెరిచి చదివి మీ SOPలకు జోడించండి; తర్వాత పదాలను మార్చుకోవచ్చు.",
   "soplib.search": "వెతకండి, ఉదా. fridge, cash, butter chicken",

@@ -163,7 +163,7 @@ export default function SopLibraryScreen() {
                       selected && { backgroundColor: theme.backgroundElement },
                     ]}>
                     <ThemedText type="small" themeColor={selected ? 'primary' : 'text'}>
-                      {entry.label} · {t('soplib.count', { count: entry.count })}
+                      {entry.label ?? entry.name} · {t('soplib.count', { count: entry.count })}
                     </ThemedText>
                   </Pressable>
                 );
@@ -195,7 +195,7 @@ export default function SopLibraryScreen() {
                 {item.name}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {item.sectionLabel}
+                {item.sectionLabel ?? item.section}
               </ThemedText>
             </View>
             {item.addedSopId ? (

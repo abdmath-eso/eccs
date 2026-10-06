@@ -57,7 +57,7 @@ export default function SopLibraryItemScreen() {
       {item && (
         <>
           <ThemedText type="small" themeColor="textSecondary">
-            {t(`sopCategory.${item.category}`)} · {item.sectionLabel}
+            {t(`sopCategory.${item.category}`)} · {item.sectionLabel ?? item.section}
             {item.frequency ? ` · ${item.frequency}` : ''}
           </ThemedText>
           <ThemedText type="default" themeColor="textSecondary">

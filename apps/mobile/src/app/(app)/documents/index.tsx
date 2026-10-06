@@ -349,29 +349,36 @@ export default function DocumentsScreen() {
                 <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
               </View>
             ) : (
-              <View style={styles.actions}>
+              // The document gets a row of its own: three buttons side by side do not fit a phone.
+              <View style={styles.cardActions}>
                 {licence.file ? (
-                  <View style={styles.action}>
-                    <Button label={t('docs.view')} variant="secondary" onPress={() => openFile(licence.file!.path)} />
-                  </View>
+                  <Button label={t('docs.view')} variant="secondary" onPress={() => openFile(licence.file!.path)} />
                 ) : (
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.action}>
+                  <ThemedText type="small" themeColor="textSecondary">
                     {t('docs.noFile')}
                   </ThemedText>
                 )}
-                <Button
-                  label={t('docs.renew')}
-                  variant="secondary"
-                  onPress={() => {
-                    openForm({ renew: licence.id });
-                    setNumber(licence.number ?? '');
-                  }}
-                />
-                <Button
-                  label={t('docs.remove')}
-                  variant="danger"
-                  onPress={() => setRemoval({ kind: 'licence', licence })}
-                />
+                <View style={styles.actions}>
+                  <View style={styles.action}>
+                    <Button
+                      fill
+                      label={t('docs.renew')}
+                      variant="secondary"
+                      onPress={() => {
+                        openForm({ renew: licence.id });
+                        setNumber(licence.number ?? '');
+                      }}
+                    />
+                  </View>
+                  <View style={styles.action}>
+                    <Button
+                      fill
+                      label={t('docs.remove')}
+                      variant="danger"
+                      onPress={() => setRemoval({ kind: 'licence', licence })}
+                    />
+                  </View>
+                </View>
               </View>
             )}
           </View>
@@ -556,7 +563,8 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },
   form: { gap: Spacing.two, marginTop: Spacing.two },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one },
+  cardActions: { gap: Spacing.two, marginTop: Spacing.one },
+  actions: { flexDirection: 'row', gap: Spacing.two },
   action: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: Spacing.three },
   rowMain: {

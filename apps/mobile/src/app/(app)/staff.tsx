@@ -37,7 +37,9 @@ export default function StaffScreen() {
   const memberships = user?.memberships ?? [];
   const allowed = can(memberships, 'restaurantUsers', 'create');
   // Only an Owner (or ECCS admin) may create Managers; a Manager adds kitchen staff.
-  const mayAddManager = memberships.some((m) => m.role === 'OWNER' || m.role === 'SUPER_ADMIN' || m.role === 'OPS_MANAGER');
+  const mayAddManager = memberships.some(
+    (m) => m.role === 'OWNER' || m.role === 'SUPER_ADMIN' || m.role === 'OPS_MANAGER',
+  );
 
   useEffect(() => {
     if (!allowed) return;
@@ -217,10 +219,16 @@ export default function StaffScreen() {
             {editable && person.isActive && (
               <View style={styles.options}>
                 <View style={styles.flex}>
-                  <Button label={t('staff.resetPin')} variant="secondary" onPress={() => setPending({ kind: 'reset', person })} />
+                  <Button
+                    fill
+                    label={t('staff.resetPin')}
+                    variant="secondary"
+                    onPress={() => setPending({ kind: 'reset', person })}
+                  />
                 </View>
                 <View style={styles.flex}>
                   <Button
+                    fill
                     label={t('staff.deactivate')}
                     variant="danger"
                     onPress={() => setPending({ kind: 'deactivate', person })}
@@ -236,7 +244,9 @@ export default function StaffScreen() {
         visible={pending !== null}
         message={
           pending
-            ? t(pending.kind === 'reset' ? 'staff.resetConfirm' : 'staff.deactivateConfirm', { name: pending.person.name })
+            ? t(pending.kind === 'reset' ? 'staff.resetConfirm' : 'staff.deactivateConfirm', {
+                name: pending.person.name,
+              })
             : ''
         }
         confirmLabel={pending?.kind === 'deactivate' ? t('staff.deactivate') : t('staff.resetPin')}

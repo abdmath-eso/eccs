@@ -12,16 +12,27 @@ interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'danger' | 'link';
   loading?: boolean;
   disabled?: boolean;
+  /**
+   * Grows to the height of its container. For buttons side by side, so they
+   * stay the same height when one label wraps onto a second line.
+   */
+  fill?: boolean;
 }
 
-export function Button({ label, hint, onPress, variant = 'primary', loading, disabled }: ButtonProps) {
+export function Button({ label, hint, onPress, variant = 'primary', loading, disabled, fill }: ButtonProps) {
   const theme = useTheme();
   const inactive = disabled || loading;
 
   const background =
     variant === 'primary' ? theme.primary : variant === 'link' ? 'transparent' : theme.backgroundElement;
   const color =
-    variant === 'primary' ? theme.onPrimary : variant === 'danger' ? theme.danger : variant === 'link' ? theme.primary : theme.text;
+    variant === 'primary'
+      ? theme.onPrimary
+      : variant === 'danger'
+        ? theme.danger
+        : variant === 'link'
+          ? theme.primary
+          : theme.text;
 
   return (
     <Pressable
@@ -32,6 +43,7 @@ export function Button({ label, hint, onPress, variant = 'primary', loading, dis
       style={({ pressed }) => [
         styles.button,
         variant === 'link' && styles.link,
+        fill && styles.fill,
         { backgroundColor: background, opacity: inactive ? 0.5 : pressed ? 0.8 : 1 },
       ]}>
       {loading ? (
@@ -62,6 +74,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   link: { paddingVertical: Spacing.two },
+  fill: { flexGrow: 1, paddingHorizontal: Spacing.two },
   labels: { alignItems: 'center', gap: Spacing.one },
   label: { fontWeight: 700, textAlign: 'center' },
   hint: { textAlign: 'center', opacity: 0.85, fontWeight: 400 },

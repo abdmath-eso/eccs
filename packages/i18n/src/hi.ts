@@ -139,6 +139,8 @@ export const hi: Messages = {
   "soplib.openMine": "पहले से जोड़ा है। मेरी कॉपी खोलें",
   "soplib.takeCare": "विशेष ध्यान रखें",
   "soplib.recipeNote": "यह एक रूपरेखा है, रेसिपी नहीं। जोड़ने के बाद चरणों में अपनी सामग्री, मात्रा, समय और तापमान लिखें।",
+  "profile.changePhoto": "फोटो बदलें",
+  "profile.photoTitle": "प्रोफ़ाइल फोटो",
   "profile.title": "मेरी प्रोफ़ाइल",
   "profile.open": "मेरी प्रोफ़ाइल देखें",
   "profile.takePhoto": "फोटो लें",

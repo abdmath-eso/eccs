@@ -4,7 +4,7 @@ import type { Href } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { useEffect, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { ThemedText } from '@/components/themed-text';
@@ -53,6 +53,9 @@ export function SideMenu({
 }: SideMenuProps) {
   const theme = useTheme();
   const { t, signOut, linkedDevice } = useSession();
+  // A SafeAreaView inside a Modal is not told about the status bar on an iPhone and the
+  // menu ran up under the clock, so the gaps are read from the app and applied by hand.
+  const insets = useSafeAreaInsets();
   // Kept in state, not `useAnimatedValue`, which the browser build of React Native does not have.
   const [slide] = useState(() => new Animated.Value(-WIDTH));
 
@@ -73,7 +76,7 @@ export function SideMenu({
         />
         <Animated.View
           style={[styles.panel, { backgroundColor: theme.background, transform: [{ translateX: slide }] }]}>
-          <SafeAreaView style={styles.safeArea}>
+          <View style={[styles.safeArea, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             <View style={[styles.header, { borderColor: theme.border }]}>
               <Pressable
                 accessibilityRole="button"
@@ -147,7 +150,7 @@ export function SideMenu({
                 }}
               />
             </View>
-          </SafeAreaView>
+          </View>
         </Animated.View>
       </View>
     </Modal>

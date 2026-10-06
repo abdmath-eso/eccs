@@ -1,13 +1,15 @@
 import type { ProfileDto } from '@eccs/shared';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { LanguagePicker } from '@/components/language-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { OptionSheet, type SheetOption } from '@/components/ui/option-sheet';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
@@ -26,6 +28,7 @@ export default function ProfileScreen() {
   const { t, api, language, refreshUser } = useSession();
   const [profile, setProfile] = useState<ProfileDto | null>(null);
   const [busy, setBusy] = useState<'photo' | 'name' | null>(null);
+  const [photoSheet, setPhotoSheet] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +98,27 @@ export default function ProfileScreen() {
     }
   }
 
+  // Closes the sheet, then acts. An iPhone will not open the camera or gallery
+  // while the sheet is still sliding away, so it is given a moment first.
+  const fromSheet = (action: () => void) => () => {
+    setPhotoSheet(false);
+    setTimeout(action, Platform.OS === 'ios' ? 500 : 50);
+  };
+  const photoOptions: SheetOption[] = [
+    { label: t('profile.takePhoto'), icon: 'camera-outline', onPress: fromSheet(() => void changePhoto('camera')) },
+    { label: t('profile.choosePhoto'), icon: 'images-outline', onPress: fromSheet(() => void changePhoto('gallery')) },
+    ...(profile?.photoPath
+      ? [
+          {
+            label: t('profile.removePhoto'),
+            icon: 'trash-outline' as const,
+            danger: true,
+            onPress: fromSheet(() => void removePhoto()),
+          },
+        ]
+      : []),
+  ];
+
   const line = (label: string, value: string) => (
     <View style={styles.line}>
       <ThemedText type="small" themeColor="textSecondary">
@@ -112,11 +136,26 @@ export default function ProfileScreen() {
         <>
           {/* ── Photo, name and role ── */}
           <View style={styles.top}>
-            <Avatar
-              name={profile.name}
-              photoUrl={profile.photoPath ? api.fileUrl(profile.photoPath) : null}
-              size={112}
-            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.changePhoto')}
+              disabled={busy === 'photo'}
+              onPress={() => setPhotoSheet(true)}
+              style={({ pressed }) => pressed && { opacity: 0.8 }}>
+              <Avatar
+                name={profile.name}
+                photoUrl={profile.photoPath ? api.fileUrl(profile.photoPath) : null}
+                size={112}
+              />
+              {busy === 'photo' && (
+                <View style={styles.uploading}>
+                  <ActivityIndicator color="#ffffff" />
+                </View>
+              )}
+              <View style={[styles.badge, { backgroundColor: theme.primary, borderColor: theme.background }]}>
+                <Ionicons name="camera" size={18} color={theme.onPrimary} />
+              </View>
+            </Pressable>
             <ThemedText type="subtitle" style={styles.name}>
               {profile.name}
             </ThemedText>
@@ -125,35 +164,6 @@ export default function ProfileScreen() {
               {profile.organizationName ? ` · ${profile.organizationName}` : ''}
             </ThemedText>
           </View>
-
-          <View style={styles.pair}>
-            <View style={styles.flex}>
-              <Button
-                fill
-                label={t('profile.takePhoto')}
-                variant="secondary"
-                loading={busy === 'photo'}
-                onPress={() => void changePhoto('camera')}
-              />
-            </View>
-            <View style={styles.flex}>
-              <Button
-                fill
-                label={t('profile.choosePhoto')}
-                variant="secondary"
-                disabled={busy === 'photo'}
-                onPress={() => void changePhoto('gallery')}
-              />
-            </View>
-          </View>
-          {profile.photoPath && (
-            <Button
-              label={t('profile.removePhoto')}
-              variant="link"
-              disabled={busy === 'photo'}
-              onPress={() => void removePhoto()}
-            />
-          )}
 
           {editingName ? (
             <View style={[styles.card, { borderColor: theme.primary }]}>
@@ -241,6 +251,13 @@ export default function ProfileScreen() {
         </>
       )}
       {!profile && <ErrorText message={error} />}
+
+      <OptionSheet
+        visible={photoSheet}
+        title={t('profile.photoTitle')}
+        options={photoOptions}
+        onClose={() => setPhotoSheet(false)}
+      />
     </Screen>
   );
 }
@@ -249,8 +266,24 @@ const styles = StyleSheet.create({
   top: { alignItems: 'center', gap: Spacing.two, paddingTop: Spacing.two },
   name: { fontSize: 24, lineHeight: 30, textAlign: 'center' },
   centered: { textAlign: 'center' },
-  pair: { flexDirection: 'row', gap: Spacing.two },
-  flex: { flex: 1 },
+  badge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploading: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 56,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   card: { borderWidth: 1.5, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
   line: { gap: Spacing.half },
   strong: { fontWeight: 700 },

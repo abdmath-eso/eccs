@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,8 @@ export function ProofPhoto({ uri, label, stamp }: ProofPhotoProps) {
   const theme = useTheme();
   const { t } = useSession();
   const [enlarged, setEnlarged] = useState(false);
+  // Keeps the enlarged photo and its Close button clear of the status bar and home indicator.
+  const insets = useSafeAreaInsets();
 
   return (
     <>
@@ -40,7 +43,11 @@ export function ProofPhoto({ uri, label, stamp }: ProofPhotoProps) {
       </Pressable>
 
       <Modal visible={enlarged} transparent animationType="fade" onRequestClose={() => setEnlarged(false)}>
-        <View style={styles.viewer}>
+        <View
+          style={[
+            styles.viewer,
+            { paddingTop: Spacing.three + insets.top, paddingBottom: Spacing.three + insets.bottom },
+          ]}>
           <Image source={{ uri }} style={styles.full} resizeMode="contain" accessibilityLabel={label} />
           {stamp && (
             <ThemedText type="default" style={styles.viewerStamp}>
@@ -67,7 +74,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
   },
   stampText: { color: '#ffffff' },
-  viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', padding: Spacing.three, gap: Spacing.three, justifyContent: 'center' },
+  viewer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    padding: Spacing.three,
+    gap: Spacing.three,
+    justifyContent: 'center',
+  },
   full: { width: '100%', flex: 1 },
   viewerStamp: { color: '#ffffff', textAlign: 'center' },
 });

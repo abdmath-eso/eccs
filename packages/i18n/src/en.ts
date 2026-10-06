@@ -138,6 +138,8 @@ export const en = {
   "soplib.openMine": "Already added. Open my copy",
   "soplib.takeCare": "Take particular care",
   "soplib.recipeNote": "This is an outline, not a recipe. After adding it, edit the steps to put in your own ingredients, quantities, times and temperatures.",
+  "profile.changePhoto": "Change photo",
+  "profile.photoTitle": "Profile photo",
   "profile.title": "My profile",
   "profile.open": "View my profile",
   "profile.takePhoto": "Take a photo",

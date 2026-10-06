@@ -139,6 +139,8 @@ export const te: Messages = {
   "soplib.openMine": "ఇప్పటికే జోడించబడింది. నా కాపీ తెరవండి",
   "soplib.takeCare": "ప్రత్యేక జాగ్రత్త తీసుకోండి",
   "soplib.recipeNote": "ఇది ఒక రూపురేఖ మాత్రమే, రెసిపీ కాదు. జోడించిన తర్వాత, మీ సొంత పదార్థాలు, పరిమాణాలు, సమయాలు, ఉష్ణోగ్రతలతో దశలను మార్చండి.",
+  "profile.changePhoto": "ఫోటో మార్చండి",
+  "profile.photoTitle": "ప్రొఫైల్ ఫోటో",
   "profile.title": "నా ప్రొఫైల్",
   "profile.open": "నా ప్రొఫైల్ చూడండి",
   "profile.takePhoto": "ఫోటో తీయండి",

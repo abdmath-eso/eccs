@@ -24,6 +24,8 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Built ECCS support. In the app: raise an issue (category, description, optional photos), see its status, exchange messages with ECCS, call or WhatsApp ECCS; the Owner or Manager can close or reopen an issue. In the console: an Issues page across all clients where ECCS replies and marks issues in progress or resolved.
 - Tested with 8 new end-to-end tests (69 in total) and by clicking through the whole loop in Chrome: raised an issue in the app, replied and changed status in the console, saw the reply in the app. Not yet tried on the phone.
 - Pushed the whole repository to GitHub at the founder's request: https://github.com/abdmath-eso/eccs.
+- Founder feedback: the app's "Raise an issue with ECCS" and "ECCS support" pages were redundant. Merged them into one page named "Raise an issue" with the form, the call and WhatsApp buttons and recent issues, opened from a single home tile.
+- Founder rule: commit locally through the day and push to GitHub once at end of day, when the founder says so.
 
 **Carried over from yesterday**
 

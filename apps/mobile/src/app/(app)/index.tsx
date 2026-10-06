@@ -24,7 +24,7 @@ const STAFF: Tile = { label: 'tile.staff', href: '/staff' };
 const HEAD_CHEF_TILES: Tile[] = [
   { label: 'tile.checklists', href: '/checklists' },
   { label: 'tile.labels' },
-  { label: 'tile.issues', href: '/support/new' },
+  { label: 'tile.issues', href: '/support' },
   { label: 'tile.attendance' },
   { label: 'tile.sops' },
 ];
@@ -36,7 +36,6 @@ const MANAGER_TILES: Tile[] = [
   { label: 'tile.history' },
   { label: 'tile.documents' },
   STAFF,
-  { label: 'tile.support', href: '/support' },
 ];
 const TILES: Record<Role, Tile[]> = {
   HEAD_CHEF: HEAD_CHEF_TILES,

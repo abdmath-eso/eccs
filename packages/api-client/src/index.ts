@@ -2,6 +2,7 @@ import type {
   AddChecklistItemInput,
   AnswerChecklistItemInput,
   AttachmentDto,
+  CalendarMonthDto,
   ChecklistRunDto,
   ChecklistRunSummaryDto,
   ChecklistSuggestionDto,
@@ -241,6 +242,10 @@ export function createApiClient(options: ApiClientOptions) {
     },
     outlets: {
       list: () => call<OutletSummaryDto[]>("GET", "/outlets"),
+    },
+    /** One month ("2026-10") of an outlet's history calendar. */
+    calendar: {
+      month: (outletId: string, month: string) => call<CalendarMonthDto>("GET", `/calendar${query({ outletId, month })}`),
     },
     /** Today at each of the person's outlets, for the restaurant's home screen. */
     dashboard: {

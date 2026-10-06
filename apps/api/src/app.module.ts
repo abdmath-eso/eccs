@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller.js';
 import { AuthModule } from './auth/auth.module.js';
+import { CalendarModule } from './calendar/calendar.module.js';
 import { ChecklistsModule } from './checklists/checklists.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { IssuesModule } from './issues/issues.module.js';
@@ -23,6 +24,7 @@ import { StorageModule } from './storage/storage.module.js';
     IssuesModule,
     LicencesModule,
     DashboardModule,
+    CalendarModule,
   ],
   controllers: [AppController],
 })

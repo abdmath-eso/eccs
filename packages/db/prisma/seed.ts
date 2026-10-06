@@ -10,6 +10,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createPrismaClient, pinLookup, type Prisma } from "../src/index.js";
 import { loadChecklistLibrary } from "./library.js";
+import { addSampleVisits } from "./sample-visits.js";
 
 // PIN_SECRET lives in the repo-root .env, shared with the API.
 const rootEnvFile = resolve(import.meta.dirname, "../../../.env");
@@ -467,6 +468,7 @@ async function main() {
   const templates = await seedSopsAndChecklists();
   const services = await seedServices(templates);
   await seedOutletData(outlets, templates, services, supervisor.id);
+  await addSampleVisits(prisma);
   const library = await loadChecklistLibrary(prisma);
 
   const counts = {

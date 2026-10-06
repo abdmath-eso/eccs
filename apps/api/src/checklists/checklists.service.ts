@@ -260,9 +260,27 @@ export class ChecklistsService {
   async history(user: AuthUser, outletId: string, days: number): Promise<ChecklistRunSummaryDto[]> {
     await this.requireOutlet(user, 'read', outletId);
     const span = Math.min(Math.max(Math.trunc(days) || 7, 1), MAX_HISTORY_DAYS);
+    const oldest = indiaDate(new Date(Date.now() - (span - 1) * 86_400_000));
+    return this.summaries(outletId, oldest, indiaDate());
+  }
+
+  /**
+   * Every checklist between two dates (YYYY-MM-DD, at most a month apart),
+   * newest first, for the history calendar. Days after today are ignored.
+   */
+  async between(user: AuthUser, outletId: string, from: string, to: string): Promise<ChecklistRunSummaryDto[]> {
+    await this.requireOutlet(user, 'read', outletId);
     const today = indiaDate();
-    const dates = Array.from({ length: span }, (_, index) => indiaDate(new Date(Date.now() - index * 86_400_000)));
-    const oldest = dates[dates.length - 1]!;
+    if (from > today) return [];
+    return this.summaries(outletId, from, to < today ? to : today);
+  }
+
+  private async summaries(outletId: string, oldest: string, newest: string): Promise<ChecklistRunSummaryDto[]> {
+    const today = indiaDate();
+    const dates: string[] = [];
+    for (let at = toDbDate(newest); fromDbDate(at) >= oldest && dates.length < MAX_HISTORY_DAYS; at = new Date(at.getTime() - 86_400_000)) {
+      dates.push(fromDbDate(at));
+    }
 
     const lists = await this.db.outletChecklist.findMany({
       where: { outletId, isActive: true, template: { kind: 'DAILY', isActive: true } },
@@ -282,7 +300,7 @@ export class ChecklistsService {
     if (missed.length > 0) await this.db.checklistRun.createMany({ data: missed, skipDuplicates: true });
 
     const runs = await this.db.checklistRun.findMany({
-      where: { outletId, date: { gte: toDbDate(oldest), lte: toDbDate(today) } },
+      where: { outletId, date: { gte: toDbDate(oldest), lte: toDbDate(newest) } },
       include: runInclude,
       orderBy: [{ date: 'desc' }, { outletChecklist: { dueTime: 'asc' } }],
     });

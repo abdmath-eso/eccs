@@ -16,6 +16,7 @@ const ROLE_NAMES: Record<string, string> = {
 const NAV = [
   { href: "/", label: "Clients" },
   { href: "/issues", label: "Issues" },
+  { href: "/licences", label: "Licences" },
 ] as const;
 
 /** Frame for every console page. Sends anyone who is not logged in to the login page. */

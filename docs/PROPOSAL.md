@@ -125,7 +125,7 @@ ECCS roles see across all client organisations; a Supervisor is limited to the j
 | Inspections (scored) | CRU | CRU | CRU own |
 | Service reports and certificates | R, A | R, A | C own, R |
 | Customer QR photos | A | A | C (propose) |
-| Licences and document vault | R | R | R assigned |
+| Licences and document vault | CRU | CRU | R assigned |
 | Hygiene score and dashboards | R all | R all | R assigned |
 | Invoices, payments, dues | CRU | CRU | – |
 | Audit log, settings | R, U | R | – |

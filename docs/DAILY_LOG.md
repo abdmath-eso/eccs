@@ -26,6 +26,10 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Pushed the whole repository to GitHub at the founder's request: https://github.com/abdmath-eso/eccs.
 - Founder feedback: the app's "Raise an issue with ECCS" and "ECCS support" pages were redundant. Merged them into one page named "Raise an issue" with the form, the call and WhatsApp buttons and recent issues, opened from a single home tile. On further feedback the form was tucked behind a "Raise an issue" button so the page opens showing only the button, the contact buttons and recent issues.
 - Founder rule: commit locally through the day and push to GitHub once at end of day, when the founder says so.
+- Founder decisions: ECCS staff can upload licences and documents for restaurants for now; documents can be PDFs or images.
+- Built licences and the document vault. In the app (Owner and Manager): licences with their expiry date and a valid / expiring soon / expired state, add, renew and remove; a document vault; files added by camera or by choosing a PDF or image. In the console: a Licences page listing licences that need attention across all clients, and each outlet's licences and documents, which ECCS admins can add to.
+- Tested with 15 new end-to-end tests (84 in total) and by viewing and adding a licence in Chrome in both the app and the console. Uploading a file through the screens was not tried by hand.
+- Switched off Expo's generated route types, which kept causing false type errors while a dev server was running.
 
 **Carried over from yesterday**
 

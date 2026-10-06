@@ -7,6 +7,11 @@ import type {
   ChecklistSuggestionDto,
   AddIssueCommentInput,
   CreateChecklistInput,
+  CreateDocumentInput,
+  CreateLicenceInput,
+  DocumentDto,
+  LicenceDto,
+  UpdateLicenceInput,
   CreateIssueInput,
   IssueDto,
   IssueStatus,
@@ -135,15 +140,43 @@ export function createApiClient(options: ApiClientOptions) {
        * Uploads a proof photo. Pass an id generated on the device so that
        * retrying after a dropped connection does not store it twice.
        */
-      upload(input: { outletId: string; file: UploadFile; id?: string; capturedAt?: string }) {
+      upload(input: {
+        outletId: string;
+        file: UploadFile;
+        /** "DOCUMENT" for licences and the vault (photo or PDF); a proof photo otherwise. */
+        kind?: "PROOF" | "DOCUMENT";
+        /** The file's name, so the server and viewers know what it is. */
+        fileName?: string;
+        id?: string;
+        capturedAt?: string;
+      }) {
         const form = new FormData();
         form.append("outletId", input.outletId);
+        if (input.kind) form.append("kind", input.kind);
         if (input.id) form.append("id", input.id);
         if (input.capturedAt) form.append("capturedAt", input.capturedAt);
-        form.append("file", input.file, "photo.jpg");
+        form.append("file", input.file, input.fileName ?? "photo.jpg");
         // The content type is left unset so the boundary is filled in automatically.
         return send<AttachmentDto>("POST", "/attachments", form, undefined, true);
       },
+    },
+    licences: {
+      /** Licences soonest expiry first. `attentionOnly` keeps those expired or expiring soon. */
+      list: (filter: { outletId?: string; attentionOnly?: boolean } = {}) =>
+        call<LicenceDto[]>(
+          "GET",
+          `/licences${query({ ...(filter.outletId && { outletId: filter.outletId }), ...(filter.attentionOnly && { attention: "1" }) })}`,
+        ),
+      create: (input: CreateLicenceInput) => call<LicenceDto>("POST", "/licences", input),
+      update: (licenceId: string, input: UpdateLicenceInput) =>
+        call<LicenceDto>("PATCH", `/licences/${id(licenceId)}`, input),
+      remove: (licenceId: string) => call<void>("DELETE", `/licences/${id(licenceId)}`),
+    },
+    /** The document vault. Each call returns the outlet's documents, newest first. */
+    documents: {
+      list: (outletId: string) => call<DocumentDto[]>("GET", `/documents${query({ outletId })}`),
+      create: (input: CreateDocumentInput) => call<DocumentDto[]>("POST", "/documents", input),
+      remove: (documentId: string) => call<DocumentDto[]>("DELETE", `/documents/${id(documentId)}`),
     },
     support: {
       contact: () => call<SupportContactDto>("GET", "/support/contact"),

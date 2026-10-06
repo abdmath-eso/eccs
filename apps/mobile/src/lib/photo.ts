@@ -23,7 +23,9 @@ export interface ProofPhoto {
  * is of the kitchen as it is now. The browser preview has no camera access
  * and opens a file picker instead. Returns null if the person cancels.
  */
-export async function takeProofPhoto(): Promise<ProofPhoto | null> {
+export async function takeProofPhoto(options: { maxWidth?: number } = {}): Promise<ProofPhoto | null> {
+  // Documents are photographed at a higher width so small print stays readable.
+  const maxWidth = options.maxWidth ?? MAX_WIDTH;
   let result: ImagePicker.ImagePickerResult;
   if (Platform.OS === 'web') {
     result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: JPEG_QUALITY });
@@ -37,7 +39,7 @@ export async function takeProofPhoto(): Promise<ProofPhoto | null> {
   if (!asset) return null;
 
   const context = ImageManipulator.manipulate(asset.uri);
-  if (asset.width > MAX_WIDTH) context.resize({ width: MAX_WIDTH });
+  if (asset.width > maxWidth) context.resize({ width: maxWidth });
   const rendered = await context.renderAsync();
   const saved = await rendered.saveAsync({ compress: JPEG_QUALITY, format: SaveFormat.JPEG });
 

@@ -6,3 +6,4 @@ export * from "./checklists.js";
 export * from "./issues.js";
 export * from "./licences.js";
 export * from "./licence-reader.js";
+export * from "./dashboard.js";

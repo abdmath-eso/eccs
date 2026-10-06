@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ChecklistsModule } from './checklists/checklists.module.js';
+import { DashboardModule } from './dashboard/dashboard.module.js';
 import { IssuesModule } from './issues/issues.module.js';
 import { LicencesModule } from './licences/licences.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
@@ -21,6 +22,7 @@ import { StorageModule } from './storage/storage.module.js';
     ChecklistsModule,
     IssuesModule,
     LicencesModule,
+    DashboardModule,
   ],
   controllers: [AppController],
 })

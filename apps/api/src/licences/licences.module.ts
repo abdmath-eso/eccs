@@ -6,5 +6,6 @@ import { LicencesService } from './licences.service.js';
 @Module({
   controllers: [LicencesController],
   providers: [LicencesService, LicenceReaderService],
+  exports: [LicencesService],
 })
 export class LicencesModule {}

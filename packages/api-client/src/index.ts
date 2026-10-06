@@ -23,6 +23,7 @@ import type {
   CreateRestaurantUserInput,
   OrganizationDto,
   OrganizationOutletDto,
+  OutletDashboardDto,
   OutletChecklistDto,
   CurrentUserDto,
   LinkDeviceInput,
@@ -240,6 +241,10 @@ export function createApiClient(options: ApiClientOptions) {
     },
     outlets: {
       list: () => call<OutletSummaryDto[]>("GET", "/outlets"),
+    },
+    /** Today at each of the person's outlets, for the restaurant's home screen. */
+    dashboard: {
+      get: () => call<OutletDashboardDto[]>("GET", "/dashboard"),
     },
     organizations: {
       list: () => call<OrganizationDto[]>("GET", "/organizations"),

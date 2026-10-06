@@ -5,5 +5,6 @@ import { IssuesService } from './issues.service.js';
 @Module({
   controllers: [IssuesController],
   providers: [IssuesService],
+  exports: [IssuesService],
 })
 export class IssuesModule {}

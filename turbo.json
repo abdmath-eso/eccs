@@ -14,10 +14,7 @@
       "dependsOn": ["^build"]
     },
     "typecheck": {
-      "dependsOn": ["^build"]
-    },
-    "@eccs/web#typecheck": {
-      "dependsOn": ["^build", "@eccs/web#build"]
+      "dependsOn": ["^build", "build"]
     },
     "test": {
       "dependsOn": ["^build"]

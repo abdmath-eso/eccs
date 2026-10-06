@@ -30,6 +30,7 @@ export default function RaiseIssueScreen() {
   const { t, api, language } = useSession();
   const { outletId, outlets, loading: outletLoading, choose } = useOutlet();
 
+  const [formOpen, setFormOpen] = useState(false);
   const [category, setCategory] = useState<IssueCategory | null>(null);
   const [description, setDescription] = useState('');
   const [photos, setPhotos] = useState<{ id: string; uri: string }[]>([]);
@@ -77,7 +78,11 @@ export default function RaiseIssueScreen() {
 
     setUploading(true);
     try {
-      const uploaded = await api.attachments.upload({ outletId, file: photo.file, capturedAt: new Date().toISOString() });
+      const uploaded = await api.attachments.upload({
+        outletId,
+        file: photo.file,
+        capturedAt: new Date().toISOString(),
+      });
       setPhotos((current) => [...current, { id: uploaded.id, uri: photo.uri }]);
     } catch (e) {
       setFormError(errorMessage(e, t, { 0: 'error.upload' }));
@@ -97,11 +102,15 @@ export default function RaiseIssueScreen() {
         description: description.trim(),
         attachmentIds: photos.map((photo) => photo.id),
       });
-      // Clear the form, then show the new issue as confirmation. Coming back here reloads the list.
+      // Clear and close the form, then show the new issue as confirmation. Coming back here reloads the list.
+      setFormOpen(false);
       setCategory(null);
       setDescription('');
       setPhotos([]);
-      router.push({ pathname: '/support/[issueId]', params: { issueId: issue.id } });
+      router.push({
+        pathname: '/support/[issueId]',
+        params: { issueId: issue.id },
+      });
     } catch (e) {
       setFormError(errorMessage(e, t));
     } finally {
@@ -118,87 +127,98 @@ export default function RaiseIssueScreen() {
 
   return (
     <Screen back title={t('support.title')} subtitle={t('support.help')}>
-      {/* ── The form ── */}
-      {outletLoading && <ActivityIndicator color={theme.primary} />}
+      {/* ── The form, tucked behind a button so the page opens clean ── */}
+      {!formOpen && <Button label={t('support.title')} onPress={() => setFormOpen(true)} />}
 
-      {outlets.length > 1 && (
-        <>
+      {formOpen && (
+        <View style={[styles.form, { borderColor: theme.border }]}>
+          {outletLoading && <ActivityIndicator color={theme.primary} />}
+
+          {outlets.length > 1 && (
+            <>
+              <ThemedText type="smallBold" themeColor="textSecondary">
+                {t('checklists.chooseOutlet')}
+              </ThemedText>
+              <View style={styles.options}>
+                {outlets.map((outlet) => (
+                  <Pressable
+                    key={outlet.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: outlet.id === outletId }}
+                    onPress={() => {
+                      // Photos are stored per outlet, so changing outlet starts them again.
+                      setPhotos([]);
+                      choose(outlet.id);
+                    }}
+                    style={option(outlet.id === outletId)}>
+                    <ThemedText type="default" themeColor={outlet.id === outletId ? 'primary' : 'text'}>
+                      {outlet.name}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+
           <ThemedText type="smallBold" themeColor="textSecondary">
-            {t('checklists.chooseOutlet')}
+            {t('support.category')}
           </ThemedText>
           <View style={styles.options}>
-            {outlets.map((outlet) => (
+            {ISSUE_CATEGORIES.map((value) => (
               <Pressable
-                key={outlet.id}
+                key={value}
                 accessibilityRole="radio"
-                accessibilityState={{ selected: outlet.id === outletId }}
-                onPress={() => {
-                  // Photos are stored per outlet, so changing outlet starts them again.
-                  setPhotos([]);
-                  choose(outlet.id);
-                }}
-                style={option(outlet.id === outletId)}>
-                <ThemedText type="default" themeColor={outlet.id === outletId ? 'primary' : 'text'}>
-                  {outlet.name}
+                accessibilityState={{ selected: category === value }}
+                onPress={() => setCategory(value)}
+                style={option(category === value)}>
+                <ThemedText type="default" themeColor={category === value ? 'primary' : 'text'}>
+                  {t(`category.${value}`)}
                 </ThemedText>
               </Pressable>
             ))}
           </View>
-        </>
-      )}
 
-      <ThemedText type="smallBold" themeColor="textSecondary">
-        {t('support.category')}
-      </ThemedText>
-      <View style={styles.options}>
-        {ISSUE_CATEGORIES.map((value) => (
-          <Pressable
-            key={value}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: category === value }}
-            onPress={() => setCategory(value)}
-            style={option(category === value)}>
-            <ThemedText type="default" themeColor={category === value ? 'primary' : 'text'}>
-              {t(`category.${value}`)}
-            </ThemedText>
-          </Pressable>
-        ))}
-      </View>
+          <TextField
+            label={t('support.describe')}
+            value={description}
+            onChangeText={setDescription}
+            placeholder={t('support.describePlaceholder')}
+            maxLength={1000}
+            multiline
+            style={styles.description}
+          />
 
-      <TextField
-        label={t('support.describe')}
-        value={description}
-        onChangeText={setDescription}
-        placeholder={t('support.describePlaceholder')}
-        maxLength={1000}
-        multiline
-        style={styles.description}
-      />
+          {photos.length > 0 && (
+            <View style={styles.photos}>
+              {photos.map((photo) => (
+                <Image
+                  key={photo.id}
+                  source={{ uri: photo.uri }}
+                  style={[styles.photo, { backgroundColor: theme.backgroundElement }]}
+                />
+              ))}
+            </View>
+          )}
+          {photos.length < MAX_PHOTOS && (
+            <Button
+              label={`📷  ${t('support.addPhoto')}`}
+              variant="secondary"
+              onPress={() => void addPhoto()}
+              loading={uploading}
+              disabled={!outletId}
+            />
+          )}
 
-      {photos.length > 0 && (
-        <View style={styles.photos}>
-          {photos.map((photo) => (
-            <Image key={photo.id} source={{ uri: photo.uri }} style={[styles.photo, { backgroundColor: theme.backgroundElement }]} />
-          ))}
+          <ErrorText message={formError} />
+          <Button
+            label={t('support.send')}
+            onPress={() => void send()}
+            loading={sending}
+            disabled={!outletId || !category || description.trim().length < MIN_DESCRIPTION || uploading}
+          />
+          <Button label={t('common.cancel')} variant="link" onPress={() => setFormOpen(false)} disabled={sending} />
         </View>
       )}
-      {photos.length < MAX_PHOTOS && (
-        <Button
-          label={`📷  ${t('support.addPhoto')}`}
-          variant="secondary"
-          onPress={() => void addPhoto()}
-          loading={uploading}
-          disabled={!outletId}
-        />
-      )}
-
-      <ErrorText message={formError} />
-      <Button
-        label={t('support.send')}
-        onPress={() => void send()}
-        loading={sending}
-        disabled={!outletId || !category || description.trim().length < MIN_DESCRIPTION || uploading}
-      />
 
       {/* ── Contact ECCS directly ── */}
       {contact && (
@@ -246,10 +266,17 @@ export default function RaiseIssueScreen() {
         <Pressable
           key={issue.id}
           accessibilityRole="button"
-          onPress={() => router.push({ pathname: '/support/[issueId]', params: { issueId: issue.id } })}
+          onPress={() =>
+            router.push({
+              pathname: '/support/[issueId]',
+              params: { issueId: issue.id },
+            })
+          }
           style={({ pressed }) => [
             styles.card,
-            { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
+            {
+              backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement,
+            },
           ]}>
           <View style={styles.cardHeader}>
             <ThemedText type="default" style={styles.cardTitle}>
@@ -285,6 +312,12 @@ export default function RaiseIssueScreen() {
 }
 
 const styles = StyleSheet.create({
+  form: {
+    borderWidth: 1,
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.three,
+  },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   option: {
     minHeight: MinTouchSize,
@@ -293,15 +326,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     justifyContent: 'center',
   },
-  description: { minHeight: 120, paddingVertical: Spacing.two, fontSize: 17, textAlignVertical: 'top' },
+  description: {
+    minHeight: 120,
+    paddingVertical: Spacing.two,
+    fontSize: 17,
+    textAlignVertical: 'top',
+  },
   photos: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   photo: { width: 96, height: 96, borderRadius: Spacing.two },
   contact: { flexDirection: 'row', gap: Spacing.two },
   contactButton: { flex: 1 },
   center: { textAlign: 'center' },
   sectionGap: { marginTop: Spacing.four },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two, minHeight: MinTouchSize * 1.6 },
-  cardHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.two },
+  card: {
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.two,
+    minHeight: MinTouchSize * 1.6,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
   cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   metaText: { flex: 1 },

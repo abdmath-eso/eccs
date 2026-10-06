@@ -14,6 +14,7 @@ const CODES = { kukatpally: 'DECCA-KP6R3T', jubilee: 'SPICE-JH2K7M' };
 const PINS = { owner: '3917', chef: '8264', otherManager: '4821' };
 const PHONES = { admin: '+919000000001', supervisor: '+919000000003' };
 const DEVICE = 'e2e-sops';
+const TAMIL_MANAGER = 'E2E Tamil Manager';
 
 type Sop = {
   id: string;
@@ -59,6 +60,9 @@ describe('SOP library (e2e)', () => {
       await db.sopTemplate.deleteMany({ where: { title: { path: [language], string_starts_with: 'E2E' } } });
     }
     await db.session.deleteMany({ where: { deviceName: DEVICE } });
+    // The throwaway login the language test creates.
+    await db.session.deleteMany({ where: { user: { name: TAMIL_MANAGER } } });
+    await db.user.deleteMany({ where: { name: TAMIL_MANAGER } });
     await db.linkedDevice.deleteMany({ where: { name: DEVICE } });
     await db.otpChallenge.deleteMany({ where: { phone: { in: Object.values(PHONES) } } });
   }
@@ -336,6 +340,58 @@ describe('SOP library (e2e)', () => {
       expect(added.steps.te).toEqual(telugu.steps);
       expect(added.steps.hi).toHaveLength(english.steps.length);
       await http().delete(`/sops/${added.id}`).set(bearer(owner)).expect(204);
+    });
+
+    it('gives someone using one of the newer languages everything in that language', async () => {
+      // A throwaway Manager whose app language is Tamil.
+      const created = await http()
+        .post('/restaurant-users')
+        .set(bearer(owner))
+        .send({ name: TAMIL_MANAGER, role: 'MANAGER', outletId, language: 'TA' })
+        .expect(201);
+      const tamil = await pinLogin(CODES.kukatpally, created.body.pin as string);
+      const inTamil = /[\u0b80-\u0bff]/;
+
+      // The library: a fully written SOP, one of the workbook's own, a dish, and the section names.
+      const cooling = (await inEnglish({ q: 'cooling' })).find((item) => item.name === 'Cooling')!;
+      const mine = (await search(tamil, { q: 'cooling' })).find((item) => item.id === cooling.id)!;
+      expect(mine.name).toMatch(inTamil);
+      expect(mine.sectionLabel).toMatch(inTamil);
+      expect(mine.steps).toHaveLength(cooling.steps.length);
+      for (const step of mine.steps) expect(step).toMatch(inTamil);
+      // The limits are the same numbers in every language.
+      expect(mine.steps[3]).toContain('60°C');
+      expect(mine.steps[3]).toContain('21°C');
+
+      const [closing] = await search(tamil, { q: 'restaurant closing' });
+      expect(closing!.name).toMatch(inTamil);
+      const [dish] = await search(tamil, { q: 'butter chicken' });
+      expect(dish!.name).toMatch(inTamil);
+      expect(dish!.steps[0]).toContain(dish!.name);
+      expect((await search(tamil, { q: dish!.name })).map((item) => item.id)).toContain(dish!.id);
+
+      // ECCS's standard SOPs.
+      const standard = (await list(tamil, outletId)).filter((sop) => !sop.isCustom);
+      expect(standard.length).toBeGreaterThan(0);
+      for (const sop of standard) {
+        expect(sop.title.ta).toMatch(inTamil);
+        expect(sop.steps.ta).toHaveLength(sop.steps.en!.length);
+      }
+
+      // ECCS's checklists and their items.
+      const today = await http().get('/checklists/today').query({ outletId }).set(bearer(tamil)).expect(200);
+      const runs = today.body as { title: Record<string, string>; items: { isCustom: boolean; label: Record<string, string> }[] }[];
+      expect(runs.length).toBeGreaterThan(0);
+      for (const run of runs) {
+        for (const item of run.items.filter((entry) => !entry.isCustom)) expect(item.label.ta).toMatch(inTamil);
+      }
+      expect(runs.some((run) => inTamil.test(run.title.ta ?? ''))).toBe(true);
+
+      // A copy added by this Manager carries every language, for everyone else at the outlet.
+      const added = (await http().post(`/sops/library/${cooling.id}/add`).set(bearer(tamil)).send({ outletId }).expect(201)).body as Sop;
+      expect(Object.keys(added.title).sort()).toEqual(['bn', 'en', 'gu', 'hi', 'kn', 'ml', 'mr', 'or', 'pa', 'ta', 'te', 'ur']);
+      expect(added.steps.ur).toHaveLength(cooling.steps.length);
+      await http().delete(`/sops/${added.id}`).set(bearer(tamil)).expect(204);
     });
 
     it('is for the Owner and Manager of the outlet only', async () => {

@@ -260,7 +260,14 @@ describe('Daily checklists (e2e)', () => {
 
     const todays = rows.filter((row) => row.date === indiaDate());
     expect(todays).toEqual([
-      expect.objectContaining({ title: { en: 'Opening checklist', te: expect.any(String), hi: expect.any(String) }, status: 'SUBMITTED', itemCount: 5, doneCount: 5, problemCount: 1 }),
+      // The name comes in every language the app has; three are enough to check here.
+      expect.objectContaining({
+        title: expect.objectContaining({ en: 'Opening checklist', te: expect.any(String), hi: expect.any(String) }),
+        status: 'SUBMITTED',
+        itemCount: 5,
+        doneCount: 5,
+        problemCount: 1,
+      }),
       expect.objectContaining({ status: 'PENDING', doneCount: 0, problemCount: 0 }),
     ]);
     // Earlier days, when nobody opened the app, are recorded as missed (the seed is at most a few days old).

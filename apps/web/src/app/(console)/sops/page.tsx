@@ -24,7 +24,20 @@ const CATEGORY: Record<SopCategory, string> = {
   OTHER: "Other",
 };
 
-const LANGUAGE: Record<SopLanguage, string> = { en: "English", te: "Telugu", hi: "Hindi" };
+const LANGUAGE: Record<SopLanguage, string> = {
+  en: "English",
+  hi: "Hindi",
+  te: "Telugu",
+  ta: "Tamil",
+  kn: "Kannada",
+  ml: "Malayalam",
+  mr: "Marathi",
+  bn: "Bengali",
+  gu: "Gujarati",
+  pa: "Punjabi",
+  or: "Odia",
+  ur: "Urdu",
+};
 
 const describe = (error: unknown) =>
   error instanceof ApiError

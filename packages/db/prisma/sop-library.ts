@@ -9,7 +9,7 @@
 //                          edited by hand. Each entry replaces the purpose, steps and
 //                          controls of the workbook SOP with the same name, whose own
 //                          steps are shared between many SOPs and say little.
-// - sop-translations/      Telugu and Hindi for everything:
+// - sop-translations/      every other language, for everything (te and hi shown; the rest are the same):
 //     te.*.json, hi.*.json          the SOPs in sop-library-eccs.json, each matched by
 //                                   its English name, with the same number of steps
 //     shared.te.json, shared.hi.json  a dictionary from English to the language for the
@@ -55,7 +55,7 @@ type TranslatedText = {
   frequency?: string | null;
 };
 
-const TRANSLATED_LANGUAGES = ["te", "hi"] as const;
+const TRANSLATED_LANGUAGES = ["hi", "te", "ta", "kn", "ml", "mr", "bn", "gu", "pa", "or", "ur"] as const;
 type TranslatedLanguage = (typeof TRANSLATED_LANGUAGES)[number];
 
 interface Translation {

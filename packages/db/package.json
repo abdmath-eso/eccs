@@ -21,6 +21,7 @@
     "sops:load": "tsx prisma/load-sops.ts",
     "soplibrary:import": "node scripts/import-sop-library.mjs",
     "soplibrary:load": "tsx prisma/load-sop-library.ts",
+    "content:translate": "tsx prisma/load-content-translations.ts",
     "reset": "prisma migrate reset --force",
     "studio": "prisma studio",
     "typecheck": "prisma generate && tsc --noEmit"

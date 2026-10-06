@@ -1,4 +1,5 @@
 import type { LocalizedText } from "./checklists.js";
+import { HOLIDAY_NAMES } from "./holiday-names.js";
 
 // Public holidays and festivals shown on the restaurant's calendar.
 //
@@ -14,7 +15,8 @@ export interface Holiday {
   name: LocalizedText;
 }
 
-const h = (date: string, en: string, te: string, hi: string): Holiday => ({ date, name: { en, te, hi } });
+// English, Telugu and Hindi are given here; the other languages come from holiday-names.ts.
+const h = (date: string, en: string, te: string, hi: string): Holiday => ({ date, name: { ...HOLIDAY_NAMES[en], en, te, hi } });
 
 const NEW_YEAR = ["New Year's Day", "నూతన సంవత్సరం", "नव वर्ष"] as const;
 const BHOGI = ["Bhogi", "భోగి", "भोगी"] as const;

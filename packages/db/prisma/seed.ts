@@ -13,6 +13,7 @@ import { loadChecklistLibrary } from "./library.js";
 import { addSampleVisits } from "./sample-visits.js";
 import { loadSampleSops } from "./sops.js";
 import { loadSopLibrary } from "./sop-library.js";
+import { translateContent } from "./content-translations.js";
 
 // PIN_SECRET lives in the repo-root .env, shared with the API.
 const rootEnvFile = resolve(import.meta.dirname, "../../../.env");
@@ -473,6 +474,7 @@ async function main() {
   await addSampleVisits(prisma);
   await loadSampleSops(prisma);
   await loadSopLibrary(prisma);
+  await translateContent(prisma);
   const library = await loadChecklistLibrary(prisma);
 
   const counts = {

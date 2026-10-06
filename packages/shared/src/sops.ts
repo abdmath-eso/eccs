@@ -26,7 +26,8 @@ export const SOP_CATEGORIES = [
 ] as const;
 export type SopCategory = (typeof SOP_CATEGORIES)[number];
 
-export const SOP_LANGUAGES = ["en", "te", "hi"] as const;
+// The app's languages in lower case, as SOP text is keyed. Keep in step with LANGUAGES in roles.ts.
+export const SOP_LANGUAGES = ["en", "hi", "te", "ta", "kn", "ml", "mr", "bn", "gu", "pa", "or", "ur"] as const;
 export type SopLanguage = (typeof SOP_LANGUAGES)[number];
 
 /** One step is one line of text; line breaks inside a step are flattened. */
@@ -115,7 +116,6 @@ export type AddSopFromLibraryInput = z.input<typeof addSopFromLibrarySchema>;
 
 /** The steps in a language, falling back to English and then to whatever exists. */
 export function sopSteps(sop: Pick<SopDto, "steps">, language: Language): string[] {
-  // SOPs exist in English, Telugu and Hindi so far; any other language reads the English.
-  const own = (sop.steps as Partial<Record<string, string[]>>)[language.toLowerCase()];
-  return own ?? sop.steps.en ?? sop.steps.te ?? sop.steps.hi ?? [];
+  const own = sop.steps[language.toLowerCase() as SopLanguage];
+  return own ?? sop.steps.en ?? Object.values(sop.steps).find(Boolean) ?? [];
 }

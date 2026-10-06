@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { SopCategory, SopLibraryItemDto, SopLibraryOverviewDto } from '@eccs/shared';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
@@ -86,9 +86,25 @@ export default function SopLibraryScreen() {
 
   const showingResults = searching || category !== null;
 
+  // Inside a category, going back returns to the list of categories; from that list it
+  // leaves the library. The phone's own back button does the same as the one on screen.
+  useFocusEffect(
+    useCallback(() => {
+      // A browser has no such button, and React Native warns if it is asked for one.
+      if (category === null || Platform.OS === 'web') return;
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        openCategory(null);
+        return true;
+      });
+      return () => subscription.remove();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [category]),
+  );
+
   return (
     <Screen
       back
+      {...(category !== null && { backLabel: t('soplib.allCategories'), onBack: () => openCategory(null) })}
       title={t('soplib.title')}
       subtitle={overview ? t('soplib.help', { count: overview.total }) : undefined}>
       <TextField
@@ -136,11 +152,6 @@ export default function SopLibraryScreen() {
 
       {!searching && category !== null && (
         <>
-          <Pressable accessibilityRole="button" onPress={() => openCategory(null)} style={styles.backToAll}>
-            <ThemedText type="default" themeColor="primary">
-              ‹ {t('soplib.allCategories')}
-            </ThemedText>
-          </Pressable>
           <ThemedText type="default" style={styles.categoryTitle}>
             {t(`sopCategory.${category}`)}
           </ThemedText>
@@ -222,7 +233,6 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, gap: Spacing.half },
   rowTitle: { flex: 1, fontWeight: 700 },
-  backToAll: { minHeight: MinTouchSize - 8, justifyContent: 'center' },
   categoryTitle: { fontWeight: 700, fontSize: 20 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   chip: {

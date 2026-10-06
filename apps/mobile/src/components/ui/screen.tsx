@@ -13,13 +13,17 @@ interface ScreenProps {
   subtitle?: string;
   /** Shows a back button that returns to the previous screen. */
   back?: boolean;
+  /** What the back button says, when "Back" is not specific enough. */
+  backLabel?: string;
+  /** What the back button does, when it should stay on this screen (for example to step back within it). */
+  onBack?: () => void;
   /** Extra control on the right of the header. */
   headerRight?: ReactNode;
   children: ReactNode;
 }
 
 /** Standard page frame: safe area, optional back button and title, scrolling body. */
-export function Screen({ title, subtitle, back, headerRight, children }: ScreenProps) {
+export function Screen({ title, subtitle, back, backLabel, onBack, headerRight, children }: ScreenProps) {
   const theme = useTheme();
   const { t } = useSession();
 
@@ -33,10 +37,10 @@ export function Screen({ title, subtitle, back, headerRight, children }: ScreenP
                 {back ? (
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+                    onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))}
                     style={styles.back}>
                     <ThemedText type="default" themeColor="primary">
-                      ‹ {t('common.back')}
+                      ‹ {backLabel ?? t('common.back')}
                     </ThemedText>
                   </Pressable>
                 ) : (

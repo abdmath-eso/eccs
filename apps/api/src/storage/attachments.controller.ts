@@ -41,7 +41,7 @@ const uploadFieldsSchema = z.object({
 });
 
 /** Works out the real file type from its first bytes, ignoring what the client claims. */
-function sniffFile(bytes: Buffer, allowPdf: boolean): { mimeType: string; extension: string } | null {
+export function sniffFile(bytes: Buffer, allowPdf: boolean): { mimeType: string; extension: string } | null {
   if (allowPdf && bytes.length > 5 && bytes.toString('ascii', 0, 5) === '%PDF-') {
     return { mimeType: 'application/pdf', extension: 'pdf' };
   }

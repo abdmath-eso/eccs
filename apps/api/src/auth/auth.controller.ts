@@ -1,8 +1,9 @@
-import { Body, Controller, Get, HttpCode, Ip, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Patch, Post, ForbiddenException } from '@nestjs/common';
 import {
   linkDeviceSchema,
   pinLoginSchema,
   requestOtpSchema,
+  mayRenameSelf,
   updateProfileSchema,
   verifyOtpSchema,
   type CurrentUserDto,
@@ -61,6 +62,11 @@ export class AuthController {
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(updateProfileSchema)) body: z.output<typeof updateProfileSchema>,
   ): Promise<CurrentUserDto> {
+    // A Manager's or Head Chef's name appears on checklists and issues, so it is changed
+    // by whoever manages staff logins, not by them. Everyone chooses their own language.
+    if (body.name !== undefined && !mayRenameSelf(user.memberships.map((m) => m.role))) {
+      throw new ForbiddenException('Ask your owner or manager to change your name');
+    }
     return this.auth.updateProfile(user.id, body);
   }
 

@@ -109,6 +109,8 @@ model User {
   /// stored as a keyed hash (see pinLookup in packages/db/src/pin.ts).
   pinOrganizationId String?
   pinLookup         String?
+  /// The Attachment (kind PROFILE) holding this person's profile photo, if they have set one.
+  photoId           String?
   isActive          Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -394,6 +396,7 @@ enum AttachmentKind {
   DOCUMENT
   SIGNATURE
   REPORT
+  PROFILE /// a person's own profile photo; belongs to no outlet
 }
 
 /// A photo or file in object storage. At most one of the owner links is set.

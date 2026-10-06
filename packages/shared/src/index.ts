@@ -10,3 +10,4 @@ export * from "./dashboard.js";
 export * from "./holidays.js";
 export * from "./calendar.js";
 export * from "./sops.js";
+export * from "./profile.js";

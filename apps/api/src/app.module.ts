@@ -9,6 +9,7 @@ import { LicencesModule } from './licences/licences.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
 import { OutletsModule } from './outlets/outlets.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { ProfileModule } from './profile/profile.module.js';
 import { RestaurantUsersModule } from './restaurant-users/restaurant-users.module.js';
 import { SopsModule } from './sops/sops.module.js';
 import { StorageModule } from './storage/storage.module.js';
@@ -27,6 +28,7 @@ import { StorageModule } from './storage/storage.module.js';
     DashboardModule,
     CalendarModule,
     SopsModule,
+    ProfileModule,
   ],
   controllers: [AppController],
 })

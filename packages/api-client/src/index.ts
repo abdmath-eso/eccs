@@ -36,6 +36,7 @@ import type {
   LinkedDeviceDto,
   OutletSummaryDto,
   PinLoginInput,
+  ProfileDto,
   RestaurantUserDto,
   RestaurantUserWithPinDto,
   SessionDto,
@@ -247,6 +248,18 @@ export function createApiClient(options: ApiClientOptions) {
     },
     outlets: {
       list: () => call<OutletSummaryDto[]>("GET", "/outlets"),
+    },
+    /** The logged-in person's own profile. Their name and language are changed with `auth.updateProfile`. */
+    profile: {
+      get: () => call<ProfileDto>("GET", "/profile"),
+      /** Sets or replaces the profile photo. */
+      setPhoto(file: UploadFile) {
+        const form = new FormData();
+        form.append("file", file, "photo.jpg");
+        // The content type is left unset so the boundary is filled in automatically.
+        return send<ProfileDto>("POST", "/profile/photo", form, undefined, true);
+      },
+      removePhoto: () => call<ProfileDto>("DELETE", "/profile/photo"),
     },
     /** The SOP library: ECCS's standard SOPs and each outlet's own. */
     sops: {

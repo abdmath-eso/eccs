@@ -13,6 +13,7 @@ export const Colors = {
     onPrimary: '#ffffff',
     danger: '#C62828',
     warning: '#B45309',
+    info: '#1D4ED8',
     border: '#D5DBDF',
   },
   dark: {
@@ -25,6 +26,7 @@ export const Colors = {
     onPrimary: '#06201D',
     danger: '#FF8A80',
     warning: '#FBBF24',
+    info: '#8AB4F8',
     border: '#333D42',
   },
 } as const;

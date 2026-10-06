@@ -37,7 +37,7 @@ const MANAGER_TILES: Tile[] = [
   { label: 'tile.services' },
   { label: 'tile.dues' },
   { label: 'tile.salary' },
-  { label: 'tile.history' },
+  { label: 'tile.history', href: '/history' },
   { label: 'tile.documents', href: '/documents' },
   STAFF,
 ];

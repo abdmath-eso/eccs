@@ -272,7 +272,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Dashboard: hygiene score, today's checklist status, upcoming visits, open issues
 - Licence tracker with expiry reminders by push at 60, 30, 15 and 7 days. One licence of each kind per outlet: a new one replaces the old one and its document. The number and expiry date are read off the uploaded document (free OCR first, an AI reader later) for the person to check
 - Document vault: upload and view; service reports filed automatically
-- Visit history with service reports, and a one-year history calendar
+- Visit history with service reports, and a one-year history calendar in the style of a phone calendar: each day shows its checklists, ECCS services, licences falling due and public holidays, and upcoming services and due dates are listed
 - Service booking from a priced catalogue: one-time or subscription
 - Dues, GST invoices and online payment through Razorpay
 - Service certificates stored in the vault

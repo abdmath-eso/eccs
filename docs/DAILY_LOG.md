@@ -35,6 +35,10 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Founder confirmed the licence reading looks good and chose the restaurant dashboard as the next feature.
 - Built the dashboard as the top of the app's home screen. For each outlet (all of them for the Owner, their own for the Manager): three numbers that can be tapped (checklists done today, licences to renew, open issues with ECCS), today's checklists with their status and a red mark when overdue, and the licences that are expired or expiring soon. The Head Chef sees only today's checklists. The hygiene score and upcoming visits are a one-line note until service visits are built.
 - Tested with 6 new end-to-end tests (95 in total) and in Chrome as the Owner and as the Head Chef. Not tried on the phone.
+- Founder asked for the history calendar to work like the iPhone calendar (reference picture `docs/image.png`): tap a date to see that day's status, and show upcoming services, licence due dates and holidays too.
+- Built it. The History tile opens a month grid with small coloured labels in each day: checklists done ("2/2", red when missed), ECCS services, a licence expiring, a holiday. Tapping a day lists everything for it underneath, and a checklist there opens the full record. A "Coming up" list shows the next services and licence due dates. It goes a year back and a year ahead. For the Owner and Manager only.
+- Holidays are a sample list written by Claude and need checking against the Telangana government list. Added 12 sample past service visits to the local data so past days have completed services to show.
+- Tested with 6 new end-to-end tests (101 in total) and in Chrome as the Owner. Not tried on the phone.
 - Switched off Expo's generated route types, which kept causing false type errors while a dev server was running.
 
 **Carried over from yesterday**

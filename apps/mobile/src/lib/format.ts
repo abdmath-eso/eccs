@@ -29,6 +29,51 @@ export function formatDate(isoDate: string, language: LanguageCode): string {
   }
 }
 
+/** Today's calendar date in India as YYYY-MM-DD, whatever the phone's own time zone. */
+export function indiaToday(): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  } catch {
+    return new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+  }
+}
+
+/** A month such as "2026-10" as people read it, e.g. "October 2026". */
+export function formatMonth(month: string, language: LanguageCode): string {
+  try {
+    return new Intl.DateTimeFormat(LOCALES[language], { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(
+      new Date(`${month}-01T00:00:00Z`),
+    );
+  } catch {
+    return month;
+  }
+}
+
+/** A calendar date with its weekday, e.g. "Tuesday, 6 October". */
+export function formatDayLong(isoDate: string, language: LanguageCode): string {
+  try {
+    return new Intl.DateTimeFormat(LOCALES[language], {
+      timeZone: 'UTC',
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }).format(new Date(`${isoDate}T00:00:00Z`));
+  } catch {
+    return isoDate;
+  }
+}
+
+/** One-letter names of the days of the week, Sunday first, for the top of a calendar. */
+export function weekdayNames(language: LanguageCode): string[] {
+  try {
+    const format = new Intl.DateTimeFormat(LOCALES[language], { timeZone: 'UTC', weekday: 'narrow' });
+    // 1 January 2023 was a Sunday.
+    return Array.from({ length: 7 }, (_, index) => format.format(new Date(Date.UTC(2023, 0, 1 + index))));
+  } catch {
+    return ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  }
+}
+
 /** Writes a YYYY-MM-DD date the way it is typed in forms here: DD/MM/YYYY. */
 export function toTypedDate(isoDate: string): string {
   const [year, month, day] = isoDate.split('-');

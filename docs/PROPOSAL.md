@@ -138,7 +138,8 @@ Restaurant roles never see another organisation's data. Owner covers all outlets
 |---|---|---|---|
 | Own organisation and outlet details | R | R own | – |
 | App users (logins) | CRU own brand | CRU own outlet | – |
-| SOP library and checklist templates | R | R | R assigned |
+| SOP library | R standard, CRU own brand's | R standard, CRU own outlet's | R |
+| Checklist templates | R | R | R assigned |
 | Daily checklists | R | R, A | C own |
 | Food items and labels | CRU | CRU | C labels, R items |
 | Issues and ECCS support | CR | CRU own | C |
@@ -146,7 +147,7 @@ Restaurant roles never see another organisation's data. Owner covers all outlets
 | Service schedule and reminders | R | R | – |
 | Jobs (visits) | R | R, sign-off | – |
 | Service reports, certificates, inspection reports | R | R | – |
-| History calendar (1 year) | R | R own | R own checklists |
+| History calendar (1 year) | R | R own | – (sees the last 7 days in Daily checklists) |
 | Licences and document vault | CRU | CRU own | – |
 | Hygiene score and dashboards | R all own outlets | R own | R own outlet (simple view) |
 | Staff list and attendance | CRU | CRU own | C mark attendance |
@@ -276,7 +277,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Service booking from a priced catalogue: one-time or subscription
 - Dues, GST invoices and online payment through Razorpay
 - Service certificates stored in the vault
-- SOP library to read, separate from checklists
+- SOP library, separate from checklists: ECCS's standard SOPs to read, plus SOPs the Owner or Manager writes for their own outlet
 - Attendance tracker (calendar based) and salary tracker for the restaurant's own staff
 - Food labels: pick an item, the app sets prepared and expiry times, prints to a Bluetooth label printer
 - Customer QR: a public web page per outlet showing the cleanliness score, timestamps of recent services and a few approved photos (grill, hood and similar)

@@ -41,6 +41,9 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Tested with 6 new end-to-end tests (101 in total) and in Chrome as the Owner. Not tried on the phone.
 - Founder feedback: the calendar looks nice. On the dashboard, showing every branch one under another was wrong; the Owner should pick a branch at the top, as in checklists and the calendar. And the menu should move off the home screen into a side menu.
 - Changed the home screen accordingly: a branch selector at the top for the Owner (the choice is remembered and shared with the other screens), and a menu button that slides a panel in from the left with every section, the language choice and the Lock button. Checked in Chrome as the Owner: switching branch, opening the menu, opening a section from it.
+- Founder decision: restaurants can add their own SOPs, not only read ECCS's.
+- Built the SOP library. In the app everyone can read SOPs as numbered steps, grouped by category; the Owner and Manager can add, change and delete SOPs for their own outlet. In the console ECCS writes the standard SOPs, one language at a time, and publishes them. Loaded seven sample SOPs in English, Telugu and Hindi (hand washing, fridge storage, daily hygiene, chimney filters, pests, waste, gas and fire safety); the wording is Claude's and needs replacing with ECCS's own.
+- Tested with 6 new end-to-end tests (107 in total) and in Chrome: read an SOP and added one as the Owner in the app, and opened the console page. Not tried on the phone.
 - Switched off Expo's generated route types, which kept causing false type errors while a dev server was running.
 
 **Carried over from yesterday**

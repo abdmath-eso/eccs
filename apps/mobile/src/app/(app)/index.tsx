@@ -24,7 +24,7 @@ const HEAD_CHEF_MENU: MenuItem[] = [
   { label: 'tile.labels', icon: 'pricetag-outline' },
   { label: 'tile.issues', icon: 'chatbubble-ellipses-outline', href: '/support' },
   { label: 'tile.attendance', icon: 'people-outline' },
-  { label: 'tile.sops', icon: 'book-outline' },
+  { label: 'tile.sops', icon: 'book-outline', href: '/sops' },
 ];
 const MANAGER_MENU: MenuItem[] = [
   ...HEAD_CHEF_MENU,

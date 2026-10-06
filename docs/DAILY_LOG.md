@@ -14,57 +14,113 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ## Tuesday 6 October 2026
 
-*In progress. To be written up at the end of the day.*
+The second day. Started with daily checklists as the only finished feature and ended with most of the restaurant side of Phase 1a in place: ECCS support, licences and documents, the dashboard, the history calendar, the SOP library, a profile page, and the app in twelve languages. 40 commits. Pushed to GitHub twice: once at midday when the repository was first put there, and once at the end of the day.
 
-**So far today**
+### ECCS support (issues)
+
+- In the app: raise an issue (category, description, optional photos), see its status, exchange messages with ECCS, call or WhatsApp ECCS. The Owner or Manager can close or reopen an issue.
+- In the console: an Issues page across all clients, where ECCS replies and marks issues in progress or resolved.
+- After the founder's feedback, the app's two pages ("Raise an issue with ECCS" and "ECCS support") became one page named "Raise an issue", opened from a single home tile. It opens showing a "Raise an issue" button, the call and WhatsApp buttons and recent issues; the form appears on tap.
+
+### Licences and the document vault
+
+- In the app (Owner and Manager): licences with their expiry date and a valid, expiring soon or expired state; add, renew and remove; a document vault; files added by camera or by choosing a PDF or image.
+- In the console: a Licences page listing licences that need attention across all clients, and each outlet's licences and documents, which ECCS admins can add to.
+- An outlet holds one licence of each kind. Adding the same kind again, or renewing with a new copy, replaces the old one and deletes its document. The forms warn before this happens.
+- Reading the document: the server reads images with OCR (Tesseract, on our own server) and PDFs from their text, and picks out the kind of licence, its number and its dates. In the app and the console the document is chosen first, and the fields fill in for the person to check before saving.
+
+### Dashboard and home screen
+
+- The top of the home screen became a dashboard: three numbers that can be tapped (checklists done today, licences to renew, open issues with ECCS), today's checklists with their status and a red mark when overdue, and the licences that are expired or expiring soon. The Head Chef sees only today's checklists. The hygiene score and upcoming visits are a one-line note until service visits are built.
+- After the founder's feedback it shows one branch at a time. The Owner picks the branch at the top; the choice is remembered and shared with the other screens.
+- The menu moved off the home screen into a panel that slides in from the left, with every section and the Lock button.
+
+### History calendar
+
+- Built to work like the iPhone calendar (the founder's reference picture is `docs/screenshots/calendar-reference-iphone.png`). A month grid with small coloured labels in each day: checklists done ("2/2", red when missed), ECCS services, a licence expiring, a holiday.
+- Tapping a day lists everything for it underneath, and a checklist there opens the full record. A "Coming up" list shows the next services and licence due dates. It goes a year back and a year ahead. For the Owner and Manager only.
+- Added 12 sample past service visits to the local data so past days have completed services to show.
+
+### SOPs
+
+- **SOPs in the app.** Everyone can read SOPs as numbered steps, grouped by category. The Owner and Manager can add, change and delete SOPs for their own outlet. In the console ECCS writes the standard SOPs, one language at a time, and publishes them. Seven sample standard SOPs were loaded (hand washing, fridge storage, daily hygiene, chimney filters, pests, waste, gas and fire safety).
+- **The ready-made library.** The founder added a workbook (`docs/Restaurant_SOP_Knowledge_Base_Expanded_Cuisine_Dishes.xlsx`). Imported 792 SOPs from it (265 on running the restaurant, 527 dishes and recipes) and sorted its 27 modules into 13 app categories. "Find a ready-made SOP" in the app: type and matches appear, or pick a category and section; open one to read it; "Add to my SOPs" makes the restaurant's own copy to reword.
+- **50 SOPs written out in full.** The workbook's steps turned out to be thin, so Claude wrote real steps for the 50 most important SOPs (397 steps): food safety, cooking and cooling temperatures, storage, receiving, cleaning, chemicals, dishwashing, pests, waste, fire, gas and injuries. They went straight into the library.
+- After the founder's feedback: the section buttons say "5 SOPs" instead of a bare number, section names always show, and inside a category there is one back control, "All categories"; Back from the category list returns to SOPs.
+
+### My profile
+
+- A profile page for everyone at a restaurant: photo, name, role, details, restaurant and branches (with restaurant codes for the Owner and Manager), and a preferences section holding the language. The top of the side menu shows the photo and name and opens the profile.
+- The photo is changed from a small camera icon on the photo, which opens a pop-up from the bottom of the screen: Take a photo, Choose a photo, Remove photo.
+
+### Languages
+
+- Nine languages were added to English, Telugu and Hindi: Kannada, Malayalam, Tamil, Marathi, Bengali, Odia, Gujarati, Punjabi and Urdu. The three language buttons became a dropdown that lists each language in its own script. Urdu reads right to left.
+- The app's own text (351 pieces) is in all twelve.
+- The content is in all twelve too: ECCS's checklist names and items, the seven standard SOPs, all 792 library SOPs (names, steps, notes, section names, dish names in each script), service names and holiday names. About 14,000 pieces of text for the nine newer languages, written by 36 translation jobs run up to 20 at a time. The library answers and searches in the reader's language, and a copy a restaurant adds carries every language.
+- Not translated in any language: the checklist suggestion library (588 ready-made checks), and anything a restaurant wrote itself.
+
+### Smaller things
 
 - Started this daily log and wrote up 5 October.
-- The founder retested photo upload on the Android phone: it works.
-- Founder decision: problems noted on a checklist stay inside the restaurant and are never sent to ECCS. ECCS support is a separate channel; Head Chefs can raise issues there too.
-- Built ECCS support. In the app: raise an issue (category, description, optional photos), see its status, exchange messages with ECCS, call or WhatsApp ECCS; the Owner or Manager can close or reopen an issue. In the console: an Issues page across all clients where ECCS replies and marks issues in progress or resolved.
-- Tested with 8 new end-to-end tests (69 in total) and by clicking through the whole loop in Chrome: raised an issue in the app, replied and changed status in the console, saw the reply in the app. Not yet tried on the phone.
-- Pushed the whole repository to GitHub at the founder's request: https://github.com/abdmath-eso/eccs.
-- Founder feedback: the app's "Raise an issue with ECCS" and "ECCS support" pages were redundant. Merged them into one page named "Raise an issue" with the form, the call and WhatsApp buttons and recent issues, opened from a single home tile. On further feedback the form was tucked behind a "Raise an issue" button so the page opens showing only the button, the contact buttons and recent issues.
-- Founder rule: commit locally through the day and push to GitHub once at end of day, when the founder says so.
-- Founder decisions: ECCS staff can upload licences and documents for restaurants for now; documents can be PDFs or images.
-- Built licences and the document vault. In the app (Owner and Manager): licences with their expiry date and a valid / expiring soon / expired state, add, renew and remove; a document vault; files added by camera or by choosing a PDF or image. In the console: a Licences page listing licences that need attention across all clients, and each outlet's licences and documents, which ECCS admins can add to.
-- Tested with 15 new end-to-end tests (84 in total) and by viewing and adding a licence in Chrome in both the app and the console. Uploading a file through the screens was not tried by hand.
-- Founder feedback on licences: when a new licence is added the old one should be replaced, not kept. Now an outlet holds one licence of each kind; adding the same kind again, or renewing with a new copy, replaces it and deletes the old document. The forms warn before this happens.
-- Founder request: read the licence number and expiry date off the uploaded document instead of typing them. Founder chose to start with the free reader and add an AI reader later. Built it: the server reads images with OCR (Tesseract, on our own server) and PDFs from their text, and picks out the kind of licence, number and dates. In the app and the console the document is now chosen first, and the fields fill in for the person to check before saving.
-- Tested with 5 more end-to-end tests (89 in total), unit tests for the date and number parsing, and in Chrome: renewing an FSSAI licence in the app and replacing an expired pest control contract in the console, both filled in correctly from clear typed sample images. Not tried with a real licence or a phone photo; the free reader is expected to miss blurred photos, scanned PDFs and Telugu or Hindi text.
-- Founder confirmed the licence reading looks good and chose the restaurant dashboard as the next feature.
-- Built the dashboard as the top of the app's home screen. For each outlet (all of them for the Owner, their own for the Manager): three numbers that can be tapped (checklists done today, licences to renew, open issues with ECCS), today's checklists with their status and a red mark when overdue, and the licences that are expired or expiring soon. The Head Chef sees only today's checklists. The hygiene score and upcoming visits are a one-line note until service visits are built.
-- Tested with 6 new end-to-end tests (95 in total) and in Chrome as the Owner and as the Head Chef. Not tried on the phone.
-- Founder asked for the history calendar to work like the iPhone calendar (reference picture `docs/screenshots/calendar-reference-iphone.png`): tap a date to see that day's status, and show upcoming services, licence due dates and holidays too.
-- Built it. The History tile opens a month grid with small coloured labels in each day: checklists done ("2/2", red when missed), ECCS services, a licence expiring, a holiday. Tapping a day lists everything for it underneath, and a checklist there opens the full record. A "Coming up" list shows the next services and licence due dates. It goes a year back and a year ahead. For the Owner and Manager only.
-- Holidays are a sample list written by Claude and need checking against the Telangana government list. Added 12 sample past service visits to the local data so past days have completed services to show.
-- Tested with 6 new end-to-end tests (101 in total) and in Chrome as the Owner. Not tried on the phone.
-- Founder feedback: the calendar looks nice. On the dashboard, showing every branch one under another was wrong; the Owner should pick a branch at the top, as in checklists and the calendar. And the menu should move off the home screen into a side menu.
-- Changed the home screen accordingly: a branch selector at the top for the Owner (the choice is remembered and shared with the other screens), and a menu button that slides a panel in from the left with every section, the language choice and the Lock button. Checked in Chrome as the Owner: switching branch, opening the menu, opening a section from it.
-- Founder decision: restaurants can add their own SOPs, not only read ECCS's.
-- Built the SOP library. In the app everyone can read SOPs as numbered steps, grouped by category; the Owner and Manager can add, change and delete SOPs for their own outlet. In the console ECCS writes the standard SOPs, one language at a time, and publishes them. Loaded seven sample SOPs in English, Telugu and Hindi (hand washing, fridge storage, daily hygiene, chimney filters, pests, waste, gas and fire safety); the wording is Claude's and needs replacing with ECCS's own.
-- Tested with 6 new end-to-end tests (107 in total) and in Chrome: read an SOP and added one as the Owner in the app, and opened the console page. Not tried on the phone.
-- Founder asked for all the test logins in one document: wrote `docs/TEST_LOGINS.md` (restaurant codes, PINs, ECCS phone numbers, one-time code, what each role can open).
-- Founder tested on the Android phone and sent two screenshots. Faults found: on a licence, "View document" was squeezed into a narrow column beside Renew and Remove; in Staff logins, New PIN and Remove access were different heights. Fixed both (the document button has its own row; side-by-side buttons now match in height). Waiting for the founder to recheck on the phone.
-- Founder added a workbook of SOPs (`docs/Restaurant_SOP_Knowledge_Base_Expanded_Cuisine_Dishes.xlsx`) and asked for it to be fed in like the checklist library, delivered sensibly given how many there are, and categorised.
-- Built the SOP library. Imported 792 SOPs (265 on running the restaurant, 527 dishes and recipes), sorted the workbook's 27 modules into 13 app categories, and added "Find a ready-made SOP" to the app: type and matches appear, or pick a category and section; open one to read it; "Add to my SOPs" makes the restaurant's own copy to reword.
-- Found while importing: the workbook's steps are mostly shared between SOPs (20 different step sets across the 265 operating SOPs; one identical set for all 527 dishes), and a few do not fit their title. Recorded as an open question for the founder.
-- Tested with 5 more end-to-end tests (112 in total) and in Chrome as the Owner. Not tried on the phone.
-- Founder decision on the thin workbook content: Claude writes real steps for the most important SOPs and they go straight into the app, with no draft label and no separate review. Wrote 50 (397 steps in all) covering food safety, cooking and cooling temperatures, storage, receiving, cleaning, chemicals, dishwashing, pests, waste, fire, gas and injuries, and loaded them into the library. The temperatures and other limits follow FSSAI and FoSTaC guidance as Claude understands them and have not been checked by a food-safety professional.
-- Founder asked for the rewritten SOPs in the other languages too. Translated all 50 into Telugu and Hindi (794 steps), made the library answer in the reader's language and searchable in it, and made copies carry all three languages. Checked by program that every translated step has the same numbers as the English and none is missing; not read by a native speaker. 113 end-to-end tests pass.
-- Founder asked for every library SOP in both languages. Translated the rest: 400 shared strings per language (step lines, notes, 214 SOP names, section and frequency names) and 497 dish names in each script, and made the loader assemble each SOP's Telugu and Hindi from them. Read all 792 back from the database: both languages present, step counts equal, nothing left in English. Section names in the library now show in the reader's language. 113 end-to-end tests pass. Not read by a native speaker; not looked at on the phone.
-- Founder feedback on the SOP library: the bare numbers on the section buttons were unclear (now "5 SOPs"); the section names were missing in his view (his API terminal was running an older build; the app now falls back to the plain name too); and there were two back controls inside a category (now one, "All categories", with Back from the category list returning to SOPs). Checked in Chrome.
-- Founder asked for a "My profile" page for everyone at a restaurant, with a photo, role and restaurants, more for the Owner, and the language moved there from the side menu. Built it: profile page with photo (camera or gallery), name, role, details, restaurant and branches (with restaurant codes for the Owner and Manager), and a preferences section with the language. The top of the side menu shows the photo and name and opens the profile. Decided during build: a Manager or Head Chef cannot rename themselves. 7 new end-to-end tests (120 in total); checked in Chrome as the Owner. Not tried on the phone.
-- Founder tested on an iPhone and sent a screenshot: the side menu's name and photo ran up under the clock. Fixed by applying the status-bar gap by hand inside the menu (the usual safe-area wrapper does not work inside a pop-up layer on iPhone), and did the same for the photo viewer. He also asked for the profile's two photo buttons to become a small camera icon on the photo that opens a pop-up; built that as a reusable bottom sheet with Take a photo, Choose a photo and Remove photo. Checked in Chrome; not yet rechecked on the iPhone.
-- Founder asked for nine more languages (Kannada, Malayalam, Tamil, Marathi, Bengali, Odia, Gujarati, Punjabi, Urdu) and a dropdown to choose. Added them to the database and the app, translated all 351 pieces of app text into each (nine translation jobs run in parallel), and replaced the three language buttons with a dropdown that lists each language in its own script. Checked by program: every file has every key, placeholders intact, ordinary digits. Looked at Tamil and Urdu in Chrome; Urdu reads right to left, and a phone number that came out reversed there was fixed. Content (checklist items, SOPs) is not translated into the new languages and shows in English.
-- A profile test failed because the founder had renamed the sample Owner while testing; the profile tests now create their own throwaway login and no longer depend on or change the sample accounts. 121 end-to-end tests pass.
-- Founder asked for the content to be translated into all the languages as well. Ran 36 translation jobs (four per language, 20 at a time) for the nine newer languages: the 50 written-out SOPs, the workbook's shared text and SOP names, 497 dish names, and ECCS's checklists, standard SOPs, service names and holidays. About 14,000 pieces of text. Made SOPs, checklists and holidays able to hold all 12 languages, with loaders that fill them in and refuse incomplete files. Checked by program and read back from the database: all 792 library SOPs and all ECCS checklist and SOP text present in every language, numbers unchanged. Aligned one line per language with the app's own name for the "pest sighting" category. Looked at Kannada in Chrome. 122 end-to-end tests pass. No native speaker has read any of it.
+- Wrote `docs/TEST_LOGINS.md`: restaurant codes, PINs, ECCS phone numbers, the one-time code, and what each role can open.
+- Phone layout faults from the founder's screenshots were fixed (see "Problems found").
+- Stopped the browser preview's warning about the native animation driver.
 - Switched off Expo's generated route types, which kept causing false type errors while a dev server was running.
+- The founder's screenshots are filed in `docs/screenshots/`.
 
-**Carried over from yesterday**
+### Decisions the founder made
 
-- ~~The phone photo-upload fix needs the founder's retest.~~ Done, works.
-- The founder has not yet chosen the next feature. Recommended: issues and ECCS support.
+- Problems noted on a checklist stay inside the restaurant and are never sent to ECCS. ECCS support is a separate channel, and Head Chefs can raise issues there too.
+- Commit locally through the day; push to GitHub once, at the end of the day, when the founder says so.
+- ECCS staff can upload licences and documents for restaurants for now. Documents can be PDFs or images.
+- A new licence replaces the old one of the same kind; the old one is not kept.
+- Licence details are read off the document. Start with the free reader; add an AI reader later.
+- The calendar works like the iPhone calendar and also shows upcoming services, licence due dates and holidays.
+- The dashboard shows one branch with a selector at the top, and the menu lives in a side panel.
+- Restaurants can add their own SOPs, not only read ECCS's.
+- For the thin workbook content, Claude writes the important SOPs in full and they go straight into the app, with no draft label and no separate review by the founder.
+- SOPs and all other ECCS content are to be in every language the app offers.
+- Everyone at a restaurant gets a profile page; the language setting lives there, not in the side menu.
+- The nine languages listed above are added.
+
+Decided by Claude during the build and not yet reviewed by the founder: a Manager or Head Chef cannot rename themselves. The others are marked in `STATUS.md` section 3.
+
+### How it was tested
+
+- 122 automated end-to-end tests on the API, up from 61 at the start of the day. New today: issues, licences and document reading, the dashboard, the calendar, SOPs and the library, the profile, and a test that someone using Tamil gets everything in Tamil. Unit tests cover the date and number parsing for licences.
+- Claude clicked through each feature in Chrome using the browser preview of the app and the console, as the Owner and, for the dashboard, as the Head Chef. Tamil, Urdu and Kannada were looked at there.
+- Translations were checked by program only: every key and every SOP present in every language, the same numbers as the English in every step, placeholders intact, ordinary digits, no characters from another script. All 792 library SOPs were read back from the database.
+- The founder tested on an Android phone (photo upload, licences, staff logins) and on an iPhone (side menu, profile), and sent screenshots.
+
+### Problems found
+
+- **On the Android phone:** on a licence, "View document" was squeezed into a narrow column beside Renew and Remove; in Staff logins, New PIN and Remove access were different heights. Both fixed.
+- **On the iPhone:** the side menu's name and photo ran up under the clock. Cause: the usual safe-area wrapper does nothing inside a pop-up layer on iPhone. Fixed by applying the gap by hand, in the menu and in the photo viewer.
+- **Section names were blank in the SOP library** on the founder's screen ("· 5 SOPs"). Cause: his API terminal was still running an older build. The app now falls back to the plain name; the API terminal has to be restarted to pick up server changes.
+- **The workbook's SOP steps are mostly shared**: 20 different sets of steps across the 265 operating SOPs, and one identical set for all 527 dishes. A few do not fit their title. This led to the 50 written-out SOPs; the other 215 operating SOPs and the dishes are still thin outlines.
+- A profile test failed because the founder had renamed the sample Owner while testing. The tests now create their own throwaway login and neither depend on nor change the sample accounts.
+- In Urdu a phone number came out reversed. Fixed.
+- Hindi sentences built from an SOP's name read wrongly for some names. Fixed with a grammar rule in the loader.
+- The side menu crashed the browser preview at first (an animation helper that does not exist on the web). Fixed.
+
+### Left open at the end of the day
+
+- **Retest on the phones.** Not yet rechecked after their fixes: the licence and staff buttons on Android, and the side menu on the iPhone. Never tried on a phone at all: raising an issue, the dashboard, the calendar, SOPs and the library, taking a profile photo with the camera or from the gallery, the language dropdown, and reading a real licence from a phone photo (it has only been tried with clear, typed samples).
+- **The food-safety limits in the 50 written-out SOPs** (temperatures, cooling times, oil and chlorine limits, emergency numbers) follow FSSAI and FoSTaC guidance as Claude understands them. No food-safety professional has checked them.
+- **No native speaker has read any translation**, in any of the eleven languages other than English.
+- The holiday list is a sample written by Claude and needs checking against the Telangana government list.
+- The seven standard SOPs are samples; ECCS's own are still to come.
+- Whether to write out more of the library's SOPs, and whether to translate the checklist suggestion library.
+- Urdu text reads right to left, but the screens themselves are not mirrored.
+- Still to build in Phase 1a: checklists working without signal, and reminders.
+- The founder has not yet chosen what to build next. Recommended: a round of phone testing, then Phase 1b, the service loop (booking, scheduling, the visit, sign-off, the service report).
+
+### Carried over from 5 October
+
+- Retest photo upload on the phone: done in the morning, it works.
+- Choose the next feature: done, the founder chose each one through the day.
+- Still parked: checklists without signal, reminders, console screens for ECCS to edit checklists.
 
 ---
 

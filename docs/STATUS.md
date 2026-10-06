@@ -20,13 +20,13 @@ The team is the founder plus Claude Code. There are no other developers, so this
 
 | | |
 |---|---|
-| **Phase** | Phase 1a (Restaurant loop), in progress. Done so far: daily checklists (5 Oct), ECCS support issues, licences with the document vault, the restaurant dashboard, the history calendar and the SOP library (6 Oct). Left in Phase 1a: checklists working offline, and reminders. |
+| **Phase** | Phase 1a (Restaurant loop), in progress. Done so far: daily checklists (5 Oct); ECCS support issues, licences with the document vault and document reading, the restaurant dashboard with the branch selector and side menu, the history calendar, the SOP library, My profile, and twelve languages for the app and its content (6 Oct). Left in Phase 1a: checklists working offline, and reminders. |
 | **Plan approval** | Approved by the founder on 5 Oct 2026. Installing and scaffolding are allowed. |
 | **Code** | `packages/db`: schema (about 48 tables), migrations, sample seed. `packages/shared`: roles, permission rules, request schemas. `packages/api-client`: the one typed client web and mobile use. `packages/i18n`: English, Telugu, Hindi text. `apps/api`: login, sessions, role and scope checks, staff logins, outlets, client onboarding, daily checklists, photo storage. `apps/mobile`: login screens, role-based home, staff logins, daily checklists (today, fill in with photos, add own items, history). `apps/web`: ECCS console with login, client list and restaurant onboarding. |
 | **Local services** | Running in Docker: PostgreSQL on 5432, Redis on 6379, SeaweedFS (S3 stand-in) on 8333. Database is migrated and seeded. |
 | **Blocked** | Nothing. |
-| **Next action (Claude)** | Waiting for the founder's feedback on the SOP library and their choice of what comes next. Recommended: a round of testing on the Android phone (nothing built on 6 Oct after issues has been tried there), then Phase 1b, the service loop. |
-| **Next action (founder)** | Try the SOP library in the app (SOPs → Find a ready-made SOP); search "cooling", "handwashing" or "gas leak" to see the fully written ones. Open SOPs in the app (read one, add your own as Owner or Manager) and the SOPs page in the console. Supply ECCS's real SOPs when ready; the seven there are samples. Open History in the app and say what should change. Check the holiday list (it is a sample, see section 4). Look at the new home screen in the app as the Owner, a Manager and a Head Chef and say what should change. Also: restart the terminals and try Licences and documents in the app and the Licences page in the console. In particular, on the phone, photograph a real licence and see whether its number and expiry date are filled in correctly (this has only been tried with clear, typed samples). Choose what to build next. |
+| **Next action (Claude)** | Day closed and pushed to GitHub on 6 Oct. Waiting for the founder's phone testing and their choice of what comes next. Recommended: fix whatever the phone round turns up, then Phase 1b, the service loop (booking, scheduling, the visit, sign-off, the service report). |
+| **Next action (founder)** | Restart the three terminals first (the API only picks up server changes when restarted). Then test on the phones: the licence and staff buttons on Android and the side menu on the iPhone (both fixed, not rechecked); raise an issue; the dashboard and branch selector; History; SOPs and "Find a ready-made SOP" (search "cooling", "handwashing" or "gas leak" for the fully written ones); My profile, including taking a photo with the camera and from the gallery; the language dropdown; and photograph a real licence to see whether its number and expiry date fill in correctly. Logins are in `docs/TEST_LOGINS.md`. Then decide the open questions in section 4 (who can read the translations, a food-safety check of the 50 SOPs, the real holiday list, ECCS's own SOPs) and choose what to build next. |
 
 ## 3. Decisions made
 
@@ -381,6 +381,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 6 Oct 2026 | End of day: daily log entry for 6 Oct written, current state brought up to date, everything pushed to GitHub. |
 | 6 Oct 2026 | Content translated into the nine newer languages: ECCS's checklists, standard SOPs, the whole SOP library, service names and holidays. |
 | 6 Oct 2026 | Nine more languages added to the app's screens (Kannada, Malayalam, Tamil, Marathi, Bengali, Odia, Gujarati, Punjabi, Urdu), with a language dropdown in Preferences and on the welcome screen. Content such as SOPs and checklist items is not yet translated into them. |
 | 6 Oct 2026 | Founder tested on an iPhone: the side menu's top ran up under the status bar (fixed, and the same fix applied to the photo viewer); and the profile's two photo buttons were replaced, at his request, by a camera badge on the photo that opens a pop-up to take, choose or remove a photo. Not yet rechecked on the iPhone. |

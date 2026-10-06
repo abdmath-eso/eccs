@@ -795,6 +795,8 @@ model Document {
 /// Problems and requests raised by a restaurant or by ECCS. Category SUPPORT is a support ticket.
 model Issue {
   id                  String        @id @default(uuid())
+  /// Running number shown to people as "ECCS-0042".
+  reference           Int           @unique @default(autoincrement())
   outletId            String
   category            IssueCategory
   severity            Severity      @default(MEDIUM)

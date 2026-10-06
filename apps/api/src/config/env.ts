@@ -20,6 +20,10 @@ const schema = z
     PIN_SECRET: z.string().min(16),
     // Key for signing the short-lived links that display photos.
     FILE_URL_SECRET: z.string().min(16),
+    // How restaurants reach ECCS directly. Sample numbers until the real ones are supplied.
+    SUPPORT_PHONE: z.string().default('+919000000000'),
+    SUPPORT_WHATSAPP: z.string().default('919000000000'),
+    SUPPORT_HOURS: z.string().default('Every day, 8 am to 10 pm'),
     // Object storage for photos and documents. Locally this is SeaweedFS; in production, Amazon S3.
     S3_ENDPOINT: z.string().optional(),
     S3_REGION: z.string().default('ap-south-1'),

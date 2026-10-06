@@ -1,0 +1,749 @@
+[
+ {
+  "name": "Personal Hygiene",
+  "purpose": "Keep food safe by making sure everyone who works in the kitchen is clean and dressed for it.",
+  "steps": [
+   "Bathe before the shift and come to work in clean clothes.",
+   "Change into a clean uniform, apron, hair cap and closed shoes before entering the kitchen. Do not wear the uniform outside.",
+   "Keep nails short and clean, with no nail polish or artificial nails.",
+   "Remove watches, bangles and rings before handling food. A plain wedding band is the only exception.",
+   "Wash hands before starting work and every time they may have been contaminated.",
+   "Do not eat, chew gum or paan, smoke, spit or use a phone in food areas.",
+   "Cover a cough or sneeze with the elbow, away from food, then wash hands.",
+   "Cover any cut or wound with a waterproof dressing and wear a glove over it."
+  ],
+  "controls": "Nobody handles food without a clean uniform, hair covering and washed hands. The supervisor checks each person at the start of the shift."
+ },
+ {
+  "name": "Handwashing",
+  "purpose": "Stop germs passing from hands to food.",
+  "steps": [
+   "Use the hand wash basin only, never a food or dish sink.",
+   "Wet hands and wrists with clean running water.",
+   "Apply liquid soap and rub for at least 20 seconds: palms, backs of hands, between fingers, thumbs, fingertips and under nails.",
+   "Rinse well under running water.",
+   "Dry with a paper towel or hand dryer, not on the apron or a kitchen cloth.",
+   "Turn the tap off with the paper towel or elbow.",
+   "Wash before starting work, after the toilet, after touching raw meat, fish, eggs or unwashed vegetables, after handling waste, chemicals, money or a phone, after eating or smoking, and after touching the face or hair.",
+   "Tell the supervisor straight away if soap, water or paper towels have run out."
+  ],
+  "controls": "Wash for a full 20 seconds with soap. Gloves and hand sanitiser do not replace hand washing."
+ },
+ {
+  "name": "Illness Reporting",
+  "purpose": "Keep anyone who could pass on an illness away from food.",
+  "steps": [
+   "Tell the manager before starting work if you have vomiting, loose motions, fever, jaundice, a sore throat with fever, or an infected cut, boil or skin rash.",
+   "Also report if someone at home has vomiting, loose motions or jaundice.",
+   "The manager keeps a person with any of these symptoms out of food handling: send them home or give them work away from food and utensils.",
+   "After vomiting or loose motions, return to food handling only when free of symptoms for 48 hours.",
+   "After jaundice or typhoid, return only with a doctor's fitness certificate.",
+   "Record the illness, the dates away and the date of return in the staff health register.",
+   "Arrange a medical check-up for every food handler once a year and keep the certificates on file."
+  ],
+  "controls": "Nobody with vomiting, loose motions, fever or jaundice handles food. 48 hours free of symptoms before returning."
+ },
+ {
+  "name": "Protective Clothing",
+  "purpose": "Stop hair, dirt and germs from clothing getting into food.",
+  "steps": [
+   "Start every shift in a clean uniform and apron.",
+   "Cover all hair with a cap or hairnet; cover a beard with a beard net.",
+   "Wear closed, non-slip shoes kept for the kitchen.",
+   "Change the apron when it is dirty, and always after handling raw meat or fish.",
+   "Take the apron off before going to the toilet, on a break or outside, and put it back on after washing hands.",
+   "Use disposable gloves for ready-to-eat food. Change them between tasks, when torn, and after touching anything else. Wash hands before putting on a new pair.",
+   "Send used uniforms and aprons for washing every day and store clean ones away from outdoor clothes."
+  ],
+  "controls": "A dirty apron or uncovered hair is corrected before the person handles food. Gloves are changed between tasks, never washed and reused."
+ },
+ {
+  "name": "Cross-Contamination Prevention",
+  "purpose": "Stop germs from raw food, dirty surfaces and people reaching food that is ready to eat.",
+  "steps": [
+   "Keep raw meat, poultry, fish and eggs apart from cooked and ready-to-eat food at every stage: delivery, storage, preparation and display.",
+   "Use separate colour-coded boards and knives, for example red for raw meat, blue for raw fish, yellow for raw poultry, green for vegetables and fruit, white for dairy and bakery, brown for cooked food. Keep to the same colours throughout the kitchen.",
+   "Prepare raw and ready-to-eat food in separate areas, or at separate times with the surface washed and sanitised in between.",
+   "Wash hands after handling raw food and before touching anything else.",
+   "Store raw food below cooked and ready-to-eat food, in covered containers.",
+   "Never put cooked food back on a plate or tray that held raw food.",
+   "Use a clean spoon each time for tasting, and separate cloths for raw and cooked areas.",
+   "Keep vegetarian and non-vegetarian food, utensils and oil separate."
+  ],
+  "controls": "Raw and ready-to-eat food never share a board, knife, container or cloth. Raw is always stored below cooked."
+ },
+ {
+  "name": "Food Contact Surface Hygiene",
+  "purpose": "Keep every surface that touches food clean and free of germs.",
+  "steps": [
+   "Before starting work, check that tables, boards, knives and containers are clean, dry and undamaged.",
+   "Clean and sanitise the surface between different foods, and always after raw meat, poultry, fish or eggs.",
+   "During continuous use, clean and sanitise at least every 4 hours.",
+   "Scrape off food, wash with detergent and warm water, rinse, apply food-safe sanitiser for the contact time on its label, and let it air dry.",
+   "Replace boards that are deeply cut or cracked, and containers that are chipped.",
+   "Keep cleaned equipment covered or upside down on a clean rack until used.",
+   "Use single-use paper towels or freshly laundered cloths, never the same cloth for surfaces and hands."
+  ],
+  "controls": "Sanitise after cleaning, not instead of it. Surfaces used for raw food are sanitised before any ready-to-eat food touches them."
+ },
+ {
+  "name": "Allergen Order Handling",
+  "purpose": "Make sure a guest with a food allergy is served a meal that is safe for them.",
+  "steps": [
+   "When a guest mentions an allergy, write it on the order in capital letters and tell the manager and the chef in person.",
+   "Check the dish's ingredients against the allergen list, including sauces, marinades, garnish and frying oil. Never guess.",
+   "If it cannot be confirmed that the dish is free of the allergen, tell the guest honestly and offer another dish.",
+   "One named cook prepares the dish on a cleaned and sanitised surface, with clean utensils, a clean pan and fresh oil or water.",
+   "Keep the finished dish covered and apart from other orders, marked with the allergy.",
+   "The person who took the order serves it and tells the guest it is the allergy-safe dish.",
+   "If a mistake is made, discard the dish and start again. Removing the ingredient from the plate is not enough.",
+   "If a guest has a reaction, call for medical help at once and inform the manager."
+  ],
+  "controls": "The common allergens are milk, egg, peanut, tree nuts, wheat (gluten), soya, fish, shellfish, sesame and mustard. Never tell a guest a dish is safe unless every ingredient has been checked."
+ },
+ {
+  "name": "Allergen Cross-Contact Prevention",
+  "purpose": "Stop traces of an allergen getting into food that should not contain it.",
+  "steps": [
+   "Store nuts, sesame, flour, milk powder and other allergen ingredients in closed, labelled containers, below or away from other ingredients.",
+   "Use a separate scoop for each allergen ingredient and never move scoops between containers.",
+   "Wash hands and change gloves and apron before preparing an allergy-safe dish.",
+   "Wash, rinse and sanitise the board, knife, pan and utensils first. Wiping is not enough to remove an allergen.",
+   "Do not fry allergy-safe food in oil that has cooked fish, shellfish, nuts or battered food. Use fresh oil in a clean pan.",
+   "Do not use the same water for boiling, for example pasta water for a gluten-free dish.",
+   "Keep garnishes such as nuts and sesame in covered containers so they cannot fall into other dishes.",
+   "Update the allergen list whenever a recipe, ingredient brand or supplier changes."
+  ],
+  "controls": "Cooking does not destroy allergens. Shared oil, water, boards and spoons are the usual cause of a reaction."
+ },
+ {
+  "name": "Vegetable Preparation",
+  "purpose": "Prepare vegetables that are clean and safe, especially those eaten raw.",
+  "steps": [
+   "Sort the vegetables and discard any that are rotten, mouldy or infested.",
+   "Remove outer leaves, roots and soil before washing.",
+   "Wash under clean running drinking water, rubbing off dirt. Wash leafy vegetables leaf by leaf.",
+   "For vegetables eaten raw (salad, garnish, chutney), soak in 50 ppm chlorine solution or an approved vegetable wash for 5 minutes, then rinse in drinking water.",
+   "Use the green board and a clean knife in the vegetable preparation area.",
+   "Cut only what is needed for the shift.",
+   "Put cut vegetables in clean covered containers, label with the date and time, and refrigerate at 5°C or below.",
+   "Use cut vegetables within 24 hours and discard what is left."
+  ],
+  "controls": "Vegetables to be eaten raw are sanitised and rinsed, not only washed. Cut vegetables are kept at 5°C or below."
+ },
+ {
+  "name": "Meat Preparation",
+  "purpose": "Handle raw meat so it stays safe and does not contaminate other food.",
+  "steps": [
+   "Take out of the fridge only the amount that can be prepared within 30 minutes.",
+   "Check it: fresh colour, no bad smell, not slimy. Reject or discard if in doubt.",
+   "Work in the raw meat area on the red board with knives kept for raw meat.",
+   "Trim and cut quickly. Do not wash raw meat in a sink used for vegetables or utensils.",
+   "Put prepared meat in clean covered containers, label with the item, date and time, and return to the fridge at 5°C or below straight away.",
+   "Use prepared fresh meat within 24 hours, or freeze it on the day at -18°C or below.",
+   "Wash, rinse and sanitise the board, knives, table and sink when finished.",
+   "Wash hands and change the apron before touching any other food."
+  ],
+  "controls": "Raw meat is out of the fridge for no more than 30 minutes during preparation. Nothing ready to eat is prepared in the raw meat area."
+ },
+ {
+  "name": "Poultry Preparation",
+  "purpose": "Handle raw chicken safely; it commonly carries germs that cause food poisoning.",
+  "steps": [
+   "Take out only what can be prepared within 30 minutes.",
+   "Check for a fresh smell and firm flesh. Discard if sticky, slimy or off-smelling.",
+   "Do not wash raw chicken under a running tap: the splashes spread germs around the sink. Pat it dry with paper towel if needed.",
+   "Use the yellow board and knives kept for raw poultry, in the raw preparation area.",
+   "Put cut chicken in covered containers, label with the date and time, and refrigerate at 5°C or below straight away.",
+   "Use within 24 hours or freeze on the day.",
+   "Wash, rinse and sanitise the board, knives, table, sink and taps when finished.",
+   "Wash hands thoroughly and change the apron before touching other food."
+  ],
+  "controls": "Chicken is always cooked to a core temperature of at least 75°C, with no pink flesh and clear juices."
+ },
+ {
+  "name": "Egg Handling",
+  "purpose": "Use eggs safely; the shell and the raw egg can carry germs.",
+  "steps": [
+   "Accept only clean, uncracked eggs within their date. Reject dirty, cracked or leaking ones.",
+   "Store eggs in their trays in the fridge or a cool dry place, away from ready-to-eat food.",
+   "Do not wash eggs before storing them. If a shell is dirty, wipe it clean just before use.",
+   "Break each egg into a small bowl first to check it, then add it to the mix.",
+   "Wash hands after handling raw eggs or shells, and discard shells straight into the bin.",
+   "Cook eggs until the white and yolk are firm, unless the guest asks otherwise and the manager allows it.",
+   "Do not keep beaten raw egg at room temperature. Refrigerate it and use it within 2 hours, and never top up an old batch with fresh egg.",
+   "Use pasteurised egg or cooked alternatives for uncooked items such as mayonnaise and mousse."
+  ],
+  "controls": "Cracked or dirty eggs are never used. Raw egg mix is never left at room temperature."
+ },
+ {
+  "name": "Thawing / Defrosting",
+  "purpose": "Thaw frozen food without letting germs grow on it.",
+  "steps": [
+   "Plan ahead and thaw in the fridge at 5°C or below, on a tray on the lowest shelf so drips cannot fall on other food.",
+   "If it is needed sooner, thaw in its sealed pack under cold running drinking water at 15°C or less, for no more than 90 minutes.",
+   "A microwave may be used only if the food is cooked immediately afterwards.",
+   "Never thaw on the counter, in standing water or in hot water.",
+   "Label thawing food with the date and time it came out of the freezer.",
+   "Check it is fully thawed in the centre before cooking, unless the pack says to cook from frozen.",
+   "Cook thawed food within 24 hours.",
+   "Never refreeze raw food that has been thawed. It may be frozen again only after it has been fully cooked."
+  ],
+  "controls": "Thawed food stays at 5°C or below until cooked. Thawed raw food is never refrozen."
+ },
+ {
+  "name": "Cooking Temperature Control",
+  "purpose": "Cook food hot enough, right to the centre, to kill harmful germs.",
+  "steps": [
+   "Use a clean probe thermometer, sanitised with a wipe before and after each use.",
+   "Put the probe into the thickest part of the food, away from bone and the pan.",
+   "Cook meat, poultry, fish, eggs and dishes containing them to a core temperature of at least 75°C.",
+   "Check each batch. For large pots, stir and check in more than one place.",
+   "Bring gravies, curries, dals and soups to a rolling boil.",
+   "If the temperature is not reached, keep cooking and check again. Do not serve.",
+   "Record the temperature of one batch of each high-risk dish per shift in the cooking log.",
+   "Check the thermometer once a week in ice water: it should read 0°C, within 1 degree."
+  ],
+  "controls": "Core temperature of at least 75°C for meat, poultry, fish and egg dishes. Chicken shows no pink and its juices run clear."
+ },
+ {
+  "name": "Frying",
+  "purpose": "Fry food safely and keep the oil fit to use.",
+  "steps": [
+   "Check the oil before use. Change it if it is dark, thick, foaming, smoking at normal heat or smells burnt.",
+   "Heat the oil to 170 to 180°C. Do not let it smoke.",
+   "Dry the food and shake off loose batter and ice before frying, and do not overfill the basket.",
+   "Fry in small batches so the oil stays hot and the food cooks through. Check the core reaches at least 75°C for meat, poultry and fish.",
+   "Skim out burnt particles during frying.",
+   "At the end of the shift let the oil cool, strain it through a fine filter and keep it covered.",
+   "Do not top up used oil with fresh oil to stretch it. Discard oil when total polar compounds reach 25%, and do not use the same oil more than three times.",
+   "Give used oil only to an authorised collector, never down the drain. Never leave hot oil unattended."
+  ],
+  "controls": "Used cooking oil is discarded at 25% total polar compounds. Keep separate oil for vegetarian and non-vegetarian frying."
+ },
+ {
+  "name": "Food Holding",
+  "purpose": "Keep cooked food safe between cooking and serving.",
+  "steps": [
+   "Hold hot food at 60°C or above in a bain-marie, hot case or on low heat. Switch the unit on in advance so it is hot before food goes in.",
+   "Hold cold food at 5°C or below.",
+   "Keep food covered and stir hot food now and then so it stays evenly hot.",
+   "Check and record the temperature of held food every 2 hours.",
+   "If hot food has fallen below 60°C for less than 2 hours, reheat it to 75°C once and return it to hot holding. If longer than 2 hours, or the time is not known, discard it.",
+   "Do not mix a fresh batch into an old one. Finish or remove the old batch first.",
+   "Use a clean serving spoon for each dish, with the handle out of the food.",
+   "Discard food left out at room temperature for more than 2 hours."
+  ],
+  "controls": "Hot at 60°C or above, cold at 5°C or below. Between 5°C and 60°C germs multiply fast: 2 hours in total is the limit."
+ },
+ {
+  "name": "Cooling",
+  "purpose": "Cool cooked food fast enough that germs cannot grow in it.",
+  "steps": [
+   "Start cooling as soon as cooking is finished. Do not leave food to cool slowly on the range.",
+   "Divide large quantities into shallow trays, no more than 5 cm deep, or into small containers.",
+   "Speed it up with an ice-water bath, stirring often, or a blast chiller.",
+   "Cool from 60°C to 21°C within 2 hours, then to 5°C or below within the next 4 hours.",
+   "Do not put a large pot of hot food into the fridge: it warms everything else and cools too slowly in the middle.",
+   "Once below 21°C, cover, label with the item, date and time, and refrigerate.",
+   "Check with a probe and record the times and temperatures in the cooling log.",
+   "If either time limit is missed, discard the food."
+  ],
+  "controls": "60°C to 21°C in 2 hours, then 21°C to 5°C in 4 more hours. Rice, dal, gravies and meat dishes need the most care."
+ },
+ {
+  "name": "Reheating",
+  "purpose": "Reheat cooked food so it is safe to serve again.",
+  "steps": [
+   "Reheat only food that was cooled and stored properly at 5°C or below.",
+   "Take out only the amount needed for the service.",
+   "Reheat quickly on the stove, in an oven or a microwave to a core temperature of at least 75°C. Bring gravies, curries and soups to a boil.",
+   "Stir during reheating and check the temperature in the centre with a clean probe.",
+   "Do not use a bain-marie or hot case to reheat food. They only keep hot food hot.",
+   "After reheating, hold at 60°C or above until served.",
+   "Reheat food once only. Discard whatever is left after service.",
+   "Take extra care with rice: cool it fast, keep it cold, and reheat it until steaming hot throughout."
+  ],
+  "controls": "At least 75°C at the core, once only. Reheated food is never cooled and reheated again."
+ },
+ {
+  "name": "Dry Storage",
+  "purpose": "Keep dry goods clean, dry and free of pests.",
+  "steps": [
+   "Keep the store cool, dry, well lit and ventilated.",
+   "Store everything on racks or pallets, at least 15 cm off the floor and away from the walls, so the floor can be cleaned and checked for pests.",
+   "Once a bag or pack is opened, move the contents to a clean airtight container labelled with the name, date opened and expiry date.",
+   "Put new stock behind the old so the oldest is used first.",
+   "Keep food apart from chemicals, cleaning materials and personal belongings.",
+   "Check weekly for weevils, droppings, damp, mould, damaged packs and expired items.",
+   "Clean the racks and floor every week and wipe up spills straight away.",
+   "Keep the door closed, and do not store anything directly on the floor."
+  ],
+  "controls": "Nothing is stored on the floor. No chemicals in the food store. Opened packs are always in labelled airtight containers."
+ },
+ {
+  "name": "Refrigerated Storage",
+  "purpose": "Keep chilled food cold enough to stay safe, and arranged so nothing contaminates anything else.",
+  "steps": [
+   "Keep the fridge at 5°C or below. Check and record the temperature at least twice a day.",
+   "Arrange the shelves from top to bottom: ready-to-eat and cooked food, then dairy, then washed vegetables and fruit, then raw fish, raw meat, and raw poultry at the bottom.",
+   "Keep everything covered, in food-grade containers with lids. Do not store food in opened tins.",
+   "Label every container with the item, the date made or opened, and the use-by date.",
+   "Do not overfill. Leave gaps so cold air can move, and keep food away from the fan.",
+   "Cool hot food first; never put it in hot.",
+   "Open the door as little as possible and check that it seals.",
+   "Each day, remove anything past its date or unlabelled. Clean shelves and door seals every week."
+  ],
+  "controls": "5°C or below. If the fridge has been above 8°C for more than 2 hours, discard high-risk food (meat, fish, dairy, cooked food) and report the fault."
+ },
+ {
+  "name": "Freezer Storage",
+  "purpose": "Keep frozen food solidly frozen and in good condition.",
+  "steps": [
+   "Keep the freezer at -18°C or below. Check and record the temperature twice a day.",
+   "Put frozen deliveries away within 15 minutes of receiving them.",
+   "Wrap or seal everything to prevent freezer burn, and label with the item and the date frozen.",
+   "Keep raw food below cooked and ready-to-eat food.",
+   "Do not load above the fill line or block the air vents.",
+   "Use the oldest stock first. Use food frozen in-house within 3 months.",
+   "Defrost and clean the freezer when ice is more than 5 mm thick, moving the stock to another freezer first.",
+   "Never refreeze food that has thawed. If the freezer fails and food has thawed, cook it at once or discard it."
+  ],
+  "controls": "-18°C or below. Food that has thawed and is above 5°C is cooked immediately or discarded, never refrozen."
+ },
+ {
+  "name": "Refrigerator Temperature Monitoring",
+  "purpose": "Catch a fridge that is too warm before the food in it becomes unsafe.",
+  "steps": [
+   "Read the temperature of every fridge and chiller at opening and at closing, and once in the middle of a long day.",
+   "Read the display, and confirm with a separate thermometer kept inside on the middle shelf.",
+   "Write the reading, the time and your name in the temperature log.",
+   "The fridge should be at 5°C or below. If it reads above 5°C, check the door is shut, the seal is sound, it is not overloaded and the vents are clear, then check again after 30 minutes.",
+   "If it is still above 5°C, move the food to another fridge and inform the manager and maintenance.",
+   "If it has been above 8°C for more than 2 hours, or nobody knows how long, discard the high-risk food.",
+   "Record what went wrong and what was done.",
+   "The manager reviews and signs the log every week."
+  ],
+  "controls": "Fridges at 5°C or below, freezers at -18°C or below, checked at least twice a day and written down each time."
+ },
+ {
+  "name": "FIFO",
+  "purpose": "Use the oldest stock first so nothing expires on the shelf.",
+  "steps": [
+   "Write the date received on every item as it comes in.",
+   "When putting stock away, move the older stock to the front and put the new delivery behind it.",
+   "Always take from the front.",
+   "Where items have expiry dates, use the one that expires first, even if it arrived later.",
+   "Check dates in the stores, fridges and freezers every day at opening.",
+   "Move anything close to its date to the front and tell the chef so it is used first.",
+   "Remove expired items straight away and record them as wastage.",
+   "Order smaller quantities of anything that is often thrown away."
+  ],
+  "controls": "First in, first out; and first to expire, first out. No expired item is left where it could be used."
+ },
+ {
+  "name": "Food Labeling & Dating",
+  "purpose": "Make sure anyone can tell what a food is, when it was made and when it must be used by.",
+  "steps": [
+   "Label every prepared, opened, decanted or leftover food before it goes into storage.",
+   "Write the name of the food, the date and time it was made or opened, the use-by date, and your name or initials.",
+   "Use day-dot stickers or printed labels, placed where they can be read without moving the container.",
+   "Use cooked food and cut vegetables or fruit within 24 hours, and gravies and sauces within 48 hours, unless the recipe gives a shorter time.",
+   "For opened packs, follow the maker's instruction for use after opening, and never go past the printed expiry date.",
+   "Mark food containing a common allergen, such as nuts, milk, egg or gluten.",
+   "Remove the old label completely before a container is reused.",
+   "Discard any food found without a label."
+  ],
+  "controls": "No label, no use: unlabelled food is discarded. The use-by date written is never later than the pack's own expiry date."
+ },
+ {
+  "name": "Raw / Ready-to-Eat Storage Separation",
+  "purpose": "Stop raw food dripping onto or touching food that will not be cooked again.",
+  "steps": [
+   "Where possible use separate fridges for raw food and for cooked or ready-to-eat food, and mark them clearly.",
+   "In a shared fridge, put cooked and ready-to-eat food on the top shelves and raw meat, poultry and fish on the bottom.",
+   "Keep raw food in covered, leak-proof containers or on trays that catch drips.",
+   "Keep vegetarian and non-vegetarian food on separate shelves or in separate fridges.",
+   "Keep unwashed vegetables and eggs away from ready-to-eat food.",
+   "Never use a container that held raw food for cooked food until it has been washed and sanitised.",
+   "Check the arrangement at opening and after every delivery.",
+   "If raw food has dripped onto ready-to-eat food, discard the ready-to-eat food and sanitise the shelf."
+  ],
+  "controls": "Ready-to-eat above, raw below, everything covered. Ready-to-eat food touched by raw juices is discarded."
+ },
+ {
+  "name": "Expired Food Disposal",
+  "purpose": "Remove expired and spoiled food so it can never be served.",
+  "steps": [
+   "Check stores, fridges and freezers every day at opening for anything expired, spoiled, unlabelled or damaged.",
+   "Take it out of storage straight away.",
+   "Record the item, quantity, reason and value in the wastage register, and have the manager sign it.",
+   "Open packs and tip the food into the food waste bin so it cannot be taken and reused.",
+   "If it must wait for a supplier return, put it in a marked 'Do not use' container away from good food.",
+   "Wash and sanitise the container and the shelf it was on.",
+   "Wash hands after handling waste.",
+   "Look at the wastage register every week and adjust ordering and preparation quantities."
+  ],
+  "controls": "Expired food is never relabelled, reworked or served. It is recorded and destroyed the same day it is found."
+ },
+ {
+  "name": "Goods Receiving",
+  "purpose": "Accept only food that is safe, fresh and from an approved supplier.",
+  "steps": [
+   "Keep the receiving area clean and have the order copy, a probe thermometer and the receiving register ready.",
+   "Check the delivery vehicle is clean and that food is not carried with chemicals or uncovered.",
+   "Check the items and quantities against the order and the supplier's bill.",
+   "Check each pack: not torn, dented, swollen, leaking or wet, with a readable label, an FSSAI licence number where required, and enough shelf life left.",
+   "Check chilled food is at 5°C or below and frozen food is at -18°C or below and hard, with no sign of thawing.",
+   "Check fresh produce, meat and fish for colour, smell and firmness, and for insects.",
+   "Reject anything that fails, note the reason on the bill and in the register, and inform the manager.",
+   "Put accepted chilled and frozen food away within 15 minutes, and the rest within the hour, off the floor."
+  ],
+  "controls": "Chilled at 5°C or below, frozen at -18°C or below. Nothing is accepted from an unapproved supplier or without a bill."
+ },
+ {
+  "name": "Delivery Temperature Check",
+  "purpose": "Confirm chilled and frozen food arrived cold enough to be safe.",
+  "steps": [
+   "Use a clean probe thermometer, sanitised with a wipe before and after each use.",
+   "Check chilled and frozen items first, as soon as the vehicle arrives.",
+   "For packed food, place the probe between two packs without piercing them. For loose meat, fish or dairy, probe the thickest part.",
+   "Chilled food must be at 5°C or below.",
+   "Frozen food must be at -18°C or below, hard, and without ice crystals inside the pack or signs of having thawed and refrozen.",
+   "Hot food delivered ready to serve must be at 60°C or above.",
+   "Write the temperature, time, supplier and item in the receiving register.",
+   "Reject food outside these limits and inform the manager and the supplier."
+  ],
+  "controls": "Chilled 5°C or below, frozen -18°C or below, hot 60°C or above. Out-of-range food is rejected, not accepted at a discount."
+ },
+ {
+  "name": "Delivery Rejection",
+  "purpose": "Refuse food that is not fit to accept, and make sure it does not enter the kitchen.",
+  "steps": [
+   "Reject food that is past or too close to its expiry date, at the wrong temperature, in damaged, swollen, leaking or dirty packs, without a proper label, showing spoilage or pests, or delivered in a dirty vehicle.",
+   "Do not unload it. If already unloaded, keep it apart from accepted stock and mark it 'Rejected'.",
+   "Tell the driver the reason and write it on both copies of the bill, with your signature and the driver's.",
+   "Take a photo of the fault where possible.",
+   "Record the item, quantity, supplier and reason in the receiving register.",
+   "Inform the manager and the purchaser so a replacement can be arranged.",
+   "Tell the chef at once if a menu item will be affected.",
+   "Review a supplier who has repeated rejections and consider replacing them."
+  ],
+  "controls": "Rejected food never goes into the stores or fridges, even for a short time."
+ },
+ {
+  "name": "Kitchen Cleaning",
+  "purpose": "Keep the kitchen clean through the day and leave it clean at night.",
+  "steps": [
+   "Clean as you go: wipe spills, clear scraps and wash boards and knives between tasks.",
+   "After each service, clear the work tables, wash them with detergent and warm water, rinse, sanitise and let them air dry.",
+   "Clean the cooking range, tandoor surround, fryer outside and hot plates once they have cooled.",
+   "Wash and sanitise sinks, taps and hand wash basins, and refill soap and paper towels.",
+   "Empty the bins, wash them, and fit new bags.",
+   "Sweep the floor, scrub with detergent, rinse towards the drain and squeegee dry. Clean under and behind equipment.",
+   "Clear and wash the drain covers and traps.",
+   "Wash the mops and cloths, hang them to dry, and sign the cleaning checklist."
+  ],
+  "controls": "Food and clean utensils are covered or removed before cleaning starts. Colour-coded cloths and mops: kitchen ones never go to the washroom."
+ },
+ {
+  "name": "Food Contact Surface Sanitization",
+  "purpose": "Kill germs on surfaces and equipment that touch food.",
+  "steps": [
+   "Remove food and loose dirt from the surface.",
+   "Wash with detergent and warm water, scrubbing off grease and residue.",
+   "Rinse with clean water so no detergent is left.",
+   "Apply food-safe sanitiser at the strength on its label; for chlorine, about 100 ppm and never above 200 ppm.",
+   "Leave it wet for the contact time on the label, usually 1 to 2 minutes.",
+   "Let it air dry. Do not wipe it with a cloth.",
+   "Sanitise before starting work, after raw meat, poultry, fish or eggs, between different foods, every 4 hours of continuous use, and at closing.",
+   "Check the sanitiser strength with test strips at the start of each shift and make a fresh solution daily."
+  ],
+  "controls": "Clean first, then sanitise: sanitiser does not work on a dirty or greasy surface. Too weak does nothing; too strong leaves a chemical residue."
+ },
+ {
+  "name": "Washroom Cleaning",
+  "purpose": "Keep washrooms clean and stocked so they do not spread germs to the kitchen or guests.",
+  "steps": [
+   "Use the washroom's own gloves, cloths, brushes and mop, marked in a separate colour. They never enter the kitchen.",
+   "Put on gloves and place the 'Cleaning in progress' sign.",
+   "Flush, apply toilet cleaner inside the bowl and under the rim, and leave it to work.",
+   "Clean the basins, taps, mirrors, door handles, flush buttons and switches with disinfectant.",
+   "Scrub the bowl with the toilet brush, flush, then wipe the seat, lid and outside with disinfectant.",
+   "Empty the bins and refill soap, paper towels and tissue.",
+   "Mop the floor with disinfectant, working towards the door, and leave it dry.",
+   "Check every hour during service and sign the checklist on the door. Wash hands thoroughly after cleaning."
+  ],
+  "controls": "Washroom cleaning tools are kept separately and never used anywhere else. Soap and running water are always available."
+ },
+ {
+  "name": "Kitchen Deep Cleaning",
+  "purpose": "Remove the grease and dirt that daily cleaning does not reach.",
+  "steps": [
+   "Do it after closing, weekly or as scheduled. Remove or cover all food, utensils and small equipment first.",
+   "Switch off and unplug electrical equipment and close the gas valves.",
+   "Pull equipment away from the walls and clean behind, beneath and on top of it.",
+   "Degrease the range, ovens, fryers, tandoor surround, walls, tiles and splashbacks, working from the top down.",
+   "Remove the hood filters, soak them in hot water with degreaser, scrub, rinse and dry them, and wipe inside the hood.",
+   "Empty the fridges and freezers one at a time, clean the shelves, walls, seals and drip trays, and sanitise.",
+   "Clean drains, grease traps, floor corners, shelving, light covers, fans and bins.",
+   "Rinse and sanitise all food contact surfaces, let everything dry, put equipment back, relight and test it, and sign the deep cleaning record."
+  ],
+  "controls": "Electricity and gas are isolated before wet cleaning. All food contact surfaces are rinsed and sanitised before the kitchen is used again."
+ },
+ {
+  "name": "Chemical Handling",
+  "purpose": "Use cleaning chemicals without harming staff or contaminating food.",
+  "steps": [
+   "Use only chemicals approved for food premises, kept in their original labelled containers.",
+   "Store them in a separate locked cupboard or room, away from food, utensils and packaging, and below shoulder height.",
+   "Read the label and safety sheet before using a product for the first time.",
+   "Wear the gloves, apron and eye protection the label asks for.",
+   "Never mix chemicals. Bleach mixed with acid or ammonia cleaners gives off poisonous gas.",
+   "Never put a chemical into a food or drink container. Label every spray bottle with its contents.",
+   "Cover or remove food before spraying, and rinse food contact surfaces afterwards unless the product says no rinse is needed.",
+   "If a chemical is spilled, splashed on skin or eyes, or swallowed, follow the first aid on the label, rinse with plenty of water and tell the manager at once."
+  ],
+  "controls": "No chemical in an unlabelled or food container, ever. Chemicals and food are never stored or carried together."
+ },
+ {
+  "name": "Chemical Dilution",
+  "purpose": "Mix cleaning chemicals to the right strength: strong enough to work, not so strong as to be harmful.",
+  "steps": [
+   "Read the dilution rate on the label or the wall chart for the task.",
+   "Put on gloves and eye protection.",
+   "Use the measuring cup, pump or dosing unit. Never pour by guesswork.",
+   "Fill the bucket or bottle with water first, then add the chemical, to avoid splashes.",
+   "Use cold or lukewarm water unless the label says otherwise; hot water weakens chlorine sanitiser.",
+   "Label the diluted bottle with the product name, the dilution and the date.",
+   "Check sanitiser strength with a test strip: about 100 ppm chlorine for surfaces (never above 200 ppm), 50 ppm for washing vegetables.",
+   "Make fresh sanitiser solution every day and whenever it looks dirty, and pour old solution down the drain, not into the sink used for food."
+  ],
+  "controls": "Measured every time, tested with a strip, made fresh daily. Stronger is not better."
+ },
+ {
+  "name": "Dishwashing",
+  "purpose": "Return every plate, pan and utensil clean, sanitised and dry.",
+  "steps": [
+   "Scrape food waste into the bin and pre-rinse.",
+   "Wash in the first sink with detergent and hot water, around 45°C, scrubbing all surfaces. Change the water when it is greasy or the suds are gone.",
+   "Rinse in the second sink with clean water.",
+   "Sanitise in the third sink: hot water at 77°C or above for 30 seconds, or approved sanitiser at the label strength for 1 to 2 minutes.",
+   "Air dry upside down on a clean rack. Do not dry with a cloth.",
+   "Check each item; anything greasy or stained goes back to be washed again. Set aside chipped or cracked items for disposal.",
+   "Store dry items covered or inverted on clean shelves, off the floor.",
+   "At the end of the shift, drain and clean the sinks, racks and drain boards."
+  ],
+  "controls": "Wash, rinse, sanitise, air dry, in that order. Chipped crockery and cracked utensils are taken out of use."
+ },
+ {
+  "name": "Pest Prevention",
+  "purpose": "Give pests no way in, no food and no place to hide.",
+  "steps": [
+   "Keep outside doors closed. Fit self-closers, door sweeps and strip curtains, and insect screens on windows and vents.",
+   "Seal holes and gaps around pipes, drains and cables, and keep drain covers in place.",
+   "Check every delivery for insects, droppings and gnawed packs before it comes in.",
+   "Store food in closed containers on racks, 15 cm off the floor and away from the walls.",
+   "Clean up spills and crumbs straight away, and clean under and behind equipment every day.",
+   "Empty the bins during the day, keep lids closed, and keep the outside waste area clean and closed.",
+   "Keep insect light traps on, away from food preparation tables, and empty the catch trays weekly.",
+   "Do not prop the back door open, and remove unused boxes, crates and equipment where pests can hide."
+  ],
+  "controls": "Pest control treatment is done only by the licensed contractor, never by kitchen staff with sprays near food."
+ },
+ {
+  "name": "Pest Inspection",
+  "purpose": "Find signs of pests early, before there is an infestation.",
+  "steps": [
+   "Walk the premises every morning before work starts, with a torch.",
+   "Check the stores, behind and under equipment, drains, the dishwashing area, ceiling voids, the waste area and the receiving door.",
+   "Look for droppings, gnaw marks, greasy rub marks, nests, damaged packs, live or dead insects, egg cases, and flies around drains.",
+   "Check the rodent bait stations, glue boards and insect light traps, and note any catch.",
+   "Check that doors, screens and drain covers are intact.",
+   "Write the findings in the pest inspection log each day, including 'nothing found'.",
+   "If anything is found, raise an issue with ECCS in the app with a photo, and discard any food that may be affected.",
+   "Go round with the pest control technician at each visit and sign the service report."
+  ],
+  "controls": "Any sign of rodents or cockroaches is reported the same day. Food that pests may have touched is discarded."
+ },
+ {
+  "name": "Pest Sighting Reporting",
+  "purpose": "Make sure every pest sighting is acted on quickly.",
+  "steps": [
+   "Tell the supervisor or manager as soon as you see a pest or any sign of one.",
+   "Note what was seen, where, when and how many, and take a photo if possible.",
+   "Discard any food that may have been touched, and wash and sanitise the surfaces and utensils nearby.",
+   "Do not spray insecticide in food areas.",
+   "Raise an issue with ECCS in the app under 'Pest sighting', with the photo.",
+   "Close off the area if needed until it is checked and cleaned.",
+   "Find how it got in or what attracted it, such as an open door, a gap, spilled food or standing water, and fix that.",
+   "Record the sighting and what was done in the pest log, and check the area again daily for a week."
+  ],
+  "controls": "A sighting is reported and recorded the same day, however small. Rodent or cockroach activity near food stops work in that area until it is cleaned."
+ },
+ {
+  "name": "Food Waste Segregation",
+  "purpose": "Separate waste so it can be disposed of properly and does not attract pests.",
+  "steps": [
+   "Use separate, labelled, colour-coded bins: green for wet waste such as food scraps and peelings, blue for dry waste such as paper, plastic, glass and tins.",
+   "Keep a separate closed container for used cooking oil.",
+   "Use bins with lids and foot pedals, lined with a bag, at each work area.",
+   "Put waste in the right bin as it is produced. Do not let it pile up on tables.",
+   "Put broken glass and crockery in a marked rigid container, not in a bag.",
+   "Do not put food waste in the dry waste bin or pour oil or solids into the drain.",
+   "Tie the bags and take them to the waste area when three-quarters full.",
+   "Wash hands after handling waste."
+  ],
+  "controls": "Wet and dry waste are never mixed. Bins in the kitchen always have a lid."
+ },
+ {
+  "name": "Waste Bin Cleaning",
+  "purpose": "Keep bins clean so they do not smell, breed flies or spread germs.",
+  "steps": [
+   "Empty every bin at the end of each shift, and earlier when three-quarters full.",
+   "Take the bins to the bin wash area, not a food or dish sink.",
+   "Wear gloves and an apron kept for the job.",
+   "Rinse out loose waste, scrub inside, outside, the lid and the pedal with detergent and hot water, and rinse.",
+   "Spray with disinfectant and leave for the time on its label.",
+   "Leave the bins upside down to drain and dry.",
+   "Fit a new bag and put each bin back in its place.",
+   "Clean the bin wash area, wash the brush, and wash hands thoroughly."
+  ],
+  "controls": "Bins are washed every day. The brush and gloves used for bins are used for nothing else."
+ },
+ {
+  "name": "Waste Disposal",
+  "purpose": "Remove waste from the premises regularly and safely.",
+  "steps": [
+   "Take tied bags from the kitchen to the waste storage area by the route that avoids food preparation and the dining area.",
+   "Do not carry waste through the kitchen during service.",
+   "Keep the waste storage area closed, away from food stores and the receiving door, with covered bins.",
+   "Hand wet and dry waste to the municipal or authorised collector every day. Do not let it stay overnight where it can be avoided.",
+   "Give used cooking oil only to an authorised collector and keep the receipt.",
+   "Wash down and disinfect the waste area every day after collection.",
+   "Never burn waste or dump it outside the premises.",
+   "Wash hands and change the apron before returning to food work."
+  ],
+  "controls": "Waste leaves the premises at least once a day. The waste area is kept closed against rodents, dogs and birds."
+ },
+ {
+  "name": "Fire Prevention",
+  "purpose": "Stop a fire starting in the kitchen.",
+  "steps": [
+   "Never leave a lit burner, tandoor or hot oil unattended.",
+   "Keep cloths, paper, cardboard, oil cans and packaging away from flames and hot surfaces.",
+   "Clean grease from the range, hood filters and walls every day; grease build-up is the main cause of kitchen fires.",
+   "Have the exhaust duct cleaned professionally on schedule.",
+   "Check gas pipes, regulators and hoses daily for cracks and leaks. Do not use damaged plugs, wires or overloaded sockets.",
+   "Keep fire extinguishers and the fire blanket in place, visible and unblocked, with gauges in the green and service dates valid.",
+   "Keep exits, passages and the electrical panel clear at all times.",
+   "At closing, turn off all burners and gas valves and switch off equipment that does not need to stay on."
+  ],
+  "controls": "No unattended flame or hot oil. Exits are never blocked or locked while people are inside."
+ },
+ {
+  "name": "Fire Extinguisher",
+  "purpose": "Put out a small fire safely, and know when not to try.",
+  "steps": [
+   "Raise the alarm and make sure someone is calling the fire service on 101 before you tackle a fire.",
+   "Fight a fire only if it is small, you have the right extinguisher, and your way out is behind you.",
+   "For an oil or fat fire in a pan or fryer, turn off the heat and cover it with a lid or fire blanket, or use a wet chemical extinguisher. Never use water.",
+   "For an electrical fire, switch off the power if it is safe, and use a CO2 or dry powder extinguisher. Never use water.",
+   "For paper, wood or cloth, use a water or dry powder extinguisher.",
+   "To use it: pull the pin, aim at the base of the fire, squeeze the handle, and sweep from side to side.",
+   "If the fire does not go out quickly or the room fills with smoke, leave, close the door behind you and evacuate.",
+   "Report every use. A used extinguisher must be refilled before it goes back on the wall."
+  ],
+  "controls": "Never use water on burning oil or on electrical equipment. If in doubt, get out."
+ },
+ {
+  "name": "Fire Evacuation",
+  "purpose": "Get everyone out safely if there is a fire.",
+  "steps": [
+   "Whoever finds a fire shouts 'Fire', sets off the alarm and tells the manager.",
+   "Call the fire service on 101 and give the address.",
+   "If it is safe and on your way out, turn off the gas at the main valve and switch off burners.",
+   "Front-of-house staff guide guests calmly to the nearest exit. Do not use the lift.",
+   "Leave belongings behind. Help anyone who needs assistance.",
+   "Check the washrooms, stores and cold room as you leave, and close doors behind you without locking them.",
+   "Go to the assembly point. The manager takes a headcount of staff against the duty roster.",
+   "Nobody goes back inside until the fire service says it is safe."
+  ],
+  "controls": "People first, property never. Hold an evacuation drill at least twice a year so every staff member knows the exits and the assembly point."
+ },
+ {
+  "name": "Gas Leak Emergency",
+  "purpose": "Deal with a gas leak without causing a fire or explosion.",
+  "steps": [
+   "If you smell gas, tell everyone nearby and the manager at once.",
+   "Put out all flames. Do not light a match or a lighter.",
+   "Do not switch any light, fan, exhaust or appliance on or off, and do not use a phone inside the kitchen: a spark can ignite the gas.",
+   "Close the cylinder valves or the main gas valve.",
+   "Open the doors and windows to let the gas out.",
+   "Move everyone out of the kitchen and stop people coming in.",
+   "From outside, call the gas supplier's emergency number or 1906. If there is a fire, call 101.",
+   "Do not go back in or relight anything until a technician has found and repaired the leak and confirmed it is safe."
+  ],
+  "controls": "No flames, no switches, no phones where gas can be smelled. Only a trained technician repairs a leak."
+ },
+ {
+  "name": "Staff Injury",
+  "purpose": "Give quick, correct first aid for the injuries that happen in kitchens, and keep food safe.",
+  "steps": [
+   "Stop work, make the area safe, and call the supervisor and the first aider.",
+   "For a burn or scald: hold it under cool running water for 20 minutes. Do not apply ice, butter, toothpaste or oil. Cover loosely with a clean non-stick dressing.",
+   "For a cut: press firmly with a clean pad and raise the hand. When bleeding stops, clean it and cover with a blue waterproof dressing and a glove.",
+   "For a chemical splash: rinse the skin or eye with running water for at least 15 minutes.",
+   "For a fall or a suspected fracture: do not move the person unless they are in danger. Call for medical help.",
+   "Call an ambulance on 108 for a serious burn, heavy bleeding, an eye injury, a head injury or loss of consciousness.",
+   "Discard any food that may have blood on it, and wash and sanitise the surfaces and equipment.",
+   "Write up the accident in the accident register and fix what caused it."
+  ],
+  "controls": "The first aid box is stocked and its location known to all staff. A person with an open wound does not handle food until it is fully covered."
+ },
+ {
+  "name": "Ice Handling",
+  "purpose": "Keep ice as clean as the food and drink it goes into.",
+  "steps": [
+   "Make ice only from drinking water passed through the filter.",
+   "Wash hands before handling ice.",
+   "Use a clean scoop with a handle. Never scoop with a glass, a cup or bare hands.",
+   "Keep the scoop in its own clean holder outside the ice, not buried in it.",
+   "Keep the ice machine or bin closed, and store nothing in it: no bottles, food or garnish.",
+   "Carry ice in clean, covered, food-grade buckets used only for ice.",
+   "If a glass breaks near the ice, discard all the ice in that bin and clean it out.",
+   "Empty, clean and sanitise the ice bin every week and the ice machine as its maker instructs, and change the water filter on schedule."
+  ],
+  "controls": "Ice is food. Ice used to chill bottles or display food is never served in drinks."
+ },
+ {
+  "name": "Gas Safety",
+  "purpose": "Use LPG and piped gas safely every day.",
+  "steps": [
+   "At opening, check hoses, regulators and pipe joints for cracks, wear and loose fittings before lighting anything.",
+   "Test a suspect joint with soap solution: bubbles mean a leak. Never test with a flame.",
+   "Keep cylinders upright, in a ventilated place, away from heat, and chained or secured. Keep spares outside the kitchen.",
+   "Light the match or lighter first, then open the burner valve.",
+   "Keep burners clean so the flame is blue and steady. A yellow, lifting or noisy flame needs attention.",
+   "When changing a cylinder, close the valve, put out all nearby flames, check the rubber seal, and test the joint with soap solution.",
+   "Replace rubber hoses as soon as they are cracked, and in any case by the date marked on them.",
+   "At closing, turn off every burner, then the cylinder valves or main valve, and record the check."
+  ],
+  "controls": "Any smell of gas is treated as a leak: no flames, no switches, valves closed, area ventilated, technician called."
+ },
+ {
+  "name": "Ventilation & Exhaust",
+  "purpose": "Keep the kitchen cool and free of smoke, and the exhaust free of the grease that causes fires.",
+  "steps": [
+   "Switch on the exhaust and fresh air fans before lighting the burners, and leave them on until cooking has finished.",
+   "Check each day that the hood is drawing smoke properly and that all filters are fitted.",
+   "Wipe the outside of the hood daily and empty the grease collection tray.",
+   "Remove the grease filters every week (daily for heavy frying or tandoor work), soak in hot water with degreaser, scrub, rinse, dry and refit.",
+   "Never cook with the filters removed.",
+   "Have the hood interior, duct and exhaust fan deep cleaned by ECCS on the agreed schedule, and keep the service report.",
+   "Report weak suction, unusual noise, vibration or dripping grease at once.",
+   "Keep the fresh air inlets and the insect mesh on them clean."
+  ],
+  "controls": "Grease in the hood and duct is fuel for a fire. Filters are cleaned at least weekly and the duct professionally on schedule."
+ }
+]

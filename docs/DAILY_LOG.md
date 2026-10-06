@@ -50,6 +50,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Built the SOP library. Imported 792 SOPs (265 on running the restaurant, 527 dishes and recipes), sorted the workbook's 27 modules into 13 app categories, and added "Find a ready-made SOP" to the app: type and matches appear, or pick a category and section; open one to read it; "Add to my SOPs" makes the restaurant's own copy to reword.
 - Found while importing: the workbook's steps are mostly shared between SOPs (20 different step sets across the 265 operating SOPs; one identical set for all 527 dishes), and a few do not fit their title. Recorded as an open question for the founder.
 - Tested with 5 more end-to-end tests (112 in total) and in Chrome as the Owner. Not tried on the phone.
+- Founder decision on the thin workbook content: Claude writes real steps for the most important SOPs and they go straight into the app, with no draft label and no separate review. Wrote 50 (397 steps in all) covering food safety, cooking and cooling temperatures, storage, receiving, cleaning, chemicals, dishwashing, pests, waste, fire, gas and injuries, and loaded them into the library. The temperatures and other limits follow FSSAI and FoSTaC guidance as Claude understands them and have not been checked by a food-safety professional.
 - Switched off Expo's generated route types, which kept causing false type errors while a dev server was running.
 
 **Carried over from yesterday**

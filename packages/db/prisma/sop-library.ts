@@ -2,8 +2,13 @@
 // browsing in the app and copies into their own SOPs, where they can then
 // change the wording.
 //
-// Source: prisma/data/sop-library.json, generated from the founder's Excel
-// workbook (pnpm soplibrary:import). English only.
+// Sources, both in prisma/data, English only:
+// - sop-library.json       generated from the founder's Excel workbook (pnpm soplibrary:import)
+// - sop-library-eccs.json  fuller wording for the SOPs restaurants need most (food
+//                          safety, storage, cleaning, pests, waste, fire and gas),
+//                          edited by hand. Each entry replaces the purpose, steps and
+//                          controls of the workbook SOP with the same name, whose own
+//                          steps are shared between many SOPs and say little.
 //
 // Loading is safe to repeat: entries are matched by code, updated in place,
 // and ones no longer in the file are switched off rather than deleted, so
@@ -27,12 +32,28 @@ interface LibraryEntry {
   keywords?: string[];
 }
 
+interface FullerWording {
+  name: string;
+  purpose: string;
+  steps: string[];
+  controls?: string | null;
+}
+
+const readJson = <T>(file: string): T => JSON.parse(readFileSync(new URL(`./data/${file}`, import.meta.url), "utf8")) as T;
+
 /** Everything a person might type to find this SOP, in lower case. */
 const searchText = (entry: LibraryEntry) =>
   [entry.name, entry.section, entry.area ?? "", entry.role ?? "", ...(entry.keywords ?? [])].join(" ").toLowerCase();
 
 export async function loadSopLibrary(prisma: PrismaClient): Promise<{ total: number; switchedOff: number }> {
-  const entries = JSON.parse(readFileSync(new URL("./data/sop-library.json", import.meta.url), "utf8")) as LibraryEntry[];
+  const entries = readJson<LibraryEntry[]>("sop-library.json");
+
+  for (const fuller of readJson<FullerWording[]>("sop-library-eccs.json")) {
+    const matches = entries.filter((entry) => entry.kind === "OPERATION" && entry.name === fuller.name);
+    // A name that matches nothing, or two SOPs, means the workbook changed: stop rather than guess.
+    if (matches.length !== 1) throw new Error(`sop-library-eccs.json: "${fuller.name}" matches ${matches.length} workbook SOPs, expected 1`);
+    Object.assign(matches[0]!, { purpose: fuller.purpose, steps: fuller.steps, controls: fuller.controls ?? null });
+  }
 
   // In batches, so several hundred entries do not mean several hundred round trips one after another.
   for (let start = 0; start < entries.length; start += 50) {

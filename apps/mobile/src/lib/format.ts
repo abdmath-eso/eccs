@@ -29,6 +29,12 @@ export function formatDate(isoDate: string, language: LanguageCode): string {
   }
 }
 
+/** Writes a YYYY-MM-DD date the way it is typed in forms here: DD/MM/YYYY. */
+export function toTypedDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 /**
  * Reads a date typed the Indian way, day first ("31/03/2027", "31-3-27",
  * "31.03.2027"), and returns it as YYYY-MM-DD, or null if it is not a real date.

@@ -8,11 +8,12 @@ import {
   type DocumentCategory,
   type DocumentDto,
   type LicenceDto,
+  type LicenceReadingDto,
   type LicenceState,
   type LicenceType,
   type OutletSummaryDto,
 } from "@eccs/shared";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Button, Card, ErrorMessage, Field } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -76,6 +77,55 @@ async function uploadFrom(form: HTMLFormElement, outletId: string): Promise<stri
   if (!(file instanceof File) || file.size === 0) return undefined;
   const uploaded = await api.attachments.upload({ outletId, file, kind: "DOCUMENT", fileName: file.name });
   return uploaded.id;
+}
+
+/**
+ * Uploads a licence document as soon as it is chosen and asks the server to
+ * read the number and dates off it, so the form can be filled in for the
+ * person to check. `onDetails` receives whatever could be read.
+ */
+function useLicenceFile(outletId: string, onDetails: (details: LicenceReadingDto) => void) {
+  const [attachmentId, setAttachmentId] = useState<string>();
+  const [reading, setReading] = useState<"working" | "filled" | "nothing" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Counts the files chosen, so a slow answer about an earlier file is ignored.
+  const latestChoice = useRef(0);
+
+  async function choose(file: File | undefined) {
+    const choice = ++latestChoice.current;
+    setAttachmentId(undefined);
+    setError(null);
+    setReading(file ? "working" : null);
+    if (!file) return;
+    try {
+      const uploaded = await api.attachments.upload({ outletId, file, kind: "DOCUMENT", fileName: file.name });
+      if (choice !== latestChoice.current) return;
+      setAttachmentId(uploaded.id);
+      const details = await api.licences.read(uploaded.id);
+      if (choice !== latestChoice.current) return;
+      onDetails(details);
+      setReading(details.expiresOn || details.number ? "filled" : "nothing");
+    } catch (e) {
+      if (choice !== latestChoice.current) return;
+      setReading(null);
+      setError(describe(e));
+    }
+  }
+
+  const note =
+    reading === "working" ? (
+      <p className="text-sm text-muted sm:col-span-full">Reading the document…</p>
+    ) : reading === "filled" ? (
+      <p className="text-sm font-medium text-primary sm:col-span-full">
+        ✓ Filled in from the document. Please check the details before saving.
+      </p>
+    ) : reading === "nothing" ? (
+      <p className="text-sm text-muted sm:col-span-full">Could not read the details from this file. Please type them in.</p>
+    ) : error ? (
+      <p className="text-sm text-danger sm:col-span-full">{error}</p>
+    ) : null;
+
+  return { attachmentId, working: reading === "working", note, choose };
 }
 
 /**
@@ -276,19 +326,6 @@ type Change = (action: () => Promise<unknown>) => Promise<boolean>;
 
 function LicenceRow({ licence, mayEdit, outletId, onChange }: { licence: LicenceDto; mayEdit: boolean; outletId: string; onChange: Change }) {
   const [renewing, setRenewing] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  async function renew(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const expiresOn = String(new FormData(form).get("expiresOn") ?? "");
-    setBusy(true);
-    const saved = await onChange(async () =>
-      api.licences.update(licence.id, { expiresOn, attachmentId: await uploadFrom(form, outletId) }),
-    );
-    setBusy(false);
-    if (saved) setRenewing(false);
-  }
 
   return (
     <div className="rounded-lg border border-border p-3 text-sm">
@@ -330,28 +367,99 @@ function LicenceRow({ licence, mayEdit, outletId, onChange }: { licence: Licence
         </div>
       </div>
 
-      {renewing && (
-        <form onSubmit={renew} className="mt-3 grid gap-3 sm:grid-cols-3">
-          <Field label="New expiry date" name="expiresOn" type="date" required />
-          <Field label="New copy (PDF or image)" name="file" type="file" accept="application/pdf,image/*" />
-          <div className="flex items-end gap-3">
-            <Button type="submit" loading={busy}>
-              Save
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setRenewing(false)}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      )}
+      {renewing && <RenewForm licence={licence} outletId={outletId} onChange={onChange} onClose={() => setRenewing(false)} />}
     </div>
   );
 }
 
-function AddLicenceForm({ outletId, existing, onChange }: { outletId: string; existing: LicenceDto[]; onChange: Change }) {
-  const [open, setOpen] = useState(false);
-  const [type, setType] = useState<LicenceType>("FSSAI");
+function RenewForm({ licence, outletId, onChange, onClose }: { licence: LicenceDto; outletId: string; onChange: Change; onClose: () => void }) {
+  const [number, setNumber] = useState(licence.number ?? "");
+  const [expiresOn, setExpiresOn] = useState("");
   const [busy, setBusy] = useState(false);
+  // A date already typed is left alone; the number starts as the old licence's, so the one on the new document wins.
+  const file = useLicenceFile(outletId, (details) => {
+    if (details.number) setNumber(details.number);
+    if (details.expiresOn) setExpiresOn((current) => current || details.expiresOn!);
+  });
+
+  async function renew(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    setBusy(true);
+    const saved = await onChange(async () =>
+      api.licences.update(licence.id, {
+        expiresOn,
+        number: number.trim() || undefined,
+        attachmentId: file.attachmentId ?? (await uploadFrom(form, outletId)),
+      }),
+    );
+    setBusy(false);
+    if (saved) onClose();
+  }
+
+  return (
+    <form onSubmit={renew} className="mt-3 grid gap-3 sm:grid-cols-3">
+      <div className="sm:col-span-3">
+      <Field
+        label="New copy (PDF or image)"
+        name="file"
+        type="file"
+        accept="application/pdf,image/*"
+          hint="Choose it first and the details are filled in for you."
+          onChange={(e) => void file.choose(e.target.files?.[0])}
+        />
+      </div>
+      {file.note}
+      <Field label="Licence number" name="number" maxLength={60} value={number} onChange={(e) => setNumber(e.target.value)} />
+      <Field label="New expiry date" name="expiresOn" type="date" required value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} />
+      <div className="flex items-end gap-3">
+        <Button type="submit" loading={busy} disabled={file.working}>
+          Save
+        </Button>
+        <Button type="button" variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function AddLicenceForm(props: { outletId: string; existing: LicenceDto[]; onChange: Change }) {
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <div>
+        <Button variant="link" onClick={() => setOpen(true)}>
+          + Add a licence
+        </Button>
+      </div>
+    );
+  }
+  return <AddLicenceFields {...props} onClose={() => setOpen(false)} />;
+}
+
+function AddLicenceFields({
+  outletId,
+  existing,
+  onChange,
+  onClose,
+}: {
+  outletId: string;
+  existing: LicenceDto[];
+  onChange: Change;
+  onClose: () => void;
+}) {
+  const [type, setType] = useState<LicenceType>("FSSAI");
+  const [number, setNumber] = useState("");
+  const [expiresOn, setExpiresOn] = useState("");
+  const [busy, setBusy] = useState(false);
+  // Anything already typed is left alone.
+  const file = useLicenceFile(outletId, (details) => {
+    if (details.type && details.type !== "OTHER") setType(details.type);
+    if (details.number) setNumber((current) => current.trim() || details.number!);
+    if (details.expiresOn) setExpiresOn((current) => current || details.expiresOn!);
+  });
   // An outlet holds one licence of each standard kind, so adding the same kind again replaces the current one.
   const replacing = type === "OTHER" ? undefined : existing.find((licence) => licence.type === type);
 
@@ -366,27 +474,28 @@ function AddLicenceForm({ outletId, existing, onChange }: { outletId: string; ex
         outletId,
         type,
         name: text("name"),
-        number: text("number"),
-        expiresOn: text("expiresOn") ?? "",
-        attachmentId: await uploadFrom(form, outletId),
+        number: number.trim() || undefined,
+        expiresOn,
+        attachmentId: file.attachmentId ?? (await uploadFrom(form, outletId)),
       }),
     );
     setBusy(false);
-    if (saved) setOpen(false);
-  }
-
-  if (!open) {
-    return (
-      <div>
-        <Button variant="link" onClick={() => setOpen(true)}>
-          + Add a licence
-        </Button>
-      </div>
-    );
+    if (saved) onClose();
   }
 
   return (
     <form onSubmit={submit} className="grid gap-3 rounded-lg border border-primary p-3 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <Field
+          label="Document (PDF or image)"
+          name="file"
+          type="file"
+          accept="application/pdf,image/*"
+          hint="Choose it first and the details below are filled in for you."
+          onChange={(e) => void file.choose(e.target.files?.[0])}
+        />
+      </div>
+      {file.note}
       <label className="flex flex-col gap-1 text-sm font-medium">
         Licence
         <select value={type} onChange={(e) => setType(e.target.value as LicenceType)} className={selectStyle}>
@@ -398,19 +507,18 @@ function AddLicenceForm({ outletId, existing, onChange }: { outletId: string; ex
         </select>
       </label>
       <Field label="Name" name="name" maxLength={80} required={type === "OTHER"} hint={type === "OTHER" ? undefined : "Leave blank to use the standard name."} />
-      <Field label="Licence number" name="number" maxLength={60} />
-      <Field label="Expiry date" name="expiresOn" type="date" required />
-      <Field label="Document (PDF or image)" name="file" type="file" accept="application/pdf,image/*" />
+      <Field label="Licence number" name="number" maxLength={60} value={number} onChange={(e) => setNumber(e.target.value)} />
+      <Field label="Expiry date" name="expiresOn" type="date" required value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} />
       {replacing && (
         <p className="text-sm text-amber-700 sm:col-span-2">
           This outlet already has a {replacing.name ?? TYPE[replacing.type]}. Saving will replace it, and its old document will be deleted.
         </p>
       )}
       <div className="flex items-end gap-3">
-        <Button type="submit" loading={busy}>
+        <Button type="submit" loading={busy} disabled={file.working}>
           {replacing ? "Replace licence" : "Add licence"}
         </Button>
-        <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+        <Button type="button" variant="secondary" onClick={onClose}>
           Cancel
         </Button>
       </div>

@@ -7,7 +7,7 @@ import {
   type LicenceDto,
   type LicenceType,
 } from '@eccs/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { FileChooser } from '@/components/file-chooser';
@@ -20,7 +20,7 @@ import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { formatDate, parseTypedDate } from '@/lib/format';
+import { formatDate, parseTypedDate, toTypedDate } from '@/lib/format';
 import type { ChosenFile } from '@/lib/pick-file';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
@@ -51,13 +51,21 @@ export default function DocumentsScreen() {
   const [category, setCategory] = useState<VaultCategory>('certificate');
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<ChosenFile | null>(null);
+  // For licences the file is uploaded as soon as it is chosen, so its details can be read into the form.
+  const [uploadedId, setUploadedId] = useState<string | null>(null);
+  const [reading, setReading] = useState<'working' | 'filled' | 'nothing' | null>(null);
+  // Counts the files chosen, so a slow answer about an earlier file is ignored.
+  const latestChoice = useRef(0);
 
   useEffect(() => {
     if (!outletId) return;
     let cancelled = false;
     (async () => {
       try {
-        const [licenceList, documentList] = await Promise.all([api.licences.list({ outletId }), api.documents.list(outletId)]);
+        const [licenceList, documentList] = await Promise.all([
+          api.licences.list({ outletId }),
+          api.documents.list(outletId),
+        ]);
         if (cancelled) return;
         setLicences(licenceList);
         setDocuments(documentList);
@@ -81,11 +89,55 @@ export default function DocumentsScreen() {
     setCategory('certificate');
     setTitle('');
     setFile(null);
+    setUploadedId(null);
+    setReading(null);
     setError(null);
+    latestChoice.current += 1;
+  }
+
+  /**
+   * A licence document was chosen: upload it, then ask the server to read the
+   * number and dates off it and put them in the form for the person to check.
+   * Anything already typed is left alone.
+   */
+  async function licenceFileChosen(chosen: ChosenFile | null) {
+    const choice = ++latestChoice.current;
+    setFile(chosen);
+    setUploadedId(null);
+    setReading(null);
+    if (!chosen || !outletId) return;
+
+    setReading('working');
+    setError(null);
+    try {
+      const uploaded = await api.attachments.upload({
+        outletId,
+        file: chosen.file,
+        kind: 'DOCUMENT',
+        fileName: chosen.name,
+      });
+      if (choice !== latestChoice.current) return;
+      setUploadedId(uploaded.id);
+      const details = await api.licences.read(uploaded.id);
+      if (choice !== latestChoice.current) return;
+
+      const found = details.expiresOn !== null || details.number !== null;
+      if (details.expiresOn) setExpiry((current) => current.trim() || toTypedDate(details.expiresOn!));
+      // When renewing, the number shown is the old licence's, so the one on the new document wins.
+      if (details.number) setNumber((current) => (form === 'licence' && current.trim()) || details.number!);
+      if (form === 'licence' && details.type && details.type !== 'OTHER') setType(details.type);
+      setReading(found ? 'filled' : 'nothing');
+    } catch (e) {
+      if (choice !== latestChoice.current) return;
+      setFile(null);
+      setReading(null);
+      setError(errorMessage(e, t, { 0: 'error.upload' }));
+    }
   }
 
   /** Uploads the chosen file, if any, and returns its id for attaching. */
   async function uploadChosen(): Promise<string | undefined> {
+    if (uploadedId) return uploadedId;
     if (!file || !outletId) return undefined;
     const uploaded = await api.attachments.upload({ outletId, file: file.file, kind: 'DOCUMENT', fileName: file.name });
     return uploaded.id;
@@ -98,7 +150,10 @@ export default function DocumentsScreen() {
     setError(null);
     try {
       await action();
-      const [licenceList, documentList] = await Promise.all([api.licences.list({ outletId }), api.documents.list(outletId)]);
+      const [licenceList, documentList] = await Promise.all([
+        api.licences.list({ outletId }),
+        api.documents.list(outletId),
+      ]);
       setLicences(licenceList);
       setDocuments(documentList);
       setForm(null);
@@ -128,7 +183,13 @@ export default function DocumentsScreen() {
   function renewLicence(licenceId: string) {
     const expiresOn = parseTypedDate(expiry);
     if (!expiresOn) return setError(t('error.date'));
-    void save('form', async () => api.licences.update(licenceId, { expiresOn, attachmentId: await uploadChosen() }));
+    void save('form', async () =>
+      api.licences.update(licenceId, {
+        expiresOn,
+        number: number.trim() || undefined,
+        attachmentId: await uploadChosen(),
+      }),
+    );
   }
 
   function saveDocument() {
@@ -158,6 +219,20 @@ export default function DocumentsScreen() {
             : licence.type === type,
         ) ?? null)
       : null;
+
+  const readingNote =
+    reading === 'working' ? (
+      <View style={styles.reading}>
+        <ActivityIndicator color={theme.primary} />
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('docs.reading')}
+        </ThemedText>
+      </View>
+    ) : reading ? (
+      <ThemedText type="small" themeColor={reading === 'filled' ? 'primary' : 'textSecondary'}>
+        {reading === 'filled' ? `✓ ${t('docs.readFilled')}` : t('docs.readNothing')}
+      </ThemedText>
+    ) : null;
 
   const openFile = (path: string) => void Linking.openURL(api.fileUrl(path));
   const option = (selected: boolean) => [
@@ -218,23 +293,44 @@ export default function DocumentsScreen() {
         const color = stateColor[licence.state];
         const renewing = typeof form === 'object' && form !== null && form.renew === licence.id;
         return (
-          <View key={licence.id} style={[styles.card, { borderColor: licence.state === 'VALID' ? theme.border : color }]}>
+          <View
+            key={licence.id}
+            style={[styles.card, { borderColor: licence.state === 'VALID' ? theme.border : color }]}>
             <View style={styles.cardHeader}>
               <ThemedText type="default" style={styles.cardTitle}>
                 {licenceName(licence)}
               </ThemedText>
-              <Ionicons name={stateIcon[licence.state]} size={28} color={color} accessibilityLabel={t(`docs.state${licence.state}`)} />
+              <Ionicons
+                name={stateIcon[licence.state]}
+                size={28}
+                color={color}
+                accessibilityLabel={t(`docs.state${licence.state}`)}
+              />
             </View>
             <ThemedText type="smallBold" style={{ color }}>
               {t(`docs.state${licence.state}`)} · {countdown(licence)}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              {t(licence.state === 'EXPIRED' ? 'docs.expiredOn' : 'docs.expires', { date: formatDate(licence.expiresOn, language) })}
+              {t(licence.state === 'EXPIRED' ? 'docs.expiredOn' : 'docs.expires', {
+                date: formatDate(licence.expiresOn, language),
+              })}
               {licence.number ? ` · ${licence.number}` : ''}
             </ThemedText>
 
             {renewing ? (
               <View style={styles.form}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {t('docs.readHint')}
+                </ThemedText>
+                <FileChooser value={file} onChange={(chosen) => void licenceFileChosen(chosen)} />
+                {readingNote}
+                <TextField
+                  label={t('docs.number')}
+                  value={number}
+                  onChangeText={setNumber}
+                  maxLength={60}
+                  autoCapitalize="characters"
+                />
                 <TextField
                   label={t('docs.newExpiry')}
                   value={expiry}
@@ -242,11 +338,14 @@ export default function DocumentsScreen() {
                   placeholder={t('docs.datePlaceholder')}
                   keyboardType="numbers-and-punctuation"
                   maxLength={10}
-                  autoFocus
                 />
-                <FileChooser value={file} onChange={setFile} />
                 <ErrorText message={error} />
-                <Button label={t('docs.save')} onPress={() => renewLicence(licence.id)} loading={busy === 'form'} disabled={!expiry.trim()} />
+                <Button
+                  label={t('docs.save')}
+                  onPress={() => renewLicence(licence.id)}
+                  loading={busy === 'form'}
+                  disabled={!expiry.trim() || reading === 'working'}
+                />
                 <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
               </View>
             ) : (
@@ -260,8 +359,19 @@ export default function DocumentsScreen() {
                     {t('docs.noFile')}
                   </ThemedText>
                 )}
-                <Button label={t('docs.renew')} variant="secondary" onPress={() => openForm({ renew: licence.id })} />
-                <Button label={t('docs.remove')} variant="danger" onPress={() => setRemoval({ kind: 'licence', licence })} />
+                <Button
+                  label={t('docs.renew')}
+                  variant="secondary"
+                  onPress={() => {
+                    openForm({ renew: licence.id });
+                    setNumber(licence.number ?? '');
+                  }}
+                />
+                <Button
+                  label={t('docs.remove')}
+                  variant="danger"
+                  onPress={() => setRemoval({ kind: 'licence', licence })}
+                />
               </View>
             )}
           </View>
@@ -274,6 +384,11 @@ export default function DocumentsScreen() {
             <ThemedText type="default" style={styles.cardTitle}>
               {t('docs.addLicence')}
             </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('docs.readHint')}
+            </ThemedText>
+            <FileChooser value={file} onChange={(chosen) => void licenceFileChosen(chosen)} />
+            {readingNote}
             <ThemedText type="smallBold" themeColor="textSecondary">
               {t('docs.licenceType')}
             </ThemedText>
@@ -291,13 +406,21 @@ export default function DocumentsScreen() {
                 </Pressable>
               ))}
             </View>
-            {type === 'OTHER' && <TextField label={t('docs.licenceName')} value={name} onChangeText={setName} maxLength={80} />}
+            {type === 'OTHER' && (
+              <TextField label={t('docs.licenceName')} value={name} onChangeText={setName} maxLength={80} />
+            )}
             {replacing && (
               <ThemedText type="small" themeColor="warning">
                 {t('docs.replaces', { name: licenceName(replacing) })}
               </ThemedText>
             )}
-            <TextField label={t('docs.number')} value={number} onChangeText={setNumber} maxLength={60} autoCapitalize="characters" />
+            <TextField
+              label={t('docs.number')}
+              value={number}
+              onChangeText={setNumber}
+              maxLength={60}
+              autoCapitalize="characters"
+            />
             <TextField
               label={t('docs.expiresOn')}
               value={expiry}
@@ -306,13 +429,12 @@ export default function DocumentsScreen() {
               keyboardType="numbers-and-punctuation"
               maxLength={10}
             />
-            <FileChooser value={file} onChange={setFile} />
             <ErrorText message={error} />
             <Button
               label={t('docs.save')}
               onPress={saveLicence}
               loading={busy === 'form'}
-              disabled={!expiry.trim() || (type === 'OTHER' && name.trim().length < 2)}
+              disabled={!expiry.trim() || reading === 'working' || (type === 'OTHER' && name.trim().length < 2)}
             />
             <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
           </View>
@@ -389,7 +511,12 @@ export default function DocumentsScreen() {
             </View>
             <FileChooser value={file} onChange={setFile} />
             <ErrorText message={error} />
-            <Button label={t('docs.save')} onPress={saveDocument} loading={busy === 'form'} disabled={title.trim().length < 2} />
+            <Button
+              label={t('docs.save')}
+              onPress={saveDocument}
+              loading={busy === 'form'}
+              disabled={title.trim().length < 2}
+            />
             <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
           </View>
         ) : (
@@ -424,6 +551,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sectionGap: { marginTop: Spacing.four },
+  reading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },
@@ -431,7 +559,14 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one },
   action: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: Spacing.three },
-  rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, padding: Spacing.three, minHeight: MinTouchSize },
+  rowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.three,
+    minHeight: MinTouchSize,
+  },
   rowText: { flex: 1, gap: Spacing.half },
   rowDelete: { minWidth: MinTouchSize, minHeight: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
 });

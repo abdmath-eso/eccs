@@ -10,6 +10,7 @@ import { router } from 'expo-router';
 import { useEffect, useState, type ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-native';
 
+import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
 import { MinTouchSize, Spacing } from '@/constants/theme';
@@ -244,7 +245,8 @@ export function ScoreTrend({ history, today }: { history: ScoreHistoryPointDto[]
         </ThemedText>
       </View>
       <View style={styles.trendBody}>
-        <View
+        <DirectionView
+          direction="ltr"
           accessible
           accessibilityRole="image"
           accessibilityLabel={t('score.trendA11y', { min: Math.min(...values), max: Math.max(...values), latest: latest.score })}
@@ -271,15 +273,15 @@ export function ScoreTrend({ history, today }: { history: ScoreHistoryPointDto[]
               </View>
             );
           })}
-        </View>
-        <View style={styles.trendDates}>
+        </DirectionView>
+        <DirectionView direction="ltr" style={styles.trendDates}>
           <ThemedText type="small" themeColor="textSecondary">
             {formatDayShort(first, language)}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             {formatDayShort(today, language)}
           </ThemedText>
-        </View>
+        </DirectionView>
         <ThemedText type="smallBold" accessibilityLiveRegion="polite">
           {t('score.trendDay', { date: formatDayShort(shown.date, language), score: shown.score })}
         </ThemedText>
@@ -324,8 +326,7 @@ const styles = StyleSheet.create({
   trendScale: { height: TREND_HEIGHT, justifyContent: 'space-between', alignItems: 'flex-end' },
   trendBody: { flex: 1, gap: Spacing.one },
   trendPlot: {
-    // Time runs left to right whatever the language.
-    direction: 'ltr',
+    // Time runs left to right whatever the language: the box is a DirectionView set to "ltr".
     flexDirection: 'row',
     alignItems: 'flex-end',
     height: TREND_HEIGHT,
@@ -336,5 +337,5 @@ const styles = StyleSheet.create({
   trendSlot: { flex: 1, height: TREND_HEIGHT, justifyContent: 'flex-end' },
   trendBar: { borderTopLeftRadius: 3, borderTopRightRadius: 3 },
   trendBarQuiet: { opacity: 0.45 },
-  trendDates: { direction: 'ltr', flexDirection: 'row', justifyContent: 'space-between' },
+  trendDates: { flexDirection: 'row', justifyContent: 'space-between' },
 });

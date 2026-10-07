@@ -41,6 +41,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Tested: 138 end-to-end tests pass, with the sign-off test extended for the rating. In Chrome as the Owner: the new bar, and a full sign-off of a test visit (pressing Sign off with no rating jumps to the stars and says so; five stars and a comment were saved and show on the report). That left a second test record in the local data: a signed-off safety inspection at Spice Route, Gachibowli, dated 9 October, report SR-2026-00003.
 - Found while testing: on screens that show "loading" before their content (a checklist, a visit), jumping to the first missing item did nothing in the browser preview. Fixed in the shared page frame. Whether phones were affected is not known.
 - The 13 new or changed pieces of text were translated into the 11 other languages by one translation job and checked by program.
+- Founder asked for the More menu not to repeat what is in the bottom bar. Done: for the Owner and Manager it now lists Raise an issue, SOPs, Licences and documents, and Staff logins. Type check and lint pass; not looked at in the browser or on a phone.
 
 **Carried over from yesterday**
 

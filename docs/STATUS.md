@@ -398,6 +398,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 7 Oct 2026 | The More menu no longer repeats the sections that are in the bottom bar. |
 | 7 Oct 2026 | Star rating and optional comment added to the restaurant's sign-off of a visit; shown on the report in the app and console. |
 | 7 Oct 2026 | Bottom bar: Calendar replaces Issues for the Owner and Manager; History renamed Service calendar. |
 | 7 Oct 2026 | Fixed: jumping to the first missing item did nothing in the browser preview on screens that load their data first (checklist, visit). |

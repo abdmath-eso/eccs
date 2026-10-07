@@ -145,7 +145,10 @@ export function AppNav() {
           setMenuOpen(false);
           router.push('/profile');
         }}
-        items={MENU[membership.role]}
+        // What is already in the bar is not repeated here.
+        items={MENU[membership.role].filter(
+          (entry) => !(TAB_ROUTES[membership.role] as readonly unknown[]).includes(entry.href),
+        )}
         onClose={() => setMenuOpen(false)}
         onSelect={(href: Href) => {
           setMenuOpen(false);

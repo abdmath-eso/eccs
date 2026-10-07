@@ -17,3 +17,4 @@ export * from "./inspections.js";
 export * from "./scores.js";
 export * from "./monitoring.js";
 export * from "./catalog.js";
+export * from "./certificates.js";

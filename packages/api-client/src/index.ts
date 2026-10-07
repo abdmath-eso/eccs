@@ -67,6 +67,8 @@ import type {
 
 // notifications-types: the notifications worker imports its types from "@eccs/shared" on the next line
 import type { NotificationPageDto, UnreadCountDto } from "@eccs/shared";
+// certificates-types: the certificates worker imports its types from "@eccs/shared" on the next line
+// offline-visits-types: the offline worker imports any new types from "@eccs/shared" on the next line
 // scores-types: the hygiene score worker imports its types from "@eccs/shared" on the next line
 import type { HygieneScoreDto } from "@eccs/shared";
 // monitoring-types: the monitoring worker imports its types from "@eccs/shared" on the next line
@@ -448,6 +450,7 @@ export function createApiClient(options: ApiClientOptions) {
       markRead: (notificationId: string) => call<UnreadCountDto>("POST", `/notifications/${id(notificationId)}/read`),
       markAllRead: () => call<UnreadCountDto>("POST", "/notifications/read-all"),
     },
+    // certificates-api: the certificates worker adds `certificates: { ... },` on the next line
     // scores-api: the hygiene score worker adds `scores: { ... },` on the next line
     /** The hygiene score: one number out of 100 per outlet, with what it is made of. */
     scores: {

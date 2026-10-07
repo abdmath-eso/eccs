@@ -779,6 +779,7 @@ function toSummary(visit: VisitRow, forRestaurant: boolean): VisitSummaryDto {
     supervisorId: visit.supervisor?.id ?? null,
     supervisorName: visit.supervisor?.name ?? null,
     booked: visit.bookingId !== null,
+    fromPlan: visit.scheduleId !== null,
     reportNumber: visit.serviceReport?.number ?? null,
   };
 }

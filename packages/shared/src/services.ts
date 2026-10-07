@@ -61,6 +61,8 @@ export const isVisitAhead = (status: VisitStatus) =>
 
 /** A restaurant may ask for a date from today up to this many days ahead. */
 export const BOOKING_MAX_DAYS_AHEAD = 90;
+/** Plan visits are put in the diary this many days before they are due. */
+export const PLAN_VISITS_DAYS_AHEAD = 30;
 export const VISIT_MAX_PHOTOS = 12;
 export const VISIT_MAX_TECHNICIANS = 8;
 
@@ -152,6 +154,43 @@ export interface ServiceCatalogItemDto {
   durationMinutes: number;
 }
 
+/** ECCS puts an outlet on a plan from a given day. */
+export const setOutletPlanSchema = z.object({
+  /** The plan's code, e.g. "ESSENTIAL". */
+  planCode: z.string().min(1),
+  /** YYYY-MM-DD: every service of the plan is first due on this day. */
+  startDate: dateSchema,
+});
+export type SetOutletPlanInput = z.input<typeof setOutletPlanSchema>;
+
+/** One service of a plan and how often it is done. */
+export interface PlanServiceDto {
+  serviceCode: string;
+  serviceName: LocalizedText;
+  intervalDays: number;
+}
+
+/** A bundle of services, each repeated at its own interval, for a price per billing cycle. */
+export interface PlanDto {
+  code: string;
+  name: LocalizedText;
+  description: LocalizedText | null;
+  /** Per billing cycle, before GST, in paise. */
+  pricePaise: number;
+  billingCycle: "MONTHLY" | "QUARTERLY" | "ANNUAL";
+  services: PlanServiceDto[];
+}
+
+/** The plan an outlet is on. `plan` is null when it is on none. */
+export interface OutletPlanDto {
+  outletId: string;
+  plan: PlanDto | null;
+  /** YYYY-MM-DD the plan started. */
+  since: string | null;
+  /** Each service of the plan with the date of its next visit. */
+  services: (PlanServiceDto & { nextDate: string })[];
+}
+
 /** A kind of service ECCS can put in the diary. */
 export interface ServiceTypeDto {
   code: string;
@@ -204,6 +243,8 @@ export interface VisitSummaryDto {
   supervisorName: string | null;
   /** True if the restaurant booked it; false if it comes from their plan or ECCS added it. */
   booked: boolean;
+  /** True if it was put in the diary automatically from the outlet's plan. */
+  fromPlan: boolean;
   /** The service report's number, once the work is completed. */
   reportNumber: string | null;
 }

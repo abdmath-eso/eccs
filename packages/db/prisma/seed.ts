@@ -423,6 +423,7 @@ async function seedOutletData(
           outletId: outlet.id,
           serviceTypeId: line.serviceTypeId,
           scheduleId: schedule.id,
+          plannedFor: nextDue,
           scheduledDate: nextDue,
           scheduledSlot: "AFTER_CLOSING",
           status: "ASSIGNED",

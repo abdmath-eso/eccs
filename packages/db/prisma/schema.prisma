@@ -605,6 +605,9 @@ model Job {
   scheduleId       String?
   bookingId        String?   @unique
   scheduledDate    DateTime  @db.Date
+  /// For a visit created from a recurring schedule: the date it was due on. It stays the
+  /// same when ECCS moves the visit, so the same due date is never filled twice.
+  plannedFor       DateTime? @db.Date
   scheduledSlot    String?
   status           JobStatus @default(SCHEDULED)
   supervisorId     String?
@@ -639,6 +642,7 @@ model Job {
   certificates   Certificate[]
   issues         Issue[]
 
+  @@unique([scheduleId, plannedFor])
   @@index([outletId, scheduledDate])
   @@index([supervisorId, scheduledDate])
   @@index([status])

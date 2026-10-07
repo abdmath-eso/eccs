@@ -31,6 +31,7 @@ export async function addSampleVisits(prisma: PrismaClient): Promise<{ added: nu
           outletId: schedule.outletId,
           serviceTypeId: schedule.serviceTypeId,
           scheduleId: schedule.id,
+          plannedFor: date,
           scheduledDate: date,
           scheduledSlot: "AFTER_CLOSING",
           status: "APPROVED",

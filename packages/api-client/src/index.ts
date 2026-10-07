@@ -43,6 +43,9 @@ import type {
   OrganizationDto,
   OrganizationOutletDto,
   OutletDashboardDto,
+  OutletPlanDto,
+  PlanDto,
+  SetOutletPlanInput,
   OutletChecklistDto,
   CurrentUserDto,
   LinkDeviceInput,
@@ -327,6 +330,19 @@ export function createApiClient(options: ApiClientOptions) {
       types: () => call<ServiceTypeDto[]>("GET", "/services/types"),
       /** ECCS admins only: the Supervisors a visit can be given to. */
       supervisors: () => call<SupervisorDto[]>("GET", "/services/supervisors"),
+    },
+    /** Plans: bundles of services repeated at set intervals, whose visits are put in the diary automatically. */
+    plans: {
+      list: () => call<PlanDto[]>("GET", "/plans"),
+      /** The plan an outlet is on, with the next date of each of its services. */
+      forOutlet: (outletId: string) => call<OutletPlanDto>("GET", `/outlets/${id(outletId)}/plan`),
+      /** ECCS puts an outlet on a plan; any earlier plan is stopped first. */
+      set: (outletId: string, input: SetOutletPlanInput) =>
+        call<OutletPlanDto>("PUT", `/outlets/${id(outletId)}/plan`, input),
+      /** ECCS takes an outlet off its plan; plan visits not yet started are cancelled. */
+      stop: (outletId: string) => call<OutletPlanDto>("DELETE", `/outlets/${id(outletId)}/plan`),
+      /** Adds any plan visits that have fallen due to the diary now. */
+      fillDiary: () => call<{ created: number }>("POST", "/visits/from-plans"),
     },
     /** A restaurant's requests for one-time services. */
     bookings: {

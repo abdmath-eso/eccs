@@ -19,6 +19,7 @@ import {
   confirmBookingSchema,
   createBookingSchema,
   createVisitSchema,
+  setOutletPlanSchema,
   returnReportSchema,
   signOffVisitSchema,
   updateVisitRecordSchema,
@@ -29,6 +30,7 @@ import { z } from 'zod';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { PlansService } from './plans.service.js';
 import { ServicesService } from './services.service.js';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -41,7 +43,48 @@ const photoFieldsSchema = z.object({ kind: z.enum(VISIT_PHOTO_KINDS) });
 
 @Controller()
 export class ServicesController {
-  constructor(private readonly services: ServicesService) {}
+  constructor(
+    private readonly services: ServicesService,
+    private readonly plansService: PlansService,
+  ) {}
+
+  // ───────────────────────── Plans ─────────────────────────
+
+  @Get('plans')
+  @RequirePermission('catalog', 'read')
+  plans() {
+    return this.plansService.plans();
+  }
+
+  @Get('outlets/:outletId/plan')
+  @RequirePermission('subscriptions', 'read')
+  outletPlan(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
+    return this.plansService.outletPlan(user, outletId);
+  }
+
+  @Put('outlets/:outletId/plan')
+  @RequirePermission('subscriptions', 'create')
+  setOutletPlan(
+    @CurrentUser() user: AuthUser,
+    @Param('outletId') outletId: string,
+    @Body(new ZodValidationPipe(setOutletPlanSchema)) body: z.output<typeof setOutletPlanSchema>,
+  ) {
+    return this.plansService.setOutletPlan(user, outletId, body);
+  }
+
+  @Delete('outlets/:outletId/plan')
+  @RequirePermission('subscriptions', 'create')
+  stopOutletPlan(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
+    return this.plansService.stopOutletPlan(user, outletId);
+  }
+
+  /** Fills the diary from the plans now, instead of waiting for the next automatic check. */
+  @Post('visits/from-plans')
+  @HttpCode(200)
+  @RequirePermission('jobs', 'create')
+  fillFromPlans() {
+    return this.plansService.generateAll();
+  }
 
   // ───────────────────────── Catalogue ─────────────────────────
 

@@ -447,6 +447,30 @@ export const en = {
   "visit.signOffHelp": "Check the work and the photos. Signing off confirms that ECCS did this visit.",
   "visit.signOffConfirm": "Sign off this visit as {name}?",
   "visit.signedBy": "Signed off by {name}",
+
+  // ── UI review, 7 Oct 2026 ──
+  // shared
+  "tab.home": "Home",
+  "tab.checklists": "Checklists",
+  "tab.issues": "Issues",
+  "tab.services": "Services",
+  "tab.visits": "Visits",
+  "tab.sops": "SOPs",
+  "tab.more": "More",
+  "home.todayVisits": "Visits to do today",
+  "home.noVisitsToday": "No visits today.",
+  "common.saved": "Saved",
+  "common.search": "Search",
+  "common.clear": "Clear",
+  "pin.delete": "Delete",
+  "pin.progress": "{count} of {total} digits entered",
+  "error.tooMany": "Too many tries. Wait a few minutes and try again.",
+  "error.notAllowed": "You are not allowed to do this.",
+  "error.server": "Our server has a problem. Try again shortly.",
+  // ui-review:auth
+  // ui-review:checklists
+  // ui-review:records
+  // ui-review:services
 } as const;
 
 export type MessageKey = keyof typeof en;

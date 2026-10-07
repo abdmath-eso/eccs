@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
+import { SnackbarProvider } from '@/components/ui/snackbar';
 import { SessionProvider, useSession } from '@/lib/session';
 
 SplashScreen.preventAutoHideAsync();
@@ -12,7 +13,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <SessionProvider>
-        <RootNavigator />
+        <SnackbarProvider>
+          <RootNavigator />
+        </SnackbarProvider>
       </SessionProvider>
     </ThemeProvider>
   );

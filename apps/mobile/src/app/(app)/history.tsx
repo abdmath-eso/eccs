@@ -426,12 +426,7 @@ export default function HistoryScreen() {
           )}
           {data.upcoming.map((entry) =>
             entry.kind === 'visit' ? (
-              <Pressable
-                key={`visit-${entry.visit.id}`}
-                accessibilityRole="button"
-                onPress={() => show(entry.date.slice(0, 7), entry.date)}>
-                {visitRow(entry.visit, entry.date)}
-              </Pressable>
+              visitRow(entry.visit, entry.date)
             ) : (
               licenceRow(entry.licence, entry.date, true)
             ),

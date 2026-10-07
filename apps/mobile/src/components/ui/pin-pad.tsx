@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSession } from '@/lib/session';
 
 interface PinPadProps {
   value: string;
@@ -16,6 +17,7 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'] as co
 /** Large on-screen number pad with dots for the digits entered so far. */
 export function PinPad({ value, onChange, disabled }: PinPadProps) {
   const theme = useTheme();
+  const { t } = useSession();
 
   function press(key: string) {
     if (disabled) return;
@@ -24,8 +26,8 @@ export function PinPad({ value, onChange, disabled }: PinPadProps) {
   }
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.dots} accessibilityLabel={`${value.length} of ${PIN_LENGTH} digits entered`}>
+    <View style={[styles.wrapper, styles.wrapperWidth]}>
+      <View style={styles.dots} accessibilityLabel={t('pin.progress', { count: value.length, total: PIN_LENGTH })}>
         {Array.from({ length: PIN_LENGTH }, (_, index) => (
           <View
             key={index}
@@ -45,7 +47,7 @@ export function PinPad({ value, onChange, disabled }: PinPadProps) {
             <Pressable
               key={index}
               accessibilityRole="button"
-              accessibilityLabel={key === '⌫' ? 'Delete' : key}
+              accessibilityLabel={key === '⌫' ? t('pin.delete') : key}
               disabled={disabled}
               onPress={() => press(key)}
               style={({ pressed }) => [
@@ -66,8 +68,10 @@ const styles = StyleSheet.create({
   wrapper: { alignItems: 'center', gap: Spacing.five },
   dots: { flexDirection: 'row', gap: Spacing.four },
   dot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', width: 288, gap: Spacing.three, justifyContent: 'center' },
-  key: { width: 84, height: 72, borderRadius: Spacing.three, alignItems: 'center', justifyContent: 'center' },
+  wrapperWidth: { width: '100%' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', width: '100%', maxWidth: 288, gap: Spacing.three, justifyContent: 'center' },
+  // Three keys to a row at any width: a third of the row less the two gaps between them.
+  key: { flexBasis: '28%', flexGrow: 1, maxWidth: 84, height: 72, borderRadius: Spacing.three, alignItems: 'center', justifyContent: 'center' },
   keyLabel: { fontSize: 28, lineHeight: 34, fontWeight: 600 },
   disabled: { opacity: 0.5 },
 });

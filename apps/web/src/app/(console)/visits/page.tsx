@@ -106,7 +106,7 @@ function WhenAndWho({
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <Labelled label="Date">
-        <input type="date" required min={today()} value={date} onChange={(e) => onChange({ date: e.target.value })} className={INPUT} />
+        <input type="date" required min={date && date < today() ? date : today()} value={date} onChange={(e) => onChange({ date: e.target.value })} className={INPUT} />
       </Labelled>
       <Labelled label="Arrival time">
         <select value={slot} onChange={(e) => onChange({ slot: e.target.value as VisitSlot })} className={INPUT}>

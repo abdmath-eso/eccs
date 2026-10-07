@@ -46,9 +46,8 @@ export function Button({ label, hint, onPress, variant = 'primary', loading, dis
         fill && styles.fill,
         { backgroundColor: background, opacity: inactive ? 0.5 : pressed ? 0.8 : 1 },
       ]}>
-      {loading ? (
-        <ActivityIndicator color={color} />
-      ) : (
+      <View style={styles.row}>
+        {loading && <ActivityIndicator color={color} />}
         <View style={styles.labels}>
           <ThemedText type="default" style={[styles.label, { color }]}>
             {label}
@@ -59,7 +58,7 @@ export function Button({ label, hint, onPress, variant = 'primary', loading, dis
             </ThemedText>
           )}
         </View>
-      )}
+      </View>
     </Pressable>
   );
 }
@@ -75,7 +74,8 @@ const styles = StyleSheet.create({
   },
   link: { paddingVertical: Spacing.two },
   fill: { flexGrow: 1, paddingHorizontal: Spacing.two },
-  labels: { alignItems: 'center', gap: Spacing.one },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
+  labels: { flexShrink: 1, alignItems: 'center', gap: Spacing.one },
   label: { fontWeight: 700, textAlign: 'center' },
   hint: { textAlign: 'center', opacity: 0.85, fontWeight: 400 },
 });

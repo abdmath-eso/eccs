@@ -15,6 +15,8 @@ export const Colors = {
     warning: '#B45309',
     info: '#1D4ED8',
     border: '#D5DBDF',
+    /** The edge of an input or a choice: strong enough to see (3:1) where `border` is only a divider. */
+    outline: '#7A858C',
   },
   dark: {
     text: '#ffffff',
@@ -28,6 +30,7 @@ export const Colors = {
     warning: '#FBBF24',
     info: '#8AB4F8',
     border: '#333D42',
+    outline: '#7D8A91',
   },
 } as const;
 

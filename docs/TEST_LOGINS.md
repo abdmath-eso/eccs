@@ -147,3 +147,21 @@ The Head Chef does not see services. The Supervisor sees only visits given to th
 ## 10. Trying the inspection report PDF
 
 After approving an inspection in the console (section 7), the report has "Open the report as a PDF", in the console and in the app, and the PDF is filed in the outlet's Licences and documents.
+
+## 11. Trying certificates
+
+1. Take a pest control, deep clean or chimney visit through to the end (section 6): the Supervisor finishes, the Owner or Manager signs off with a rating, and you approve the report in the console (Visits).
+2. In the console open **Certificates**: the new certificate is listed with its number and dates. "Open the PDF" shows it.
+3. In the app, as the Owner or Manager: **More > Certificates**, or open the visit and tap "Open the certificate".
+4. In the console's **Catalogue**, each kind of service has a "Certificate" line where you can switch certificates on or off and set the number of days.
+
+## 12. Trying a visit and an inspection with no signal
+
+1. With signal, log in to the app as the Sample Supervisor (ECCS staff login, `9000000003`). Open **Visits** and **Inspections** once and wait a few seconds, so they are saved on the phone.
+2. Turn on aeroplane mode (or stop the API on the PC). Do not reload the app in Expo Go while offline.
+3. Open a visit. It says it is showing what was saved on this phone. Check in, tick tasks, mark one not done with a reason, take a before and an after photo, type the team and notes, then Finish.
+4. Each item shows "Saved on this phone. Not sent yet." and the bottom line counts what is waiting.
+5. Close the app fully and reopen it, still offline: everything is still there.
+6. Open an inspection offline. Answer checks, record one non-compliance with a photo, then Finish. The score and grade appear, marked as worked out on this phone.
+7. Turn the signal back on, or tap "Try now". It sends, then says all sent. Check both in the console.
+8. To see a refusal: offline, check in to another visit; cancel that visit in the console; turn the signal on. The visit shows a "Not sent" box with "Send again" and "Delete from this phone".

@@ -142,13 +142,29 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 | E4 | A kind of service's task list changes | Sup | "The task list for {service} has changed." | In-app | not built |
 | E5 | A service is added or its price changes | O, M | "ECCS now offers {service}." | In-app, optional | not built |
 
-## 11. Features not built yet (to fill in when they are)
+## 11. Certificates
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| C1 | A certificate is issued (ECCS approves the report) | O, M | "Your {service} certificate {number} is ready, valid until {date}." | In-app (can be joined to "report approved") | not built |
+| C2 | A certificate enters its "expiring soon" period | O, M; Adm if no next visit of that kind is in the diary | "Your {service} certificate expires on {date}." | Push + in-app | not built |
+| C3 | A certificate has expired and no newer one of that kind exists | O, M; Adm | "Your {service} certificate expired on {date}." | Push + in-app | not built |
+| C4 | ECCS makes a certificate's PDF again | O, M | "Your {service} certificate has been updated." | In-app, optional | not built |
+| C5 | A certificate could not be issued or its PDF made | Adm | "Certificate for {visit} could not be made." | In-app | not built (only logged) |
+
+## 12. Work done without signal
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| W1 | Work a Supervisor did offline was refused when sent (visit cancelled, reassigned, already finished) | Adm | "{supervisor} has unsent work for {visit} held on their phone." | In-app | not built (the Supervisor is told on the phone) |
+| W2 | A phone has had work waiting to send for more than a day | Sup | "You have work on this phone that has not been sent. Open the app where there is signal." | Local reminder on the phone | not built |
+
+## 13. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
 |---|---|
 | Invoices and payments | Invoice raised; payment due soon; overdue; payment received |
 | Subscription | Renewal coming; plan changed; plan ended |
-| Certificates | Certificate issued; certificate expiring |
 | Attendance and salary | To be decided with the feature |
 | Food labels | Labelled food reaching its use-by time |
 | Customer QR page | A photo is waiting for approval |
@@ -159,6 +175,7 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | Date | Change |
 |---|---|
+| 7 Oct 2026 | Added sections 11 (certificates) and 12 (work done without signal), not built. A repeated check-in or finish from a phone does not notify twice. |
 | 7 Oct 2026 | Hygiene score rule changed (inspection 60, licences 10, checklists 30): added H5 and H6, not built. |
 | 7 Oct 2026 | Added sections 8 to 10 (hygiene score, monitoring, console changes), not built. The inspection report's PDF is ready at the moment N4 would fire, so it needs no notification of its own. |
 | 7 Oct 2026 | Added section 7 for inspections (N1 to N6), not built. |

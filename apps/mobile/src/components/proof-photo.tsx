@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { MinTouchSize, Spacing } from '@/constants/theme';
@@ -99,7 +100,7 @@ export function ProofPhoto({ uri, label, stamp, state, onRetry, onRemove, compac
       </View>
 
       <Modal visible={enlarged} transparent animationType="fade" onRequestClose={() => setEnlarged(false)}>
-        <View
+        <DirectionView
           style={[
             styles.viewer,
             { paddingTop: Spacing.three + insets.top, paddingBottom: Spacing.three + insets.bottom },
@@ -111,7 +112,7 @@ export function ProofPhoto({ uri, label, stamp, state, onRetry, onRemove, compac
             </ThemedText>
           )}
           <Button label={t('common.close')} variant="secondary" onPress={() => setEnlarged(false)} />
-        </View>
+        </DirectionView>
       </Modal>
     </>
   );
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
   remove: {
     position: 'absolute',
     top: 0,
-    right: 0,
+    end: 0,
     width: MinTouchSize,
     height: MinTouchSize,
     alignItems: 'flex-end',

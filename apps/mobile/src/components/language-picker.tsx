@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
@@ -39,7 +40,7 @@ export function LanguagePicker() {
       </Pressable>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <View style={styles.root}>
+        <DirectionView style={styles.root}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('common.close')}
@@ -86,7 +87,7 @@ export function LanguagePicker() {
             </ScrollView>
             <Button label={t('common.cancel')} variant="secondary" onPress={() => setOpen(false)} />
           </View>
-        </View>
+        </DirectionView>
       </Modal>
     </>
   );

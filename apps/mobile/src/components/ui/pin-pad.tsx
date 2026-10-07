@@ -2,6 +2,7 @@ import { PIN_LENGTH } from '@eccs/shared';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet, Vibration, View } from 'react-native';
 
+import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
 import { Spacing } from '@/constants/theme';
@@ -62,8 +63,10 @@ export function PinPad({ value, onChange, disabled, error, note }: PinPadProps) 
   return (
     <View style={[styles.wrapper, styles.wrapperWidth]}>
       <Animated.View
-        style={[styles.dots, { transform: [{ translateX: shake }] }]}
+        style={{ transform: [{ translateX: shake }] }}
         accessibilityLabel={t('pin.progress', { count: value.length, total: PIN_LENGTH })}>
+        {/* A PIN is a number: its digits fill in from the left in every language, Urdu included. */}
+        <DirectionView direction="ltr" style={styles.dots}>
         {Array.from({ length: PIN_LENGTH }, (_, index) => (
           <View
             key={index}
@@ -75,6 +78,7 @@ export function PinPad({ value, onChange, disabled, error, note }: PinPadProps) 
             ]}
           />
         ))}
+        </DirectionView>
       </Animated.View>
       {/* This space is kept even when empty, so the keys do not move when a message appears. */}
       <View style={styles.message}>
@@ -85,7 +89,8 @@ export function PinPad({ value, onChange, disabled, error, note }: PinPadProps) 
           </ThemedText>
         )}
       </View>
-      <View style={styles.grid}>
+      {/* The keys keep the order of a phone's keypad (1 2 3 from the left) in every language. */}
+      <DirectionView direction="ltr" style={styles.grid}>
         {KEYS.map((key, index) =>
           key === '' ? (
             <View key={index} style={styles.key} />
@@ -106,7 +111,7 @@ export function PinPad({ value, onChange, disabled, error, note }: PinPadProps) 
             </Pressable>
           ),
         )}
-      </View>
+      </DirectionView>
     </View>
   );
 }

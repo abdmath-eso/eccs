@@ -211,7 +211,7 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - **FoodLabel**: FoodItem, prepared at, expires at (worked out from shelf life), prepared by, printed at.
 
 ### Inspections and public page
-- **Inspection**: a scored ECCS audit of an outlet using an FSSAI Schedule 4 style template. Section scores, overall score, non-conformities with photos and corrective actions, PDF report.
+- **Inspection**: a scored ECCS audit of an outlet using an FSSAI Schedule 4 style template. Section scores, overall score, non-conformities with photos and corrective actions, PDF report. Scoring as built (7 Oct 2026), after FSSAI's hygiene rating: 2 marks a check and 4 for a critical one; a not-applicable check is left out; score = marks earned ÷ marks possible × 100; grade A+ from 88, A from 80, B from 68, otherwise none; failing any critical check means no grade.
 - **PublicProfile**: per outlet. Random URL token for the QR, an on/off switch the restaurant controls, and the **PublicPhotos** approved for display.
 
 ### Cross-cutting

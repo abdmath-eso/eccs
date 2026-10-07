@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -731,7 +732,7 @@ export default function VisitScreen() {
       />
 
       <Modal visible={viewing !== null} transparent animationType="fade" onRequestClose={() => setViewing(null)}>
-        <View
+        <DirectionView
           style={[
             styles.viewer,
             { paddingTop: Spacing.three + insets.top, paddingBottom: Spacing.three + insets.bottom },
@@ -750,7 +751,7 @@ export default function VisitScreen() {
             </>
           )}
           <Button label={t('common.close')} variant="secondary" onPress={() => setViewing(null)} />
-        </View>
+        </DirectionView>
       </Modal>
     </Screen>
   );

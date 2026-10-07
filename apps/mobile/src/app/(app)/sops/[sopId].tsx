@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.one,
     minHeight: MinTouchSize,
-    paddingLeft: Spacing.three,
+    paddingStart: Spacing.three,
   },
   editLabel: { fontWeight: 700 },
   steps: { gap: Spacing.two },

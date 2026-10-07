@@ -65,7 +65,8 @@ const styles = StyleSheet.create({
   badge: {
     position: 'absolute',
     top: 4,
-    right: 2,
+    // The far corner of the bell: top right, or top left in Urdu.
+    end: 2,
     minWidth: 22,
     height: 22,
     borderRadius: 11,

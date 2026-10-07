@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
@@ -157,13 +158,13 @@ export function OfflineSync() {
 
       {notice && (
         <Modal visible transparent animationType="fade" onRequestClose={() => outbox.dismissNotice(notice.id)}>
-          <View style={styles.backdrop}>
+          <DirectionView style={styles.backdrop}>
             <View style={[styles.card, { backgroundColor: theme.background }]} accessibilityRole="alert">
               <Ionicons name="alert-circle" size={32} color={theme.warning} />
               <ThemedText type="default">{noticeText(notice)}</ThemedText>
               <Button label={t('common.close')} onPress={() => outbox.dismissNotice(notice.id)} />
             </View>
-          </View>
+          </DirectionView>
         </Modal>
       )}
     </>

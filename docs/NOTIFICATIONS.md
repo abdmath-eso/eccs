@@ -101,11 +101,21 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 |---|---|---|---|---|---|
 | P1 | ECCS publishes a new standard SOP or changes one | O, M, HC | "ECCS updated the SOP '{name}'." | In-app | not built |
 
-## 7. Features not built yet (to fill in when they are)
+## 7. Inspections
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| N1 | An inspection is planned and given to a Supervisor, moved, or taken away | Sup | "Inspection at {outlet} on {date}." | Push + in-app | not built |
+| N2 | The Supervisor finishes an inspection | Adm | "Inspection report for {outlet} is waiting for approval: {score}, {grade}." | Console + in-app | not built |
+| N3 | ECCS sends an inspection report back | Sup | "ECCS asked for a correction on the inspection at {outlet}: {note}" | Push + in-app | not built |
+| N4 | ECCS approves an inspection report | O, M | "Your inspection report is ready: {score} out of 100, grade {grade}." | Push + in-app | not built |
+| N5 | A corrective action's fix-by date is tomorrow, or has passed | O, M | "{count} corrective actions are due." | Push + in-app | not built |
+| N6 | An inspection fails a critical check | Adm | "{outlet} failed a critical check: {check}." | Push | not built |
+
+## 8. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
 |---|---|
-| Scored inspections | Inspection booked; report ready; a critical finding |
 | Hygiene score | Score dropped; weekly summary |
 | Invoices and payments | Invoice raised; payment due soon; overdue; payment received |
 | Subscription | Renewal coming; plan changed; plan ended |
@@ -120,6 +130,7 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | Date | Change |
 |---|---|
+| 7 Oct 2026 | Added section 7 for inspections (N1 to N6), not built. |
 | 7 Oct 2026 | First version built as a list inside the app and the console: S1 to S8, S10 to S16, S18, S19, C2 to C4, I1 to I5, L1 to L3, A1, A2. Not built: S9, S17, C1, C5, C6, I6, L4, P1, A3. Rows corrected to match what was built: S3 (no Supervisor name in the wording), S4, S7, S11, S12, S13 and S14 (a low rating replaces the ordinary sign-off notification for admins), S16, S18, S19, C2, C4, I1, I3, I4, I5 (Supervisors with a visit at the outlet are included), L1, L2, L3, A1, A2. Not sent, and not in the register: a restaurant withdrawing its own request; ECCS adding a visit without a request (the restaurant first hears of it from S8); a corrected report coming back to ECCS for approval. |
 | 7 Oct 2026 | Added S18 and S19 with automatic plan visits. |
 | 7 Oct 2026 | Register started. S1 (report PDF ready) recorded as asked for by the founder; everything else listed by Claude from the features built so far. Nothing built. |

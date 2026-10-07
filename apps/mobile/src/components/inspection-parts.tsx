@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { MinTouchSize, Spacing, type ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDayShort } from '@/lib/format';
+import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 
 // Pieces shared by the inspection screens: the status label, the score with its
@@ -100,6 +101,7 @@ export function SectionScoreRow({ section }: { section: InspectionSectionDto }) 
 export function InspectionCard({ inspection, showOutlet }: { inspection: InspectionSummaryDto; showOutlet?: boolean }) {
   const theme = useTheme();
   const { t, language } = useSession();
+  const { forwardIcon } = useDirection();
   const finished = inspection.overallScore !== null;
   const day = formatDayShort(inspection.date, language);
   return (
@@ -111,7 +113,7 @@ export function InspectionCard({ inspection, showOutlet }: { inspection: Inspect
         <ThemedText type="default" style={styles.cardTitle}>
           {showOutlet ? inspection.outletName : day}
         </ThemedText>
-        <Ionicons name="chevron-forward" size={22} color={theme.textSecondary} />
+        <Ionicons name={forwardIcon} size={22} color={theme.textSecondary} />
       </View>
       {showOutlet && (
         <ThemedText type="default">

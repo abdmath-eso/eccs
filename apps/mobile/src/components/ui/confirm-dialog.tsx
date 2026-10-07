@@ -1,5 +1,6 @@
 import { Modal, StyleSheet, View } from 'react-native';
 
+import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -22,13 +23,13 @@ export function ConfirmDialog({ visible, message, confirmLabel, danger, onConfir
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
+      <DirectionView style={styles.backdrop}>
         <View style={[styles.card, { backgroundColor: theme.background }]}>
           <ThemedText type="default">{message}</ThemedText>
           <Button label={confirmLabel} variant={danger ? 'danger' : 'primary'} onPress={onConfirm} />
           <Button label={t('common.cancel')} variant="secondary" onPress={onCancel} />
         </View>
-      </View>
+      </DirectionView>
     </Modal>
   );
 }

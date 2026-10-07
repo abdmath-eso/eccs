@@ -24,6 +24,7 @@ import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, formatDayLong, formatMonth, formatSlot, indiaToday, weekdayNames } from '@/lib/format';
+import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 import { rememberOutlet, useOutlet } from '@/lib/use-outlet';
 
@@ -71,6 +72,8 @@ function monthAfterSwipe(month: string, by: 1 | -1): string {
 export default function HistoryScreen() {
   const theme = useTheme();
   const { t, api, language } = useSession();
+  // In Urdu the grid runs from the right (Sunday on the right), and the arrows and the swipe swap sides.
+  const { direction, backIcon, forwardIcon } = useDirection();
   const { outletId, outlets, loading: outletLoading, choose } = useOutlet();
   const [month, setMonth] = useState(() => indiaToday().slice(0, 7));
   const [selected, setSelected] = useState(() => indiaToday());
@@ -132,28 +135,34 @@ export default function HistoryScreen() {
 
   // Swiping across the month moves a month, like the arrows. The touch handlers are made
   // once, so they work from the month and day held at that moment rather than from this draw.
-  const [swipe] = useState(() =>
-    PanResponder.create({
-      // Only a clearly sideways move is taken, so scrolling the page up and down still works.
-      onMoveShouldSetPanResponder: (_event, gesture) =>
-        Math.abs(gesture.dx) > 16 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 2,
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderRelease: (_event, gesture) => {
-        // A finger moving left brings the next month in, as when turning a page.
-        const by = gesture.dx <= -SWIPE_DISTANCE ? 1 : gesture.dx >= SWIPE_DISTANCE ? -1 : 0;
-        if (by === 0) return;
-        setMonth((current) => monthAfterSwipe(current, by));
-        // The chosen day is always in the month on show, so it can be moved the same way.
-        setSelected((current) => {
-          const from = current.slice(0, 7);
-          const to = monthAfterSwipe(from, by);
-          if (to === from) return current;
-          const now = indiaToday();
-          return to === now.slice(0, 7) ? now : `${to}-01`;
-        });
-      },
-    }),
-  );
+  // There is one set for each reading direction: in Urdu the page turns the other way.
+  const [swipes] = useState(() => {
+    const swipeFor = (sign: 1 | -1) =>
+      PanResponder.create({
+        // Only a clearly sideways move is taken, so scrolling the page up and down still works.
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          Math.abs(gesture.dx) > 16 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 2,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderRelease: (_event, gesture) => {
+          // A finger moving left brings the next month in, as when turning a page
+          // (a finger moving right, in Urdu, where pages turn the other way).
+          const dx = gesture.dx * sign;
+          const by = dx <= -SWIPE_DISTANCE ? 1 : dx >= SWIPE_DISTANCE ? -1 : 0;
+          if (by === 0) return;
+          setMonth((current) => monthAfterSwipe(current, by));
+          // The chosen day is always in the month on show, so it can be moved the same way.
+          setSelected((current) => {
+            const from = current.slice(0, 7);
+            const to = monthAfterSwipe(from, by);
+            if (to === from) return current;
+            const now = indiaToday();
+            return to === now.slice(0, 7) ? now : `${to}-01`;
+          });
+        },
+      });
+    return { ltr: swipeFor(1), rtl: swipeFor(-1) };
+  });
+  const swipe = swipes[direction];
 
   // After a day is tapped and its details are drawn, scrolls just far enough to show them
   // if they are below the bottom of the screen. The day's title is never pushed off the top.
@@ -317,7 +326,7 @@ export default function HistoryScreen() {
           disabled={!canGoBack}
           onPress={() => show(shiftMonth(month, -1))}
           style={[styles.arrow, !canGoBack && styles.faded]}>
-          <Ionicons name="chevron-back" size={26} color={theme.primary} />
+          <Ionicons name={backIcon} size={26} color={theme.primary} />
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -325,7 +334,7 @@ export default function HistoryScreen() {
           disabled={!canGoAhead}
           onPress={() => show(shiftMonth(month, 1))}
           style={[styles.arrow, !canGoAhead && styles.faded]}>
-          <Ionicons name="chevron-forward" size={26} color={theme.primary} />
+          <Ionicons name={forwardIcon} size={26} color={theme.primary} />
         </Pressable>
       </View>
 
@@ -568,7 +577,7 @@ const styles = StyleSheet.create({
     minHeight: MinTouchSize,
     overflow: 'hidden',
   },
-  stripe: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },
+  stripe: { position: 'absolute', start: 0, top: 0, bottom: 0, width: 5 },
   rowText: { flex: 1, gap: Spacing.half },
   rowTitle: { fontWeight: 700 },
   sectionGap: { marginTop: Spacing.three },

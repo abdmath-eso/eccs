@@ -8,6 +8,7 @@ import { ErrorText } from '@/components/ui/error-text';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
+import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { useSession } from '@/lib/session';
 
@@ -85,7 +86,7 @@ export default function OtpScreen() {
   }
 
   return (
-    <Screen back title={t('otp.title')} subtitle={t('otp.help', { phone })}>
+    <Screen back title={t('otp.title')} subtitle={t('otp.help', { phone: ltrText(phone) })}>
       <TextField
         label={t('otp.label')}
         value={code}

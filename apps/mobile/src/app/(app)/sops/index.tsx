@@ -12,6 +12,7 @@ import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
+import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
@@ -19,6 +20,7 @@ import { useOutlet } from '@/lib/use-outlet';
 export default function SopsScreen() {
   const theme = useTheme();
   const { t, api, user, language } = useSession();
+  const { forwardIcon } = useDirection();
   const { outletId, outlets, loading: outletLoading, choose } = useOutlet();
   const [sops, setSops] = useState<SopDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +130,7 @@ export default function SopsScreen() {
                     {t('sops.stepCount', { count: sopSteps(sop, language).length })}
                   </ThemedText>
                 </View>
-                <Ionicons name="chevron-forward" size={22} color={theme.textSecondary} />
+                <Ionicons name={forwardIcon} size={22} color={theme.textSecondary} />
               </Pressable>
             ))}
           </View>

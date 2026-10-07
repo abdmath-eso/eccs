@@ -55,7 +55,7 @@ The founder approved all of it on 7 October 2026, including replacing the side m
 | C3 | The due time is typed as free text on a letter keyboard | A number pad with the colon added automatically, read back as a time | done 7 Oct |
 | C4 | The item search shows a dropped connection as "no matches"; no clear button | Say "could not search" with retry; a clear (✕) button | done 7 Oct |
 | C5 | Dates in the list are shown raw | Use the app's date wording | done 7 Oct |
-| C6 | Working without signal (already planned in Phase 1a) | Save on the phone and send when the signal returns | todo (separate feature) |
+| C6 | Working without signal (already planned in Phase 1a) | Save on the phone and send when the signal returns | done 7 Oct (not tried on a phone) |
 
 ## App: raise an issue
 
@@ -110,7 +110,7 @@ The founder approved all of it on 7 October 2026, including replacing the side m
 
 | # | Now | Standard pattern | Status |
 |---|---|---|---|
-| R1 | Urdu text reads right to left but the layout is not mirrored | Mirror the layout: row order, arrows, which side the menu opens | todo: needs trying on a phone, because the app has to restart to flip its layout |
+| R1 | Urdu text reads right to left but the layout is not mirrored | Mirror the layout: row order, arrows, which side the menu opens | partly: built 7 Oct, **not yet seen on a phone or in the browser** (types and lint only). The layout follows the app's language at once, with no restart and no new package: the app and every pop-up are wrapped in a direction box (`components/direction-view.tsx`, `lib/direction.ts`), left/right styles became start/end, and the back and forward arrows, the More menu's slide and the calendar's month swipe follow the direction. Kept left to right on purpose, as Material and Apple say: PIN dots and keypad, phone numbers ("+91" stays left of the box), boxes for digits, photos, ticks. Stars and progress bars do mirror (Apple: rating and progress controls flip). Still to try in Urdu on Android, iPhone and the browser: every screen's row order and text alignment; the menu sliding from the right; the calendar (Sunday on the right, arrows, swipe); the booking date strip starting at the right; pop-ups; typing in text and number boxes; the iPhone's swipe-back edge; switching language back to English |
 
 ## Console
 
@@ -133,7 +133,7 @@ The founder approved all of it on 7 October 2026, including replacing the side m
 
 Nothing below was tried on a phone; the reworked screens were opened in the browser preview only.
 
-- **R1, Urdu layout mirroring:** not started.
+- **R1, Urdu layout mirroring:** built, not yet tried on a phone or in the browser (see the R1 row for what to look at).
 - **C6, checklists without signal:** a separate planned feature. A failed photo is now kept for retry, but answers still need a connection.
 - **Small gaps in the shared pieces** that the screen work ran into: ~~the button has no slot for an icon~~ (fixed 7 Oct: the shared button takes an `icon`, and the camera, file, call, WhatsApp, share and add buttons carry one; never put emoji in a label); the text field has no slot for an icon or a clear button inside it (the search fields place theirs beside or over the field); the choice chip has no red variant; the confirm box always says "Cancel" for its second button; the "saved" message can briefly cover the top of a pinned footer.
 - **To confirm on a phone:** the swipe between months alongside scrolling; scrolling to the first unanswered item; the reply box and pinned footers with the keyboard open; the share sheet for a new PIN; the number pads and automatic slashes and colons; the PIN screen's shake and vibration; long translations in the bottom bar and in side-by-side buttons.

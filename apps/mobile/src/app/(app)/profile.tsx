@@ -14,6 +14,7 @@ import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { CameraPermissionError, chooseProfilePhoto } from '@/lib/photo';
@@ -228,7 +229,7 @@ export default function ProfileScreen() {
             {profile.phone &&
               line(
                 t('profile.phone'), // Wrapped in left-to-right marks so the groups keep their order when the app is in Urdu.
-                `⁦${profile.phone.replace(/^\+91(\d{5})(\d{5})$/, '+91 $1 $2')}⁩`,
+                ltrText(profile.phone.replace(/^\+91(\d{5})(\d{5})$/, '+91 $1 $2')),
               )}
             {profile.email && line(t('profile.email'), profile.email)}
             {line(t('profile.memberSince'), formatDate(profile.memberSince.slice(0, 10), language))}
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
   centered: { textAlign: 'center' },
   badge: {
     position: 'absolute',
-    right: 0,
+    end: 0,
     bottom: 0,
     width: 36,
     height: 36,

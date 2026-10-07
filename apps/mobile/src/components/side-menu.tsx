@@ -7,11 +7,13 @@ import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, View } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
+import { DirectionView } from '@/components/direction-view';
 import { LanguagePicker } from '@/components/language-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 
 const WIDTH = 310;
@@ -38,7 +40,7 @@ interface SideMenuProps {
 }
 
 /**
- * The app's menu: a panel that slides in from the left with every section
+ * The app's menu: a panel that slides in from the left (the right in Urdu) with every section
  * the person can open and the lock button. Their photo and name at the top
  * open "My profile". The language is chosen at the foot of the menu.
  */
@@ -59,18 +61,21 @@ export function SideMenu({
   const insets = useSafeAreaInsets();
   // Kept in state, not `useAnimatedValue`, which the browser build of React Native does not have.
   const [slide] = useState(() => new Animated.Value(-WIDTH));
+  // The panel sits on the side where reading starts and slides in from beyond that
+  // edge: the left normally, the right in Urdu.
+  const { sign, forwardIcon, forwardGlyph } = useDirection();
 
   useEffect(() => {
     if (!visible) return;
-    slide.setValue(-WIDTH);
+    slide.setValue(-WIDTH * sign);
     // The phone's own animation engine keeps the slide smooth. A browser has none, and
     // React Native warns if asked for it there, so the browser preview animates in script.
     Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: Platform.OS !== 'web' }).start();
-  }, [visible, slide]);
+  }, [visible, slide, sign]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.root}>
+      <DirectionView style={styles.root}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
@@ -95,7 +100,7 @@ export function SideMenu({
                     {subtitle}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {t('profile.open')} ›
+                    {t('profile.open')} {forwardGlyph}
                   </ThemedText>
                 </View>
               </Pressable>
@@ -136,7 +141,7 @@ export function SideMenu({
                         </ThemedText>
                       )}
                     </View>
-                    {href && <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />}
+                    {href && <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />}
                   </Pressable>
                 );
               })}
@@ -156,7 +161,7 @@ export function SideMenu({
             </View>
           </View>
         </Animated.View>
-      </View>
+      </DirectionView>
     </Modal>
   );
 }
@@ -170,8 +175,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    paddingLeft: Spacing.four,
-    paddingRight: Spacing.two,
+    paddingStart: Spacing.four,
+    paddingEnd: Spacing.two,
     paddingVertical: Spacing.three,
     borderBottomWidth: 1,
   },

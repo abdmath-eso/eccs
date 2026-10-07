@@ -19,7 +19,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
     <Text
       style={[
         { color: theme[themeColor ?? 'text'] },
-        // Urdu reads right to left. The screens themselves are not mirrored yet.
+        // Urdu reads right to left. (The layout around the text is mirrored by `DirectionView`.)
         isRightToLeft(language) && styles.rightToLeft,
         type === 'default' && styles.default,
         type === 'title' && styles.title,

@@ -13,6 +13,7 @@ import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
+import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 import { getJson, setJson } from '@/lib/storage';
 
@@ -31,6 +32,7 @@ export default function SopLibraryScreen() {
   const theme = useTheme();
   const { outletId } = useLocalSearchParams<{ outletId: string }>();
   const { t, api, language } = useSession();
+  const { forwardIcon } = useDirection();
   const [overview, setOverview] = useState<SopLibraryOverviewDto | null>(null);
   const [text, setText] = useState('');
   const [category, setCategory] = useState<SopCategory | null>(null);
@@ -175,7 +177,7 @@ export default function SopLibraryScreen() {
       title={t('soplib.title')}
       subtitle={overview ? t('soplib.help', { count: overview.total }) : undefined}
       onRefresh={refresh}>
-      {/* ── The search box: a magnifying glass on the left, and a cross to empty it once there is text ── */}
+      {/* ── The search box: a magnifying glass where the typing starts, and a cross to empty it once there is text ── */}
       <View>
         <TextField
           label={t('soplib.searchAll')}
@@ -272,7 +274,7 @@ export default function SopLibraryScreen() {
               <ThemedText type="small" themeColor="textSecondary">
                 {t('soplib.count', { count: entry.count })}
               </ThemedText>
-              <Ionicons name="chevron-forward" size={22} color={theme.textSecondary} />
+              <Ionicons name={forwardIcon} size={22} color={theme.textSecondary} />
             </Pressable>
           ))}
         </>
@@ -366,7 +368,7 @@ export default function SopLibraryScreen() {
                   ✓ {t('soplib.added')}
                 </ThemedText>
               ) : (
-                <Ionicons name="chevron-forward" size={22} color={theme.textSecondary} />
+                <Ionicons name={forwardIcon} size={22} color={theme.textSecondary} />
               )}
             </Pressable>
           ))}
@@ -377,18 +379,19 @@ export default function SopLibraryScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Room on the left for the magnifying glass and on the right for the cross.
-  searchInput: { paddingLeft: Spacing.three + 22 + Spacing.two, paddingRight: MinTouchSize },
+  // Room for the magnifying glass where the typing starts (the left; the right in Urdu)
+  // and for the cross at the other end.
+  searchInput: { paddingStart: Spacing.three + 22 + Spacing.two, paddingEnd: MinTouchSize },
   searchIcon: {
     position: 'absolute',
-    left: Spacing.three,
+    start: Spacing.three,
     bottom: 0,
     height: MinTouchSize,
     justifyContent: 'center',
   },
   clear: {
     position: 'absolute',
-    right: 0,
+    end: 0,
     bottom: 0,
     width: MinTouchSize,
     height: MinTouchSize,

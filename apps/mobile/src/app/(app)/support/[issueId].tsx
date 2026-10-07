@@ -16,12 +16,15 @@ import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { formatDateTime } from '@/lib/format';
+import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 
 /** One ECCS support issue: what was raised, its photos, and the conversation with ECCS. */
 export default function IssueScreen() {
   const theme = useTheme();
   const { t, api, user, language } = useSession();
+  // The paper plane on the send button flies the way the writing runs.
+  const { mirror } = useDirection();
   const notify = useSnackbar();
   const { issueId } = useLocalSearchParams<{ issueId: string }>();
   const [issue, setIssue] = useState<IssueDto | null>(null);
@@ -143,7 +146,7 @@ export default function IssueScreen() {
           {busy === 'message' ? (
             <ActivityIndicator color={theme.onPrimary} />
           ) : (
-            <Ionicons name="send" size={24} color={theme.onPrimary} />
+            <Ionicons name="send" size={24} color={theme.onPrimary} style={mirror} />
           )}
         </Pressable>
       </View>

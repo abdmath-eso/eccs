@@ -19,6 +19,7 @@ import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { addDays, formatDate, formatDayLong, formatSlot, formatTime, indiaToday } from '@/lib/format';
+import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 import { rememberOutlet } from '@/lib/use-outlet';
 
@@ -66,6 +67,7 @@ function open(link: NotificationLink) {
 export default function NotificationsScreen() {
   const theme = useTheme();
   const { t, api, language } = useSession();
+  const { forwardIcon } = useDirection();
   const notify = useSnackbar();
   const [items, setItems] = useState<NotificationDto[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -236,7 +238,7 @@ export default function NotificationsScreen() {
                     {meta}
                   </ThemedText>
                 </View>
-                {item.link && <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />}
+                {item.link && <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />}
               </Pressable>
             );
           })}
@@ -260,7 +262,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     borderWidth: 1.5,
     padding: Spacing.three,
-    paddingLeft: Spacing.two,
+    paddingStart: Spacing.two,
     minHeight: MinTouchSize * 1.6,
   },
   // Kept even when there is no dot, so read and unread rows line up.

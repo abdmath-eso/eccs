@@ -121,3 +121,16 @@ The loop needs three people (the restaurant, the ECCS office and the Supervisor)
 7. **Read the report.** In the app it is under Past visits and on the History calendar. In the console it is under Visits → Finished.
 
 The Head Chef does not see services. The Supervisor sees only visits given to them.
+
+## 7. Trying an inspection
+
+1. **Plan it (web console).** As the Operations Manager, open Inspections, choose an outlet and a date, and give it to the Supervisor (or "Myself").
+2. **Do it (app, as the Supervisor, 9000000003).** More → Inspections → open it. Answer each check: Compliant, Not compliant or N/A. A "Not compliant" needs a note, how serious it is, what to do about it, a date to fix it by, and a photo. Finish when every check is answered.
+3. **Approve it (web console).** Inspections shows the report with its score and grade. Approve it, or send it back with a note.
+4. **Read it (restaurant app).** As the Owner or Manager of that outlet: More → Inspections.
+
+## 8. Trying checklists without signal
+
+1. With signal, open Checklists once so today's checklists are on the phone.
+2. Switch on aeroplane mode. Open a checklist, tick items, take photos, report a problem, and Submit. A line at the bottom says how many are waiting to be sent.
+3. Switch aeroplane mode off. The line changes to "Sending…" and then "All sent".

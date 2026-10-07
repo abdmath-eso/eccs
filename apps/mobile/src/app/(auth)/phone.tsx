@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
@@ -55,7 +56,8 @@ export default function PhoneScreen() {
         <ThemedText type="smallBold" themeColor="textSecondary">
           {t('phone.label')}
         </ThemedText>
-        <View style={styles.row}>
+        {/* A phone number reads left to right in every language, so "+91" stays on the left of the box in Urdu too. */}
+        <DirectionView direction="ltr" style={styles.row}>
           {/* Every number here is Indian, so the country code is shown, not typed. */}
           <View
             accessible={false}
@@ -82,7 +84,7 @@ export default function PhoneScreen() {
               onSubmitEditing={submit}
             />
           </View>
-        </View>
+        </DirectionView>
       </View>
       <Button label={t('phone.send')} onPress={submit} loading={busy} disabled={phone.trim().length < 10} />
     </Screen>

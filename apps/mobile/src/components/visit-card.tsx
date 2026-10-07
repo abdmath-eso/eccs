@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDayShort, formatSlot } from '@/lib/format';
+import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 
 /** A small coloured label for where a service visit stands. */
@@ -38,6 +39,7 @@ export function VisitStatusBadge({ status }: { status: VisitStatus }) {
 export function VisitCard({ visit, showOutlet }: { visit: VisitSummaryDto; showOutlet?: boolean }) {
   const theme = useTheme();
   const { t, language } = useSession();
+  const { forwardGlyph } = useDirection();
   const when = [formatDayShort(visit.date, language), formatSlot(visit.slot, language, t)].filter(Boolean).join(' · ');
 
   return (
@@ -53,7 +55,7 @@ export function VisitCard({ visit, showOutlet }: { visit: VisitSummaryDto; showO
           {localize(visit.serviceName, language)}
         </ThemedText>
         <ThemedText type="default" themeColor="textSecondary">
-          ›
+          {forwardGlyph}
         </ThemedText>
       </View>
       <ThemedText type="default">{when}</ThemedText>

@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
@@ -32,7 +33,7 @@ export function OptionSheet({ visible, title, options, onClose }: OptionSheetPro
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.root}>
+      <DirectionView style={styles.root}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
@@ -63,7 +64,7 @@ export function OptionSheet({ visible, title, options, onClose }: OptionSheetPro
           })}
           <Button label={t('common.cancel')} variant="secondary" onPress={onClose} />
         </View>
-      </View>
+      </DirectionView>
     </Modal>
   );
 }

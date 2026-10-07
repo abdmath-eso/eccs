@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useDirection } from '@/lib/direction';
 import { isTabRoute } from '@/lib/navigation';
 import { useSession } from '@/lib/session';
 
@@ -19,7 +20,7 @@ interface ScreenProps {
   backLabel?: string;
   /** What the back button does, when it should stay on this screen (for example to step back within it). */
   onBack?: () => void;
-  /** Extra control on the right of the top bar. */
+  /** Extra control at the far end of the top bar: the right, or the left in Urdu. */
   headerRight?: ReactNode;
   /**
    * Pinned under the scrolling body and always in view: the screen's main button,
@@ -53,6 +54,8 @@ export function Screen({
 }: ScreenProps) {
   const theme = useTheme();
   const { t, user } = useSession();
+  // In Urdu the back arrow points right, towards where the reading started.
+  const { backIcon } = useDirection();
   const [refreshing, setRefreshing] = useState(false);
   // On a screen that shows the bottom bar, the bar itself keeps clear of the home indicator.
   const aboveBottomBar = isTabRoute(usePathname(), user?.memberships[0]?.role);
@@ -84,7 +87,7 @@ export function Screen({
                   accessibilityLabel={backLabel ?? t('common.back')}
                   onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))}
                   style={styles.back}>
-                  <Ionicons name="chevron-back" size={24} color={theme.primary} />
+                  <Ionicons name={backIcon} size={24} color={theme.primary} />
                   <ThemedText type="default" themeColor="primary" numberOfLines={1}>
                     {backLabel ?? t('common.back')}
                   </ThemedText>
@@ -151,7 +154,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.half,
     minHeight: MinTouchSize,
-    paddingRight: Spacing.three,
+    paddingEnd: Spacing.three,
   },
   title: { fontSize: 28, lineHeight: 36 },
   footer: {

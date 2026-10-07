@@ -16,6 +16,7 @@ import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { formatDateTime } from '@/lib/format';
 import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
@@ -292,7 +293,7 @@ export default function RaiseIssueScreen() {
             </View>
           </View>
           <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-            {contact.phone} · {contact.hours}
+            {ltrText(contact.phone)} · {contact.hours}
           </ThemedText>
         </>
       )}

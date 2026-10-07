@@ -45,6 +45,7 @@ const STATUS: Record<VisitStatus, { label: string; style: string }> = {
   SCHEDULED: { label: "No Supervisor yet", style: "border-danger text-danger" },
   ASSIGNED: { label: "Assigned", style: "border-foreground text-foreground" },
   IN_PROGRESS: { label: "In progress", style: "border-primary text-primary" },
+  IN_REVIEW: { label: "Report to check", style: "border-danger text-danger" },
   COMPLETED: { label: "Waiting for sign-off", style: "border-foreground text-foreground" },
   APPROVED: { label: "Signed off", style: "border-primary text-primary" },
   CANCELLED: { label: "Cancelled", style: "border-border-strong text-muted" },
@@ -711,7 +712,17 @@ function VisitDetail({
   }
 
   const photos = (kind: "BEFORE" | "AFTER") => visit.photos.filter((photo) => photo.kind === kind);
-  const isReport = visit.status === "COMPLETED" || visit.status === "APPROVED";
+  const isReport = visit.status === "IN_REVIEW" || visit.status === "COMPLETED" || visit.status === "APPROVED";
+
+  async function sendBack() {
+    const sure = await confirm({
+      title: "Send this report back?",
+      body: `${visit.supervisorName ?? "The Supervisor"} will be able to change the tasks, photos, team and notes, and must finish the visit again. Tell them what to correct; the app does not pass on a message yet.`,
+      confirmLabel: "Send back to the Supervisor",
+      cancelLabel: "Keep it here",
+    });
+    if (sure) void act(() => api.visits.returnReport(visit.id), () => "Report sent back to the Supervisor");
+  }
 
   return (
     <Card className="flex flex-col gap-4">
@@ -727,6 +738,24 @@ function VisitDetail({
       </div>
 
       {visit.reportNumber && <p className="font-semibold">Service report {visit.reportNumber}</p>}
+
+      {visit.canReview && (
+        <div className="flex flex-col gap-3 rounded-lg border border-danger p-3">
+          <p className="text-sm">
+            The Supervisor has finished this visit. Check the tasks, photos and notes below. The restaurant cannot see the
+            report, or sign it off, until you approve it.
+          </p>
+          <ErrorMessage message={error} />
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" loading={busy} onClick={() => void act(() => api.visits.approveReport(visit.id), () => "Report approved and sent to the restaurant")}>
+              Approve the report
+            </Button>
+            <Button type="button" variant="secondary" disabled={busy} onClick={() => void sendBack()}>
+              Send back to the Supervisor
+            </Button>
+          </div>
+        </div>
+      )}
 
       {visit.canManage ? (
         <form onSubmit={save} noValidate className="flex flex-col gap-3">

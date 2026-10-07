@@ -92,8 +92,9 @@ export default function ServicesScreen() {
   // For ECCS staff the list is a work plan: what is under way first, then by day.
   const today = indiaToday();
   const underWay = all.filter((visit) => visit.status === 'IN_PROGRESS');
-  const awaiting = all.filter((visit) => visit.status === 'COMPLETED');
-  const planned = all.filter((visit) => visit.status !== 'IN_PROGRESS' && visit.status !== 'COMPLETED');
+  // Finished: with ECCS for checking, or approved and with the restaurant for sign-off.
+  const awaiting = all.filter((visit) => visit.status === 'IN_REVIEW' || visit.status === 'COMPLETED');
+  const planned = all.filter((visit) => !underWay.includes(visit) && !awaiting.includes(visit));
   const onDay = (bucket: ReturnType<typeof dayBucket>) =>
     planned.filter((visit) => dayBucket(visit.date, today) === bucket);
 

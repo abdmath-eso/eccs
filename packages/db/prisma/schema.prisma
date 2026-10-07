@@ -614,6 +614,10 @@ model Job {
   checkInLongitude Float?
   checkInDistanceM Int? /// metres from the outlet's saved location
   completedAt      DateTime?
+  /// Set when an ECCS admin has checked the finished visit's report and released it to
+  /// the restaurant. Until then the restaurant cannot read the report or sign it off.
+  reviewedAt       DateTime?
+  reviewedById     String?
   approvedById     String?
   approvedAt       DateTime?
   notes            String?

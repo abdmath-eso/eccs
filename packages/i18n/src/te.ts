@@ -597,4 +597,8 @@ export const te: Messages = {
   "visit.comment": "ఇంకేమైనా చెప్పాలా? (ఐచ్ఛికం)",
   "visit.commentPlaceholder": "ఏది బాగుంది, లేదా ఏది మెరుగవ్వాలి",
   "visit.rateFirst": "సైన్ ఆఫ్ చేసే ముందు రేటింగ్ ఎంచుకోండి.",
+
+  "visitStatus.IN_REVIEW": "ECCS నివేదికను సరిచూస్తోంది",
+  "visit.inReviewRestaurant": "పని పూర్తయింది. ECCS నివేదికను సరిచూస్తోంది; ఆమోదించిన తర్వాత మీరు దాన్ని చదివి సైన్ ఆఫ్ చేయవచ్చు.",
+  "visit.inReviewEccs": "పని ముగిసింది. ECCS ఆఫీస్ నివేదికను ఆమోదించడం కోసం వేచి ఉంది.",
 };

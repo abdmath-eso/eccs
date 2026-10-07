@@ -597,4 +597,8 @@ export const hi: Messages = {
   "visit.comment": "कुछ और कहना है? (वैकल्पिक)",
   "visit.commentPlaceholder": "क्या अच्छा रहा, या क्या बेहतर होना चाहिए",
   "visit.rateFirst": "पुष्टि करने से पहले रेटिंग चुनें।",
+
+  "visitStatus.IN_REVIEW": "ECCS रिपोर्ट जांच रहा है",
+  "visit.inReviewRestaurant": "काम पूरा हो गया है। ECCS रिपोर्ट जांच रहा है; मंज़ूर होने के बाद आप इसे पढ़कर पुष्टि कर सकते हैं।",
+  "visit.inReviewEccs": "काम खत्म। ECCS ऑफ़िस से रिपोर्ट की मंज़ूरी बाकी है।",
 };

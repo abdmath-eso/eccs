@@ -597,4 +597,8 @@ export const pa: Messages = {
   "visit.comment": "ਹੋਰ ਕੁਝ ਕਹਿਣਾ ਹੈ? (ਜ਼ਰੂਰੀ ਨਹੀਂ)",
   "visit.commentPlaceholder": "ਕੀ ਚੰਗਾ ਰਿਹਾ, ਜਾਂ ਕੀ ਬਿਹਤਰ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ",
   "visit.rateFirst": "ਸਾਈਨ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਰੇਟਿੰਗ ਚੁਣੋ।",
+
+  "visitStatus.IN_REVIEW": "ECCS ਰਿਪੋਰਟ ਚੈੱਕ ਕਰ ਰਿਹਾ ਹੈ",
+  "visit.inReviewRestaurant": "ਕੰਮ ਪੂਰਾ ਹੋ ਗਿਆ ਹੈ। ECCS ਰਿਪੋਰਟ ਚੈੱਕ ਕਰ ਰਿਹਾ ਹੈ; ਮਨਜ਼ੂਰ ਹੋਣ ਤੋਂ ਬਾਅਦ ਤੁਸੀਂ ਇਸਨੂੰ ਪੜ੍ਹ ਕੇ ਸਾਈਨ ਕਰ ਸਕਦੇ ਹੋ।",
+  "visit.inReviewEccs": "ਕੰਮ ਮੁੱਕਿਆ। ECCS ਦਫ਼ਤਰ ਵੱਲੋਂ ਰਿਪੋਰਟ ਦੀ ਮਨਜ਼ੂਰੀ ਦੀ ਉਡੀਕ ਹੈ।",
 };

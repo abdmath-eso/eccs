@@ -36,14 +36,25 @@ export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 /**
  * Where a visit stands:
  * SCHEDULED = a date is set but no Supervisor yet; ASSIGNED = a Supervisor has it;
- * IN_PROGRESS = the Supervisor has checked in at the outlet; COMPLETED = the work is
- * done and waits for the restaurant's sign-off; APPROVED = the restaurant signed it off.
+ * IN_PROGRESS = the Supervisor has checked in at the outlet; IN_REVIEW = the work is
+ * done and ECCS is checking the report before the restaurant sees it; COMPLETED = ECCS
+ * approved the report and it waits for the restaurant's sign-off; APPROVED = the
+ * restaurant signed it off.
  */
-export const VISIT_STATUSES = ["SCHEDULED", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "APPROVED", "CANCELLED"] as const;
+export const VISIT_STATUSES = [
+  "SCHEDULED",
+  "ASSIGNED",
+  "IN_PROGRESS",
+  "IN_REVIEW",
+  "COMPLETED",
+  "APPROVED",
+  "CANCELLED",
+] as const;
 export type VisitStatus = (typeof VISIT_STATUSES)[number];
 
 /** The work has been done, whether or not it has been signed off yet. */
-export const isVisitDone = (status: VisitStatus) => status === "COMPLETED" || status === "APPROVED";
+export const isVisitDone = (status: VisitStatus) =>
+  status === "IN_REVIEW" || status === "COMPLETED" || status === "APPROVED";
 /** Still to happen or happening now. */
 export const isVisitAhead = (status: VisitStatus) =>
   status === "SCHEDULED" || status === "ASSIGNED" || status === "IN_PROGRESS";
@@ -228,5 +239,7 @@ export interface VisitDto extends VisitSummaryDto {
   /** What the person asking may do with it now. */
   canRecord: boolean;
   canSignOff: boolean;
+  /** ECCS admins, while the report waits for their check: approve it or send it back. */
+  canReview: boolean;
   canManage: boolean;
 }

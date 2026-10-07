@@ -37,6 +37,7 @@ export async function addSampleVisits(prisma: PrismaClient): Promise<{ added: nu
           supervisorId,
           technicianNames: ["Sample Technician"],
           completedAt: finishedAt,
+          reviewedAt: finishedAt,
           approvedAt: finishedAt,
           notes: "Sample past visit",
         },

@@ -597,4 +597,8 @@ export const bn: Messages = {
   "visit.comment": "আর কিছু বলার আছে? (না দিলেও চলবে)",
   "visit.commentPlaceholder": "কী ভালো হয়েছে, বা কী আরও ভালো হওয়া উচিত",
   "visit.rateFirst": "সই করার আগে একটি রেটিং বেছে নিন।",
+
+  "visitStatus.IN_REVIEW": "ECCS রিপোর্ট যাচাই করছে",
+  "visit.inReviewRestaurant": "কাজ শেষ হয়েছে। ECCS রিপোর্ট যাচাই করছে; অনুমোদন হলে আপনি এটি পড়ে সই করতে পারবেন।",
+  "visit.inReviewEccs": "শেষ হয়েছে। ECCS অফিসের রিপোর্ট অনুমোদনের অপেক্ষায়।",
 };

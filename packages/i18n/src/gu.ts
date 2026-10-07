@@ -597,4 +597,8 @@ export const gu: Messages = {
   "visit.comment": "બીજું કંઈ કહેવું છે? (વૈકલ્પિક)",
   "visit.commentPlaceholder": "શું સારું રહ્યું, અથવા શું વધુ સારું થવું જોઈએ",
   "visit.rateFirst": "સહી કરતા પહેલાં રેટિંગ પસંદ કરો.",
+
+  "visitStatus.IN_REVIEW": "ECCS રિપોર્ટ તપાસી રહ્યું છે",
+  "visit.inReviewRestaurant": "કામ પૂરું થયું છે. ECCS રિપોર્ટ તપાસી રહ્યું છે; મંજૂર થયા પછી તમે તેને વાંચીને સહી કરી શકશો.",
+  "visit.inReviewEccs": "પૂરું થયું. ECCS ઓફિસ રિપોર્ટ મંજૂર કરે તેની રાહ છે.",
 };

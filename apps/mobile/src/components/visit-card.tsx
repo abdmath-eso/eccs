@@ -16,7 +16,7 @@ export function VisitStatusBadge({ status }: { status: VisitStatus }) {
   const color =
     status === 'APPROVED'
       ? theme.primary
-      : status === 'COMPLETED'
+      : status === 'COMPLETED' || status === 'IN_REVIEW'
         ? theme.warning
         : status === 'IN_PROGRESS'
           ? theme.info

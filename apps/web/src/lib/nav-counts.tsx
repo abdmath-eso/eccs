@@ -7,7 +7,7 @@ import { api } from "./api";
 
 /** How many things are waiting in each section. `null` until known, or if it could not be fetched. */
 export interface NavCounts {
-  /** Requests from restaurants not yet confirmed, plus visits in the diary with no Supervisor. */
+  /** Requests from restaurants not yet confirmed, visits with no Supervisor, and reports waiting to be checked. */
   visits: number | null;
   /** Issues that are open or in progress. */
   issues: number | null;
@@ -35,7 +35,7 @@ async function fetchCounts(): Promise<NavCounts> {
   ]);
   const waiting = requests.status === "fulfilled" ? requests.value.length : 0;
   return {
-    visits: visits.status === "fulfilled" ? waiting + visits.value.filter((visit) => visit.status === "SCHEDULED").length : null,
+    visits: visits.status === "fulfilled" ? waiting + visits.value.filter((visit) => visit.status === "SCHEDULED" || visit.status === "IN_REVIEW").length : null,
     issues: issues.status === "fulfilled" ? issues.value.length : null,
     licences: licences.status === "fulfilled" ? licences.value.length : null,
   };

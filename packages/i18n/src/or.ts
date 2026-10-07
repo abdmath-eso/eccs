@@ -597,4 +597,8 @@ export const or: Messages = {
   "visit.comment": "ଆଉ କିଛି କହିବାର ଅଛି କି? (ଇଚ୍ଛା ହେଲେ)",
   "visit.commentPlaceholder": "କ'ଣ ଭଲ ହେଲା, କିମ୍ବା କ'ଣ ଆହୁରି ଭଲ ହେବା ଦରକାର",
   "visit.rateFirst": "ସାଇନ୍ ଅଫ୍ କରିବା ପୂର୍ବରୁ ରେଟିଂ ବାଛନ୍ତୁ।",
+
+  "visitStatus.IN_REVIEW": "ECCS ରିପୋର୍ଟ ଯାଞ୍ଚ କରୁଛି",
+  "visit.inReviewRestaurant": "କାମ ସରିଛି। ECCS ରିପୋର୍ଟ ଯାଞ୍ଚ କରୁଛି; ମଞ୍ଜୁର ହେଲା ପରେ ଆପଣ ଏହାକୁ ପଢ଼ି ସାଇନ୍ ଅଫ୍ କରିପାରିବେ।",
+  "visit.inReviewEccs": "କାମ ସରିଲା। ECCS ଅଫିସ୍ ରିପୋର୍ଟ ମଞ୍ଜୁର କରିବା ବାକି ଅଛି।",
 };

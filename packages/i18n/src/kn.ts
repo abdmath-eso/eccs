@@ -597,4 +597,8 @@ export const kn: Messages = {
   "visit.comment": "ಇನ್ನೇನಾದರೂ ಹೇಳಬೇಕೇ? (ಬೇಕಿದ್ದರೆ)",
   "visit.commentPlaceholder": "ಏನು ಚೆನ್ನಾಗಿತ್ತು, ಅಥವಾ ಏನು ಇನ್ನೂ ಚೆನ್ನಾಗಿರಬೇಕು",
   "visit.rateFirst": "ಸೈನ್ ಆಫ್ ಮಾಡುವ ಮೊದಲು ರೇಟಿಂಗ್ ಆಯ್ಕೆ ಮಾಡಿ.",
+
+  "visitStatus.IN_REVIEW": "ECCS ರಿಪೋರ್ಟ್ ಪರಿಶೀಲಿಸುತ್ತಿದೆ",
+  "visit.inReviewRestaurant": "ಕೆಲಸ ಮುಗಿದಿದೆ. ECCS ರಿಪೋರ್ಟ್ ಪರಿಶೀಲಿಸುತ್ತಿದೆ; ಅದು ಒಪ್ಪಿಗೆಯಾದ ನಂತರ ನೀವು ಓದಿ ಸೈನ್ ಆಫ್ ಮಾಡಬಹುದು.",
+  "visit.inReviewEccs": "ಮುಗಿದಿದೆ. ECCS ಆಫೀಸ್ ರಿಪೋರ್ಟ್ ಒಪ್ಪುವುದಕ್ಕಾಗಿ ಕಾಯುತ್ತಿದೆ.",
 };

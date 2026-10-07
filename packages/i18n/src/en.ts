@@ -557,6 +557,9 @@ export const en = {
   "profile.photoSaved": "Photo saved",
   "profile.photoRemoved": "Photo removed",
   // ui-review:services
+  "visitStatus.IN_REVIEW": "ECCS is checking the report",
+  "visit.inReviewRestaurant": "The work is done. ECCS is checking the report; you can read it and sign off once it is approved.",
+  "visit.inReviewEccs": "Finished. Waiting for the ECCS office to approve the report.",
   "visit.rate": "How was the service?",
   "visit.rateHelp": "Tap a star to rate this visit.",
   "visit.rating.1": "Poor",

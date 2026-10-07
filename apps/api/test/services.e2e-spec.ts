@@ -37,6 +37,7 @@ type Visit = {
   canRecord: boolean;
   canSignOff: boolean;
   canManage: boolean;
+  canReview: boolean;
   [key: string]: unknown;
 };
 
@@ -304,9 +305,9 @@ describe('Service loop (e2e)', () => {
       expect(record.body).toMatchObject({ technicianNames: ['Ravi', 'Suresh'], notes: 'Gel bait applied under the sinks.' });
     });
 
-    it('finishes with a report number and waits for the sign-off', async () => {
+    it('finishes with a report number and goes to ECCS to be checked', async () => {
       const done = (await http().post(`/visits/${visitId}/complete`).set(bearer(supervisor)).expect(200)).body as Visit;
-      expect(done.status).toBe('COMPLETED');
+      expect(done.status).toBe('IN_REVIEW');
       expect(done.reportNumber).toMatch(/^SR-\d{4}-\d{5}$/);
       expect(done).toMatchObject({ canRecord: false, canSignOff: false });
 
@@ -317,6 +318,53 @@ describe('Service loop (e2e)', () => {
 
       const bookings = (await http().get('/bookings').query({ outletId }).set(bearer(owner)).expect(200)).body as Booking[];
       expect(bookings.find((b) => b.id === bookingId)!.status).toBe('COMPLETED');
+    });
+  });
+
+  describe('ECCS checks the report', () => {
+    const approve = (token: string) => http().post(`/visits/${visitId}/approve-report`).set(bearer(token));
+    const sendBack = (token: string) => http().post(`/visits/${visitId}/return-report`).set(bearer(token));
+
+    it('keeps the report from the restaurant until ECCS approves it', async () => {
+      const theirs = await visit(owner);
+      expect(theirs).toMatchObject({ status: 'IN_REVIEW', canSignOff: false, canReview: false });
+      expect(theirs.photos).toEqual([]);
+      expect(theirs.tasks).toEqual([]);
+      expect(theirs.notes).toBeNull();
+      expect(theirs.technicianNames).toEqual([]);
+      await http().post(`/visits/${visitId}/sign-off`).set(bearer(owner)).send({ rating: 5 }).expect(409);
+
+      // ECCS and the Supervisor still see everything.
+      expect((await visit(supervisor)).photos).toHaveLength(2);
+      expect(await visit(admin)).toMatchObject({ status: 'IN_REVIEW', canReview: true });
+    });
+
+    it('lets ECCS send it back to the Supervisor, who finishes again under the same number', async () => {
+      await sendBack(owner).expect(403);
+      await sendBack(supervisor).expect(403);
+      const number = (await visit(admin)).reportNumber;
+
+      const reopened = (await sendBack(admin).expect(200)).body as Visit;
+      expect(reopened).toMatchObject({ status: 'IN_PROGRESS', canReview: false });
+      await sendBack(admin).expect(409);
+      await approve(admin).expect(409);
+
+      await http().patch(`/visits/${visitId}/record`).set(bearer(supervisor)).send({ notes: 'Gel bait applied under the sinks.' }).expect(200);
+      const again = (await http().post(`/visits/${visitId}/complete`).set(bearer(supervisor)).expect(200)).body as Visit;
+      expect(again).toMatchObject({ status: 'IN_REVIEW', reportNumber: number });
+    });
+
+    it('lets ECCS approve it, which releases it to the restaurant', async () => {
+      await approve(owner).expect(403);
+      await approve(supervisor).expect(403);
+      const approved = (await approve(admin).expect(200)).body as Visit;
+      expect(approved).toMatchObject({ status: 'COMPLETED', canReview: false });
+      await approve(admin).expect(409);
+
+      const theirs = await visit(owner);
+      expect(theirs).toMatchObject({ status: 'COMPLETED', canSignOff: true });
+      expect(theirs.photos).toHaveLength(2);
+      expect(theirs.tasks.length).toBeGreaterThan(0);
     });
   });
 

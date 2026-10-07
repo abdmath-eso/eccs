@@ -200,6 +200,20 @@ export class ServicesController {
     return this.services.complete(user, id);
   }
 
+  @Post('visits/:id/approve-report')
+  @HttpCode(200)
+  @RequirePermission('jobs', 'create')
+  approveReport(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.services.approveReport(user, id);
+  }
+
+  @Post('visits/:id/return-report')
+  @HttpCode(200)
+  @RequirePermission('jobs', 'create')
+  returnReport(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.services.returnReport(user, id);
+  }
+
   @Post('visits/:id/sign-off')
   @HttpCode(200)
   @RequirePermission('jobs', 'approve')

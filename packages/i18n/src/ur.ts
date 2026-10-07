@@ -597,4 +597,8 @@ export const ur: Messages = {
   "visit.comment": "کچھ اور کہنا ہے؟ (اختیاری)",
   "visit.commentPlaceholder": "کیا اچھا رہا، یا کیا بہتر ہونا چاہیے",
   "visit.rateFirst": "منظوری دینے سے پہلے ریٹنگ چنیں۔",
+
+  "visitStatus.IN_REVIEW": "ECCS رپورٹ چیک کر رہا ہے",
+  "visit.inReviewRestaurant": "کام مکمل ہو گیا ہے۔ ECCS رپورٹ چیک کر رہا ہے؛ پاس ہونے کے بعد آپ اسے پڑھ کر منظوری دے سکتے ہیں۔",
+  "visit.inReviewEccs": "کام ختم۔ ECCS آفس کے رپورٹ پاس کرنے کا انتظار ہے۔",
 };

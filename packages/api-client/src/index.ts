@@ -370,6 +370,10 @@ export function createApiClient(options: ApiClientOptions) {
         call<VisitDto>("DELETE", `/visits/${id(visitId)}/photos/${id(photoId)}`),
       /** The Supervisor finishes; the visit then waits for the restaurant's sign-off. */
       complete: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/complete`),
+      /** ECCS has checked the report and releases it to the restaurant. */
+      approveReport: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/approve-report`),
+      /** ECCS gives the visit back to the Supervisor to correct the report. */
+      returnReport: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/return-report`),
       /** The restaurant's Owner or Manager confirms the work was done and rates it out of five. */
       signOff: (visitId: string, input: SignOffVisitInput) =>
         call<VisitDto>("POST", `/visits/${id(visitId)}/sign-off`, input),

@@ -28,6 +28,18 @@ const OTP_MAX_REQUESTS = 5;
 const OTP_REQUEST_WINDOW_MS = 10 * 60 * 1000;
 const PIN_MAX_ATTEMPTS = 5;
 const PIN_LOCK_MS = 15 * 60 * 1000;
+
+/**
+ * The answer while a phone is locked after too many wrong PINs. The seconds left
+ * are written after the reason ("PIN_LOCKED:540") so the app can count them down.
+ */
+function pinLocked(until: Date): HttpException {
+  const seconds = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000));
+  return new HttpException(
+    { code: `PIN_LOCKED:${seconds}`, message: `Too many wrong PINs. Try again in ${Math.ceil(seconds / 60)} minutes.` },
+    HttpStatus.TOO_MANY_REQUESTS,
+  );
+}
 const LINK_MAX_PER_MINUTE = 10;
 const LAST_USED_REFRESH_MS = 5 * 60 * 1000;
 
@@ -179,7 +191,7 @@ export class AuthService {
       });
     }
     if (device.pinLockedUntil && device.pinLockedUntil > new Date()) {
-      throw new HttpException('Too many wrong PINs. Try again in 15 minutes.', HttpStatus.TOO_MANY_REQUESTS);
+      throw pinLocked(device.pinLockedUntil);
     }
 
     const user = await this.db.user.findFirst({
@@ -198,14 +210,16 @@ export class AuthService {
 
     if (!user) {
       const attempts = device.failedPinAttempts + 1;
-      const locked = attempts >= PIN_MAX_ATTEMPTS;
+      const lockedUntil = attempts >= PIN_MAX_ATTEMPTS ? new Date(Date.now() + PIN_LOCK_MS) : null;
       await this.db.linkedDevice.update({
         where: { id: device.id },
         data: {
-          failedPinAttempts: locked ? 0 : attempts,
-          pinLockedUntil: locked ? new Date(Date.now() + PIN_LOCK_MS) : null,
+          failedPinAttempts: lockedUntil ? 0 : attempts,
+          pinLockedUntil: lockedUntil,
         },
       });
+      // The wrong PIN that causes the lock is told so at once, so the app can show the wait straight away.
+      if (lockedUntil) throw pinLocked(lockedUntil);
       throw new UnauthorizedException('Wrong PIN');
     }
 

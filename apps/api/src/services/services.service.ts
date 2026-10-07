@@ -634,7 +634,6 @@ export class ServicesService {
     const ahead = visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED';
     return {
       ...toSummary(visit),
-      outletAddress: [visit.outlet.address, visit.outlet.city].filter(Boolean).join(', ') || null,
       technicianNames: visit.technicianNames,
       checkInAt: visit.checkInAt?.toISOString() ?? null,
       completedAt: visit.completedAt?.toISOString() ?? null,
@@ -672,6 +671,7 @@ function toSummary(visit: VisitRow): VisitSummaryDto {
     id: visit.id,
     outletId: visit.outletId,
     outletName: visit.outlet.name,
+    outletAddress: [visit.outlet.address, visit.outlet.city].filter(Boolean).join(', ') || null,
     organizationName: visit.outlet.organization.name,
     serviceCode: visit.serviceType.code,
     serviceName: visit.serviceType.name as LocalizedText,

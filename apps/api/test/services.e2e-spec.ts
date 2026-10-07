@@ -27,6 +27,7 @@ type Visit = {
   supervisorId: string | null;
   reportNumber: string | null;
   booked: boolean;
+  outletAddress: string | null;
   tasks: { itemId: string; done: boolean | null; note: string | null }[];
   photos: { id: string; kind: string; path: string }[];
   signOff: { name: string; role: string | null; signedAt: string } | null;
@@ -207,6 +208,9 @@ describe('Service loop (e2e)', () => {
       for (const token of [owner, admin, supervisor]) {
         const found = (await visits(token, { outletId })).find((entry) => entry.id === visitId)!;
         expect(found).toMatchObject({ status: 'ASSIGNED', date: daysAhead(4), slot: 'AFTER_CLOSING', supervisorId, booked: true });
+        // The list carries the address, so the Supervisor sees where to go without opening the visit.
+        expect(found.outletAddress).toEqual(expect.any(String));
+        expect(found.outletAddress).toBe((await visit(token)).outletAddress);
       }
       expect((await visits(otherManager)).map((entry) => entry.id)).not.toContain(visitId);
       await http().get(`/visits/${visitId}`).set(bearer(otherManager)).expect(404);

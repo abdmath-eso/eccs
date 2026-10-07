@@ -1,18 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { can, localize, type ChecklistRunDto, type ChecklistRunSummaryDto } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { formatTime } from '@/lib/format';
+import { formatDayShort, formatTime } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
@@ -28,28 +29,30 @@ export default function ChecklistsScreen() {
   const memberships = user?.memberships ?? [];
   const mayEditLists = can(memberships, 'checklists', 'update');
 
+  // Counts the loads started, so an answer for an outlet the person has since left is ignored.
+  const latestLoad = useRef(0);
+
+  const load = useCallback(async () => {
+    if (!outletId) return;
+    const mine = ++latestLoad.current;
+    try {
+      const [todayRuns, recent] = await Promise.all([api.checklists.today(outletId), api.checklists.history(outletId, 7)]);
+      if (mine !== latestLoad.current) return;
+      setRuns(todayRuns);
+      setHistory(recent);
+      setError(null);
+    } catch (e) {
+      if (mine === latestLoad.current) setError(errorMessage(e, t));
+    }
+    // `t` changes with language; reloading for that is unnecessary.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, outletId]);
+
   // Reloads whenever the screen comes back into view, so progress made on a checklist shows here.
   useFocusEffect(
     useCallback(() => {
-      if (!outletId) return;
-      let cancelled = false;
-      (async () => {
-        try {
-          const [todayRuns, recent] = await Promise.all([api.checklists.today(outletId), api.checklists.history(outletId, 7)]);
-          if (cancelled) return;
-          setRuns(todayRuns);
-          setHistory(recent);
-          setError(null);
-        } catch (e) {
-          if (!cancelled) setError(errorMessage(e, t));
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
-      // `t` changes with language; reloading for that is unnecessary.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [api, outletId]),
+      void load();
+    }, [load]),
   );
 
   const open = (runId: string) => router.push({ pathname: '/checklists/[runId]', params: { runId } });
@@ -57,35 +60,26 @@ export default function ChecklistsScreen() {
   const earlier = history.filter((row) => row.date !== today);
 
   return (
-    <Screen back title={t('checklists.title')} subtitle={t('checklists.photoRule')}>
+    <Screen back title={t('checklists.title')} subtitle={t('checklists.photoRule')} onRefresh={load}>
       {outlets.length > 1 && (
         <View style={styles.outlets} accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => {
-            const selected = outlet.id === outletId;
-            return (
-              <Pressable
-                key={outlet.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => {
-                  setRuns(null);
-                  choose(outlet.id);
-                }}
-                style={[
-                  styles.outlet,
-                  { borderColor: selected ? theme.primary : theme.border },
-                  selected && { backgroundColor: theme.backgroundElement },
-                ]}>
-                <ThemedText type="small" themeColor={selected ? 'primary' : 'text'}>
-                  {outlet.name}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+          {outlets.map((outlet) => (
+            <OptionChip
+              key={outlet.id}
+              label={outlet.name}
+              selected={outlet.id === outletId}
+              onPress={() => {
+                setRuns(null);
+                setHistory([]);
+                setError(null);
+                choose(outlet.id);
+              }}
+            />
+          ))}
         </View>
       )}
 
-      <ErrorText message={error} />
+      <ErrorText message={error} onRetry={() => void load()} />
       {(outletLoading || (runs === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
       {runs?.length === 0 && (
         <ThemedText type="default" themeColor="textSecondary">
@@ -166,7 +160,7 @@ export default function ChecklistsScreen() {
           <View style={styles.historyText}>
             <ThemedText type="default">{localize(row.title, language)}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              {row.date}
+              {formatDayShort(row.date, language)}
               {row.problemCount > 0 ? ` · ${t('checklists.problems', { count: row.problemCount })}` : ''}
             </ThemedText>
           </View>
@@ -187,13 +181,6 @@ export default function ChecklistsScreen() {
 
 const styles = StyleSheet.create({
   outlets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  outlet: {
-    minHeight: MinTouchSize - 8,
-    borderWidth: 2,
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    justifyContent: 'center',
-  },
   card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two, minHeight: MinTouchSize * 1.6 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },

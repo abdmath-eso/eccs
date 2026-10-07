@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionSheet, type SheetOption } from '@/components/ui/option-sheet';
 import { Screen } from '@/components/ui/screen';
+import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -30,7 +31,11 @@ export default function ProfileScreen() {
   const [photoSheet, setPhotoSheet] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // Each error is shown beside what caused it: the page failing to load, the photo, or the name.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const notify = useSnackbar();
 
   useFocusEffect(
     useCallback(() => {
@@ -40,9 +45,9 @@ export default function ProfileScreen() {
           const loaded = await api.profile.get();
           if (cancelled) return;
           setProfile(loaded);
-          setError(null);
+          setLoadError(null);
         } catch (e) {
-          if (!cancelled) setError(errorMessage(e, t));
+          if (!cancelled) setLoadError(errorMessage(e, t));
         }
       })();
       return () => {
@@ -53,15 +58,26 @@ export default function ProfileScreen() {
     }, [api]),
   );
 
+  /** Loads the profile again: for pulling down to refresh and for "Try again". */
+  async function reload() {
+    setLoadError(null);
+    try {
+      setProfile(await api.profile.get());
+    } catch (e) {
+      setLoadError(errorMessage(e, t));
+    }
+  }
+
   async function changePhoto(source: 'camera' | 'gallery') {
-    setError(null);
+    setPhotoError(null);
     try {
       const photo = await chooseProfilePhoto(source);
       if (!photo) return;
       setBusy('photo');
       setProfile(await api.profile.setPhoto(photo.file));
+      notify(t('profile.photoSaved'));
     } catch (e) {
-      setError(
+      setPhotoError(
         e instanceof CameraPermissionError ? t('profile.cameraNeeded') : errorMessage(e, t, { 0: 'error.upload' }),
       );
     } finally {
@@ -71,27 +87,32 @@ export default function ProfileScreen() {
 
   async function removePhoto() {
     setBusy('photo');
-    setError(null);
+    setPhotoError(null);
     try {
       setProfile(await api.profile.removePhoto());
+      notify(t('profile.photoRemoved'));
     } catch (e) {
-      setError(errorMessage(e, t));
+      setPhotoError(errorMessage(e, t));
     } finally {
       setBusy(null);
     }
   }
 
   async function saveName() {
+    if (name.trim().length === 0) return setNameError(t('profile.nameNeeded'));
+    // Nothing was changed, so there is nothing to send.
+    if (name.trim() === profile?.name) return setEditingName(false);
     setBusy('name');
-    setError(null);
+    setNameError(null);
     try {
       await api.auth.updateProfile({ name: name.trim() });
       // The greeting on the home screen and the menu use the name held with the login.
       await refreshUser();
       setProfile(await api.profile.get());
       setEditingName(false);
+      notify(t('profile.nameSaved'));
     } catch (e) {
-      setError(errorMessage(e, t));
+      setNameError(errorMessage(e, t));
     } finally {
       setBusy(null);
     }
@@ -128,8 +149,9 @@ export default function ProfileScreen() {
   );
 
   return (
-    <Screen back title={t('profile.title')}>
-      {!profile && !error && <ActivityIndicator color={theme.primary} />}
+    <Screen back title={t('profile.title')} onRefresh={reload}>
+      <ErrorText message={loadError} onRetry={() => void reload()} />
+      {!profile && !loadError && <ActivityIndicator color={theme.primary} />}
 
       {profile && (
         <>
@@ -155,6 +177,7 @@ export default function ProfileScreen() {
                 <Ionicons name="camera" size={18} color={theme.onPrimary} />
               </View>
             </Pressable>
+            <ErrorText message={photoError} />
             <ThemedText type="subtitle" style={styles.name}>
               {profile.name}
             </ThemedText>
@@ -166,13 +189,18 @@ export default function ProfileScreen() {
 
           {editingName ? (
             <View style={[styles.card, { borderColor: theme.primary }]}>
-              <TextField label={t('profile.name')} value={name} onChangeText={setName} maxLength={100} autoFocus />
-              <Button
-                label={t('profile.saveName')}
-                loading={busy === 'name'}
-                disabled={name.trim().length === 0 || name.trim() === profile.name}
-                onPress={() => void saveName()}
+              <TextField
+                label={t('profile.name')}
+                value={name}
+                onChangeText={(next) => {
+                  setName(next);
+                  setNameError(null);
+                }}
+                maxLength={100}
+                autoFocus
+                error={nameError}
               />
+              <Button label={t('profile.saveName')} loading={busy === 'name'} onPress={() => void saveName()} />
               <Button label={t('common.cancel')} variant="link" onPress={() => setEditingName(false)} />
             </View>
           ) : profile.canEditName ? (
@@ -181,6 +209,7 @@ export default function ProfileScreen() {
               variant="link"
               onPress={() => {
                 setName(profile.name);
+                setNameError(null);
                 setEditingName(true);
               }}
             />
@@ -189,8 +218,6 @@ export default function ProfileScreen() {
               {t('profile.nameHint')}
             </ThemedText>
           )}
-
-          <ErrorText message={error} />
 
           {/* ── Their own details ── */}
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
@@ -242,7 +269,6 @@ export default function ProfileScreen() {
           )}
         </>
       )}
-      {!profile && <ErrorText message={error} />}
 
       <OptionSheet
         visible={photoSheet}

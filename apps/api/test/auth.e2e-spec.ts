@@ -223,9 +223,15 @@ describe('Login and roles (e2e)', () => {
     it('locks a phone after five wrong PINs, without affecting other phones', async () => {
       const phone = await linkPhone(CODES.jubilee);
       const otherPhone = await linkPhone(CODES.jubilee);
-      for (let attempt = 0; attempt < 5; attempt++) {
+      for (let attempt = 0; attempt < 4; attempt++) {
         await http().post('/auth/pin/login').send({ deviceToken: phone, pin: '0001' }).expect(401);
       }
+      // The fifth wrong PIN locks the phone and says for how many seconds, for the app's countdown.
+      const fifth = await http().post('/auth/pin/login').send({ deviceToken: phone, pin: '0001' }).expect(429);
+      expect(fifth.body.code).toMatch(/^PIN_LOCKED:\d+$/);
+      const seconds = Number((fifth.body.code as string).split(':')[1]);
+      expect(seconds).toBeGreaterThan(14 * 60);
+      expect(seconds).toBeLessThanOrEqual(15 * 60);
       await http().post('/auth/pin/login').send({ deviceToken: phone, pin: PINS.jubileeManager }).expect(429);
       await pinLogin(otherPhone, PINS.jubileeManager);
     });

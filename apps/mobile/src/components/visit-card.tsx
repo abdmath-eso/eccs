@@ -1,4 +1,5 @@
 import { localize, type VisitStatus, type VisitSummaryDto } from '@eccs/shared';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -37,9 +38,7 @@ export function VisitStatusBadge({ status }: { status: VisitStatus }) {
 export function VisitCard({ visit, showOutlet }: { visit: VisitSummaryDto; showOutlet?: boolean }) {
   const theme = useTheme();
   const { t, language } = useSession();
-  const when = [formatDayShort(visit.date, language), formatSlot(visit.slot, language, t)]
-    .filter(Boolean)
-    .join(' · ');
+  const when = [formatDayShort(visit.date, language), formatSlot(visit.slot, language, t)].filter(Boolean).join(' · ');
 
   return (
     <Pressable
@@ -59,9 +58,18 @@ export function VisitCard({ visit, showOutlet }: { visit: VisitSummaryDto; showO
       </View>
       <ThemedText type="default">{when}</ThemedText>
       {showOutlet && (
-        <ThemedText type="small" themeColor="textSecondary">
-          {visit.outletName}
-        </ThemedText>
+        <View style={styles.place}>
+          <ThemedText type="default">{visit.outletName}</ThemedText>
+          {/* ECCS staff need to know where to go without opening the visit. */}
+          {visit.outletAddress && (
+            <View style={styles.address}>
+              <Ionicons name="location-outline" size={18} color={theme.textSecondary} />
+              <ThemedText type="small" themeColor="textSecondary" style={styles.addressText}>
+                {visit.outletAddress}
+              </ThemedText>
+            </View>
+          )}
+        </View>
       )}
       <VisitStatusBadge status={visit.status} />
     </Pressable>
@@ -84,4 +92,7 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.two },
   title: { flex: 1, fontWeight: 700, fontSize: 18 },
+  place: { gap: Spacing.half },
+  address: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one },
+  addressText: { flex: 1 },
 });

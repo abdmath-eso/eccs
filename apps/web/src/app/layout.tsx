@@ -15,7 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ECCS Console",
+  // Each page gives its own name, which goes first so it can be read in a narrow browser tab: "Visits · ECCS Console".
+  title: { template: "%s · ECCS Console", default: "ECCS Console" },
   description: "Eosfera Commercial Cleaning Services: operations console",
 };
 

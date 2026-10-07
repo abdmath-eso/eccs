@@ -5,10 +5,14 @@
   --surface: #ffffff;
   --foreground: #11181c;
   --muted: #5b6770;
+  /* Dividers and card outlines only. */
   --border: #d5dbdf;
+  /* The edge of anything a person types in or clicks: 3:1 against white, so the control can be found. */
+  --border-strong: #7c8a93;
   --primary: #0b7a6e;
   --primary-hover: #09665c;
   --danger: #c62828;
+  --danger-hover: #a81f1f;
 }
 
 @theme inline {
@@ -17,9 +21,11 @@
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -27,4 +33,22 @@
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/*
+ * One focus ring for the whole console: a solid line with a gap, so it shows
+ * on white cards, on the grey page and around filled buttons alike.
+ */
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* A field with a mistake in it keeps its red edge while it is being corrected. */
+[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+dialog::backdrop {
+  background: rgb(17 24 28 / 0.5);
 }

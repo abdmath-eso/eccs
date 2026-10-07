@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
 import { Screen } from '@/components/ui/screen';
+import { useSnackbar } from '@/components/ui/snackbar';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
@@ -23,6 +24,8 @@ export default function SopLibraryItemScreen() {
   const [item, setItem] = useState<SopLibraryItemDto | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
+  const notify = useSnackbar();
 
   useEffect(() => {
     let cancelled = false;
@@ -39,19 +42,48 @@ export default function SopLibraryItemScreen() {
   // The copy takes this screen's place, so Back from it returns to the library list.
   const openCopy = (sopId: string) => router.replace({ pathname: '/sops/[sopId]', params: { sopId } });
 
-  async function add() {
-    setAdding(true);
+  /** Loads the SOP again: for pulling down to refresh and for "Try again". */
+  async function reload() {
     setError(null);
     try {
-      openCopy((await api.sops.library.add(outletId, itemId)).id);
+      setItem(await api.sops.library.get(outletId, itemId));
     } catch (e) {
       setError(errorMessage(e, t));
+    }
+  }
+
+  async function add() {
+    setAdding(true);
+    setAddError(null);
+    try {
+      const copy = await api.sops.library.add(outletId, itemId);
+      notify(t('soplib.addedDone'));
+      openCopy(copy.id);
+    } catch (e) {
+      setAddError(errorMessage(e, t));
       setAdding(false);
     }
   }
 
   return (
-    <Screen back title={item?.name}>
+    <Screen
+      back
+      title={item?.name}
+      onRefresh={reload}
+      // The main button stays pinned at the bottom, so it is there without scrolling past every step.
+      footer={
+        item ? (
+          <>
+            <ErrorText message={addError} />
+            {item.addedSopId ? (
+              <Button label={t('soplib.openMine')} variant="secondary" onPress={() => openCopy(item.addedSopId!)} />
+            ) : (
+              <Button label={t('soplib.add')} hint={t('soplib.addHint')} loading={adding} onPress={() => void add()} />
+            )}
+          </>
+        ) : undefined
+      }>
+      <ErrorText message={error} onRetry={() => void reload()} />
       {!item && !error && <ActivityIndicator color={theme.primary} />}
 
       {item && (
@@ -98,13 +130,6 @@ export default function SopLibraryItemScreen() {
         </>
       )}
 
-      <ErrorText message={error} />
-      {item &&
-        (item.addedSopId ? (
-          <Button label={t('soplib.openMine')} variant="secondary" onPress={() => openCopy(item.addedSopId!)} />
-        ) : (
-          <Button label={t('soplib.add')} hint={t('soplib.addHint')} loading={adding} onPress={() => void add()} />
-        ))}
     </Screen>
   );
 }

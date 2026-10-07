@@ -12,10 +12,12 @@ import { useSession } from '@/lib/session';
 interface FileChooserProps {
   value: ChosenFile | null;
   onChange: (file: ChosenFile | null) => void;
+  /** Said under the buttons when the form needs a file and none was chosen. */
+  error?: string | null;
 }
 
 /** Two ways to attach a document: photograph the paper, or pick a PDF or image already on the phone. */
-export function FileChooser({ value, onChange }: FileChooserProps) {
+export function FileChooser({ value, onChange, error: missing }: FileChooserProps) {
   const { t } = useSession();
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +51,7 @@ export function FileChooser({ value, onChange }: FileChooserProps) {
           ✓ {t('docs.fileChosen', { name: value.name })}
         </ThemedText>
       )}
-      <ErrorText message={error} />
+      <ErrorText message={error ?? missing ?? null} />
     </View>
   );
 }

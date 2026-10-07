@@ -9,14 +9,16 @@ import {
   type CalendarLicenceDto,
   type CalendarMonthDto,
   type CalendarVisitDto,
+  type ChecklistRunSummaryDto,
 } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
+import { ActivityIndicator, PanResponder, Pressable, StyleSheet, View, type ScrollView } from 'react-native';
 
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
+import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -25,19 +27,46 @@ import { formatDate, formatDayLong, formatMonth, formatSlot, indiaToday, weekday
 import { useSession } from '@/lib/session';
 import { rememberOutlet, useOutlet } from '@/lib/use-outlet';
 
-// A day cell shows at most this many labels; the rest are counted as "+2".
-const MAX_LABELS = 3;
+type IconName = ComponentProps<typeof Ionicons>['name'];
 
-interface Label {
-  key: string;
-  text: string;
-  color: string;
+// What a mark in a day cell is about. The picture says the kind of thing and nothing else.
+const KINDS = ['checklists', 'service', 'licence', 'holiday'] as const;
+type Kind = (typeof KINDS)[number];
+const KIND_ICON: Record<Kind, IconName> = {
+  checklists: 'checkbox',
+  service: 'sparkles',
+  licence: 'document-text',
+  holiday: 'flag',
+};
+
+// How it stands. The colour says this and nothing else.
+const STATUSES = ['fine', 'attention', 'missed', 'planned'] as const;
+type Status = (typeof STATUSES)[number];
+const WORST_FIRST: Status[] = ['missed', 'attention', 'planned', 'fine'];
+
+interface Mark {
+  kind: Kind;
+  status: Status;
+  /** Shown beside the icon where it helps, e.g. "2/3" checklists done. */
+  count?: string;
+}
+
+// How far a finger must travel sideways across the month for it to count as a swipe.
+const SWIPE_DISTANCE = 48;
+
+/** The month a swipe leads to: one later (1) or earlier (-1), staying within the year either side of today. */
+function monthAfterSwipe(month: string, by: 1 | -1): string {
+  const thisMonth = indiaToday().slice(0, 7);
+  const next = shiftMonth(month, by);
+  return next < shiftMonth(thisMonth, -CALENDAR_MONTHS_BACK) || next > shiftMonth(thisMonth, CALENDAR_MONTHS_AHEAD)
+    ? month
+    : next;
 }
 
 /**
- * The outlet's calendar, a month at a time. Each day carries small coloured
- * labels for its checklists, ECCS services, licences falling due and
- * holidays; tapping a day shows them in full underneath.
+ * The outlet's calendar, a month at a time. Each day carries small icons for
+ * its checklists, ECCS services, licences falling due and holidays, coloured
+ * by how they stand; tapping a day shows them in full underneath.
  */
 export default function HistoryScreen() {
   const theme = useTheme();
@@ -47,6 +76,12 @@ export default function HistoryScreen() {
   const [selected, setSelected] = useState(() => indiaToday());
   const [data, setData] = useState<CalendarMonthDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const dayPanelRef = useRef<View>(null);
+  // Where the chosen day's panel starts within the scrolling page.
+  const dayPanelY = useRef(0);
+  // Set when a day is tapped, so its details are brought into view once they are drawn.
+  const revealDay = useRef(false);
 
   // Reloads when the month or outlet changes, and whenever the screen comes back into view.
   useFocusEffect(
@@ -71,9 +106,20 @@ export default function HistoryScreen() {
     }, [api, outletId, month]),
   );
 
+  /** Loads the month again: for pulling down to refresh and for "Try again". */
+  async function reload() {
+    if (!outletId) return;
+    setError(null);
+    try {
+      setData(await api.calendar.month(outletId, month));
+    } catch (e) {
+      setError(errorMessage(e, t));
+    }
+  }
+
   const today = data?.today ?? indiaToday();
   const thisMonth = today.slice(0, 7);
-  // While another month or outlet is loading, the grid shows its dates without labels.
+  // While another month or outlet is loading, the grid shows its dates without marks.
   const shown = data && data.month === month && data.outletId === outletId ? data : null;
   const byDate = new Map(shown?.days.map((day) => [day.date, day]));
 
@@ -84,43 +130,97 @@ export default function HistoryScreen() {
   const canGoBack = month > shiftMonth(thisMonth, -CALENDAR_MONTHS_BACK);
   const canGoAhead = month < shiftMonth(thisMonth, CALENDAR_MONTHS_AHEAD);
 
-  const licenceName = (licence: CalendarLicenceDto) => licence.name ?? t(`licenceType.${licence.type}`);
-  const visitColor = (visit: CalendarVisitDto) => (visit.state === 'NOT_DONE' ? theme.danger : theme.info);
+  // Swiping across the month moves a month, like the arrows. The touch handlers are made
+  // once, so they work from the month and day held at that moment rather than from this draw.
+  const [swipe] = useState(() =>
+    PanResponder.create({
+      // Only a clearly sideways move is taken, so scrolling the page up and down still works.
+      onMoveShouldSetPanResponder: (_event, gesture) =>
+        Math.abs(gesture.dx) > 16 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 2,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderRelease: (_event, gesture) => {
+        // A finger moving left brings the next month in, as when turning a page.
+        const by = gesture.dx <= -SWIPE_DISTANCE ? 1 : gesture.dx >= SWIPE_DISTANCE ? -1 : 0;
+        if (by === 0) return;
+        setMonth((current) => monthAfterSwipe(current, by));
+        // The chosen day is always in the month on show, so it can be moved the same way.
+        setSelected((current) => {
+          const from = current.slice(0, 7);
+          const to = monthAfterSwipe(from, by);
+          if (to === from) return current;
+          const now = indiaToday();
+          return to === now.slice(0, 7) ? now : `${to}-01`;
+        });
+      },
+    }),
+  );
 
-  /** The small labels inside a day cell, most useful first. */
-  const labelsFor = (day: CalendarDayDto): Label[] => {
-    const labels: Label[] = day.holidays.map((holiday, index) => ({
-      key: `holiday-${index}`,
-      text: localize(holiday, language),
-      color: theme.textSecondary,
-    }));
+  // After a day is tapped and its details are drawn, scrolls just far enough to show them
+  // if they are below the bottom of the screen. The day's title is never pushed off the top.
+  useEffect(() => {
+    if (!revealDay.current) return;
+    revealDay.current = false;
+    const scroll = scrollRef.current;
+    const panel = dayPanelRef.current;
+    // The part of the scrolling area that can be measured. The browser preview may not have it.
+    const frame = typeof scroll?.getNativeScrollRef === 'function' ? scroll.getNativeScrollRef() : null;
+    if (!scroll || !panel || !frame) return;
+    frame.measureInWindow((_x, scrollTop, _width, scrollHeight) => {
+      panel.measureInWindow((_panelX, panelTop, _panelWidth, panelHeight) => {
+        const hidden = panelTop + panelHeight - (scrollTop + scrollHeight);
+        const move = Math.min(hidden, panelTop - scrollTop);
+        if (move <= 0) return;
+        // Where the page is scrolled to now, worked out from where the panel sits on screen.
+        const position = scrollTop + dayPanelY.current - panelTop;
+        scroll.scrollTo({ y: position + move, animated: true });
+      });
+    });
+  }, [selected]);
+
+  const licenceName = (licence: CalendarLicenceDto) => licence.name ?? t(`licenceType.${licence.type}`);
+
+  const statusColor: Record<Status, string> = {
+    fine: theme.primary,
+    attention: theme.warning,
+    missed: theme.danger,
+    planned: theme.textSecondary,
+  };
+  const checklistStatus = (checklist: ChecklistRunSummaryDto): Status =>
+    checklist.status === 'MISSED'
+      ? 'missed'
+      : checklist.problemCount > 0
+        ? 'attention'
+        : checklist.status === 'SUBMITTED'
+          ? 'fine'
+          : 'planned';
+  const visitStatus = (visit: CalendarVisitDto): Status =>
+    visit.state === 'DONE' ? 'fine' : visit.state === 'NOT_DONE' ? 'missed' : 'planned';
+  // A licence running out needs attention beforehand, and is a miss once the day has gone.
+  const licenceStatus = (date: string): Status => (date < today ? 'missed' : 'attention');
+  const worst = (statuses: Status[]) => WORST_FIRST.find((status) => statuses.includes(status)) ?? 'planned';
+
+  /** The marks inside a day cell: one per kind of thing, coloured by the worst of that kind. */
+  const marksFor = (day: CalendarDayDto): Mark[] => {
+    const marks: Mark[] = [];
     if (day.checklists.length > 0) {
       const done = day.checklists.filter((checklist) => checklist.status === 'SUBMITTED').length;
-      const allDone = done === day.checklists.length;
-      const missed = day.checklists.some((checklist) => checklist.status === 'MISSED');
-      const problems = day.checklists.some((checklist) => checklist.problemCount > 0);
-      labels.push({
-        key: 'checklists',
-        text: `${allDone ? '✓ ' : ''}${done}/${day.checklists.length}`,
-        color: missed ? theme.danger : problems ? theme.warning : allDone ? theme.primary : theme.textSecondary,
+      marks.push({
+        kind: 'checklists',
+        status: worst(day.checklists.map(checklistStatus)),
+        count: `${done}/${day.checklists.length}`,
       });
     }
-    for (const visit of day.visits) {
-      labels.push({
-        key: visit.id,
-        text: `${visit.state === 'DONE' ? '✓ ' : ''}${localize(visit.service, language)}`,
-        color: visitColor(visit),
-      });
-    }
-    for (const licence of day.licences) {
-      labels.push({
-        key: licence.id,
-        text: licenceName(licence),
-        color: day.date < today ? theme.danger : theme.warning,
-      });
-    }
-    return labels;
+    if (day.visits.length > 0) marks.push({ kind: 'service', status: worst(day.visits.map(visitStatus)) });
+    if (day.licences.length > 0) marks.push({ kind: 'licence', status: licenceStatus(day.date) });
+    if (day.holidays.length > 0) marks.push({ kind: 'holiday', status: 'planned' });
+    return marks;
   };
+
+  /** A day's marks in words, for a screen reader: "Checklists 2/3, Missed. ECCS service, Done." */
+  const marksInWords = (marks: Mark[]) =>
+    marks
+      .map((mark) => `${t(`hist.${mark.kind}`)}${mark.count ? ` ${mark.count}` : ''}, ${t(`hist.status.${mark.status}`)}`)
+      .join('. ');
 
   // The month laid out in weeks starting on Sunday, with blanks before the 1st and after the last day.
   const [year, monthNumber] = month.split('-').map(Number) as [number, number];
@@ -140,13 +240,6 @@ export default function HistoryScreen() {
       selectedDay.holidays.length ===
       0;
 
-  const legend: [string, string][] = [
-    [theme.primary, t('hist.checklists')],
-    [theme.info, t('hist.service')],
-    [theme.warning, t('hist.licence')],
-    [theme.textSecondary, t('hist.holiday')],
-  ];
-
   const slotName = (slot: string | null) => formatSlot(slot, language, t);
 
   const visitRow = (visit: CalendarVisitDto, date?: string) => (
@@ -155,7 +248,7 @@ export default function HistoryScreen() {
       accessibilityRole="button"
       onPress={() => router.push({ pathname: '/services/[visitId]', params: { visitId: visit.id } })}
       style={[styles.row, { borderColor: theme.border }]}>
-      <View style={[styles.stripe, { backgroundColor: visitColor(visit) }]} />
+      <View style={[styles.stripe, { backgroundColor: statusColor[visitStatus(visit)] }]} />
       <View style={styles.rowText}>
         <ThemedText type="default" style={styles.rowTitle}>
           {localize(visit.service, language)}
@@ -164,7 +257,7 @@ export default function HistoryScreen() {
           {[date ? formatDate(date, language) : null, slotName(visit.slot)].filter(Boolean).join(' · ')}
         </ThemedText>
       </View>
-      <ThemedText type="smallBold" style={{ color: visit.state === 'DONE' ? theme.primary : visitColor(visit) }}>
+      <ThemedText type="smallBold" style={{ color: statusColor[visitStatus(visit)] }}>
         {visit.state === 'DONE' ? '✓ ' : ''}
         {t(`visitState.${visit.state}`)}
       </ThemedText>
@@ -177,12 +270,12 @@ export default function HistoryScreen() {
       accessibilityRole="button"
       onPress={() => outletId && void rememberOutlet(outletId).then(() => router.push('/documents'))}
       style={[styles.row, { borderColor: theme.border }]}>
-      <View style={[styles.stripe, { backgroundColor: date < today ? theme.danger : theme.warning }]} />
+      <View style={[styles.stripe, { backgroundColor: statusColor[licenceStatus(date)] }]} />
       <View style={styles.rowText}>
         <ThemedText type="default" style={styles.rowTitle}>
           {licenceName(licence)}
         </ThemedText>
-        <ThemedText type="small" themeColor={date < today ? 'danger' : 'warning'}>
+        <ThemedText type="small" style={{ color: statusColor[licenceStatus(date)] }}>
           {showDate
             ? t('docs.expires', { date: formatDate(date, language) })
             : t(date < today ? 'hist.licenceExpired' : 'hist.licenceExpires')}
@@ -192,28 +285,17 @@ export default function HistoryScreen() {
   );
 
   return (
-    <Screen back>
+    <Screen back scrollRef={scrollRef} onRefresh={reload}>
       {outlets.length > 1 && (
-        <View style={styles.outlets} accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => {
-            const chosen = outlet.id === outletId;
-            return (
-              <Pressable
-                key={outlet.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: chosen }}
-                onPress={() => choose(outlet.id)}
-                style={[
-                  styles.outlet,
-                  { borderColor: chosen ? theme.primary : theme.border },
-                  chosen && { backgroundColor: theme.backgroundElement },
-                ]}>
-                <ThemedText type="small" themeColor={chosen ? 'primary' : 'text'}>
-                  {outlet.name}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+        <View style={styles.outlets} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
+          {outlets.map((outlet) => (
+            <OptionChip
+              key={outlet.id}
+              label={outlet.name}
+              selected={outlet.id === outletId}
+              onPress={() => choose(outlet.id)}
+            />
+          ))}
         </View>
       )}
 
@@ -247,10 +329,10 @@ export default function HistoryScreen() {
         </Pressable>
       </View>
 
-      <ErrorText message={error} />
+      <ErrorText message={error} onRetry={() => void reload()} />
 
-      {/* ── The month ── */}
-      <View>
+      {/* ── The month. Swiping across it changes month, as the arrows do. ── */}
+      <View {...swipe.panHandlers}>
         <View style={styles.week}>
           {weekdayNames(language).map((name, index) => (
             <ThemedText key={index} type="small" themeColor="textSecondary" style={styles.weekday}>
@@ -264,7 +346,9 @@ export default function HistoryScreen() {
               if (dayNumber === null) return <View key={column} style={styles.cell} />;
               const date = `${month}-${String(dayNumber).padStart(2, '0')}`;
               const day = byDate.get(date);
-              const labels = day ? labelsFor(day) : [];
+              const marks = day ? marksFor(day) : [];
+              const checklists = marks.find((mark) => mark.kind === 'checklists');
+              const others = marks.filter((mark) => mark.kind !== 'checklists');
               const isToday = date === today;
               const isSelected = date === selected;
               return (
@@ -272,9 +356,12 @@ export default function HistoryScreen() {
                   key={column}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={formatDayLong(date, language)}
-                  onPress={() => setSelected(date)}
-                  style={styles.cell}>
+                  accessibilityLabel={[formatDayLong(date, language), marksInWords(marks)].filter(Boolean).join('. ')}
+                  onPress={() => {
+                    revealDay.current = true;
+                    setSelected(date);
+                  }}
+                  style={[styles.cell, isSelected && { backgroundColor: theme.backgroundElement }]}>
                   <View
                     style={[
                       styles.number,
@@ -290,21 +377,27 @@ export default function HistoryScreen() {
                       {dayNumber}
                     </ThemedText>
                   </View>
-                  {labels.slice(0, MAX_LABELS).map((label) => (
-                    <View key={label.key} style={[styles.label, { backgroundColor: `${label.color}26` }]}>
-                      <ThemedText
-                        numberOfLines={1}
-                        ellipsizeMode="clip"
-                        style={[styles.labelText, { color: label.color }]}>
-                        {label.text}
-                      </ThemedText>
-                    </View>
-                  ))}
-                  {labels.length > MAX_LABELS && (
-                    <ThemedText style={[styles.labelText, styles.more, { color: theme.textSecondary }]}>
-                      +{labels.length - MAX_LABELS}
-                    </ThemedText>
-                  )}
+                  {/* Checklists get a line of their own, with how many were done out of how many. */}
+                  <View style={styles.marks}>
+                    {checklists && (
+                      <>
+                        <Ionicons name={KIND_ICON.checklists} size={12} color={statusColor[checklists.status]} />
+                        <ThemedText style={[styles.markCount, { color: statusColor[checklists.status] }]}>
+                          {checklists.count}
+                        </ThemedText>
+                      </>
+                    )}
+                  </View>
+                  <View style={styles.marks}>
+                    {others.map((mark) => (
+                      <Ionicons
+                        key={mark.kind}
+                        name={KIND_ICON[mark.kind]}
+                        size={13}
+                        color={statusColor[mark.status]}
+                      />
+                    ))}
+                  </View>
                 </Pressable>
               );
             })}
@@ -315,19 +408,37 @@ export default function HistoryScreen() {
         )}
       </View>
 
+      {/* ── What the marks mean: the picture is the kind of thing, the colour is how it stands ── */}
       <View style={styles.legend}>
-        {legend.map(([color, name]) => (
-          <View key={name} style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: color }]} />
-            <ThemedText type="small" themeColor="textSecondary">
-              {name}
-            </ThemedText>
-          </View>
-        ))}
+        <View style={styles.legendRow}>
+          {KINDS.map((kind) => (
+            <View key={kind} style={styles.legendItem}>
+              <Ionicons name={KIND_ICON[kind]} size={14} color={theme.textSecondary} />
+              <ThemedText type="small" themeColor="textSecondary">
+                {t(`hist.${kind}`)}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+        <View style={styles.legendRow}>
+          {STATUSES.map((status) => (
+            <View key={status} style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: statusColor[status] }]} />
+              <ThemedText type="small" themeColor="textSecondary">
+                {t(`hist.status.${status}`)}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
       </View>
 
       {/* ── The chosen day ── */}
-      <View style={[styles.dayPanel, { borderColor: theme.border }]}>
+      <View
+        ref={dayPanelRef}
+        onLayout={(event) => {
+          dayPanelY.current = event.nativeEvent.layout.y;
+        }}
+        style={[styles.dayPanel, { borderColor: theme.border }]}>
         <ThemedText type="default" style={styles.dayTitle}>
           {formatDayLong(selected, language)}
           {selected === today ? ` · ${t('hist.today')}` : ''}
@@ -361,21 +472,7 @@ export default function HistoryScreen() {
                 accessibilityRole="button"
                 onPress={() => router.push({ pathname: '/checklists/[runId]', params: { runId: checklist.id } })}
                 style={[styles.row, { borderColor: theme.border }]}>
-                <View
-                  style={[
-                    styles.stripe,
-                    {
-                      backgroundColor:
-                        checklist.status === 'MISSED'
-                          ? theme.danger
-                          : checklist.problemCount > 0
-                            ? theme.warning
-                            : checklist.status === 'SUBMITTED'
-                              ? theme.primary
-                              : theme.textSecondary,
-                    },
-                  ]}
-                />
+                <View style={[styles.stripe, { backgroundColor: statusColor[checklistStatus(checklist)] }]} />
                 <View style={styles.rowText}>
                   <ThemedText type="default" style={styles.rowTitle}>
                     {localize(checklist.title, language)}
@@ -439,36 +536,23 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   outlets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  outlet: {
-    minHeight: MinTouchSize - 8,
-    borderWidth: 2,
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    justifyContent: 'center',
-  },
   monthBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  month: { flex: 1, fontSize: 28, lineHeight: 36 },
+  month: { flex: 1, fontSize: 24, lineHeight: 32 },
   todayButton: { minHeight: MinTouchSize, justifyContent: 'center', paddingHorizontal: Spacing.two },
   arrow: { minHeight: MinTouchSize, minWidth: MinTouchSize - 8, alignItems: 'center', justifyContent: 'center' },
   faded: { opacity: 0.3 },
   week: { flexDirection: 'row' },
   weekRow: { borderTopWidth: StyleSheet.hairlineWidth },
   weekday: { flex: 1, textAlign: 'center', paddingBottom: Spacing.one },
-  cell: { flex: 1, minHeight: 92, alignItems: 'stretch', paddingVertical: Spacing.one, paddingHorizontal: 1, gap: 2 },
-  number: {
-    alignSelf: 'center',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  numberText: { fontSize: 16, lineHeight: 20, fontWeight: 600 },
-  label: { borderRadius: 4, paddingHorizontal: 3, paddingVertical: 1 },
-  labelText: { fontSize: 10, lineHeight: 13, fontWeight: 700 },
-  more: { textAlign: 'center' },
+  // 56 tall, so a six-week month, the legend and the start of the day's list fit one phone screen.
+  cell: { flex: 1, height: 56, alignItems: 'center', paddingVertical: 2, borderRadius: Spacing.two },
+  number: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  numberText: { fontSize: 14, lineHeight: 18, fontWeight: 600 },
+  marks: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, height: 14 },
+  markCount: { fontSize: 11, lineHeight: 14, fontWeight: 700 },
   loading: { position: 'absolute', top: Spacing.five, alignSelf: 'center' },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
+  legend: { gap: Spacing.one },
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', columnGap: Spacing.three, rowGap: Spacing.one },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   dot: { width: 10, height: 10, borderRadius: 5 },
   dayPanel: { borderTopWidth: 1, paddingTop: Spacing.three, gap: Spacing.two },

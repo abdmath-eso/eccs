@@ -167,6 +167,8 @@ export interface VisitSummaryDto {
   id: string;
   outletId: string;
   outletName: string;
+  /** Street address and city, so the Supervisor can see where to go from the list. */
+  outletAddress: string | null;
   organizationName: string;
   serviceCode: string;
   serviceName: LocalizedText;
@@ -206,7 +208,6 @@ export interface VisitSignOffDto {
 
 /** One visit in full. Once completed, this is the service report. */
 export interface VisitDto extends VisitSummaryDto {
-  outletAddress: string | null;
   technicianNames: string[];
   checkInAt: string | null;
   completedAt: string | null;

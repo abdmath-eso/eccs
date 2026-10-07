@@ -196,3 +196,30 @@ export function formatDateTime(iso: string, language: LanguageCode): string {
     return new Date(iso).toLocaleString();
   }
 }
+
+/** Where a YYYY-MM-DD date falls against today in India: for grouping a list of visits by day. */
+export function dayBucket(isoDate: string, today: string = indiaToday()): 'past' | 'today' | 'tomorrow' | 'later' {
+  if (isoDate < today) return 'past';
+  if (isoDate === today) return 'today';
+  return isoDate === addDays(today, 1) ? 'tomorrow' : 'later';
+}
+
+/**
+ * Keeps a date field in the shape DD/MM/YYYY while it is typed on a number pad:
+ * only digits are kept and the slashes are put in. `previous` is what the field
+ * held before, so a slash is only added while typing forwards and can be deleted.
+ */
+export function maskTypedDate(next: string, previous: string): string {
+  const groups = next.split(/\D+/);
+  // "3/" typed by hand means the 3rd, so a finished one-digit day or month gets its zero.
+  const digits = groups
+    .map((group, index) => (index < 2 && index < groups.length - 1 && group.length === 1 ? `0${group}` : group))
+    .join('')
+    .slice(0, 8);
+  const typing = next.length > previous.length;
+  let masked = digits.slice(0, 2);
+  if (digits.length > 2 || (digits.length === 2 && typing)) masked += '/';
+  masked += digits.slice(2, 4);
+  if (digits.length > 4 || (digits.length === 4 && typing)) masked += '/';
+  return masked + digits.slice(4);
+}

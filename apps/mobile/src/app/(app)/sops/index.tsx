@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -47,36 +48,38 @@ export default function SopsScreen() {
     }, [api, outletId]),
   );
 
+  /** Loads the list again: for pulling down to refresh and for "Try again". */
+  async function reload() {
+    if (!outletId) return;
+    setError(null);
+    try {
+      setSops(await api.sops.list(outletId));
+    } catch (e) {
+      setError(errorMessage(e, t));
+    }
+  }
+
   return (
-    <Screen back title={t('sops.title')} subtitle={t(mayAdd ? 'sops.helpAdd' : 'sops.help')}>
+    <Screen back title={t('sops.title')} subtitle={t(mayAdd ? 'sops.helpAdd' : 'sops.help')} onRefresh={reload}>
       {outlets.length > 1 && (
-        <View style={styles.outlets} accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => {
-            const selected = outlet.id === outletId;
-            return (
-              <Pressable
-                key={outlet.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => {
-                  setSops(null);
-                  choose(outlet.id);
-                }}
-                style={[
-                  styles.outlet,
-                  { borderColor: selected ? theme.primary : theme.border },
-                  selected && { backgroundColor: theme.backgroundElement },
-                ]}>
-                <ThemedText type="small" themeColor={selected ? 'primary' : 'text'}>
-                  {outlet.name}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+        <View style={styles.outlets} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
+          {outlets.map((outlet) => (
+            <OptionChip
+              key={outlet.id}
+              label={outlet.name}
+              selected={outlet.id === outletId}
+              onPress={() => {
+                if (outlet.id === outletId) return;
+                setSops(null);
+                setError(null);
+                choose(outlet.id);
+              }}
+            />
+          ))}
         </View>
       )}
 
-      <ErrorText message={error} />
+      <ErrorText message={error} onRetry={() => void reload()} />
       {(outletLoading || (sops === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
       {sops?.length === 0 && (
         <ThemedText type="default" themeColor="textSecondary">
@@ -137,13 +140,6 @@ export default function SopsScreen() {
 
 const styles = StyleSheet.create({
   outlets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  outlet: {
-    minHeight: MinTouchSize - 8,
-    borderWidth: 2,
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    justifyContent: 'center',
-  },
   adding: { gap: Spacing.two },
   group: { gap: Spacing.two, marginTop: Spacing.two },
   row: {

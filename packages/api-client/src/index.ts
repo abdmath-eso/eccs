@@ -62,14 +62,22 @@ import type {
 
 /** A failed API call. `message` is safe to show to the user. */
 export class ApiError extends Error {
+  /** Machine-readable reason, e.g. "DEVICE_NOT_LINKED". */
+  readonly code?: string;
+  /** How long to wait before trying again, where the server says so (a locked PIN pad). */
+  readonly retryAfterSeconds?: number;
+
   constructor(
     message: string,
     readonly status: number,
-    /** Machine-readable reason, e.g. "DEVICE_NOT_LINKED". */
-    readonly code?: string,
+    code?: string,
   ) {
     super(message);
     this.name = "ApiError";
+    // The server writes a wait after the reason, e.g. "PIN_LOCKED:540"; split the two apart here.
+    const wait = code?.match(/^(.+):(\d+)$/);
+    this.code = wait ? wait[1] : code;
+    this.retryAfterSeconds = wait ? Number(wait[2]) : undefined;
   }
 
   /** True when the server could not be reached at all. */

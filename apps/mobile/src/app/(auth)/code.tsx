@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { ErrorText } from '@/components/ui/error-text';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
 import { errorMessage } from '@/lib/errors';
@@ -33,16 +32,25 @@ export default function RestaurantCodeScreen() {
   return (
     <Screen back title={t('code.title')} subtitle={t('code.help')}>
       <TextField
+        label={t('code.title')}
         value={code}
-        onChangeText={setCode}
+        onChangeText={(next) => {
+          setCode(next);
+          if (error) setError(null);
+        }}
+        error={error}
         placeholder={t('code.placeholder')}
         autoCapitalize="characters"
         autoCorrect={false}
+        spellCheck={false}
+        // The code is not a password or a saved detail: keep password and autofill managers away from it.
+        autoComplete="off"
+        textContentType="none"
+        importantForAutofill="no"
         autoFocus
         returnKeyType="done"
         onSubmitEditing={submit}
       />
-      <ErrorText message={error} />
       <Button label={t('code.link')} onPress={submit} loading={busy} disabled={code.trim().length < 5} />
     </Screen>
   );

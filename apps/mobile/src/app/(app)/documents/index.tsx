@@ -15,12 +15,14 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
+import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
+import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { formatDate, parseTypedDate, toTypedDate } from '@/lib/format';
+import { formatDate, indiaToday, maskTypedDate, parseTypedDate, toTypedDate } from '@/lib/format';
 import type { ChosenFile } from '@/lib/pick-file';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
@@ -34,11 +36,16 @@ type Removal = { kind: 'licence'; licence: LicenceDto } | { kind: 'document'; do
 export default function DocumentsScreen() {
   const theme = useTheme();
   const { t, api, language } = useSession();
+  const notify = useSnackbar();
   const { outletId, outlets, loading: outletLoading, choose } = useOutlet();
 
   const [licences, setLicences] = useState<LicenceDto[] | null>(null);
   const [documents, setDocuments] = useState<DocumentDto[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Three places an error can belong: the lists failing to load (top of the screen),
+  // the open form (beside its Save button), and one row that could not be removed.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [removal, setRemoval] = useState<Removal | null>(null);
 
@@ -51,11 +58,16 @@ export default function DocumentsScreen() {
   const [category, setCategory] = useState<VaultCategory>('certificate');
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<ChosenFile | null>(null);
+  // Set once Save has been pressed, so the fields still empty say so.
+  const [showMissing, setShowMissing] = useState(false);
   // For licences the file is uploaded as soon as it is chosen, so its details can be read into the form.
   const [uploadedId, setUploadedId] = useState<string | null>(null);
   const [reading, setReading] = useState<'working' | 'filled' | 'nothing' | null>(null);
   // Counts the files chosen, so a slow answer about an earlier file is ignored.
   const latestChoice = useRef(0);
+
+  const fetchLists = (forOutlet: string) =>
+    Promise.all([api.licences.list({ outletId: forOutlet }), api.documents.list(forOutlet)]);
 
   useEffect(() => {
     if (!outletId) return;
@@ -69,9 +81,9 @@ export default function DocumentsScreen() {
         if (cancelled) return;
         setLicences(licenceList);
         setDocuments(documentList);
-        setError(null);
+        setLoadError(null);
       } catch (e) {
-        if (!cancelled) setError(errorMessage(e, t));
+        if (!cancelled) setLoadError(errorMessage(e, t));
       }
     })();
     return () => {
@@ -79,6 +91,19 @@ export default function DocumentsScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, outletId]);
+
+  /** Loads both lists again: for pulling down to refresh and for "Try again". */
+  async function reload() {
+    if (!outletId) return;
+    setLoadError(null);
+    try {
+      const [licenceList, documentList] = await fetchLists(outletId);
+      setLicences(licenceList);
+      setDocuments(documentList);
+    } catch (e) {
+      setLoadError(errorMessage(e, t));
+    }
+  }
 
   function openForm(next: typeof form) {
     setForm(next);
@@ -91,7 +116,9 @@ export default function DocumentsScreen() {
     setFile(null);
     setUploadedId(null);
     setReading(null);
-    setError(null);
+    setFormError(null);
+    setRowError(null);
+    setShowMissing(false);
     latestChoice.current += 1;
   }
 
@@ -108,7 +135,7 @@ export default function DocumentsScreen() {
     if (!chosen || !outletId) return;
 
     setReading('working');
-    setError(null);
+    setFormError(null);
     try {
       const uploaded = await api.attachments.upload({
         outletId,
@@ -131,7 +158,7 @@ export default function DocumentsScreen() {
       if (choice !== latestChoice.current) return;
       setFile(null);
       setReading(null);
-      setError(errorMessage(e, t, { 0: 'error.upload' }));
+      setFormError(errorMessage(e, t, { 0: 'error.upload' }));
     }
   }
 
@@ -143,70 +170,101 @@ export default function DocumentsScreen() {
     return uploaded.id;
   }
 
-  /** Runs a save, then reloads both lists so licences and their documents stay in step. */
-  async function save(key: string, action: () => Promise<unknown>) {
+  /**
+   * Runs a save, then reloads both lists so licences and their documents stay in step.
+   * `done` is the short message shown when it worked; `failed` puts the error where it belongs.
+   */
+  async function save(key: string, action: () => Promise<unknown>, done: string, failed: (message: string) => void) {
     if (!outletId) return;
     setBusy(key);
-    setError(null);
+    setFormError(null);
+    setRowError(null);
     try {
       await action();
-      const [licenceList, documentList] = await Promise.all([
-        api.licences.list({ outletId }),
-        api.documents.list(outletId),
-      ]);
-      setLicences(licenceList);
-      setDocuments(documentList);
-      setForm(null);
     } catch (e) {
-      setError(errorMessage(e, t, { 0: 'error.upload' }));
-    } finally {
+      failed(errorMessage(e, t, { 0: 'error.upload' }));
       setBusy(null);
+      return;
     }
+    setForm(null);
+    notify(done);
+    // The save itself worked, so a failure from here on is a failed load, not a failed save.
+    await reload();
+    setBusy(null);
   }
 
+  // The expiry date as typed. It is only read once all eight digits are there, so a
+  // half-typed year ("20") is never mistaken for a two-digit one.
+  const expiryDigits = expiry.replace(/\D/g, '').length;
+  const parsedExpiry = expiryDigits === 8 ? parseTypedDate(expiry) : null;
+  const expiresOn = parsedExpiry && parsedExpiry >= '2000-01-01' && parsedExpiry <= '2100-12-31' ? parsedExpiry : null;
+  const expiryError =
+    expiryDigits === 8 && !expiresOn ? t('docs.dateNotReal') : showMissing && !expiresOn ? t('error.date') : null;
+  // The date said back in words, so a slip between day and month is caught before saving.
+  const expiryReadBack = expiresOn
+    ? `✓ ${formatDate(expiresOn, language)}${expiresOn < indiaToday() ? ` · ${t('docs.datePast')}` : ''}`
+    : null;
+  const nameMissing = type === 'OTHER' && name.trim().length < 2;
+  const titleMissing = title.trim().length < 2;
+
   function saveLicence() {
-    const expiresOn = parseTypedDate(expiry);
-    if (!expiresOn) return setError(t('error.date'));
+    if (!expiresOn || nameMissing) return setShowMissing(true);
     if (!outletId) return;
-    void save('form', async () =>
-      api.licences.create({
-        outletId,
-        type,
-        name: type === 'OTHER' ? name.trim() : undefined,
-        number: number.trim() || undefined,
-        expiresOn,
-        attachmentId: await uploadChosen(),
-      }),
+    void save(
+      'form',
+      async () =>
+        api.licences.create({
+          outletId,
+          type,
+          name: type === 'OTHER' ? name.trim() : undefined,
+          number: number.trim() || undefined,
+          expiresOn,
+          attachmentId: await uploadChosen(),
+        }),
+      t('common.saved'),
+      setFormError,
     );
   }
 
   function renewLicence(licenceId: string) {
-    const expiresOn = parseTypedDate(expiry);
-    if (!expiresOn) return setError(t('error.date'));
-    void save('form', async () =>
-      api.licences.update(licenceId, {
-        expiresOn,
-        number: number.trim() || undefined,
-        attachmentId: await uploadChosen(),
-      }),
+    if (!expiresOn) return setShowMissing(true);
+    void save(
+      'form',
+      async () =>
+        api.licences.update(licenceId, {
+          expiresOn,
+          number: number.trim() || undefined,
+          attachmentId: await uploadChosen(),
+        }),
+      t('common.saved'),
+      setFormError,
     );
   }
 
   function saveDocument() {
-    if (!file) return setError(t('docs.fileNeeded'));
+    if (!file || titleMissing) return setShowMissing(true);
     if (!outletId) return;
-    void save('form', async () => {
-      const attachmentId = await uploadChosen();
-      if (attachmentId) await api.documents.create({ outletId, category, title: title.trim(), attachmentId });
-    });
+    void save(
+      'form',
+      async () => {
+        const attachmentId = await uploadChosen();
+        if (attachmentId) await api.documents.create({ outletId, category, title: title.trim(), attachmentId });
+      },
+      t('common.saved'),
+      setFormError,
+    );
   }
 
   function confirmRemoval() {
     if (!removal) return;
     const target = removal;
+    const id = target.kind === 'licence' ? target.licence.id : target.document.id;
     setRemoval(null);
-    void save('remove', () =>
-      target.kind === 'licence' ? api.licences.remove(target.licence.id) : api.documents.remove(target.document.id),
+    void save(
+      `remove-${id}`,
+      () => (target.kind === 'licence' ? api.licences.remove(id) : api.documents.remove(id)),
+      t('docs.removed'),
+      (message) => setRowError({ id, message }),
     );
   }
 
@@ -234,12 +292,22 @@ export default function DocumentsScreen() {
       </ThemedText>
     ) : null;
 
+  /** The expiry date field: a number pad, the slashes put in as it is typed, the date said back underneath. */
+  const expiryField = (label: string) => (
+    <TextField
+      label={label}
+      value={expiry}
+      onChangeText={(next) => setExpiry((current) => maskTypedDate(next, current))}
+      placeholder={t('docs.datePlaceholder')}
+      keyboardType="number-pad"
+      inputMode="numeric"
+      maxLength={10}
+      hint={expiryReadBack}
+      error={expiryError}
+    />
+  );
+
   const openFile = (path: string) => void Linking.openURL(api.fileUrl(path));
-  const option = (selected: boolean) => [
-    styles.option,
-    { borderColor: selected ? theme.primary : theme.border },
-    selected && { backgroundColor: theme.backgroundElement },
-  ];
   const stateColor = { VALID: theme.primary, EXPIRING: theme.warning, EXPIRED: theme.danger } as const;
   const stateIcon = { VALID: 'checkmark-circle', EXPIRING: 'time', EXPIRED: 'alert-circle' } as const;
 
@@ -252,31 +320,30 @@ export default function DocumentsScreen() {
         : t('docs.daysLeft', { count: licence.daysLeft });
 
   return (
-    <Screen back title={t('docs.title')} subtitle={t('docs.help')}>
+    <Screen back title={t('docs.title')} subtitle={t('docs.help')} onRefresh={reload}>
       {outlets.length > 1 && (
-        <View style={styles.options} accessibilityLabel={t('checklists.chooseOutlet')}>
+        <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
           {outlets.map((outlet) => (
-            <Pressable
+            <OptionChip
               key={outlet.id}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: outlet.id === outletId }}
+              label={outlet.name}
+              selected={outlet.id === outletId}
               onPress={() => {
+                if (outlet.id === outletId) return;
                 setLicences(null);
                 setDocuments(null);
+                setLoadError(null);
+                setRowError(null);
                 setForm(null);
                 choose(outlet.id);
               }}
-              style={option(outlet.id === outletId)}>
-              <ThemedText type="small" themeColor={outlet.id === outletId ? 'primary' : 'text'}>
-                {outlet.name}
-              </ThemedText>
-            </Pressable>
+            />
           ))}
         </View>
       )}
 
-      {form === null && <ErrorText message={error} />}
-      {(outletLoading || (licences === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
+      <ErrorText message={loadError} onRetry={() => void reload()} />
+      {(outletLoading || (licences === null && !loadError && outletId)) && <ActivityIndicator color={theme.primary} />}
 
       {/* ── Licences ── */}
       {licences !== null && (
@@ -331,20 +398,14 @@ export default function DocumentsScreen() {
                   maxLength={60}
                   autoCapitalize="characters"
                 />
-                <TextField
-                  label={t('docs.newExpiry')}
-                  value={expiry}
-                  onChangeText={setExpiry}
-                  placeholder={t('docs.datePlaceholder')}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={10}
-                />
-                <ErrorText message={error} />
+                {expiryField(t('docs.newExpiry'))}
+                <ErrorText message={formError} />
                 <Button
                   label={t('docs.save')}
+                  hint={reading === 'working' ? t('docs.reading') : undefined}
                   onPress={() => renewLicence(licence.id)}
                   loading={busy === 'form'}
-                  disabled={!expiry.trim() || reading === 'working'}
+                  disabled={reading === 'working'}
                 />
                 <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
               </View>
@@ -375,10 +436,12 @@ export default function DocumentsScreen() {
                       fill
                       label={t('docs.remove')}
                       variant="danger"
+                      loading={busy === `remove-${licence.id}`}
                       onPress={() => setRemoval({ kind: 'licence', licence })}
                     />
                   </View>
                 </View>
+                <ErrorText message={rowError?.id === licence.id ? rowError.message : null} />
               </View>
             )}
           </View>
@@ -399,22 +462,24 @@ export default function DocumentsScreen() {
             <ThemedText type="smallBold" themeColor="textSecondary">
               {t('docs.licenceType')}
             </ThemedText>
-            <View style={styles.options}>
+            <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('docs.licenceType')}>
               {LICENCE_TYPES.map((value) => (
-                <Pressable
+                <OptionChip
                   key={value}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: type === value }}
+                  label={t(`licenceType.${value}`)}
+                  selected={type === value}
                   onPress={() => setType(value)}
-                  style={option(type === value)}>
-                  <ThemedText type="default" themeColor={type === value ? 'primary' : 'text'}>
-                    {t(`licenceType.${value}`)}
-                  </ThemedText>
-                </Pressable>
+                />
               ))}
             </View>
             {type === 'OTHER' && (
-              <TextField label={t('docs.licenceName')} value={name} onChangeText={setName} maxLength={80} />
+              <TextField
+                label={t('docs.licenceName')}
+                value={name}
+                onChangeText={setName}
+                maxLength={80}
+                error={showMissing && nameMissing ? t('docs.nameNeeded') : null}
+              />
             )}
             {replacing && (
               <ThemedText type="small" themeColor="warning">
@@ -428,20 +493,14 @@ export default function DocumentsScreen() {
               maxLength={60}
               autoCapitalize="characters"
             />
-            <TextField
-              label={t('docs.expiresOn')}
-              value={expiry}
-              onChangeText={setExpiry}
-              placeholder={t('docs.datePlaceholder')}
-              keyboardType="numbers-and-punctuation"
-              maxLength={10}
-            />
-            <ErrorText message={error} />
+            {expiryField(t('docs.expiresOn'))}
+            <ErrorText message={formError} />
             <Button
               label={t('docs.save')}
+              hint={reading === 'working' ? t('docs.reading') : undefined}
               onPress={saveLicence}
               loading={busy === 'form'}
-              disabled={!expiry.trim() || reading === 'working' || (type === 'OTHER' && name.trim().length < 2)}
+              disabled={reading === 'working'}
             />
             <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
           </View>
@@ -461,28 +520,36 @@ export default function DocumentsScreen() {
         </ThemedText>
       )}
       {documents?.map((document) => (
-        <View key={document.id} style={[styles.row, { borderColor: theme.border }]}>
-          <Pressable accessibilityRole="button" onPress={() => openFile(document.file.path)} style={styles.rowMain}>
-            <Ionicons
-              name={document.file.mimeType === 'application/pdf' ? 'document-text' : 'image'}
-              size={28}
-              color={theme.primary}
-            />
-            <View style={styles.rowText}>
-              <ThemedText type="default">{document.title}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {t(`docCategory.${document.category}`)} · {formatDate(document.createdAt.slice(0, 10), language)}
-                {document.uploadedByEccs ? ` · ${t('docs.addedByEccs')}` : ''}
-              </ThemedText>
-            </View>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('docs.remove')}
-            onPress={() => setRemoval({ kind: 'document', document })}
-            style={styles.rowDelete}>
-            <Ionicons name="trash-outline" size={24} color={theme.danger} />
-          </Pressable>
+        <View key={document.id} style={styles.rowBlock}>
+          <View style={[styles.row, { borderColor: theme.border }]}>
+            <Pressable accessibilityRole="button" onPress={() => openFile(document.file.path)} style={styles.rowMain}>
+              <Ionicons
+                name={document.file.mimeType === 'application/pdf' ? 'document-text' : 'image'}
+                size={28}
+                color={theme.primary}
+              />
+              <View style={styles.rowText}>
+                <ThemedText type="default">{document.title}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {t(`docCategory.${document.category}`)} · {formatDate(document.createdAt.slice(0, 10), language)}
+                  {document.uploadedByEccs ? ` · ${t('docs.addedByEccs')}` : ''}
+                </ThemedText>
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('docs.remove')}
+              disabled={busy === `remove-${document.id}`}
+              onPress={() => setRemoval({ kind: 'document', document })}
+              style={styles.rowDelete}>
+              {busy === `remove-${document.id}` ? (
+                <ActivityIndicator color={theme.danger} />
+              ) : (
+                <Ionicons name="trash-outline" size={24} color={theme.danger} />
+              )}
+            </Pressable>
+          </View>
+          <ErrorText message={rowError?.id === document.id ? rowError.message : null} />
         </View>
       ))}
 
@@ -498,32 +565,28 @@ export default function DocumentsScreen() {
               onChangeText={setTitle}
               placeholder={t('docs.documentTitlePlaceholder')}
               maxLength={100}
+              error={showMissing && titleMissing ? t('docs.titleNeeded') : null}
             />
             <ThemedText type="smallBold" themeColor="textSecondary">
               {t('docs.documentCategory')}
             </ThemedText>
-            <View style={styles.options}>
+            <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('docs.documentCategory')}>
               {VAULT_CATEGORIES.map((value) => (
-                <Pressable
+                <OptionChip
                   key={value}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: category === value }}
+                  label={t(`docCategory.${value}`)}
+                  selected={category === value}
                   onPress={() => setCategory(value)}
-                  style={option(category === value)}>
-                  <ThemedText type="default" themeColor={category === value ? 'primary' : 'text'}>
-                    {t(`docCategory.${value}`)}
-                  </ThemedText>
-                </Pressable>
+                />
               ))}
             </View>
-            <FileChooser value={file} onChange={setFile} />
-            <ErrorText message={error} />
-            <Button
-              label={t('docs.save')}
-              onPress={saveDocument}
-              loading={busy === 'form'}
-              disabled={title.trim().length < 2}
+            <FileChooser
+              value={file}
+              onChange={setFile}
+              error={showMissing && !file ? t('docs.fileNeeded') : null}
             />
+            <ErrorText message={formError} />
+            <Button label={t('docs.save')} onPress={saveDocument} loading={busy === 'form'} />
             <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
           </View>
         ) : (
@@ -550,13 +613,6 @@ export default function DocumentsScreen() {
 
 const styles = StyleSheet.create({
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  option: {
-    minHeight: MinTouchSize,
-    borderWidth: 2,
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    justifyContent: 'center',
-  },
   sectionGap: { marginTop: Spacing.four },
   reading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
@@ -566,6 +622,7 @@ const styles = StyleSheet.create({
   cardActions: { gap: Spacing.two, marginTop: Spacing.one },
   actions: { flexDirection: 'row', gap: Spacing.two },
   action: { flex: 1 },
+  rowBlock: { gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: Spacing.three },
   rowMain: {
     flex: 1,

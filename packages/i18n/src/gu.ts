@@ -612,4 +612,10 @@ export const gu: Messages = {
   "visit.pdf": "રિપોર્ટ PDF માં જુઓ",
 
 
+
+  "svc.plan": "તમારો પ્લાન",
+  "svc.planHelp": "ECCS આ વિઝિટ તમારી ડાયરીમાં આપમેળે મૂકે છે.",
+  "svc.planEvery": "દર {count} દિવસે",
+  "svc.planNext": "આગલી: {date}",
+  "svc.fromPlan": "તમારા પ્લાનનો ભાગ",
 };

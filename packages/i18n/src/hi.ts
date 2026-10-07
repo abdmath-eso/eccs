@@ -612,4 +612,10 @@ export const hi: Messages = {
   "visit.pdf": "रिपोर्ट PDF में देखें",
 
 
+
+  "svc.plan": "आपका प्लान",
+  "svc.planHelp": "ECCS ये विज़िट आपकी डायरी में अपने आप डाल देता है।",
+  "svc.planEvery": "हर {count} दिन में",
+  "svc.planNext": "अगली: {date}",
+  "svc.fromPlan": "आपके प्लान का हिस्सा",
 };

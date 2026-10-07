@@ -612,4 +612,10 @@ export const ur: Messages = {
   "visit.pdf": "رپورٹ PDF میں دیکھیں",
 
 
+
+  "svc.plan": "آپ کا پلان",
+  "svc.planHelp": "ECCS یہ وزٹ خود بخود آپ کی ڈائری میں ڈال دیتا ہے۔",
+  "svc.planEvery": "ہر {count} دن بعد",
+  "svc.planNext": "اگلا: {date}",
+  "svc.fromPlan": "آپ کے پلان کا حصہ",
 };

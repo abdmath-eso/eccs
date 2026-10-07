@@ -72,6 +72,11 @@ export function VisitCard({ visit, showOutlet }: { visit: VisitSummaryDto; showO
         </View>
       )}
       <VisitStatusBadge status={visit.status} />
+      {visit.fromPlan && !showOutlet && (
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('svc.fromPlan')}
+        </ThemedText>
+      )}
     </Pressable>
   );
 }

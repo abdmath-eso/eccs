@@ -612,4 +612,10 @@ export const pa: Messages = {
   "visit.pdf": "ਰਿਪੋਰਟ PDF ਵਿੱਚ ਦੇਖੋ",
 
 
+
+  "svc.plan": "ਤੁਹਾਡਾ ਪਲਾਨ",
+  "svc.planHelp": "ECCS ਇਹ ਵਿਜ਼ਿਟਾਂ ਤੁਹਾਡੀ ਡਾਇਰੀ ਵਿੱਚ ਆਪਣੇ ਆਪ ਪਾ ਦਿੰਦਾ ਹੈ।",
+  "svc.planEvery": "ਹਰ {count} ਦਿਨਾਂ ਬਾਅਦ",
+  "svc.planNext": "ਅਗਲੀ: {date}",
+  "svc.fromPlan": "ਤੁਹਾਡੇ ਪਲਾਨ ਦਾ ਹਿੱਸਾ",
 };

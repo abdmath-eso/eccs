@@ -612,4 +612,10 @@ export const bn: Messages = {
   "visit.pdf": "রিপোর্ট PDF হিসেবে দেখুন",
 
 
+
+  "svc.plan": "আপনার প্ল্যান",
+  "svc.planHelp": "ECCS এই ভিজিটগুলো নিজে থেকেই আপনার ডায়েরিতে বসিয়ে দেয়।",
+  "svc.planEvery": "প্রতি {count} দিনে",
+  "svc.planNext": "পরেরটি: {date}",
+  "svc.fromPlan": "আপনার প্ল্যানের অংশ",
 };

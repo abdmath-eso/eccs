@@ -1,4 +1,4 @@
-import { isEccsRole, localize, type BookingDto, type VisitSummaryDto } from '@eccs/shared';
+import { isEccsRole, localize, type BookingDto, type OutletPlanDto, type VisitSummaryDto } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -37,6 +37,8 @@ export default function ServicesScreen() {
   const [open, setOpen] = useState<VisitSummaryDto[] | null>(null);
   const [past, setPast] = useState<VisitSummaryDto[]>([]);
   const [requests, setRequests] = useState<BookingDto[]>([]);
+  /** The outlet's plan, whose visits ECCS puts in the diary automatically. */
+  const [plan, setPlan] = useState<OutletPlanDto | null>(null);
   const [cancelling, setCancelling] = useState<BookingDto | null>(null);
   /** A request that could not be cancelled, so the message shows on that request. */
   const [cancelFailed, setCancelFailed] = useState<{ id: string; message: string } | null>(null);
@@ -50,11 +52,14 @@ export default function ServicesScreen() {
     if (!ready) return;
     const filter = forOutlet ? { outletId: forOutlet } : {};
     try {
-      const [upcoming, closed, asked] = await Promise.all([
+      const [upcoming, closed, asked, onPlan] = await Promise.all([
         api.visits.list({ ...filter, state: 'open' }),
         api.visits.list({ ...filter, state: 'closed' }),
         eccs ? Promise.resolve([]) : api.bookings.list({ ...filter, requestedOnly: true }),
+        // The plan is extra: if it cannot be read, the visits still show.
+        !eccs && forOutlet ? api.plans.forOutlet(forOutlet).catch(() => null) : Promise.resolve(null),
       ]);
+      setPlan(onPlan);
       setOpen(upcoming);
       setPast(closed.filter((visit) => visit.status === 'APPROVED' || visit.status === 'IN_REVIEW').slice(0, MAX_PAST));
       setRequests(asked);
@@ -187,6 +192,31 @@ export default function ServicesScreen() {
         </>
       )}
       {open !== null && !eccs && group(t('svc.upcoming'), upcoming, t('svc.noUpcoming'))}
+
+      {!eccs && plan?.plan && (
+        <>
+          {heading(t('svc.plan'))}
+          <View style={[styles.request, { borderColor: theme.border }]}>
+            <ThemedText type="default" style={styles.requestTitle}>
+              {localize(plan.plan.name, language)}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('svc.planHelp')}
+            </ThemedText>
+            {plan.services.map((service) => (
+              <View key={service.serviceCode} style={[styles.planLine, { borderColor: theme.border }]}>
+                <ThemedText type="default" style={styles.planService}>
+                  {localize(service.serviceName, language)}
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {t('svc.planEvery', { count: service.intervalDays })} ·{' '}
+                  {t('svc.planNext', { date: formatDayShort(service.nextDate, language) })}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
       {open !== null && group(t('svc.past'), past, t('svc.noPast'))}
 
       <ConfirmDialog
@@ -204,6 +234,8 @@ export default function ServicesScreen() {
 }
 
 const styles = StyleSheet.create({
+  planLine: { borderTopWidth: 1, paddingTop: Spacing.two, gap: Spacing.half },
+  planService: { fontWeight: 600 },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   sectionGap: { marginTop: Spacing.four },
   request: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },

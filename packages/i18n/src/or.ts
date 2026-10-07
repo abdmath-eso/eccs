@@ -612,4 +612,10 @@ export const or: Messages = {
   "visit.pdf": "ରିପୋର୍ଟ PDF ରେ ଦେଖନ୍ତୁ",
 
 
+
+  "svc.plan": "ଆପଣଙ୍କ ପ୍ଲାନ୍",
+  "svc.planHelp": "ECCS ଏହି ଭିଜିଟ୍ ଆପଣଙ୍କ ଡାଏରୀରେ ଆପେ ଆପେ ରଖିଦିଏ।",
+  "svc.planEvery": "ପ୍ରତି {count} ଦିନରେ",
+  "svc.planNext": "ପରବର୍ତ୍ତୀ: {date}",
+  "svc.fromPlan": "ଆପଣଙ୍କ ପ୍ଲାନର ଅଂଶ",
 };

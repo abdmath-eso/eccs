@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  can,
   isVisitAhead,
   VISIT_SLOTS,
   visitSlotWindow,
@@ -21,9 +22,10 @@ import { useToast } from "@/components/toast";
 import { Button, Card, ErrorMessage, Field, Loading, SelectField, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
 import { focusFirstError, hasErrors, type FieldErrors } from "@/lib/forms";
-import { addDays, describe, shortDay, today, when } from "@/lib/format";
+import { addDays, describe, english, rupees, shortDay, today, when } from "@/lib/format";
 import { useNavCounts } from "@/lib/nav-counts";
 import { isPlainClick, useQuery, useQueryField } from "@/lib/query";
+import { useSession } from "@/lib/session";
 
 const clock = (hhmm: string) => {
   const [hours, minutes] = hhmm.split(":").map(Number) as [number, number];
@@ -50,11 +52,6 @@ const STATUS: Record<VisitStatus, { label: string; style: string }> = {
   APPROVED: { label: "Signed off", style: "border-primary text-primary" },
   CANCELLED: { label: "Cancelled", style: "border-border-strong text-muted" },
 };
-
-const rupees = (paise: number) =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(paise / 100);
-
-const english = (text: Partial<Record<string, string>>) => text.en ?? Object.values(text)[0] ?? "";
 
 /** The quick filters over the diary. They are kept in the web address as `show=`. */
 const SHOW = ["all", "unassigned", "overdue", "today"] as const;
@@ -179,6 +176,9 @@ export default function VisitsScreen() {
   const query = useQuery();
   const notify = useToast();
   const { refresh: refreshCounts } = useNavCounts();
+  const { user } = useSession();
+  // The server only lets the people who can add visits fill the diary from the plans, so only they are shown the button.
+  const mayFillDiary = user ? can(user.memberships, "jobs", "create") : false;
 
   const closed = query.get("state") === "closed";
   const asked = query.get("show") as Show;
@@ -241,6 +241,27 @@ export default function VisitsScreen() {
     setVersion((current) => current + 1);
     refreshCounts();
     notify(message);
+  }
+
+  const [checkingPlans, setCheckingPlans] = useState(false);
+  const [plansError, setPlansError] = useState<string | null>(null);
+
+  /**
+   * Adds the plan visits that have fallen due to the diary now. The server
+   * does this by itself every six hours; the button is for when someone does
+   * not want to wait, for example just after a plan was set up.
+   */
+  async function checkPlans() {
+    setCheckingPlans(true);
+    setPlansError(null);
+    try {
+      const { created } = await api.plans.fillDiary();
+      changed(created === 0 ? "The diary is already up to date" : `${created} plan visit${created === 1 ? "" : "s"} added`);
+    } catch (e) {
+      setPlansError(describe(e));
+    } finally {
+      setCheckingPlans(false);
+    }
   }
 
   const todayIso = today();
@@ -306,8 +327,18 @@ export default function VisitsScreen() {
           <h1 className="text-2xl font-bold">Visits</h1>
           <p className="text-muted">Confirm what restaurants have asked for, and see every visit in the diary.</p>
         </div>
-        {!adding && <Button onClick={() => query.set({ new: "1", visit: null })}>Add a visit</Button>}
+        <div className="flex flex-wrap gap-2">
+          {mayFillDiary && (
+            <Button variant="secondary" loading={checkingPlans} onClick={() => void checkPlans()}>
+              Check plans now
+            </Button>
+          )}
+          {!adding && <Button onClick={() => query.set({ new: "1", visit: null })}>Add a visit</Button>}
+        </div>
       </div>
+
+      {/* A failure stays here, under the button that caused it, until the next try. */}
+      <ErrorMessage message={plansError} />
 
       {requests && requests.length > 0 && (
         <section className={`${besideDetail} flex-col gap-3`}>
@@ -437,6 +468,7 @@ export default function VisitsScreen() {
                             {visit.slot ? `${slotName(visit.slot)} · ` : ""}
                             {visit.supervisorName ?? "No Supervisor"}
                             {visit.booked ? " · Booked by the restaurant" : ""}
+                            {visit.fromPlan ? " · From their plan" : ""}
                             {visit.reportNumber ? ` · ${visit.reportNumber}` : ""}
                           </span>
                           {opening && (
@@ -759,6 +791,10 @@ function VisitDetail({
             {visit.organizationName} · {visit.outletName}
           </p>
           {visit.outletAddress && <p className="text-sm text-muted">{visit.outletAddress}</p>}
+          {/* Where the visit came from, in the same words as its row in the list. */}
+          {(visit.booked || visit.fromPlan) && (
+            <p className="text-sm text-muted">{visit.booked ? "Booked by the restaurant" : "From their plan"}</p>
+          )}
         </div>
         <StatusBadge status={visit.status} />
       </div>

@@ -612,4 +612,10 @@ export const ta: Messages = {
   "visit.pdf": "ரிப்போர்ட்டை PDF ஆகப் பார்",
 
 
+
+  "svc.plan": "உங்கள் பிளான்",
+  "svc.planHelp": "ECCS இந்த விசிட்களை உங்கள் டைரியில் தானாகவே சேர்க்கும்.",
+  "svc.planEvery": "ஒவ்வொரு {count} நாட்களுக்கும்",
+  "svc.planNext": "அடுத்தது: {date}",
+  "svc.fromPlan": "உங்கள் பிளானின் பகுதி",
 };

@@ -46,6 +46,8 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 | S14 | The restaurant gives one or two stars | Adm | "Low rating at {outlet}: {stars} stars. '{comment}'" | Push, straight away | not built |
 | S15 | ECCS sends a report back for correction | Sup | "ECCS asked for a correction on {service} at {outlet}: {note}" | Push + in-app | not built |
 | S16 | A visit's date has passed and it was never started | Adm; Sup | "{service} at {outlet} on {date} was not done." | Console + push | not built |
+| S18 | Plan visits are added to the diary without a Supervisor | Adm | "{count} new plan visits need a Supervisor." | Console badge (exists as a count) | not built |
+| S19 | An outlet is put on a plan, its plan is changed, or its plan is stopped | O, M | "{outlet} is now on the {plan} plan. First visit: {date}." / "Your {plan} plan has ended." | Push + in-app | not built |
 | S17 | A visit in the next two days has no Supervisor | Adm | "{service} at {outlet} on {date} has no Supervisor yet." | Console badge (exists as a count) | not built |
 
 ## 2. Daily checklists
@@ -99,7 +101,6 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | Feature | Notifications to expect |
 |---|---|
-| Visits created from a plan | A month's visits scheduled; a plan visit could not be scheduled |
 | Scored inspections | Inspection booked; report ready; a critical finding |
 | Hygiene score | Score dropped; weekly summary |
 | Invoices and payments | Invoice raised; payment due soon; overdue; payment received |
@@ -115,4 +116,5 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | Date | Change |
 |---|---|
+| 7 Oct 2026 | Added S18 and S19 with automatic plan visits. |
 | 7 Oct 2026 | Register started. S1 (report PDF ready) recorded as asked for by the founder; everything else listed by Claude from the features built so far. Nothing built. |

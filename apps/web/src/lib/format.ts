@@ -44,6 +44,13 @@ export const when = (iso: string) =>
     minute: "2-digit",
   }).format(new Date(iso));
 
+/** An amount held in paise as whole rupees, e.g. "₹15,000". */
+export const rupees = (paise: number) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(paise / 100);
+
+/** The English wording of a name the server keeps in several languages. The console is in English only. */
+export const english = (text: Partial<Record<string, string>>) => text.en ?? Object.values(text)[0] ?? "";
+
 /** True if every word typed appears somewhere in the given texts, ignoring capitals. */
 export function matchesSearch(search: string, texts: readonly (string | null | undefined)[]) {
   const words = search.toLowerCase().split(/\s+/).filter(Boolean);

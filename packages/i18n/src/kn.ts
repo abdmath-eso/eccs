@@ -612,4 +612,10 @@ export const kn: Messages = {
   "visit.pdf": "ರಿಪೋರ್ಟ್ PDF ಆಗಿ ನೋಡಿ",
 
 
+
+  "svc.plan": "ನಿಮ್ಮ ಪ್ಲಾನ್",
+  "svc.planHelp": "ECCS ಈ ವಿಸಿಟ್‌ಗಳನ್ನು ನಿಮ್ಮ ಡೈರಿಯಲ್ಲಿ ತಾನಾಗಿಯೇ ಸೇರಿಸುತ್ತದೆ.",
+  "svc.planEvery": "ಪ್ರತಿ {count} ದಿನಗಳಿಗೊಮ್ಮೆ",
+  "svc.planNext": "ಮುಂದಿನದು: {date}",
+  "svc.fromPlan": "ನಿಮ್ಮ ಪ್ಲಾನ್‌ನ ಭಾಗ",
 };

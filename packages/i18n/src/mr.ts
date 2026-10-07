@@ -612,4 +612,10 @@ export const mr: Messages = {
   "visit.pdf": "रिपोर्ट PDF मध्ये पाहा",
 
 
+
+  "svc.plan": "तुमचा प्लॅन",
+  "svc.planHelp": "ECCS या व्हिजिट तुमच्या डायरीत आपोआप टाकते.",
+  "svc.planEvery": "दर {count} दिवसांनी",
+  "svc.planNext": "पुढची: {date}",
+  "svc.fromPlan": "तुमच्या प्लॅनचा भाग",
 };

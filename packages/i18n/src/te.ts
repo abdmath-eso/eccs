@@ -612,4 +612,10 @@ export const te: Messages = {
   "visit.pdf": "నివేదికను PDFగా చూడండి",
 
 
+
+  "svc.plan": "మీ ప్లాన్",
+  "svc.planHelp": "ECCS ఈ విజిట్‌లను మీ డైరీలో ఆటోమేటిక్‌గా చేరుస్తుంది.",
+  "svc.planEvery": "ప్రతి {count} రోజులకు",
+  "svc.planNext": "తదుపరి: {date}",
+  "svc.fromPlan": "మీ ప్లాన్‌లో భాగం",
 };

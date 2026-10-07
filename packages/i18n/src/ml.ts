@@ -612,4 +612,10 @@ export const ml: Messages = {
   "visit.pdf": "റിപ്പോർട്ട് PDF ആയി കാണുക",
 
 
+
+  "svc.plan": "നിങ്ങളുടെ പ്ലാൻ",
+  "svc.planHelp": "ECCS ഈ വിസിറ്റുകൾ നിങ്ങളുടെ ഡയറിയിൽ തനിയെ ചേർക്കും.",
+  "svc.planEvery": "ഓരോ {count} ദിവസത്തിലും",
+  "svc.planNext": "അടുത്തത്: {date}",
+  "svc.fromPlan": "നിങ്ങളുടെ പ്ലാനിന്റെ ഭാഗം",
 };

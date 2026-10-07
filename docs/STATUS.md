@@ -424,6 +424,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 7 Oct 2026 | Inspections added to the Supervisor's bottom bar (Home, Visits, Inspections, More). |
 | 7 Oct 2026 | Checklists work without signal; notifications as an in-app list with a bell (34 kinds); scored inspections from the founder's 92 checks; Urdu layout mirroring. New text in all twelve languages. |
 | 7 Oct 2026 | Plans parked until pricing is final; on return they and the automation are to be made configurable. |
 | 7 Oct 2026 | Plan visits are now created automatically 30 days ahead; ECCS manages an outlet's plan in the console; the restaurant sees its plan in the app. |

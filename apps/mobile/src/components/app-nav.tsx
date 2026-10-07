@@ -30,6 +30,7 @@ const TAB: Record<TabHref, Tab> = {
   '/history': { label: 'tab.calendar', icon: 'calendar-outline', iconSelected: 'calendar' },
   '/support': { label: 'tab.issues', icon: 'chatbubble-ellipses-outline', iconSelected: 'chatbubble-ellipses' },
   '/sops': { label: 'tab.sops', icon: 'book-outline', iconSelected: 'book' },
+  '/inspections': { label: 'tile.inspections', icon: 'clipboard-outline', iconSelected: 'clipboard' },
 };
 
 const STAFF: MenuItem = { label: 'tile.staff', icon: 'key-outline', href: '/staff' };

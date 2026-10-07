@@ -55,6 +55,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Choices the workers made are listed for the founder in STATUS section 4 under "Checklists without signal", "Notifications" and "Inspections".
 - Urdu layout mirroring built by a fourth worker once the other three had landed: the layout direction follows the app language at once, with no restart; digits, PINs and phone numbers stay left to right. Then the 178 new pieces of text were translated into the 11 other languages by three translation jobs and merged, and the compiler's check that every language has every key was switched back on.
 - Final checks for the afternoon batch: full build, type check and lint pass; 199 end-to-end tests pass. In Chrome the new pages were opened and read as text (screenshots were not available because the Chrome window was hidden): the app's Home, Notifications (with reminders the timer had just written) and Inspections, and the console's Inspections and Notifications pages, all without errors. Nothing in this batch was seen as a picture, exercised by hand, or tried on a phone: not the offline queue, not answering an inspection, not the Urdu layout.
+- Founder asked for Inspections in the Supervisor's bottom bar. Done: Home, Visits, Inspections, More. Type check and lint pass; not looked at in the browser or on a phone.
 
 **Carried over from yesterday**
 

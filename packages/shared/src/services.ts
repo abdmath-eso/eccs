@@ -5,9 +5,30 @@ import type { LocalizedText } from "./checklists.js";
 // confirms a date and assigns a Supervisor, the Supervisor records the visit
 // on site, the restaurant signs it off, and the visit becomes a service report.
 
-/** When in the day a visit happens. */
-export const VISIT_SLOTS = ["MORNING", "AFTERNOON", "EVENING", "AFTER_CLOSING"] as const;
+/**
+ * When in the day a visit happens: the two-hour window in which the ECCS team
+ * arrives, named by its starting time ("1000" is 10:00 to 12:00), or after the
+ * restaurant has closed for the night.
+ */
+export const VISIT_SLOTS = ["0800", "1000", "1200", "1400", "1600", "1800", "AFTER_CLOSING"] as const;
 export type VisitSlot = (typeof VISIT_SLOTS)[number];
+
+export const VISIT_SLOT_HOURS = 2;
+
+/** The windows grouped by part of the day, as a booking screen lays them out. */
+export const VISIT_SLOT_PERIODS = [
+  { period: "MORNING", slots: ["0800", "1000"] },
+  { period: "AFTERNOON", slots: ["1200", "1400"] },
+  { period: "EVENING", slots: ["1600", "1800"] },
+] as const satisfies readonly { period: string; slots: readonly VisitSlot[] }[];
+
+/** The start and end of a window as "HH:mm", or null for "after closing", which has no fixed time. */
+export function visitSlotWindow(slot: VisitSlot): { start: string; end: string } | null {
+  if (slot === "AFTER_CLOSING") return null;
+  const hour = Number(slot.slice(0, 2));
+  const clock = (value: number) => `${String(value).padStart(2, "0")}:${slot.slice(2)}`;
+  return { start: clock(hour), end: clock(hour + VISIT_SLOT_HOURS) };
+}
 
 export const BOOKING_STATUSES = ["REQUESTED", "CONFIRMED", "CANCELLED", "COMPLETED"] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];

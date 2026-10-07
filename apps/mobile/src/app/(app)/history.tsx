@@ -9,7 +9,6 @@ import {
   type CalendarLicenceDto,
   type CalendarMonthDto,
   type CalendarVisitDto,
-  VISIT_SLOTS,
 } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -22,7 +21,7 @@ import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { formatDate, formatDayLong, formatMonth, indiaToday, weekdayNames } from '@/lib/format';
+import { formatDate, formatDayLong, formatMonth, formatSlot, indiaToday, weekdayNames } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { rememberOutlet, useOutlet } from '@/lib/use-outlet';
 
@@ -148,10 +147,7 @@ export default function HistoryScreen() {
     [theme.textSecondary, t('hist.holiday')],
   ];
 
-  const slotName = (slot: string | null) => {
-    const known = VISIT_SLOTS.find((value) => value === slot);
-    return known ? t(`slot.${known}`) : slot;
-  };
+  const slotName = (slot: string | null) => formatSlot(slot, language, t);
 
   const visitRow = (visit: CalendarVisitDto, date?: string) => (
     <Pressable

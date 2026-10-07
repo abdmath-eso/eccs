@@ -3,6 +3,7 @@
 import { ApiError } from "@eccs/api-client";
 import {
   VISIT_SLOTS,
+  visitSlotWindow,
   type BookingDto,
   type OrganizationDto,
   type ServiceTypeDto,
@@ -17,11 +18,17 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Button, Card, ErrorMessage } from "@/components/ui";
 import { api } from "@/lib/api";
 
-const SLOT: Record<VisitSlot, string> = {
-  MORNING: "Morning",
-  AFTERNOON: "Afternoon",
-  EVENING: "Evening",
-  AFTER_CLOSING: "After closing",
+const clock = (hhmm: string) => {
+  const [hours, minutes] = hhmm.split(":").map(Number) as [number, number];
+  return new Intl.DateTimeFormat("en-IN", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(
+    new Date(Date.UTC(2000, 0, 1, hours, minutes)),
+  );
+};
+
+/** A two-hour arrival window as people read it, e.g. "10:00 am – 12:00 pm". */
+const slotName = (slot: VisitSlot) => {
+  const window = visitSlotWindow(slot);
+  return window ? `${clock(window.start)} – ${clock(window.end)}` : "After closing";
 };
 
 const STATUS: Record<VisitStatus, { label: string; style: string }> = {
@@ -101,11 +108,11 @@ function WhenAndWho({
       <Labelled label="Date">
         <input type="date" required min={today()} value={date} onChange={(e) => onChange({ date: e.target.value })} className={INPUT} />
       </Labelled>
-      <Labelled label="Time of day">
+      <Labelled label="Arrival time">
         <select value={slot} onChange={(e) => onChange({ slot: e.target.value as VisitSlot })} className={INPUT}>
           {VISIT_SLOTS.map((value) => (
             <option key={value} value={value}>
-              {SLOT[value]}
+              {slotName(value)}
             </option>
           ))}
         </select>
@@ -242,7 +249,7 @@ export default function VisitsPage() {
               </p>
               <p className="mt-2 text-sm text-muted">
                 {day(visit.date)}
-                {visit.slot ? ` · ${SLOT[visit.slot]}` : ""} · {visit.supervisorName ?? "No Supervisor"}
+                {visit.slot ? ` · ${slotName(visit.slot)}` : ""} · {visit.supervisorName ?? "No Supervisor"}
                 {visit.booked ? " · Booked by the restaurant" : ""}
                 {visit.reportNumber ? ` · ${visit.reportNumber}` : ""}
               </p>
@@ -268,7 +275,7 @@ export default function VisitsPage() {
 function RequestCard({ booking, supervisors, onDone }: { booking: BookingDto; supervisors: SupervisorDto[]; onDone: () => void }) {
   // Offer what the restaurant asked for, unless that day has already gone.
   const [date, setDate] = useState(booking.preferredDate < today() ? today() : booking.preferredDate);
-  const [slot, setSlot] = useState<VisitSlot>(booking.preferredSlot ?? "MORNING");
+  const [slot, setSlot] = useState<VisitSlot>(booking.preferredSlot ?? "1000");
   const [supervisorId, setSupervisorId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -300,7 +307,7 @@ function RequestCard({ booking, supervisors, onDone }: { booking: BookingDto; su
           </p>
           <p className="mt-1 text-sm text-muted">
             Asked for {day(booking.preferredDate)}
-            {booking.preferredSlot ? `, ${SLOT[booking.preferredSlot].toLowerCase()}` : ""} · {rupees(booking.pricePaise)} + GST ·{" "}
+            {booking.preferredSlot ? `, ${slotName(booking.preferredSlot).toLowerCase()}` : ""} · {rupees(booking.pricePaise)} + GST ·{" "}
             {booking.requestedByName}, {when(booking.createdAt)}
           </p>
           {booking.notes && <p className="mt-2 rounded-lg bg-background p-2 text-sm whitespace-pre-wrap">{booking.notes}</p>}
@@ -447,7 +454,7 @@ function VisitDetail({
   onChanged: (visit: VisitDto) => void;
 }) {
   const [date, setDate] = useState(visit.date);
-  const [slot, setSlot] = useState<VisitSlot>(visit.slot ?? "MORNING");
+  const [slot, setSlot] = useState<VisitSlot>(visit.slot ?? "1000");
   const [supervisorId, setSupervisorId] = useState(visit.supervisorId ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -524,7 +531,7 @@ function VisitDetail({
           <dt className="text-muted">When</dt>
           <dd>
             {day(visit.date)}
-            {visit.slot ? ` · ${SLOT[visit.slot]}` : ""}
+            {visit.slot ? ` · ${slotName(visit.slot)}` : ""}
           </dd>
           <dt className="text-muted">Supervisor</dt>
           <dd>{visit.supervisorName ?? "Not assigned"}</dd>

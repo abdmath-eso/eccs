@@ -7,6 +7,7 @@ import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, View } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
+import { LanguagePicker } from '@/components/language-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { MinTouchSize, Spacing } from '@/constants/theme';
@@ -39,7 +40,7 @@ interface SideMenuProps {
 /**
  * The app's menu: a panel that slides in from the left with every section
  * the person can open and the lock button. Their photo and name at the top
- * open "My profile", which is also where the language is chosen.
+ * open "My profile". The language is chosen at the foot of the menu.
  */
 export function SideMenu({
   visible,
@@ -142,6 +143,7 @@ export function SideMenu({
             </ScrollView>
 
             <View style={[styles.footer, { borderColor: theme.border }]}>
+              <LanguagePicker />
               {/* On a restaurant's phone, logging out returns to the PIN pad for the next person. */}
               <Button
                 label={linkedDevice ? t('home.lock') : t('home.logout')}

@@ -1,4 +1,5 @@
-import type { LanguageCode } from '@eccs/i18n';
+import type { LanguageCode, Translator } from '@eccs/i18n';
+import { VISIT_SLOTS, visitSlotWindow } from '@eccs/shared';
 
 // "-u-nu-latn" asks for ordinary digits (0-9). Without it Bengali, Marathi and Urdu
 // dates come out in their own numerals, which the rest of the app does not use.
@@ -44,6 +45,17 @@ export function formatDate(isoDate: string, language: LanguageCode): string {
   }
 }
 
+/**
+ * When in the day a visit is, as people read it: "10:00 am – 12:00 pm", or
+ * "After closing". Anything that is not one of the known windows is shown as it is.
+ */
+export function formatSlot(slot: string | null, language: LanguageCode, t: Translator): string | null {
+  const known = VISIT_SLOTS.find((value) => value === slot);
+  if (!known) return slot;
+  const window = visitSlotWindow(known);
+  return window ? `${formatTime(window.start, language)} – ${formatTime(window.end, language)}` : t('slot.AFTER_CLOSING');
+}
+
 /** A calendar date with a short weekday and no year, e.g. "Thu, 8 Oct". */
 export function formatDayShort(isoDate: string, language: LanguageCode): string {
   try {
@@ -56,6 +68,19 @@ export function formatDayShort(isoDate: string, language: LanguageCode): string 
   } catch {
     return isoDate;
   }
+}
+
+/** The pieces of a date for a compact day button: "Thu", "8", "Oct". */
+export function dayParts(isoDate: string, language: LanguageCode): { weekday: string; day: string; month: string } {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  const part = (options: Intl.DateTimeFormatOptions) => {
+    try {
+      return new Intl.DateTimeFormat(LOCALES[language], { timeZone: 'UTC', ...options }).format(date);
+    } catch {
+      return '';
+    }
+  };
+  return { weekday: part({ weekday: 'short' }), day: String(date.getUTCDate()), month: part({ month: 'short' }) };
 }
 
 /** A YYYY-MM-DD date moved by a number of days. */

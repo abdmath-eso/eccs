@@ -89,7 +89,7 @@ describe('Service loop (e2e)', () => {
     http()
       .post('/bookings')
       .set(bearer(token))
-      .send({ outletId, catalogItemId: pestItemId, preferredDate: daysAhead(3), preferredSlot: 'MORNING', notes: MARK, ...body });
+      .send({ outletId, catalogItemId: pestItemId, preferredDate: daysAhead(3), preferredSlot: '1000', notes: MARK, ...body });
   const visits = async (token: string, query: Record<string, string> = {}): Promise<Visit[]> =>
     (await http().get('/visits').query(query).set(bearer(token)).expect(200)).body;
   const visit = async (token: string, id = visitId): Promise<Visit> =>
@@ -144,7 +144,7 @@ describe('Service loop (e2e)', () => {
         status: 'REQUESTED',
         outletId,
         preferredDate: daysAhead(3),
-        preferredSlot: 'MORNING',
+        preferredSlot: '1000',
         visitId: null,
       });
       expect((booking.serviceName as Record<string, string>).en).toBe('Pest control, single visit');
@@ -223,8 +223,8 @@ describe('Service loop (e2e)', () => {
       await change(owner, { date: daysAhead(5) }).expect(403);
       await change(supervisor, { date: daysAhead(5) }).expect(403);
 
-      const moved = (await change(admin, { date: daysAhead(5), slot: 'EVENING' }).expect(200)).body as Visit;
-      expect(moved).toMatchObject({ date: daysAhead(5), slot: 'EVENING', status: 'ASSIGNED', supervisorId });
+      const moved = (await change(admin, { date: daysAhead(5), slot: '1800' }).expect(200)).body as Visit;
+      expect(moved).toMatchObject({ date: daysAhead(5), slot: '1800', status: 'ASSIGNED', supervisorId });
 
       const unassigned = (await change(admin, { supervisorId: null }).expect(200)).body as Visit;
       expect(unassigned).toMatchObject({ status: 'SCHEDULED', supervisorId: null });
@@ -350,14 +350,14 @@ describe('Service loop (e2e)', () => {
   describe('visits ECCS adds itself', () => {
     it('can be scheduled without a request, and cancelled before they start', async () => {
       const create = (token: string, body: Record<string, unknown>) => http().post('/visits').set(bearer(token)).send(body);
-      const body = { outletId, serviceCode: 'SAFETY_INSPECTION', date: daysAhead(7), slot: 'AFTERNOON' };
+      const body = { outletId, serviceCode: 'SAFETY_INSPECTION', date: daysAhead(7), slot: '1400' };
       await create(owner, body).expect(403);
       await create(supervisor, body).expect(403);
       await create(admin, { ...body, serviceCode: 'NOPE' }).expect(400);
 
       const created = (await create(admin, body).expect(201)).body as Visit;
       await prisma.client.job.update({ where: { id: created.id }, data: { notes: MARK } });
-      expect(created).toMatchObject({ status: 'SCHEDULED', booked: false, supervisorId: null, slot: 'AFTERNOON' });
+      expect(created).toMatchObject({ status: 'SCHEDULED', booked: false, supervisorId: null, slot: '1400' });
       // Nobody's yet, so not on the Supervisor's list.
       expect((await visits(supervisor)).map((entry) => entry.id)).not.toContain(created.id);
       expect((await visits(owner, { outletId })).map((entry) => entry.id)).toContain(created.id);
@@ -371,7 +371,7 @@ describe('Service loop (e2e)', () => {
     it('cancels the booking with the visit', async () => {
       const booking = (await book(owner).expect(201)).body as Booking;
       const confirmed = (
-        await http().post(`/bookings/${booking.id}/confirm`).set(bearer(admin)).send({ date: daysAhead(8), slot: 'MORNING' }).expect(200)
+        await http().post(`/bookings/${booking.id}/confirm`).set(bearer(admin)).send({ date: daysAhead(8), slot: '1000' }).expect(200)
       ).body as Booking;
       expect(confirmed.status).toBe('CONFIRMED');
       await http().post(`/visits/${confirmed.visitId}/cancel`).set(bearer(admin)).expect(200);

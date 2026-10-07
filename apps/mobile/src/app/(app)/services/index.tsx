@@ -12,7 +12,7 @@ import { VisitCard } from '@/components/visit-card';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { formatDayShort } from '@/lib/format';
+import { formatDayShort, formatSlot } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
@@ -143,7 +143,7 @@ export default function ServicesScreen() {
                 {t('svc.askedFor', {
                   date: [
                     formatDayShort(booking.preferredDate, language),
-                    booking.preferredSlot ? t(`slot.${booking.preferredSlot}`) : null,
+                    formatSlot(booking.preferredSlot, language, t),
                   ]
                     .filter(Boolean)
                     .join(' · '),

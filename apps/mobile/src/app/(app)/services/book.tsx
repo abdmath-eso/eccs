@@ -1,7 +1,7 @@
-import { localize, VISIT_SLOTS, type ServiceCatalogItemDto, type VisitSlot } from '@eccs/shared';
+import { localize, VISIT_SLOT_PERIODS, type ServiceCatalogItemDto, type VisitSlot } from '@eccs/shared';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { addDays, formatDayShort, formatDuration, formatRupees, indiaToday } from '@/lib/format';
+import { addDays, dayParts, formatDayLong, formatDuration, formatRupees, formatSlot, indiaToday } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
@@ -75,6 +75,25 @@ export default function BookServiceScreen() {
     { borderColor: selected ? theme.primary : theme.border },
     selected && { backgroundColor: theme.backgroundElement },
   ];
+  const slotButton = (value: VisitSlot) => {
+    const selected = value === slot;
+    return (
+      <Pressable
+        key={value}
+        accessibilityRole="radio"
+        accessibilityState={{ selected }}
+        onPress={() => setSlot(value)}
+        style={[
+          styles.slot,
+          { borderColor: selected ? theme.primary : theme.border },
+          selected && { backgroundColor: theme.primary },
+        ]}>
+        <ThemedText type="default" style={[styles.slotText, { color: selected ? theme.onPrimary : theme.text }]}>
+          {formatSlot(value, language, t)}
+        </ThemedText>
+      </Pressable>
+    );
+  };
   const heading = (text: string) => (
     <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
       {text}
@@ -130,37 +149,54 @@ export default function BookServiceScreen() {
         );
       })}
 
+      {/* One row of days to swipe through, as booking apps do, instead of a wall of buttons. */}
       {heading(t('book.date'))}
-      <View style={styles.options}>
-        {days.map((day) => (
-          <Pressable
-            key={day}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: day === date }}
-            onPress={() => setDate(day)}
-            style={option(day === date)}>
-            <ThemedText type="default" themeColor={day === date ? 'primary' : 'text'}>
-              {formatDayShort(day, language)}
-            </ThemedText>
-          </Pressable>
-        ))}
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.days}>
+        {days.map((day) => {
+          const selected = day === date;
+          const parts = dayParts(day, language);
+          return (
+            <Pressable
+              key={day}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              accessibilityLabel={formatDayLong(day, language)}
+              onPress={() => setDate(day)}
+              style={[
+                styles.day,
+                { borderColor: selected ? theme.primary : theme.border },
+                selected && { backgroundColor: theme.primary },
+              ]}>
+              <ThemedText type="small" style={{ color: selected ? theme.onPrimary : theme.textSecondary }}>
+                {parts.weekday}
+              </ThemedText>
+              <ThemedText type="default" style={[styles.dayNumber, { color: selected ? theme.onPrimary : theme.text }]}>
+                {parts.day}
+              </ThemedText>
+              <ThemedText type="small" style={{ color: selected ? theme.onPrimary : theme.textSecondary }}>
+                {parts.month}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {date && (
+        <ThemedText type="default" themeColor="primary">
+          {formatDayLong(date, language)}
+        </ThemedText>
+      )}
 
+      {/* Two-hour windows in which the team arrives, grouped by part of the day. */}
       {heading(t('book.slot'))}
-      <View style={styles.options}>
-        {VISIT_SLOTS.map((value) => (
-          <Pressable
-            key={value}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: value === slot }}
-            onPress={() => setSlot(value)}
-            style={option(value === slot)}>
-            <ThemedText type="default" themeColor={value === slot ? 'primary' : 'text'}>
-              {t(`slot.${value}`)}
-            </ThemedText>
-          </Pressable>
-        ))}
-      </View>
+      {VISIT_SLOT_PERIODS.map(({ period, slots }) => (
+        <View key={period} style={styles.period}>
+          <ThemedText type="small" themeColor="textSecondary">
+            {t(`slot.${period}`)}
+          </ThemedText>
+          <View style={styles.slots}>{slots.map((value) => slotButton(value))}</View>
+        </View>
+      ))}
+      <View style={styles.slots}>{slotButton('AFTER_CLOSING')}</View>
 
       <TextField
         label={t('book.notes')}
@@ -192,6 +228,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     justifyContent: 'center',
   },
+  days: { gap: Spacing.two, paddingVertical: Spacing.one },
+  day: {
+    width: 64,
+    minHeight: 84,
+    borderWidth: 2,
+    borderRadius: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.half,
+  },
+  dayNumber: { fontSize: 24, lineHeight: 28, fontWeight: 700 },
+  period: { gap: Spacing.one },
+  slots: { flexDirection: 'row', gap: Spacing.two },
+  slot: {
+    flex: 1,
+    minHeight: MinTouchSize + Spacing.two,
+    borderWidth: 2,
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.two,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotText: { fontSize: 18, fontWeight: 700, textAlign: 'center' },
   service: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   serviceName: { fontWeight: 700, fontSize: 18 },
   sectionGap: { marginTop: Spacing.three },

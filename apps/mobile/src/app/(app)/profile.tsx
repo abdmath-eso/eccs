@@ -5,7 +5,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
-import { LanguagePicker } from '@/components/language-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
@@ -21,7 +20,7 @@ import { useSession } from '@/lib/session';
 
 /**
  * "My profile": the person's photo, name and role, their restaurant and its
- * branches, and their own preferences, which for now is the language.
+ * branches, and the branches they work at. The language is chosen at the foot of the side menu.
  */
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -241,17 +240,6 @@ export default function ProfileScreen() {
               </View>
             </>
           )}
-
-          {/* ── Preferences ── */}
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
-            {t('profile.preferences')}
-          </ThemedText>
-          <View style={[styles.card, { borderColor: theme.border }]}>
-            <ThemedText type="small" themeColor="textSecondary">
-              {t('profile.language')}
-            </ThemedText>
-            <LanguagePicker />
-          </View>
         </>
       )}
       {!profile && <ErrorText message={error} />}

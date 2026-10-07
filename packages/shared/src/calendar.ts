@@ -19,7 +19,7 @@ export type CalendarVisitState = "UPCOMING" | "IN_PROGRESS" | "DONE" | "NOT_DONE
 export interface CalendarVisitDto {
   id: string;
   service: LocalizedText;
-  /** When in the day, as arranged: one of VISIT_SLOTS, e.g. "AFTER_CLOSING". */
+  /** When in the day, as arranged: one of VISIT_SLOTS, e.g. "1000" or "AFTER_CLOSING". */
   slot: string | null;
   state: CalendarVisitState;
 }

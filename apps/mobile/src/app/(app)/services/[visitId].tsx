@@ -14,7 +14,7 @@ import { VisitStatusBadge } from '@/components/visit-card';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { formatDateTime, formatDayLong } from '@/lib/format';
+import { formatDateTime, formatDayLong, formatSlot } from '@/lib/format';
 import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
 import { useSession } from '@/lib/session';
 
@@ -269,7 +269,7 @@ export default function VisitScreen() {
 
       <View style={[styles.facts, { backgroundColor: theme.backgroundElement }]}>
         <ThemedText type="default" style={styles.when}>
-          {[formatDayLong(visit.date, language), visit.slot ? t(`slot.${visit.slot}`) : null].filter(Boolean).join(' · ')}
+          {[formatDayLong(visit.date, language), formatSlot(visit.slot, language, t)].filter(Boolean).join(' · ')}
         </ThemedText>
         {fact(t('visit.address'), visit.canRecord ? visit.outletAddress : null)}
         {fact(t('visit.supervisor'), visit.supervisorName ?? (started ? null : t('visit.notAssigned')))}

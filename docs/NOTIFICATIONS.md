@@ -112,11 +112,38 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 | N5 | A corrective action's fix-by date is tomorrow, or has passed | O, M | "{count} corrective actions are due." | Push + in-app | not built |
 | N6 | An inspection fails a critical check | Adm | "{outlet} failed a critical check: {check}." | Push | not built |
 
-## 8. Features not built yet (to fill in when they are)
+## 8. Hygiene score
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| H1 | The score drops into a lower band | O, M | "Your hygiene score is now {score} ({band}). Biggest cause: {reason}." | Push + in-app | not built |
+| H2 | The score falls 10 points or more in a week | O, M; Adm | "Hygiene score at {outlet} fell from {from} to {to} this week." | Push + in-app | not built |
+| H3 | A new outlet gets its first score | O, M | "Your first hygiene score is ready: {score}." | In-app | not built |
+| H4 | Weekly summary of the score and what is costing points | O | "This week: {score} ({change}). {reason}." | In-app | not built |
+
+## 9. Monitoring (to ECCS)
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| M1 | Each morning | Adm | "{count} outlets need attention today: {names}." | In-app or email | not built |
+| M2 | An outlet first reaches "needs attention" | Adm | "{outlet} now needs attention: {area}." | Push + in-app | not built |
+| M3 | Checklists missed two days running at an outlet | Adm | "{outlet} has missed its checklists for 2 days." | In-app | not built |
+| M4 | A report or inspection report has waited more than 2 days for approval | Adm | "{count} reports are waiting for approval." | Console badge + in-app | not built |
+
+## 10. Changes ECCS makes in the console
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| E1 | An outlet or client is switched off or back on | O | "{outlet} has been switched off by ECCS. Call ECCS." | SMS (they cannot log in when switched off) | not built |
+| E2 | A new restaurant code is issued | O, M | "{outlet} has a new restaurant code. The old one no longer links new phones." | In-app | not built |
+| E3 | ECCS unlinks a phone, removes the Owner's PIN, or changes the Owner's mobile number | O | A security notice saying what was changed | SMS | not built |
+| E4 | A kind of service's task list changes | Sup | "The task list for {service} has changed." | In-app | not built |
+| E5 | A service is added or its price changes | O, M | "ECCS now offers {service}." | In-app, optional | not built |
+
+## 11. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
 |---|---|
-| Hygiene score | Score dropped; weekly summary |
 | Invoices and payments | Invoice raised; payment due soon; overdue; payment received |
 | Subscription | Renewal coming; plan changed; plan ended |
 | Certificates | Certificate issued; certificate expiring |
@@ -130,6 +157,7 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | Date | Change |
 |---|---|
+| 7 Oct 2026 | Added sections 8 to 10 (hygiene score, monitoring, console changes), not built. The inspection report's PDF is ready at the moment N4 would fire, so it needs no notification of its own. |
 | 7 Oct 2026 | Added section 7 for inspections (N1 to N6), not built. |
 | 7 Oct 2026 | First version built as a list inside the app and the console: S1 to S8, S10 to S16, S18, S19, C2 to C4, I1 to I5, L1 to L3, A1, A2. Not built: S9, S17, C1, C5, C6, I6, L4, P1, A3. Rows corrected to match what was built: S3 (no Supervisor name in the wording), S4, S7, S11, S12, S13 and S14 (a low rating replaces the ordinary sign-off notification for admins), S16, S18, S19, C2, C4, I1, I3, I4, I5 (Supervisors with a visit at the outlet are included), L1, L2, L3, A1, A2. Not sent, and not in the register: a restaurant withdrawing its own request; ECCS adding a visit without a request (the restaurant first hears of it from S8); a corrected report coming back to ECCS for approval. |
 | 7 Oct 2026 | Added S18 and S19 with automatic plan visits. |

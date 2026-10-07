@@ -258,6 +258,8 @@ A 0–100 score per outlet, recalculated nightly, with the breakdown always visi
 
 Weights are configuration, so they can be tuned during the pilot.
 
+**As built on 7 Oct 2026** (first version; see STATUS for what awaits the founder's decision): the five parts keep these weights, with two changes of meaning: open issues with ECCS do not cost points, and the services part measures visits the restaurant has signed off rather than visits done on time. An approved ECCS inspection from the last 180 days adds a sixth part worth 25. The score is points earned ÷ points possible × 100, so a part with nothing to measure is left out rather than counted against the outlet, and there is no score until 3 checklists have fallen due. It is recalculated every 6 hours and whenever it is asked for, not only nightly.
+
 ---
 
 ## 5. MVP scope for a 3–5 restaurant pilot

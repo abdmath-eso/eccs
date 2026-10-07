@@ -134,3 +134,16 @@ The Head Chef does not see services. The Supervisor sees only visits given to th
 1. With signal, open Checklists once so today's checklists are on the phone.
 2. Switch on aeroplane mode. Open a checklist, tick items, take photos, report a problem, and Submit. A line at the bottom says how many are waiting to be sent.
 3. Switch aeroplane mode off. The line changes to "Sending…" and then "All sent".
+
+## 9. Trying the hygiene score, the monitoring board and console editing
+
+- **Hygiene score (app).** About half a minute after the API starts, Home shows the score for the chosen outlet. Tap it for the breakdown and the 30-day trend. An outlet with fewer than 3 checklists due shows "No score yet".
+- **Monitoring (console).** Open Monitoring: every outlet, worst first. The tiles at the top filter the list; open a row to see what it is behind on.
+- **Catalogue (console).** Open Catalogue to add or change a bookable service, its price, and the task list for each kind of service.
+- **Editing a client or outlet (console).** On Clients, open a client: Change details, New restaurant code, Linked phones, Switch off.
+
+**Take care with the sample restaurants.** Switching off a sample outlet or client, issuing a new restaurant code, or using "Lost PIN: set up again" on a sample Owner changes the logins in this file until you undo it. To try those, onboard a restaurant of your own first.
+
+## 10. Trying the inspection report PDF
+
+After approving an inspection in the console (section 7), the report has "Open the report as a PDF", in the console and in the app, and the PDF is filed in the outlet's Licences and documents.

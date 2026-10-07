@@ -608,4 +608,6 @@ export const mr: Messages = {
   "visit.reason.noTime": "वेळ पुरला नाही",
   "visit.reason.notNeeded": "या वेळी गरज नव्हती",
   "visit.correction": "ECCS ने सुधारणा करायला सांगितले",
+
+  "visit.pdf": "रिपोर्ट PDF मध्ये पाहा",
 };

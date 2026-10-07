@@ -219,6 +219,13 @@ export class ServicesController {
     return this.services.returnReport(user, id, body.note);
   }
 
+  @Post('visits/:id/report-pdf')
+  @HttpCode(200)
+  @RequirePermission('jobs', 'read')
+  reportPdf(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.services.reportPdf(user, id);
+  }
+
   @Post('visits/:id/sign-off')
   @HttpCode(200)
   @RequirePermission('jobs', 'approve')

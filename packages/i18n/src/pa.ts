@@ -608,4 +608,6 @@ export const pa: Messages = {
   "visit.reason.noTime": "ਸਮਾਂ ਘੱਟ ਪੈ ਗਿਆ",
   "visit.reason.notNeeded": "ਇਸ ਵਾਰ ਲੋੜ ਨਹੀਂ ਸੀ",
   "visit.correction": "ECCS ਨੇ ਸੁਧਾਰ ਕਰਨ ਲਈ ਕਿਹਾ",
+
+  "visit.pdf": "ਰਿਪੋਰਟ PDF ਵਿੱਚ ਦੇਖੋ",
 };

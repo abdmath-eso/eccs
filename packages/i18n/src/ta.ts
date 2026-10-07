@@ -608,4 +608,6 @@ export const ta: Messages = {
   "visit.reason.noTime": "நேரம் போதவில்லை",
   "visit.reason.notNeeded": "இந்த முறை தேவையில்லை",
   "visit.correction": "ECCS திருத்தம் கேட்டது",
+
+  "visit.pdf": "ரிப்போர்ட்டை PDF ஆகப் பார்",
 };

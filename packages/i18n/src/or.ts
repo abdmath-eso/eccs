@@ -608,4 +608,6 @@ export const or: Messages = {
   "visit.reason.noTime": "ସମୟ ଅଣ୍ଟିଲା ନାହିଁ",
   "visit.reason.notNeeded": "ଏଥର ଦରକାର ନଥିଲା",
   "visit.correction": "ECCS ସଂଶୋଧନ କରିବାକୁ କହିଲା",
+
+  "visit.pdf": "ରିପୋର୍ଟ PDF ରେ ଦେଖନ୍ତୁ",
 };

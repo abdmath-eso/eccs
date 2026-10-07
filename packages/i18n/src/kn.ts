@@ -608,4 +608,6 @@ export const kn: Messages = {
   "visit.reason.noTime": "ಸಮಯ ಸಾಕಾಗಲಿಲ್ಲ",
   "visit.reason.notNeeded": "ಈ ಬಾರಿ ಅಗತ್ಯವಿರಲಿಲ್ಲ",
   "visit.correction": "ECCS ತಿದ್ದುಪಡಿ ಕೇಳಿದೆ",
+
+  "visit.pdf": "ರಿಪೋರ್ಟ್ PDF ಆಗಿ ನೋಡಿ",
 };

@@ -608,4 +608,6 @@ export const ml: Messages = {
   "visit.reason.noTime": "സമയം തികഞ്ഞില്ല",
   "visit.reason.notNeeded": "ഇത്തവണ ആവശ്യമില്ലായിരുന്നു",
   "visit.correction": "ECCS തിരുത്തൽ ആവശ്യപ്പെട്ടു",
+
+  "visit.pdf": "റിപ്പോർട്ട് PDF ആയി കാണുക",
 };

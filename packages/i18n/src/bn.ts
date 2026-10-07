@@ -608,4 +608,6 @@ export const bn: Messages = {
   "visit.reason.noTime": "সময় কম পড়েছে",
   "visit.reason.notNeeded": "এবার দরকার ছিল না",
   "visit.correction": "ECCS সংশোধন করতে বলেছে",
+
+  "visit.pdf": "রিপোর্ট PDF হিসেবে দেখুন",
 };

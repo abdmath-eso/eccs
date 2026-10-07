@@ -602,6 +602,7 @@ export const en = {
   "visit.reason.notNeeded": "Not needed this visit",
   "visit.reason.skip": "Restaurant asked us to skip",
   "visit.correction": "ECCS asked for a correction",
+  "visit.pdf": "Open the report as a PDF",
   "visit.reason.other": "Other",
   "visit.removePhotoConfirm": "Remove this photo?",
   "visit.photoRemoved": "Photo removed",

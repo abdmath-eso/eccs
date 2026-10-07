@@ -608,4 +608,6 @@ export const hi: Messages = {
   "visit.reason.noTime": "समय कम पड़ गया",
   "visit.reason.notNeeded": "इस बार ज़रूरत नहीं थी",
   "visit.correction": "ECCS ने सुधार करने को कहा",
+
+  "visit.pdf": "रिपोर्ट PDF में देखें",
 };

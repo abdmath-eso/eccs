@@ -24,6 +24,7 @@ import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { sniffFile } from '../storage/attachments.controller.js';
 import { StorageService } from '../storage/storage.service.js';
+import { ReportPdfService } from './report-pdf.service.js';
 
 const MAX_LISTED = 100;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -86,6 +87,7 @@ export class ServicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly reports: ReportPdfService,
   ) {}
 
   private get db() {
@@ -579,7 +581,19 @@ export class ServicesService {
       }),
       this.db.job.update({ where: { id: visit.id }, data: { status: 'APPROVED', approvedById: user.id, approvedAt: now } }),
     ]);
+    // The report is final now: make its PDF and file it in the outlet's documents. This
+    // takes a few seconds, so the sign-off does not wait for it.
+    this.reports.ensureLater(visit.id);
     return this.getVisit(user, visit.id);
+  }
+
+  /** A link to the signed-off visit's report as a PDF. Makes the PDF first if it is not there yet. */
+  async reportPdf(user: AuthUser, visitId: string): Promise<{ path: string }> {
+    const visit = await this.requireVisit(user, visitId);
+    if (visit.status !== 'APPROVED') {
+      throw new ConflictException('The report is ready as a PDF once the visit has been signed off');
+    }
+    return { path: this.storage.signedPath(await this.reports.ensure(visit.id)) };
   }
 
   // ───────────────────────── Helpers ─────────────────────────

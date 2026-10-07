@@ -27,6 +27,9 @@ const schema = z
     SUPPORT_PHONE: z.string().default('+919000000000'),
     SUPPORT_WHATSAPP: z.string().default('919000000000'),
     SUPPORT_HOURS: z.string().default('Every day, 8 am to 10 pm'),
+    // The browser that prints service reports to PDF (Chrome, Edge or Chromium). Leave unset
+    // to use one found in the usual places; set it on a server where it is installed elsewhere.
+    PDF_BROWSER_PATH: z.string().optional(),
     // Object storage for photos and documents. Locally this is SeaweedFS; in production, Amazon S3.
     S3_ENDPOINT: z.string().optional(),
     S3_REGION: z.string().default('ap-south-1'),

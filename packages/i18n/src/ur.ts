@@ -608,4 +608,6 @@ export const ur: Messages = {
   "visit.reason.noTime": "وقت کم پڑ گیا",
   "visit.reason.notNeeded": "اس بار ضرورت نہیں تھی",
   "visit.correction": "ECCS نے درستی کرنے کو کہا",
+
+  "visit.pdf": "رپورٹ PDF میں دیکھیں",
 };

@@ -2,7 +2,7 @@ import { isEccsRole, localize, type VisitDto, type VisitPhotoDto, type VisitPhot
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -131,6 +131,21 @@ export default function VisitScreen() {
     if (!photo) return;
     const file = photo.file;
     await run(`photo-${kind}`, `photo-${kind}`, () => api.visits.addPhoto(visitId, kind, file));
+  }
+
+  /** Opens the signed-off report as a PDF in the phone's viewer. The first time, the server makes it, which takes a few seconds. */
+  async function openPdf() {
+    if (busy !== null) return;
+    setBusy('pdf');
+    setFailed(null);
+    try {
+      const { path } = await api.visits.reportPdf(visitId);
+      await Linking.openURL(api.fileUrl(path));
+    } catch (e) {
+      setFailed({ at: 'pdf', message: errorMessage(e, t) });
+    } finally {
+      setBusy(null);
+    }
   }
 
   if (!visit) {
@@ -612,6 +627,18 @@ export default function VisitScreen() {
           )}
           {visit.signOff.comment && <ThemedText type="default">{visit.signOff.comment}</ThemedText>}
         </View>
+      )}
+      {visit.signOff && (
+        <>
+          <Button
+            icon="document-text"
+            label={t('visit.pdf')}
+            variant="secondary"
+            loading={busy === 'pdf'}
+            onPress={() => void openPdf()}
+          />
+          <ErrorText message={errorAt('pdf')} />
+        </>
       )}
       {visit.status === 'IN_REVIEW' && (
         <ThemedText type="default" themeColor="warning" style={styles.sectionGap}>

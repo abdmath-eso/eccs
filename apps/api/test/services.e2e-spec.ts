@@ -64,6 +64,7 @@ describe('Service loop (e2e)', () => {
   async function cleanUp() {
     const db = prisma.client;
     const jobs = { OR: [{ notes: MARK }, { booking: { notes: MARK } }] };
+    await db.document.deleteMany({ where: { attachment: { job: jobs } } });
     await db.attachment.deleteMany({ where: { job: jobs } });
     await db.serviceReport.deleteMany({ where: { job: jobs } });
     await db.job.deleteMany({ where: jobs });
@@ -415,6 +416,43 @@ describe('Service loop (e2e)', () => {
         // ECCS and the Supervisor see what the restaurant thought of the visit.
         expect(report.signOff).toMatchObject({ rating: 4, comment: 'Clean and on time.' });
       }
+    });
+  });
+
+  describe('the report as a PDF', () => {
+    const pdf = (token: string, id = visitId) => http().post(`/visits/${id}/report-pdf`).set(bearer(token));
+
+    it('is made once the visit is signed off, for the restaurant, ECCS and the Supervisor', async () => {
+      await pdf(chef).expect(403);
+      await pdf(otherManager).expect(404);
+
+      const link = (await pdf(owner).expect(200)).body as { path: string };
+      const file = await http().get(link.path).buffer(true).parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => done(null, Buffer.concat(chunks)));
+      }).expect(200).expect('Content-Type', /application\/pdf/);
+      expect((file.body as Buffer).subarray(0, 5).toString('ascii')).toBe('%PDF-');
+      expect((file.body as Buffer).length).toBeGreaterThan(5000);
+
+      // Asking again gives the same file, not a second copy.
+      const again = (await pdf(admin).expect(200)).body as { path: string };
+      expect(again.path.split('?')[0]).toBe(link.path.split('?')[0]);
+      await pdf(supervisor).expect(200);
+    }, 60_000);
+
+    it('is filed in the outlet\u2019s documents', async () => {
+      const documents = (await http().get('/documents').query({ outletId }).set(bearer(owner)).expect(200)).body as {
+        title: string;
+        category: string;
+      }[];
+      const filed = documents.filter((document) => document.title.startsWith('Service report SR-') && document.category === 'report');
+      expect(filed.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('does not exist before sign-off', async () => {
+      const other = (await visits(owner, { outletId }))[0];
+      if (other) await pdf(owner, other.id).expect(409);
     });
   });
 

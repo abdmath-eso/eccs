@@ -371,6 +371,11 @@ export function createApiClient(options: ApiClientOptions) {
         call<VisitDto>("DELETE", `/visits/${id(visitId)}/photos/${id(photoId)}`),
       /** The Supervisor finishes; the visit then waits for the restaurant's sign-off. */
       complete: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/complete`),
+      /**
+       * A link to the signed-off visit's report as a PDF (relative to the API base URL, valid
+       * for a limited time). May take a few seconds the first time, while the PDF is made.
+       */
+      reportPdf: (visitId: string) => call<{ path: string }>("POST", `/visits/${id(visitId)}/report-pdf`),
       /** ECCS has checked the report and releases it to the restaurant. */
       approveReport: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/approve-report`),
       /** ECCS gives the visit back to the Supervisor, saying what to correct in the report. */

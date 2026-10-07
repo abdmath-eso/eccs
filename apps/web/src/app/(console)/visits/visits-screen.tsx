@@ -714,6 +714,27 @@ function VisitDetail({
   const photos = (kind: "BEFORE" | "AFTER") => visit.photos.filter((photo) => photo.kind === kind);
   const isReport = visit.status === "IN_REVIEW" || visit.status === "COMPLETED" || visit.status === "APPROVED";
 
+  const [openingPdf, setOpeningPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  /** Opens the signed-off report as a PDF in a new tab. The first time, the server makes it, which takes a few seconds. */
+  async function openPdf() {
+    setOpeningPdf(true);
+    setPdfError(null);
+    // Opened straight away, while the click still counts, so the browser does not block it as a pop-up.
+    const tab = window.open("", "_blank");
+    try {
+      const { path } = await api.visits.reportPdf(visit.id);
+      if (tab) tab.location.href = api.fileUrl(path);
+      else window.location.href = api.fileUrl(path);
+    } catch (e) {
+      tab?.close();
+      setPdfError(describe(e));
+    } finally {
+      setOpeningPdf(false);
+    }
+  }
+
   /** True once "Send back" is pressed: the box for what to correct is showing. */
   const [returning, setReturning] = useState(false);
   const [correction, setCorrection] = useState("");
@@ -921,6 +942,16 @@ function VisitDetail({
             </p>
           )}
           {visit.signOff?.comment && <p className="mt-1 whitespace-pre-wrap">“{visit.signOff.comment}”</p>}
+          {visit.signOff && (
+            <div className="mt-3 flex flex-col gap-2">
+              <ErrorMessage message={pdfError} />
+              <div>
+                <Button type="button" variant="secondary" loading={openingPdf} onClick={() => void openPdf()}>
+                  Open the report as a PDF
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Card>

@@ -608,4 +608,6 @@ export const gu: Messages = {
   "visit.reason.noTime": "સમય ઓછો પડ્યો",
   "visit.reason.notNeeded": "આ વખતે જરૂર નહોતી",
   "visit.correction": "ECCS એ સુધારો કરવા કહ્યું",
+
+  "visit.pdf": "રિપોર્ટ PDF માં જુઓ",
 };

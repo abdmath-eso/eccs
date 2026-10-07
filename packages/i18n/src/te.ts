@@ -608,4 +608,6 @@ export const te: Messages = {
   "visit.reason.noTime": "సమయం సరిపోలేదు",
   "visit.reason.notNeeded": "ఈసారి అవసరం లేదు",
   "visit.correction": "ECCS సరిదిద్దమని అడిగింది",
+
+  "visit.pdf": "నివేదికను PDFగా చూడండి",
 };

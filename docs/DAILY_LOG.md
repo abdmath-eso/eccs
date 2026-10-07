@@ -58,6 +58,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Founder asked for Inspections in the Supervisor's bottom bar. Done: Home, Visits, Inspections, More. Type check and lint pass; not looked at in the browser or on a phone.
 - Founder decisions: the inspection checks stay in English only; build next the inspection report PDF, the hygiene score, the monitoring board and console screens to edit clients, outlets and the catalogue. Four workers started on those in parallel.
 - The four evening features came back from their workers and were checked together: the inspection report PDF (an eight-page sample with four non-compliances and a failed critical check was made and read by its worker), the hygiene score (rule, snapshots, Home card, score screen, console panel), the monitoring board, and console editing of clients, outlets and the catalogue. Full build, type check, lint and unit tests pass; 242 end-to-end tests pass.
+- The hygiene score's 60 pieces of text were translated into the other eleven languages and merged. The new pages were read on test copies: Monitoring, Catalogue and client editing in the console; the score card on Home and the score screen in the app. The inspection PDF button and the score in other languages were not opened.
 - Choices the workers made are listed for the founder in STATUS section 4 under "Hygiene score", "Monitoring board" and "Console editing". The hygiene score departs from the proposal in two places that need the founder's decision.
 
 **Carried over from yesterday**

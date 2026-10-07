@@ -131,6 +131,12 @@ export const signOffVisitSchema = z.object({
 });
 export type SignOffVisitInput = z.input<typeof signOffVisitSchema>;
 
+/** ECCS sends a finished visit's report back to the Supervisor, saying what to correct. */
+export const returnReportSchema = z.object({
+  note: z.string().trim().min(3, "Say what needs correcting").max(500),
+});
+export type ReturnReportInput = z.input<typeof returnReportSchema>;
+
 export const VISIT_PHOTO_KINDS = ["BEFORE", "AFTER"] as const;
 export type VisitPhotoKind = (typeof VISIT_PHOTO_KINDS)[number];
 
@@ -239,6 +245,11 @@ export interface VisitDto extends VisitSummaryDto {
   /** What the person asking may do with it now. */
   canRecord: boolean;
   canSignOff: boolean;
+  /**
+   * What ECCS asked the Supervisor to correct, while the visit is back with them.
+   * Only ECCS staff are told; null for the restaurant.
+   */
+  correctionNote: string | null;
   /** ECCS admins, while the report waits for their check: approve it or send it back. */
   canReview: boolean;
   canManage: boolean;

@@ -38,6 +38,7 @@ type Visit = {
   canSignOff: boolean;
   canManage: boolean;
   canReview: boolean;
+  correctionNote: string | null;
   [key: string]: unknown;
 };
 
@@ -323,7 +324,8 @@ describe('Service loop (e2e)', () => {
 
   describe('ECCS checks the report', () => {
     const approve = (token: string) => http().post(`/visits/${visitId}/approve-report`).set(bearer(token));
-    const sendBack = (token: string) => http().post(`/visits/${visitId}/return-report`).set(bearer(token));
+    const sendBack = (token: string, note: unknown = 'The after photo is of the wrong area.') =>
+      http().post(`/visits/${visitId}/return-report`).set(bearer(token)).send({ note });
 
     it('keeps the report from the restaurant until ECCS approves it', async () => {
       const theirs = await visit(owner);
@@ -344,8 +346,16 @@ describe('Service loop (e2e)', () => {
       await sendBack(supervisor).expect(403);
       const number = (await visit(admin)).reportNumber;
 
+      // ECCS must say what to correct.
+      await sendBack(admin, '').expect(400);
+      await sendBack(admin, null).expect(400);
+      await sendBack(admin, 'x').expect(400);
+
       const reopened = (await sendBack(admin).expect(200)).body as Visit;
       expect(reopened).toMatchObject({ status: 'IN_PROGRESS', canReview: false });
+      // The Supervisor is told; the restaurant is not.
+      expect((await visit(supervisor)).correctionNote).toBe('The after photo is of the wrong area.');
+      expect((await visit(owner)).correctionNote).toBeNull();
       await sendBack(admin).expect(409);
       await approve(admin).expect(409);
 
@@ -358,7 +368,7 @@ describe('Service loop (e2e)', () => {
       await approve(owner).expect(403);
       await approve(supervisor).expect(403);
       const approved = (await approve(admin).expect(200)).body as Visit;
-      expect(approved).toMatchObject({ status: 'COMPLETED', canReview: false });
+      expect(approved).toMatchObject({ status: 'COMPLETED', canReview: false, correctionNote: null });
       await approve(admin).expect(409);
 
       const theirs = await visit(owner);

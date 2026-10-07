@@ -43,6 +43,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - The 13 new or changed pieces of text were translated into the 11 other languages by one translation job and checked by program.
 - Founder asked for the More menu not to repeat what is in the bottom bar. Done: for the Owner and Manager it now lists Raise an issue, SOPs, Licences and documents, and Staff logins. Type check and lint pass; not looked at in the browser or on a phone.
 - Founder decisions: a restaurant cannot cancel a confirmed visit (already how it works), and a report needs ECCS's approval before the restaurant sees it. Built the approval: a finished visit waits as "ECCS is checking the report"; in the console an admin approves it or sends it back to the Supervisor; only then can the restaurant read it and sign off. 3 new end-to-end tests (141 in total, all passing). The new console buttons and app messages were not looked at in the browser or on a phone.
+- Founder decisions: the arrival windows stay as they are for now; the star rating at sign-off is mandatory; sending a report back needs a note; and Claude should write the reasons a task might not get done. Built the note (ECCS types what to correct, the Supervisor sees it on the visit, the restaurant does not) and replaced the four placeholder reasons with nine. The ten pieces of text were translated into the 11 other languages. 141 end-to-end tests pass. Not looked at in the browser or on a phone.
 
 **Carried over from yesterday**
 

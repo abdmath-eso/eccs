@@ -19,6 +19,7 @@ import {
   confirmBookingSchema,
   createBookingSchema,
   createVisitSchema,
+  returnReportSchema,
   signOffVisitSchema,
   updateVisitRecordSchema,
   updateVisitSchema,
@@ -210,8 +211,12 @@ export class ServicesController {
   @Post('visits/:id/return-report')
   @HttpCode(200)
   @RequirePermission('jobs', 'create')
-  returnReport(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.services.returnReport(user, id);
+  returnReport(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(returnReportSchema)) body: z.output<typeof returnReportSchema>,
+  ) {
+    return this.services.returnReport(user, id, body.note);
   }
 
   @Post('visits/:id/sign-off')

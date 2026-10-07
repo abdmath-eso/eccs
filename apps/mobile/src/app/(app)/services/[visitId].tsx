@@ -30,7 +30,8 @@ const splitNames = (text: string) =>
     .filter(Boolean);
 
 // Sample one-tap reasons for a task that was not done, until the founder supplies the real list.
-const REASONS = ['inUse', 'noAccess', 'noEquipment', 'skip'] as const;
+// Why a task could not be done, most common first. "Other" is offered after these.
+const REASONS = ['inUse', 'noAccess', 'hot', 'notMoved', 'repair', 'noEquipment', 'noTime', 'notNeeded', 'skip'] as const;
 
 const PHOTOS_PER_ROW = 3;
 
@@ -535,6 +536,15 @@ export default function VisitScreen() {
         </>
       )}
 
+      {visit.correctionNote && (
+        <View style={[styles.correction, { borderColor: theme.warning }]}>
+          <ThemedText type="default" themeColor="warning" style={styles.signedText}>
+            {t('visit.correction')}
+          </ThemedText>
+          <ThemedText type="default">{visit.correctionNote}</ThemedText>
+        </View>
+      )}
+
       {/* While working: before photo, the tasks, then the after photo. In the
           finished report the before and after photos sit together, above the tasks. */}
       {!withheld && photos('BEFORE')}
@@ -720,6 +730,7 @@ export default function VisitScreen() {
 }
 
 const styles = StyleSheet.create({
+  correction: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   rate: { marginTop: Spacing.four, borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   rateTitle: { fontWeight: 700, fontSize: 18, textAlign: 'center' },
   rateWord: { textAlign: 'center', fontWeight: 600 },

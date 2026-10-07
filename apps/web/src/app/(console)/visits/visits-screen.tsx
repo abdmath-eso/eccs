@@ -714,14 +714,19 @@ function VisitDetail({
   const photos = (kind: "BEFORE" | "AFTER") => visit.photos.filter((photo) => photo.kind === kind);
   const isReport = visit.status === "IN_REVIEW" || visit.status === "COMPLETED" || visit.status === "APPROVED";
 
-  async function sendBack() {
-    const sure = await confirm({
-      title: "Send this report back?",
-      body: `${visit.supervisorName ?? "The Supervisor"} will be able to change the tasks, photos, team and notes, and must finish the visit again. Tell them what to correct; the app does not pass on a message yet.`,
-      confirmLabel: "Send back to the Supervisor",
-      cancelLabel: "Keep it here",
-    });
-    if (sure) void act(() => api.visits.returnReport(visit.id), () => "Report sent back to the Supervisor");
+  /** True once "Send back" is pressed: the box for what to correct is showing. */
+  const [returning, setReturning] = useState(false);
+  const [correction, setCorrection] = useState("");
+  const [correctionError, setCorrectionError] = useState<string | null>(null);
+
+  function sendBack(event: FormEvent) {
+    event.preventDefault();
+    const note = correction.trim();
+    if (note.length < 3) {
+      setCorrectionError("Say what needs correcting, so the Supervisor knows what to change.");
+      return;
+    }
+    void act(() => api.visits.returnReport(visit.id, { note }), () => "Report sent back to the Supervisor");
   }
 
   return (
@@ -739,6 +744,12 @@ function VisitDetail({
 
       {visit.reportNumber && <p className="font-semibold">Service report {visit.reportNumber}</p>}
 
+      {visit.correctionNote && (
+        <p className="rounded-lg border border-border p-3 text-sm">
+          <span className="font-semibold">Sent back for correction:</span> {visit.correctionNote}
+        </p>
+      )}
+
       {visit.canReview && (
         <div className="flex flex-col gap-3 rounded-lg border border-danger p-3">
           <p className="text-sm">
@@ -746,14 +757,46 @@ function VisitDetail({
             report, or sign it off, until you approve it.
           </p>
           <ErrorMessage message={error} />
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" loading={busy} onClick={() => void act(() => api.visits.approveReport(visit.id), () => "Report approved and sent to the restaurant")}>
-              Approve the report
-            </Button>
-            <Button type="button" variant="secondary" disabled={busy} onClick={() => void sendBack()}>
-              Send back to the Supervisor
-            </Button>
-          </div>
+          {returning ? (
+            <form onSubmit={sendBack} noValidate className="flex flex-col gap-2">
+              <label className="flex flex-col gap-1 text-sm font-medium">
+                What should {visit.supervisorName ?? "the Supervisor"} correct?
+                <span className="font-normal text-muted">
+                  They will see this in the app, change the report and finish the visit again.
+                </span>
+                <textarea
+                  value={correction}
+                  onChange={(e) => {
+                    setCorrection(e.target.value);
+                    setCorrectionError(null);
+                  }}
+                  maxLength={500}
+                  rows={3}
+                  autoFocus
+                  aria-invalid={correctionError ? true : undefined}
+                  className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-base font-normal"
+                />
+              </label>
+              <ErrorMessage message={correctionError} />
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" loading={busy}>
+                  Send back to the Supervisor
+                </Button>
+                <Button type="button" variant="secondary" disabled={busy} onClick={() => setReturning(false)}>
+                  Keep it here
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" loading={busy} onClick={() => void act(() => api.visits.approveReport(visit.id), () => "Report approved and sent to the restaurant")}>
+                Approve the report
+              </Button>
+              <Button type="button" variant="secondary" disabled={busy} onClick={() => setReturning(true)}>
+                Send back to the Supervisor
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

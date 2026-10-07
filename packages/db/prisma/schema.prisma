@@ -618,6 +618,8 @@ model Job {
   /// the restaurant. Until then the restaurant cannot read the report or sign it off.
   reviewedAt       DateTime?
   reviewedById     String?
+  /// What ECCS asked the Supervisor to correct when sending the report back. Cleared on approval.
+  reviewNote       String?
   approvedById     String?
   approvedAt       DateTime?
   notes            String?

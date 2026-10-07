@@ -519,7 +519,10 @@ export class ServicesService {
   /** ECCS has checked the finished visit's report and releases it to the restaurant. */
   async approveReport(user: AuthUser, visitId: string): Promise<VisitDto> {
     const visit = await this.requireReportInReview(user, visitId);
-    await this.db.job.update({ where: { id: visit.id }, data: { reviewedAt: new Date(), reviewedById: user.id } });
+    await this.db.job.update({
+      where: { id: visit.id },
+      data: { reviewedAt: new Date(), reviewedById: user.id, reviewNote: null },
+    });
     return this.getVisit(user, visit.id);
   }
 
@@ -527,10 +530,10 @@ export class ServicesService {
    * ECCS finds something wrong or missing in the report and gives the visit
    * back to the Supervisor, who corrects it and finishes again.
    */
-  async returnReport(user: AuthUser, visitId: string): Promise<VisitDto> {
+  async returnReport(user: AuthUser, visitId: string, note: string): Promise<VisitDto> {
     const visit = await this.requireReportInReview(user, visitId);
     await this.db.$transaction([
-      this.db.job.update({ where: { id: visit.id }, data: { status: 'IN_PROGRESS', completedAt: null } }),
+      this.db.job.update({ where: { id: visit.id }, data: { status: 'IN_PROGRESS', completedAt: null, reviewNote: note } }),
       ...(visit.bookingId
         ? [this.db.booking.update({ where: { id: visit.bookingId }, data: { status: 'CONFIRMED' } })]
         : []),
@@ -712,6 +715,7 @@ export class ServicesService {
         : null,
       canRecord: (ahead || visit.status === 'IN_PROGRESS') && this.mayRecord(user, visit),
       canSignOff: visit.status === 'COMPLETED' && !inReview && this.maySignOff(user, visit),
+      correctionNote: user.memberships.some((m) => isEccsRole(m.role)) ? visit.reviewNote : null,
       canReview: inReview && this.isEccsAdmin(user),
       canManage: ahead && this.isEccsAdmin(user),
     };

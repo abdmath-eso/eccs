@@ -145,7 +145,7 @@ Restaurant roles never see another organisation's data. Owner covers all outlets
 | Issues and ECCS support | CR | CRU own | C |
 | Service catalogue and booking | CRU | CRU own | – |
 | Service schedule and reminders | R | R | – |
-| Jobs (visits) | R | R, sign-off | – |
+| Jobs (visits) | R, sign-off | R, sign-off | – |
 | Service reports, certificates, inspection reports | R | R | – |
 | History calendar (1 year) | R | R own | – (sees the last 7 days in Daily checklists) |
 | Licences and document vault | CRU | CRU own | – |

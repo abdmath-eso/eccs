@@ -60,7 +60,8 @@ export default function BookServiceScreen() {
         ...(notes.trim() && { notes: notes.trim() }),
       });
       // Back to Services, which reloads and shows the request as waiting for ECCS.
-      router.back();
+      if (router.canGoBack()) router.back();
+      else router.replace('/services');
     } catch (e) {
       setError(errorMessage(e, t));
       setSending(false);

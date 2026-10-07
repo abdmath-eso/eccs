@@ -107,3 +107,15 @@ The same three can log in to the mobile app through **"ECCS staff login"**, but 
 | Restaurant app on the Android phone | Expo Go, scan the QR code from `pnpm --filter @eccs/mobile start` |
 
 How to start them is in `docs/STATUS.md`, section 6, "See it running".
+
+## 6. Trying the service loop
+
+The loop needs three people. One phone and one computer are enough if you switch logins.
+
+1. **Book (restaurant app).** Log in as an Owner or Manager. Menu → Services and booking → Book a service. Pick a service, a day and a time of day, and send. The request shows as "Waiting for ECCS to confirm".
+2. **Confirm (web console).** Log in as the Operations Manager (9000000002). Open Visits. The request is at the top: choose the day, the time and the Supervisor, then Confirm the visit. "Add a visit" puts one in the diary without a request.
+3. **Do the visit (app, as the Supervisor).** In the app choose Lock, then "Use a different restaurant" if needed to reach the welcome screen, then "ECCS staff login" with 9000000003 and the one-time code. Menu → My visits → open the visit → "I have arrived: check in". Mark each task, take a before and an after photo, type who did the work, then Finish the visit.
+4. **Sign off (restaurant app).** Log back in as the Owner or Manager of that outlet. Services and booking shows the visit under "Waiting for your sign-off". Open it, read it, and Sign off this visit.
+5. **Read the report.** In the app it is under Past visits and on the History calendar. In the console it is under Visits → Finished.
+
+The Head Chef does not see services. The Supervisor sees only visits given to them.

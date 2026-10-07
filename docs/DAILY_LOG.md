@@ -14,60 +14,100 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ## Wednesday 7 October 2026
 
-*In progress. To be written up at the end of the day.*
+The third day, and the longest. Started with the restaurant side of Phase 1a in place and no service side at all; ended with Phase 1b, the whole service loop, built as first versions, and the last two pieces of 1a (checklists without signal, notifications) done as well. Much of the building was done by workers running in parallel, each on its own part of the code, with Claude preparing the shared files first and checking everything together afterwards. 37 commits. Pushed to GitHub once, at the end of the day.
 
-**So far today**
+### Morning fixes
 
-- Founder reported SOPs not showing in the newer languages. Cause: his API terminal had been started before the translation work was built. Restarting it fixed that.
-- Founder then sent three phone screenshots (filed in `docs/screenshots/` as `library-bengali-screen-marathi-content-android.png`, `library-bengali-screen-english-content-iphone.jpeg` and `library-sop-english-content-iphone.jpeg`): with the app set to Bengali, the SOP library showed Marathi on the Android phone and English on the iPhone; and on first opening, the language did not appear until after some refreshing. Cause: the screen follows the language chosen on that phone, but the library's wording followed the language saved on the account, and the two had drifted apart (one login on two phones; a save that failed silently, probably while the API was restarting). Fixed: the app now sends the language on screen with every request and the server answers in it; the library reloads when the language changes; a phone follows the saved language when the app opens, and re-sends its own choice if that never reached the server. One more check added to the end-to-end tests (122 pass). Not checked in the browser by Claude; the founder restarted the terminals, retested on the phones and confirmed it works.
-- Founder asked for the service loop to be built complete. Built it in one go. In the app, the Owner or Manager books a service from the priced catalogue (service, one of the next 14 days, time of day, a note), sees upcoming visits, cancels a request ECCS has not confirmed, signs off finished visits and opens past reports; the home screen lists the outlet's visits and the calendar opens them. In the console, a new Visits page shows requests waiting, where ECCS confirms the day and time and picks the Supervisor, and the diary, where ECCS can add, move, reassign and cancel visits and read reports. In the app again, ECCS staff get My visits: the Supervisor checks in, marks each task done or not done with a reason, takes before and after photos, records the team and notes, and finishes; the visit gets a report number and waits for the restaurant's sign-off.
-- Decided by Claude during the build, for the founder to review (STATUS section 4): sign-off happens in the restaurant's own app rather than as a signature on the Supervisor's phone; the Owner can sign off as well as the Manager; a restaurant cannot cancel once ECCS has confirmed; finishing needs every task answered and one "after" photo.
-- 75 new pieces of app text, translated into the 11 other languages by parallel translation jobs and checked by program.
-- Tested with 16 new end-to-end tests (138 in total) and by going through the whole loop in Chrome: booked as the Spice Route Owner, confirmed in the console, recorded as the Supervisor (whose screens came up in Telugu), signed off as the Owner, read the report in the console. The photos in that run were uploaded by script, not through the camera button. One fault found and fixed: the booking screen stayed busy after sending when opened directly. Not tried on a phone.
-- That browser run left one real-looking record in the local data: a signed-off pest control visit at Spice Route, Gachibowli, dated 8 October, report SR-2026-00001, with two coloured sample pictures as photos.
-- Not built: PDF of the report, filing it in the document vault, visits generated from plans, chemicals used, location check at check-in, certificates, working without signal, notifications.
-- Founder feedback on booking, with a screenshot (`docs/screenshots/booking-too-many-day-buttons.png`): too many day buttons, and the time should be proper time slots, large, as other booking apps do it. Looked at how booking apps lay this out and rebuilt it: one row of dates to swipe through, and two-hour arrival windows in large buttons grouped by morning, afternoon and evening, plus "After closing". The console and every place a visit's time is shown use the same windows; times already saved were moved to a matching window. Checked in Chrome. 138 end-to-end tests pass.
-- Founder asked for the language choice to move from My profile to the bottom of the side menu. Done; the Preferences section is gone from the profile. Checked in Chrome that the list opens from the menu; not tried on a phone.
-- Founder rule: always research the design and use the industry standard for UI/UX, for everything from now on. Written into `CLAUDE.md`.
-- Founder asked for every existing screen to be reviewed against that rule. Four reviewers read all the app and console screens against published guidance and returned about 50 items; saved as `docs/UI_REVIEW.md`. Founder approved all of it, including replacing the side menu with a bottom bar.
-- Built the shared pieces first: the bottom bar (main sections by role, plus "More"), a page frame with a fixed top bar, pull-to-refresh and a pinned footer, a brief "saved" message, a ticked choice chip, errors with a retry button, a stronger outline for inputs, and specific wording for common failures. ECCS staff now see today's visits on Home. Fixed four faults the review found (one of them introduced earlier today in the calendar).
-- Then five workers reworked the screens in parallel, each on its own files: login; checklists, issues and staff; licences, calendar, SOPs and profile; service visits; the web console. Every review item was built except mirroring the layout for Urdu, which needs a phone to try. Details and the few partial items are in `docs/UI_REVIEW.md`.
-- 135 new pieces of app text, translated into the 11 other languages by three translation jobs and checked by program.
-- Tested: the full build, type check and lint pass; 138 end-to-end tests pass (the PIN lockout test was adjusted: the fifth wrong PIN now locks at once and reports the time left). Opened in Chrome: the bottom bar and moving between sections, the calendar, a checklist with its pinned progress and Submit, Services, Raise an issue, Licences, and in the console Visits (grouped diary, filters, the cancel dialog), Clients (table and search) and the counts in the menu. Most reworked behaviour was not exercised by hand (retrying a failed photo, the PIN lockout countdown, reordering SOP steps, sharing a PIN, the Supervisor's recording flow after the rework), and nothing was tried on a phone.
-- Choices the workers made that the founder should confirm are listed in STATUS section 4 under "UI review".
-- Founder asked what "buttons are words only" meant, then asked for the icons back. The shared button now takes an icon from the app's own icon set (the standard is a small icon before the label), and the take-photo, choose-file, call, WhatsApp, share-PIN and add buttons carry one. Type check and lint pass; not looked at in the browser or on a phone.
-- Founder asked for a rating at sign-off: five stars and an optional written comment from the Owner or Manager. Looked up the usual pattern (a five-point star scale with an optional comment, asked right after the job) and built it into the sign-off: stars with a word under them, an optional comment, shown afterwards on the report in the app and the console. The rating is required to sign off; that part is Claude's choice.
-- Founder asked for the bottom bar to show the calendar instead of Issues, with Issues under More, and for History to be renamed Service calendar. Done for the Owner and Manager; the Head Chef, who has no calendar, keeps Issues in the bar.
-- Tested: 138 end-to-end tests pass, with the sign-off test extended for the rating. In Chrome as the Owner: the new bar, and a full sign-off of a test visit (pressing Sign off with no rating jumps to the stars and says so; five stars and a comment were saved and show on the report). That left a second test record in the local data: a signed-off safety inspection at Spice Route, Gachibowli, dated 9 October, report SR-2026-00003.
-- Found while testing: on screens that show "loading" before their content (a checklist, a visit), jumping to the first missing item did nothing in the browser preview. Fixed in the shared page frame. Whether phones were affected is not known.
-- The 13 new or changed pieces of text were translated into the 11 other languages by one translation job and checked by program.
-- Founder asked for the More menu not to repeat what is in the bottom bar. Done: for the Owner and Manager it now lists Raise an issue, SOPs, Licences and documents, and Staff logins. Type check and lint pass; not looked at in the browser or on a phone.
-- Founder decisions: a restaurant cannot cancel a confirmed visit (already how it works), and a report needs ECCS's approval before the restaurant sees it. Built the approval: a finished visit waits as "ECCS is checking the report"; in the console an admin approves it or sends it back to the Supervisor; only then can the restaurant read it and sign off. 3 new end-to-end tests (141 in total, all passing). The new console buttons and app messages were not looked at in the browser or on a phone.
-- Founder decisions: the arrival windows stay as they are for now; the star rating at sign-off is mandatory; sending a report back needs a note; and Claude should write the reasons a task might not get done. Built the note (ECCS types what to correct, the Supervisor sees it on the visit, the restaurant does not) and replaced the four placeholder reasons with nine. The ten pieces of text were translated into the 11 other languages. 141 end-to-end tests pass. Not looked at in the browser or on a phone.
-- Founder asked for the PDF reports. Looked up what a field-service report carries and built it: when a visit is signed off, the server lays the report out as a page and prints it to a PDF (through the Edge browser installed on this machine), files it in the outlet's documents, and the app and console get an "Open the report as a PDF" button. 3 new end-to-end tests. Made the PDF for the first test visit and read it: two pages, layout as intended. That filed a sample "Service report SR-2026-00001" in Spice Route, Gachibowli's documents. The buttons in the app and console were not pressed by hand, and nothing was tried on a phone.
-- Founder corrected the order at the end of a visit: the Owner signs off first, as before, without waiting for ECCS; then ECCS approves the report in the console; then the PDF is made and the Owner and Manager can open it, with a notification. Rebuilt it that way. If ECCS sends a signed-off report back, the sign-off is kept (Claude's choice). 143 end-to-end tests pass. The reordered screens were not looked at in the browser or on a phone.
-- Founder asked for a document tracking every notification across all features, to be built and tested later. Wrote `docs/NOTIFICATIONS.md`: about 35 notifications across visits, checklists, issues, licences, logins and SOPs, each with who gets it and when. None is built, including the report-ready one.
-- Founder asked for visits to be created automatically from plans. Looked up how recurring-service tools do it (visits generated a set time ahead; editing or skipping one visit leaves the rest alone) and built it: the server keeps the diary filled 30 days ahead from each outlet's plan, never creating the same due visit twice; ECCS can put an outlet on a plan, change it or stop it in the console; the restaurant sees its plan and "Part of your plan" on those visits. 9 new end-to-end tests on a throwaway outlet (152 in total).
-- Founder decision: plans are parked until pricing is finalised. When we return, the plans and the automation are to be customisable and configurable by ECCS. Recorded in STATUS with what that is likely to cover.
-- Founder tested the morning's work on the phones: "it looks good". Asked for four things together: checklists without signal, notifications, scored inspections and the Urdu layout.
-- Prepared the shared files so three workers could build at once, then ran them in parallel. Checklists without signal: answers and photos saved on the phone first and sent when the server answers, with a line at the bottom saying what is waiting. Notifications: a list with a bell in the app and the console, 27 kinds fired by events and 7 reminders on a timer; no push yet. Inspections: the founder's ten sections and 92 checks loaded as the template, scored and graded the FSSAI way, with app screens for the Supervisor and the restaurant and a console page.
-- Tested: the full build, type check and lint pass; 199 end-to-end tests pass (26 new for notifications, 21 for inspections; the offline queue's rules passed 15 tests kept outside the repo, as the app has no test runner).
-- Choices the workers made are listed for the founder in STATUS section 4 under "Checklists without signal", "Notifications" and "Inspections".
-- Urdu layout mirroring built by a fourth worker once the other three had landed: the layout direction follows the app language at once, with no restart; digits, PINs and phone numbers stay left to right. Then the 178 new pieces of text were translated into the 11 other languages by three translation jobs and merged, and the compiler's check that every language has every key was switched back on.
-- Final checks for the afternoon batch: full build, type check and lint pass; 199 end-to-end tests pass. In Chrome the new pages were opened and read as text (screenshots were not available because the Chrome window was hidden): the app's Home, Notifications (with reminders the timer had just written) and Inspections, and the console's Inspections and Notifications pages, all without errors. Nothing in this batch was seen as a picture, exercised by hand, or tried on a phone: not the offline queue, not answering an inspection, not the Urdu layout.
-- Founder asked for Inspections in the Supervisor's bottom bar. Done: Home, Visits, Inspections, More. Type check and lint pass; not looked at in the browser or on a phone.
-- Founder decisions: the inspection checks stay in English only; build next the inspection report PDF, the hygiene score, the monitoring board and console screens to edit clients, outlets and the catalogue. Four workers started on those in parallel.
-- The four evening features came back from their workers and were checked together: the inspection report PDF (an eight-page sample with four non-compliances and a failed critical check was made and read by its worker), the hygiene score (rule, snapshots, Home card, score screen, console panel), the monitoring board, and console editing of clients, outlets and the catalogue. Full build, type check, lint and unit tests pass; 242 end-to-end tests pass.
-- The hygiene score's 60 pieces of text were translated into the other eleven languages and merged. The new pages were read on test copies: Monitoring, Catalogue and client editing in the console; the score card on Home and the score screen in the app. The inspection PDF button and the score in other languages were not opened.
-- Choices the workers made are listed for the founder in STATUS section 4 under "Hygiene score", "Monitoring board" and "Console editing". The hygiene score departs from the proposal in two places that need the founder's decision.
-- The founder reported an error box on opening the app. Cause: the score's 30-day chart set its direction in a way the browser version refuses. Fixed by using the app's own direction box.
-- The founder asked how the hygiene score worked, then set a new rule: the ECCS inspection 60 points, licences 10, the day's checklists 30, with "done" and "on time" merged and "problems fixed" and "visits signed off" removed. Claude researched (FSSAI and UK ratings come entirely from inspection; audit software keeps daily checklists as a separate completion rate) and put four choices; the founder took the recommended ones except no cap for a failed critical check and 180 days for an inspection. Rebuilt the rule, the API's counting, the app's card and screen, the console panel, the unit and end-to-end tests, and the text in twelve languages.
-- The founder decided there will be no re-inspection, then asked for phase 1b to be completed. Two workers built the last two pieces in parallel: service certificates (issued on ECCS's approval, numbered, with validity dates and a PDF; a console page, an app screen, a Catalogue setting) and the Supervisor's visit and the inspection working without signal (on the checklists' outbox, with the server recognising repeated actions and refused work held on the phone). Checked together: build, type check, lint, 39 + 31 unit tests and 273 end-to-end tests pass.
+- **SOPs missing in the newer languages.** The founder's API terminal had been started before the translation work was built. Restarting it fixed that.
+- **Languages mixing.** The founder sent three phone screenshots (in `docs/screenshots/`): with the app set to Bengali, the SOP library showed Marathi on the Android phone and English on the iPhone, and on first opening the language took some refreshing to appear. Cause: the screen followed the language chosen on that phone, the library's wording followed the language saved on the account, and the two had drifted apart. Fixed: the app sends the language on screen with every request and the server answers in it. The founder retested on the phones and confirmed it.
 
-**Carried over from yesterday**
+### The service loop
 
-- Phone retest of the 6 October work (see "Left open" below).
-- The founder has not yet chosen what to build next. Recommended: Phase 1b, the service loop.
+- **Booking and the visit.** The Owner or Manager books a service from the priced catalogue and sees what is coming up. In the console, ECCS confirms the day and time and picks the Supervisor on a new Visits page. The Supervisor checks in, marks each task done or not done with a reason, takes before and after photos, records the team and notes, and finishes.
+- **Booking screen reworked** after the founder's screenshot: one row of dates to swipe, and two-hour arrival windows as large buttons, plus "After closing".
+- **Sign-off with a rating.** The Owner or Manager signs off with one to five stars (required) and an optional comment.
+- **ECCS approval and the PDF.** The order was corrected by the founder during the day and is now: the Supervisor finishes, the Owner or Manager signs off, ECCS approves the report in the console (or sends it back to the Supervisor with a required note), and only then is the PDF made, filed in the outlet's documents and opened from the app or console.
+- **Reasons a task was not done.** The four placeholders were replaced with nine.
+- **Visits from plans.** The server keeps the diary filled 30 days ahead from each outlet's plan; ECCS can put an outlet on a plan, change it or stop it. Parked by the founder the same day until pricing is final.
+- **Scored inspections.** The founder's ten sections and 92 checks, scored and graded the FSSAI way, with screens for the Supervisor and the restaurant, a console page, and an eight-page PDF report made on ECCS's approval.
+- **Service certificates.** When ECCS approves the report of a pest control, deep clean or chimney visit, a numbered certificate with validity dates is issued and its one-page PDF filed. A Certificates page in the console, a Certificates screen in the app, a button on the visit, and a setting per kind of service in Catalogue.
+- **Monitoring board.** A console page listing every outlet, worst first, with a column each for checklists, issues, licences, visits, inspections and the hygiene score.
+- **Console editing.** ECCS can change a client's and outlet's details, switch them off and on, issue a new restaurant code, unlink phones, reset an Owner's lost PIN, and manage the bookable services, prices and task lists on a new Catalogue page.
+
+### Working without signal
+
+- **Checklists** are saved on the phone first, answers and photos, and sent when the server answers, with a line at the bottom saying what is waiting.
+- **The Supervisor's visit and the inspection** were put on the same mechanism in the evening. A whole visit or a whole 92-check inspection can be done with no signal once it has been loaded with signal. The server recognises a repeat of the same action, so sending twice is harmless. Work the office refuses (the visit was cancelled or reassigned meanwhile) is held on the phone with "Send again" and "Delete from this phone", never dropped.
+
+### Hygiene score
+
+- First built by a worker from the proposal's five parts plus the inspection. The founder asked how it worked, then set a different rule, which replaced it the same day: the latest approved ECCS inspection 60 points, licences 10, the day's checklists 30 (on time earns a checklist's full share, late half, missed nothing). An outlet not yet inspected is scored on licences and checklists alone and marked "Provisional".
+- Shown on Home with its band and the change since last week, on its own screen with every part and a 30-day trend, and in a console panel.
+
+### Screens, navigation and languages
+
+- **The screen review.** After the founder's new rule on design (below), four reviewers read every app and console screen against published guidance and returned about 50 items (`docs/UI_REVIEW.md`). The founder approved all of it. Shared pieces were built first (a bottom bar, a page frame with a fixed top bar and pinned footer, a "saved" message, errors with a retry button), then five workers reworked the screens in parallel.
+- **Bottom bar.** Owner and Manager: Home, Checklists, Services, Calendar, More. Supervisor: Home, Visits, Inspections, More. "History" was renamed "Service calendar", Issues moved under More, and More no longer repeats what is in the bar.
+- **Smaller changes asked for by the founder:** the language choice moved from My profile to the bottom of the menu; icons were put back on buttons.
+- **Urdu layout.** The whole layout now mirrors for Urdu at once, with no restart; digits, PINs and phone numbers stay left to right.
+- **Notifications.** A list with a bell in the app and the console: 27 kinds fired by events and 7 reminders on a timer. In-app only; no push or SMS.
+- **Translations.** About 550 new pieces of app text were written in English through the day and translated into the other eleven languages by translation jobs, each batch checked by program. The inspection checks stay in English by the founder's decision.
+
+### Decisions the founder made
+
+- Always research the design first and build the industry-standard pattern, for every screen from now on. Written into `CLAUDE.md`.
+- Keep a register of every notification (`docs/NOTIFICATIONS.md`); they will be built and tested together later.
+- A restaurant cannot cancel a visit ECCS has confirmed.
+- The star rating at sign-off is mandatory.
+- The order at the end of a visit: Supervisor finishes, Owner or Manager signs off, ECCS approves, then the PDF. Sending a report back needs a note.
+- Arrival windows and working hours stay as they are for now.
+- Plans are parked until pricing is final, and must be customisable and configurable by ECCS when we return to them.
+- The 92 inspection checks stay in English only.
+- The hygiene score rule: inspection 60, licences 10, the day's checklists 30; "done" and "on time" merged; "problems fixed" and "visits signed off" removed; provisional until inspected; no cap for a failed critical check; an inspection counts for 180 days.
+- No re-inspection.
+- The bottom bar and More menu as described above.
+
+Decided by Claude or its workers during the build and not yet reviewed by the founder: listed feature by feature in `STATUS.md` section 4.
+
+### How it was tested
+
+- 273 automated end-to-end tests on the API, up from 122 at the start of the day, in 17 files. New today: visits, plans, notifications, inspections, the score, monitoring, the catalogue, certificates, and repeated sends from a phone.
+- Unit tests for the first time: 39 on the shared rules (scores, inspections, certificates, slots) and 31 on the phone's offline queue.
+- The full build, type check and lint pass on the final code.
+- Claude went through the first version of the service loop by hand in Chrome (booked, confirmed, recorded, signed off, read the report), and later a sign-off with a rating. From the afternoon on, the Chrome window was hidden and screenshots failed, so new pages were opened on test copies and read as text only: Home, Notifications, Inspections, the score card and score screen, Certificates and Services in the app; Inspections, Notifications, Monitoring, Catalogue, Clients and Certificates in the console.
+- Sample PDFs were made and read: a service report (two pages), an inspection report (eight pages) and a certificate (one page).
+- The founder tested the morning's work on the phones ("it looks good"). Nothing built from the afternoon on has been tried on a phone.
+
+### Problems found
+
+- **An error box on opening the app**, reported by the founder in the evening. Cause: the new score chart set its direction in a way the browser version of the app refuses. Fixed. It was missed because the pages were being read as text, where an error box does not show.
+- **The booking screen stayed busy** after sending when opened directly. Fixed.
+- **Jumping to the first missing item did nothing** on screens that show "loading" first (a checklist, a visit), in the browser preview. Fixed in the shared page frame. Whether phones were affected is not known.
+- **Four faults found by the screen review** were fixed, one of them introduced earlier the same day in the calendar.
+- **The first certificate PDF ran onto a second page.** Fixed by its worker; a kind of service with a long task list has not been checked.
+- **Claude started the test console with the wrong API address** once, which showed "Something went wrong" at login. Restarted with the right one.
+- Test records left in the local data by the browser runs: two signed-off visits at Spice Route, Gachibowli (reports SR-2026-00001 and SR-2026-00003) and a filed sample report PDF.
+
+### Left open at the end of the day
+
+- **Phone testing of everything from the afternoon and evening:** checklists with no signal, notifications, an inspection and its PDF, the Urdu layout, the hygiene score, Monitoring, Catalogue and client editing, certificates, and a visit and an inspection in aeroplane mode. Steps are in `docs/TEST_LOGINS.md` sections 6 to 12.
+- **The offline flows have never been run for real.** Their rules pass tests, but saving to a phone's storage, photos held as files, and sending on reconnection cannot be simulated from the PC.
+- **Choices awaiting the founder** (`STATUS.md` section 4), among them: the monitoring thresholds, which are sample values; the certificate dates and periods; trusting the phone's clock for work done offline; what a switched-off restaurant sees; which inspection checks are critical.
+- **A consequence of "no re-inspection":** corrective actions never close, so the Monitoring board will show "actions overdue" until the next full inspection. Claude offered to stop flagging them; not answered.
+- **A closed day counts as missed checklists**, which now costs up to 30 points of the hygiene score that day.
+- Notifications are in-app only, and most rows in the register are not built.
+- Still sample data: prices, task lists, company details and logo on the PDFs, the holiday list, the seven standard SOPs.
+- No native speaker has read any translation, and no food-safety professional has checked the 50 written-out SOPs.
+- Pricing and plans, parked.
+- Next to build, when the founder says so: Phase 1c, billing.
+
+### Carried over from 6 October
+
+- Retest on the phones: the founder tested in the morning and reported it looks good; the individual fixes were not ticked off one by one.
+- Urdu screens not mirrored: done.
+- Still to build in Phase 1a (checklists without signal, reminders): both done.
+- Choose what to build next: done, the founder chose the service loop and each piece after it.
+- Still open: the food-safety check, the translation review, the holiday list, the standard SOPs, whether to write out more library SOPs.
 
 ---
 

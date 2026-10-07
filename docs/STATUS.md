@@ -6,7 +6,7 @@
 
 **Rule for anyone working on this repo, human or Claude:** update this file in the same session as any change that affects it: a feature started or finished, a decision made, a question answered, a tool installed. Add a line to the change log at the bottom every time, and commit.
 
-**Last updated:** 6 Oct 2026
+**Last updated:** 7 Oct 2026
 
 ---
 
@@ -452,6 +452,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 7 Oct 2026 | End of day: the 7 Oct entry written in `docs/DAILY_LOG.md`; pushed to GitHub. |
 | 7 Oct 2026 | Phase 1b completed: service certificates; the Supervisor's visit and the inspection work without signal. |
 | 7 Oct 2026 | Founder: no re-inspection. |
 | 7 Oct 2026 | Hygiene score changed to the founder's rule: inspection 60, licences 10, the day's checklists 30; provisional until inspected. Fixed an error box on app load caused by the score chart. |

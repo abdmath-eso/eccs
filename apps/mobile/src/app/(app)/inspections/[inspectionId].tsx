@@ -12,11 +12,13 @@ import {
   type InspectionSectionDto,
   type InspectionSeverity,
 } from '@eccs/shared';
+import { ApiError } from '@eccs/api-client';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useRef, useState, type ComponentProps } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ComponentProps } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { HeldNotice, SavedCopyNote } from '@/components/field-sync-parts';
 import { InspectionStatusBadge, ScoreSummary, SectionScoreRow } from '@/components/inspection-parts';
 import { ProofPhoto } from '@/components/proof-photo';
 import { ThemedText } from '@/components/themed-text';
@@ -27,10 +29,16 @@ import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
+import { UnsentMark } from '@/components/unsent-mark';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { addDays, formatDate, indiaToday, maskTypedDate, parseTypedDate, toTypedDate } from '@/lib/format';
+import { fieldCache } from '@/lib/offline/field-cache';
+import { applyInspectionPending, type NewFieldOp } from '@/lib/offline/field-ops';
+import { keepPhoto, keptPhotoUri, newId } from '@/lib/offline/files';
+import { isNoSignal, outbox, useOutbox } from '@/lib/offline/outbox';
+import { useReloadOnSignal } from '@/lib/offline/use-signal';
 import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
 import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
@@ -73,9 +81,26 @@ const draftOf = (check: InspectionCheckDto): Draft => ({
 const flat = (inspection: InspectionDto) => inspection.sections.flatMap((section) => section.checks);
 const sectionDone = (section: InspectionSectionDto) => section.checks.every((check) => check.complete);
 
+/** The India calendar day (YYYY-MM-DD) of a moment. */
+const indiaDay = (iso: string) => {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(iso));
+  } catch {
+    return iso.slice(0, 10);
+  }
+};
+
+// How this screen works without signal. Every answer, every detail of a
+// non-compliance, every photo and the Finish is first saved on the phone in the
+// "outbox" and shown as done at once; the outbox sends it to the server in the
+// background, in order, whenever there is signal (see lib/offline). The
+// inspection itself is the server's last copy, kept on the phone, with whatever
+// is still waiting laid over it, and its score is worked out on the phone by the
+// same function the server uses. So answering 92 checks never waits for the network.
+
 /**
  * One inspection. While it is being carried out this is where the Supervisor
- * answers the checks, section by section; each answer is sent as it is given.
+ * answers the checks, section by section; each answer is saved as it is given.
  * Once finished it is the inspection report: the score and grade, the section
  * scores and the non-compliances with their photos.
  */
@@ -85,20 +110,21 @@ export default function InspectionScreen() {
   const { t, api, language, user } = useSession();
   const notify = useSnackbar();
 
-  const [inspection, setInspection] = useState<InspectionDto | null>(null);
+  const box = useOutbox();
+  // The inspection as the server last sent it, from the copy kept on the phone.
+  const getSaved = useCallback(() => fieldCache.getInspection(inspectionId), [inspectionId]);
+  const saved = useSyncExternalStore(fieldCache.subscribe, getSaved, getSaved);
   const [loadError, setLoadError] = useState<string | null>(null);
   /** The section whose checks are showing. One at a time keeps a 92-check list short. */
   const [openSection, setOpenSection] = useState<string | null>(null);
   /** An answered check opened again to change it. */
   const [editing, setEditing] = useState<string | null>(null);
-  /** Answers tapped but not yet confirmed by the server, shown straight away. */
-  const [pending, setPending] = useState<Record<string, InspectionAnswer>>({});
   /** What went wrong and at which check (or `finish`), so the message shows beside it. */
   const [failed, setFailed] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   /** The check whose details were saved with something missing: its fields show what. */
   const [checked, setChecked] = useState<string | null>(null);
-  /** What is being sent that should show as busy: `details-<id>`, `photo-<id>`, `finish`, `pdf`. */
+  /** What should show as busy: `photo-<id>` while a photo is being kept on the phone, `pdf` while the PDF is fetched. */
   const [busy, setBusy] = useState<string | null>(null);
   /** The check Finish found unanswered or incomplete. */
   const [missing, setMissing] = useState<string | null>(null);
@@ -111,35 +137,68 @@ export default function InspectionScreen() {
   /** How far down the page each section sits, and each check inside its section. */
   const sectionY = useRef<Record<string, number>>({});
   const checkY = useRef<Record<string, number>>({});
-  /** The inspection as last shown, for answers that come back while others are still on their way. */
-  const latest = useRef<InspectionDto | null>(null);
 
-  const show = useCallback((next: InspectionDto) => {
-    latest.current = next;
-    setInspection(next);
-  }, []);
+  const userId = user?.id ?? null;
+  // False only once the server could not be reached; the line at the bottom of the app says so.
+  const hasSignal = box.online !== false;
 
+  /** The inspection as it stands on this phone this instant: the saved copy with everything waiting laid over it. */
+  const standing = useCallback((): InspectionDto | null => {
+    const copy = fieldCache.getInspection(inspectionId);
+    return copy ? applyInspectionPending(copy.data, outbox.getSnapshot().ops).inspection : null;
+  }, [inspectionId]);
+
+  /**
+   * Fetches the inspection and keeps it on the phone. With no signal the copy
+   * already on the phone stays on screen, which is not an error.
+   */
   const load = useCallback(async () => {
+    if (!userId) return;
+    await fieldCache.load(userId);
+    await fieldCache.open('inspection', inspectionId);
     try {
-      const loaded = await api.inspections.get(inspectionId);
-      show(loaded);
-      // Opens at the first section with something still to do.
-      const first = loaded.sections.find((section) => !sectionDone(section));
-      setOpenSection((current) => current ?? first?.key ?? null);
+      fieldCache.putInspection(await api.inspections.get(inspectionId));
+      outbox.noteReachable(true);
       setLoadError(null);
     } catch (e) {
-      setLoadError(errorMessage(e, t));
+      if (isNoSignal(e)) {
+        outbox.noteReachable(false);
+        setLoadError(fieldCache.getInspection(inspectionId) ? null : t('offline.inspectionNotOnPhone'));
+      } else if (e instanceof ApiError && (e.status === 403 || e.status === 404)) {
+        // Given to someone else, or removed. The old copy goes, unless answers for it are still on this phone.
+        if (!outbox.hasFieldWork('inspection', inspectionId)) fieldCache.forget('inspection', inspectionId);
+        setLoadError(t('offline.inspectionGone'));
+      } else {
+        setLoadError(errorMessage(e, t));
+      }
     }
+    // Opens at the first section with something still to do.
+    const first = standing()?.sections.find((section) => !sectionDone(section));
+    setOpenSection((current) => current ?? first?.key ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, inspectionId, show]);
+  }, [api, inspectionId, standing, userId]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
   );
+  // And again the moment the signal comes back.
+  useReloadOnSignal(load);
 
-  if (!inspection) {
+  const view = saved ? applyInspectionPending(saved.data, box.ops) : null;
+  const finishWaiting = view?.finishPending ?? false;
+  const finishedOnServer = saved !== null && (saved.data.status === 'SUBMITTED' || saved.data.status === 'APPROVED');
+
+  // "Inspection finished" is said when the server has it, not when Finish was pressed.
+  const wasWaiting = useRef(false);
+  useEffect(() => {
+    if (wasWaiting.current && !finishWaiting && finishedOnServer) notify(t('insp.finished'));
+    wasWaiting.current = finishWaiting;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finishWaiting, finishedOnServer]);
+
+  if (!view) {
     return (
       <Screen back title={t('insp.title')} onRefresh={load}>
         <ErrorText message={loadError} onRetry={() => void load()} />
@@ -148,7 +207,14 @@ export default function InspectionScreen() {
     );
   }
 
-  const recording = inspection.canRecord;
+  // The server's copy with this Supervisor's waiting answers laid over it.
+  const inspection = view.inspection;
+  // Answers the server refused are kept on the phone; nothing more is recorded until that is settled.
+  const held = view.holdReason !== null;
+  // Once Finish is pressed the inspection is closed on this phone, even while the Finish waits to be sent.
+  const recording = inspection.canRecord && !finishWaiting && !held;
+  // The scores of the answers as they stand on this phone, by the rule the server uses.
+  const score = view.score;
   const checks = flat(inspection);
   const done = checks.filter((check) => check.complete).length;
   const viewerRole = user?.memberships[0]?.role;
@@ -161,21 +227,24 @@ export default function InspectionScreen() {
       return rest;
     });
 
-  /** Puts one check as the server now has it into the inspection on screen. */
-  function replaceCheck(check: InspectionCheckDto): InspectionDto | null {
-    const current = latest.current;
-    if (!current) return null;
-    const next: InspectionDto = {
-      ...current,
-      status: current.status === 'PLANNED' ? 'IN_PROGRESS' : current.status,
-      sections: current.sections.map((section) => ({
-        ...section,
-        checks: section.checks.map((entry) => (entry.itemId === check.itemId ? check : entry)),
-      })),
-    };
-    show(next);
-    return next;
+  /**
+   * Saves one thing the Supervisor did: onto the phone first, then the outbox
+   * sends it. The only way this fails is the phone refusing to store it.
+   * `at` is the check (or `finish`) an error is shown beside.
+   */
+  async function save(at: string, step: Record<string, unknown> & { kind: NewFieldOp['kind'] }): Promise<boolean> {
+    clearFailure(at);
+    try {
+      await outbox.enqueue({ subject: 'inspection', subjectId: inspectionId, ...step } as NewFieldOp);
+      return true;
+    } catch {
+      setFailed((current) => ({ ...current, [at]: t('offline.saveFailed') }));
+      return false;
+    }
   }
+
+  // The server refuses a date to fix something by that is before the inspection itself.
+  const startDay = inspection.startedAt ? indiaDay(inspection.startedAt) : today;
 
   // Opening one section closes another, which moves everything below it, so the
   // positions are read only after the screen has had time to lay itself out again.
@@ -199,38 +268,31 @@ export default function InspectionScreen() {
   }
 
   /**
-   * Saves an answer the moment it is tapped. The choice shows at once and is
-   * confirmed when the server answers; several can be on their way together,
-   * so a slow connection does not hold the next check up.
+   * Saves an answer the moment it is tapped: onto the phone, where it shows at
+   * once, and from there to the server whenever there is signal. `at` is the
+   * moment it was answered, which is what the inspection is dated by.
    */
-  function answer(check: InspectionCheckDto, value: InspectionAnswer) {
+  async function answer(check: InspectionCheckDto, value: InspectionAnswer) {
     const id = check.itemId;
-    setPending((current) => ({ ...current, [id]: value }));
-    clearFailure(id);
     if (missing === id) setMissing(null);
     const draft = drafts[id] ?? draftOf(check);
     // Tapping "Not compliant" again must not wipe details already given.
     const details =
       value === 'NON_COMPLIANT'
-        ? { note: draft.note, severity: draft.severity, correctiveAction: draft.action, dueDate: draft.dueDate }
+        ? {
+            note: draft.note.trim(),
+            severity: draft.severity,
+            correctiveAction: draft.action.trim(),
+            dueDate: draft.dueDate && draft.dueDate >= startDay ? draft.dueDate : null,
+          }
         : {};
     if (value === 'NON_COMPLIANT') setEditing(id);
-    api.inspections
-      .answer(inspectionId, id, { answer: value, ...details })
-      .then((result) => {
-        const next = replaceCheck(result.check);
-        if (value !== 'NON_COMPLIANT') {
-          setEditing((current) => (current === id ? null : current));
-          if (next) moveOn(next, id);
-        }
-      })
-      .catch((e: unknown) => setFailed((current) => ({ ...current, [id]: errorMessage(e, t) })))
-      .finally(() =>
-        setPending((current) => {
-          const { [id]: _sent, ...rest } = current;
-          return rest;
-        }),
-      );
+    if (!(await save(id, { kind: 'inspAnswer', itemId: id, answer: value, ...details, at: new Date().toISOString() }))) return;
+    if (value !== 'NON_COMPLIANT') {
+      setEditing((current) => (current === id ? null : current));
+      const next = standing();
+      if (next) moveOn(next, id);
+    }
   }
 
   const setDraft = (check: InspectionCheckDto, change: Partial<Draft>) =>
@@ -241,33 +303,34 @@ export default function InspectionScreen() {
     if (busy !== null) return;
     const id = check.itemId;
     const draft = drafts[id] ?? draftOf(check);
-    setBusy(`details-${id}`);
-    clearFailure(id);
-    try {
-      const result = await api.inspections.answer(inspectionId, id, {
-        answer: 'NON_COMPLIANT',
-        note: draft.note.trim(),
-        severity: draft.severity,
-        correctiveAction: draft.action.trim(),
-        dueDate: draft.dueDate,
+    if (draft.dueDate && draft.dueDate < startDay) {
+      setFailed((current) => ({ ...current, [id]: t('offline.dueTooEarly') }));
+      return;
+    }
+    const kept = await save(id, {
+      kind: 'inspAnswer',
+      itemId: id,
+      answer: 'NON_COMPLIANT',
+      note: draft.note.trim(),
+      severity: draft.severity,
+      correctiveAction: draft.action.trim(),
+      dueDate: draft.dueDate,
+      at: new Date().toISOString(),
+    });
+    if (!kept) return;
+    const next = standing();
+    const now = next ? flat(next).find((entry) => entry.itemId === id) : undefined;
+    if (next && now?.complete) {
+      notify(t('common.saved'));
+      setChecked(null);
+      setEditing(null);
+      setDrafts((current) => {
+        const { [id]: _saved, ...rest } = current;
+        return rest;
       });
-      const next = replaceCheck(result.check);
-      if (result.check.complete) {
-        notify(t('common.saved'));
-        setChecked(null);
-        setEditing(null);
-        setDrafts((current) => {
-          const { [id]: _saved, ...rest } = current;
-          return rest;
-        });
-        if (next) moveOn(next, id);
-      } else {
-        setChecked(id);
-      }
-    } catch (e) {
-      setFailed((current) => ({ ...current, [id]: errorMessage(e, t) }));
-    } finally {
-      setBusy(null);
+      moveOn(next, id);
+    } else {
+      setChecked(id);
     }
   }
 
@@ -283,11 +346,17 @@ export default function InspectionScreen() {
       return;
     }
     if (!photo) return;
+    // The time is when the photo was taken, however much later it reaches the server.
+    const capturedAt = new Date().toISOString();
+    // The phone chooses the photo's id, so sending it twice stores it once.
+    const photoId = newId();
     setBusy(`photo-${id}`);
     try {
-      replaceCheck((await api.inspections.addPhoto(inspectionId, id, photo.file)).check);
-    } catch (e) {
-      setFailed((current) => ({ ...current, [id]: errorMessage(e, t) }));
+      // The camera saves into a folder the phone may clear; keep our own copy until it is sent.
+      await keepPhoto(photoId, photo);
+      await save(id, { kind: 'inspPhoto', itemId: id, photoId, capturedAt });
+    } catch {
+      setFailed((current) => ({ ...current, [id]: t('offline.saveFailed') }));
     } finally {
       setBusy(null);
     }
@@ -296,19 +365,19 @@ export default function InspectionScreen() {
   async function removePhoto(photo: InspectionPhotoDto) {
     setRemoving(null);
     const owner = checks.find((check) => check.photos.some((entry) => entry.id === photo.id));
-    try {
-      replaceCheck((await api.inspections.removePhoto(inspectionId, photo.id)).check);
-    } catch (e) {
-      if (owner) setFailed((current) => ({ ...current, [owner.itemId]: errorMessage(e, t) }));
-    }
+    if (owner) await save(owner.itemId, { kind: 'inspPhotoRemove', itemId: owner.itemId, photoId: photo.id });
   }
+
+  /** A photo taken on this phone is shown from the phone until the server has it. */
+  const photoUri = (photo: InspectionPhotoDto) =>
+    view.localPhotos.has(photo.id) ? (keptPhotoUri(photo.id) ?? '') : api.fileUrl(photo.path);
 
   /** Finish is always pressable: if something is missing it goes there, instead of sitting greyed out. */
   function pressFinish() {
     if (busy !== null) return;
     const lacking = checks.find((check) => !check.complete);
     if (lacking) {
-      const section = inspection!.sections.find((entry) => entry.checks.includes(lacking));
+      const section = inspection.sections.find((entry) => entry.checks.includes(lacking));
       setMissing(lacking.itemId);
       if (lacking.answer === 'NON_COMPLIANT') setChecked(lacking.itemId);
       if (section) {
@@ -318,21 +387,25 @@ export default function InspectionScreen() {
       return;
     }
     setMissing(null);
+    // The server refuses an inspection in which nothing applies; say so here rather than after sending.
+    if (score.possible === 0) {
+      setFailed((current) => ({ ...current, finish: t('offline.nothingApplies') }));
+      return;
+    }
+    clearFailure('finish');
     setConfirming(true);
   }
 
+  /**
+   * Finish joins the outbox behind the answers and photos still waiting, so the
+   * server gets them in the order they were given. `at` is the moment Finish was
+   * pressed: the server uses it to recognise the same Finish arriving twice.
+   */
   async function finish() {
     setConfirming(false);
-    setBusy('finish');
-    clearFailure('finish');
-    try {
-      show(await api.inspections.finish(inspectionId));
-      notify(t('insp.finished'));
+    if (await save('finish', { kind: 'inspFinish', at: new Date().toISOString() })) {
+      if (!hasSignal) notify(t('offline.submitSaved'));
       scrollToY(scrollRef, 0);
-    } catch (e) {
-      setFailed((current) => ({ ...current, finish: errorMessage(e, t) }));
-    } finally {
-      setBusy(null);
     }
   }
 
@@ -366,7 +439,7 @@ export default function InspectionScreen() {
           const recorded = check.answer === 'NON_COMPLIANT' && (check.note !== null || check.photos.length > 0);
           // One slip of a wet thumb must not throw away a note and photos.
           if (recorded && value !== 'NON_COMPLIANT') setChanging({ check, value });
-          else answer(check, value);
+          else void answer(check, value);
         }}
         style={({ pressed }) => [
           styles.answer,
@@ -467,13 +540,14 @@ export default function InspectionScreen() {
               <ProofPhoto
                 key={photo.id}
                 compact
-                uri={api.fileUrl(photo.path)}
+                uri={photoUri(photo)}
                 label={t('insp.photoLabel', { number: index + 1, total: check.photos.length })}
                 onRemove={() => setRemoving(photo)}
               />
             ))}
           </View>
         )}
+        {check.photos.some((photo) => view.localPhotos.has(photo.id)) && <UnsentMark sending={hasSignal} />}
         {check.photos.length < INSPECTION_MAX_PHOTOS && (
           <Button
             icon="camera"
@@ -485,7 +559,7 @@ export default function InspectionScreen() {
         )}
         <ErrorText message={need(check.photos.length === 0, 'photo')} />
 
-        <Button label={t('insp.saveDetails')} loading={busy === `details-${id}`} onPress={() => void saveDetails(check)} />
+        <Button label={t('insp.saveDetails')} onPress={() => void saveDetails(check)} />
       </View>
     );
   };
@@ -493,9 +567,10 @@ export default function InspectionScreen() {
   const checkRow = (check: InspectionCheckDto) => {
     const id = check.itemId;
     const label = localize(check.label, language);
-    const chosen = pending[id] ?? check.answer;
-    const sending = pending[id] !== undefined;
-    const open = !check.complete || editing === id || sending || failed[id] !== undefined;
+    const chosen = check.answer;
+    // Answered on this phone and not on the server yet.
+    const unsent = view.unsentChecks.has(id);
+    const open = !check.complete || editing === id || failed[id] !== undefined;
     const remember = (y: number) => {
       checkY.current[id] = y;
     };
@@ -535,6 +610,15 @@ export default function InspectionScreen() {
               </ThemedText>
             )}
           </View>
+          {/* A cloud at the end of a row whose answer is on this phone only; the line at the bottom of the app says how many are waiting. */}
+          {unsent && (
+            <Ionicons
+              name="cloud-upload-outline"
+              size={20}
+              color={theme.textSecondary}
+              accessibilityLabel={t('offline.photoWaiting')}
+            />
+          )}
         </Pressable>
       );
     }
@@ -559,16 +643,15 @@ export default function InspectionScreen() {
         <View style={styles.answers} accessibilityRole="radiogroup" accessibilityLabel={label}>
           {INSPECTION_ANSWERS.map((value) => answerButton(check, value, chosen))}
         </View>
-        {sending && <ActivityIndicator color={theme.primary} />}
+        {/* Answered here and on its way. The Supervisor can carry on; this mark goes once the server has it. */}
+        {unsent && <UnsentMark sending={hasSignal} />}
         <ErrorText
           message={
             failed[id] ??
             (flagged ? t(check.answer === 'NON_COMPLIANT' ? 'insp.needDetails' : 'insp.needAnswer') : null)
           }
-          // A failed answer is sent again with one tap, without choosing it a second time.
-          {...(failed[id] !== undefined && chosen && !sending ? { onRetry: () => answer(check, chosen) } : {})}
         />
-        {chosen === 'NON_COMPLIANT' && check.answer === 'NON_COMPLIANT' && detailsForm(check)}
+        {check.answer === 'NON_COMPLIANT' && detailsForm(check)}
       </View>
     );
   };
@@ -630,6 +713,12 @@ export default function InspectionScreen() {
   const report = (
     <>
       {inspection.overallScore !== null && <ScoreSummary score={inspection.overallScore} grade={inspection.grade} />}
+      {/* Finished without signal: the score is the phone's own working, by the rule the server uses. */}
+      {finishWaiting && (
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('offline.scoreOnPhone')}
+        </ThemedText>
+      )}
       {inspection.status === 'SUBMITTED' && eccs && (
         <ThemedText type="default" themeColor="warning">
           {t('insp.waitingEccs')}
@@ -695,7 +784,7 @@ export default function InspectionScreen() {
                 <ProofPhoto
                   key={photo.id}
                   compact
-                  uri={api.fileUrl(photo.path)}
+                  uri={photoUri(photo)}
                   label={t('insp.photoLabel', { number: index + 1, total: check.photos.length })}
                 />
               ))}
@@ -718,7 +807,7 @@ export default function InspectionScreen() {
         </View>
       </View>
       <ErrorText message={failed.finish ?? null} />
-      <Button label={t('insp.finish')} loading={busy === 'finish'} onPress={pressFinish} />
+      <Button label={t('insp.finish')} onPress={pressFinish} />
     </>
   ) : undefined;
 
@@ -727,13 +816,24 @@ export default function InspectionScreen() {
       back
       title={inspection.outletName}
       subtitle={recording ? (inspection.outletAddress ?? inspection.organizationName) : t('insp.report')}
-      onRefresh={load}
+      onRefresh={async () => {
+        // Pulling down also sends anything still waiting, without waiting for the next automatic try.
+        outbox.kick();
+        await load();
+      }}
       scrollRef={scrollRef}
       footer={footer}>
       {/* A refresh that failed: the inspection shown is the last one loaded. */}
       <ErrorText message={loadError} onRetry={() => void load()} />
+      {/* No signal: this is the phone's own copy, and how old it is. */}
+      {!hasSignal && saved && <SavedCopyNote at={saved.at} />}
+      {view.holdReason && (
+        <HeldNotice subject="inspection" subjectId={inspectionId} reason={view.holdReason} count={view.held} />
+      )}
 
+      {/* Until the server has the Finish, the inspection is not shown as finished: nobody else can see it yet. */}
       <InspectionStatusBadge status={inspection.status} />
+      {finishWaiting && !held && <UnsentMark sending={hasSignal} text={t('offline.finishWaiting')} />}
 
       {recording && inspection.correctionNote && (
         <View style={[styles.correction, { borderColor: theme.warning }]}>
@@ -792,7 +892,7 @@ export default function InspectionScreen() {
         confirmLabel={t('insp.changeAnswer')}
         danger
         onConfirm={() => {
-          if (changing) answer(changing.check, changing.value);
+          if (changing) void answer(changing.check, changing.value);
           setChanging(null);
         }}
         onCancel={() => setChanging(null)}

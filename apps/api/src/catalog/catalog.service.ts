@@ -21,7 +21,7 @@ const kindInclude = {
     },
   },
   planLines: { where: { plan: { isActive: true } }, select: { plan: { select: { name: true } } } },
-  _count: { select: { jobs: true } },
+  _count: { select: { jobs: true, certificates: true } },
 } as const satisfies Prisma.ServiceTypeInclude;
 
 const itemInclude = {
@@ -170,13 +170,29 @@ export class CatalogService {
    * its services are not offered, ECCS cannot add a visit of that kind, and
    * plans stop creating visits of it. Visits already in the diary stay.
    */
-  async updateKind(code: string, input: { name?: string | undefined; isActive?: boolean | undefined }): Promise<CatalogAdminDto> {
+  async updateKind(
+    code: string,
+    input: {
+      name?: string | undefined;
+      isActive?: boolean | undefined;
+      issuesCertificate?: boolean | undefined;
+      certificateValidDays?: number | undefined;
+    },
+  ): Promise<CatalogAdminDto> {
     const kind = await this.requireKind(code);
+    // A certificate must say how long it is valid for. Switching certificates off keeps the
+    // number of days, so switching them back on later starts from what it was. Either change
+    // applies to visits approved from now on; certificates already issued keep their dates.
+    const issues = input.issuesCertificate ?? kind.issuesCertificate;
+    const validDays = input.certificateValidDays ?? kind.certificateValidDays;
+    if (issues && !validDays) throw new BadRequestException('Enter how many days the certificate is valid for');
     await this.db.serviceType.update({
       where: { id: kind.id },
       data: {
         ...(input.name !== undefined && { name: withEnglish(kind.name, input.name) }),
         ...(input.isActive !== undefined && { isActive: input.isActive }),
+        ...(input.issuesCertificate !== undefined && { issuesCertificate: input.issuesCertificate }),
+        ...(input.certificateValidDays !== undefined && { certificateValidDays: input.certificateValidDays }),
       },
     });
     return this.overview();
@@ -297,5 +313,8 @@ function toKindDto(kind: KindRow): ServiceKindAdminDto {
     })),
     visitCount: kind._count.jobs,
     planNames: kind.planLines.map((line) => line.plan.name as LocalizedText),
+    issuesCertificate: kind.issuesCertificate,
+    certificateValidDays: kind.certificateValidDays,
+    certificateCount: kind._count.certificates,
   };
 }

@@ -1,6 +1,7 @@
 import type { InspectionGrade, InspectionSectionDto, InspectionStatus, InspectionSummaryDto } from '@eccs/shared';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -97,8 +98,15 @@ export function SectionScoreRow({ section }: { section: InspectionSectionDto }) 
   );
 }
 
+interface InspectionCardProps {
+  inspection: InspectionSummaryDto;
+  showOutlet?: boolean;
+  /** Shown under the status: for a Supervisor, that answers for this inspection are saved on the phone and not sent yet. */
+  mark?: ReactNode;
+}
+
 /** One inspection in a list. Tapping it opens the inspection or, once finished, its report. */
-export function InspectionCard({ inspection, showOutlet }: { inspection: InspectionSummaryDto; showOutlet?: boolean }) {
+export function InspectionCard({ inspection, showOutlet, mark }: InspectionCardProps) {
   const theme = useTheme();
   const { t, language } = useSession();
   const { forwardIcon } = useDirection();
@@ -148,6 +156,7 @@ export function InspectionCard({ inspection, showOutlet }: { inspection: Inspect
           </ThemedText>
         )}
       </View>
+      {mark}
     </Pressable>
   );
 }

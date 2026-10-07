@@ -68,6 +68,7 @@ import type {
 // notifications-types: the notifications worker imports its types from "@eccs/shared" on the next line
 import type { NotificationPageDto, UnreadCountDto } from "@eccs/shared";
 // certificates-types: the certificates worker imports its types from "@eccs/shared" on the next line
+import type { CertificateDto } from "@eccs/shared";
 // offline-visits-types: the offline worker imports any new types from "@eccs/shared" on the next line
 // scores-types: the hygiene score worker imports its types from "@eccs/shared" on the next line
 import type { HygieneScoreDto } from "@eccs/shared";
@@ -406,14 +407,22 @@ export function createApiClient(options: ApiClientOptions) {
       update: (visitId: string, input: UpdateVisitInput) => call<VisitDto>("PATCH", `/visits/${id(visitId)}`, input),
       cancel: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/cancel`),
       /** The Supervisor arrives at the outlet. */
-      checkIn: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/check-in`, {}),
+      /**
+       * `at` is when the Supervisor checked in on the phone (it may be sent later, when the signal
+       * is back). Sending the same check-in twice with the same `at` is harmless.
+       */
+      checkIn: (visitId: string, input: { at?: string } = {}) =>
+        call<VisitDto>("POST", `/visits/${id(visitId)}/check-in`, input),
       answerTask: (visitId: string, itemId: string, input: AnswerVisitTaskInput) =>
         call<VisitDto>("PUT", `/visits/${id(visitId)}/tasks/${id(itemId)}`, input),
       updateRecord: (visitId: string, input: UpdateVisitRecordInput) =>
         call<VisitDto>("PATCH", `/visits/${id(visitId)}/record`, input),
-      addPhoto(visitId: string, kind: VisitPhotoKind, file: UploadFile) {
+      /** Pass an `id` generated on the phone so that sending the same photo twice stores it once. */
+      addPhoto(visitId: string, kind: VisitPhotoKind, file: UploadFile, phone: { id?: string; capturedAt?: string } = {}) {
         const form = new FormData();
         form.append("kind", kind);
+        if (phone.id) form.append("id", phone.id);
+        if (phone.capturedAt) form.append("capturedAt", phone.capturedAt);
         form.append("file", file, "photo.jpg");
         // The content type is left unset so the boundary is filled in automatically.
         return send<VisitDto>("POST", `/visits/${id(visitId)}/photos`, form, undefined, true);
@@ -421,7 +430,9 @@ export function createApiClient(options: ApiClientOptions) {
       removePhoto: (visitId: string, photoId: string) =>
         call<VisitDto>("DELETE", `/visits/${id(visitId)}/photos/${id(photoId)}`),
       /** The Supervisor finishes; the visit then waits for the restaurant's sign-off. */
-      complete: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/complete`),
+      /** `at` is when Finish was pressed on the phone; the same Finish sent twice is harmless. */
+      complete: (visitId: string, input?: { at?: string }) =>
+        call<VisitDto>("POST", `/visits/${id(visitId)}/complete`, input),
       /**
        * A link to the signed-off visit's report as a PDF (relative to the API base URL, valid
        * for a limited time). May take a few seconds the first time, while the PDF is made.
@@ -451,6 +462,21 @@ export function createApiClient(options: ApiClientOptions) {
       markAllRead: () => call<UnreadCountDto>("POST", "/notifications/read-all"),
     },
     // certificates-api: the certificates worker adds `certificates: { ... },` on the next line
+    /** Service certificates: issued when ECCS approves the report of a visit whose kind of service carries one. */
+    certificates: {
+      /** Newest first. With an outlet: that outlet's. Without: every one the person may see. */
+      list: (filter: { outletId?: string } = {}) =>
+        call<CertificateDto[]>("GET", `/certificates${query(filter.outletId ? { outletId: filter.outletId } : {})}`),
+      get: (certificateId: string) => call<CertificateDto>("GET", `/certificates/${id(certificateId)}`),
+      /**
+       * A link to the certificate as a PDF (relative to the API base URL, valid for a
+       * limited time). May take a few seconds the first time, while the PDF is made.
+       */
+      pdf: (certificateId: string) => call<{ path: string }>("POST", `/certificates/${id(certificateId)}/pdf`),
+      /** ECCS admins make the PDF again; the new one takes the old one's place. */
+      remakePdf: (certificateId: string) =>
+        call<{ path: string }>("POST", `/certificates/${id(certificateId)}/pdf/remake`),
+    },
     // scores-api: the hygiene score worker adds `scores: { ... },` on the next line
     /** The hygiene score: one number out of 100 per outlet, with what it is made of. */
     scores: {
@@ -528,8 +554,11 @@ export function createApiClient(options: ApiClientOptions) {
       answer: (inspectionId: string, itemId: string, input: AnswerInspectionCheckInput) =>
         call<InspectionAnswerResultDto>("PUT", `/inspections/${id(inspectionId)}/checks/${id(itemId)}`, input),
       /** Adds a photo to a check answered "not compliant". */
-      addPhoto(inspectionId: string, itemId: string, file: UploadFile) {
+      addPhoto(inspectionId: string, itemId: string, file: UploadFile, phone: { id?: string; capturedAt?: string } = {}) {
         const form = new FormData();
+        // An id generated on the phone, so that sending the same photo twice stores it once.
+        if (phone.id) form.append("id", phone.id);
+        if (phone.capturedAt) form.append("capturedAt", phone.capturedAt);
         form.append("file", file, "photo.jpg");
         // The content type is left unset so the boundary is filled in automatically.
         return send<InspectionAnswerResultDto>(
@@ -540,10 +569,18 @@ export function createApiClient(options: ApiClientOptions) {
           true,
         );
       },
-      removePhoto: (inspectionId: string, photoId: string) =>
-        call<InspectionAnswerResultDto>("DELETE", `/inspections/${id(inspectionId)}/photos/${id(photoId)}`),
-      /** The Supervisor finishes: the scores are worked out and the report waits for ECCS. */
-      finish: (inspectionId: string) => call<InspectionDto>("POST", `/inspections/${id(inspectionId)}/finish`),
+      /** With `itemId` (the check it belonged to), removing a photo that is already gone is not an error. */
+      removePhoto: (inspectionId: string, photoId: string, itemId?: string) =>
+        call<InspectionAnswerResultDto>(
+          "DELETE",
+          `/inspections/${id(inspectionId)}/photos/${id(photoId)}${query(itemId ? { itemId } : {})}`,
+        ),
+      /**
+       * The Supervisor finishes: the scores are worked out and the report waits for ECCS.
+       * `at` is when Finish was pressed on the phone; the same Finish sent twice is harmless.
+       */
+      finish: (inspectionId: string, input?: { at?: string }) =>
+        call<InspectionDto>("POST", `/inspections/${id(inspectionId)}/finish`, input),
       /** ECCS approves the report; the restaurant can read it from then on. */
       approve: (inspectionId: string) => call<InspectionDto>("POST", `/inspections/${id(inspectionId)}/approve`),
       /** ECCS gives it back to the Supervisor, saying what to correct. */

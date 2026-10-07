@@ -1,8 +1,10 @@
-import { isEccsRole, localize, type BookingDto, type OutletPlanDto, type VisitSummaryDto } from '@eccs/shared';
+import { isEccsRole, isVisitAhead, localize, type BookingDto, type OutletPlanDto, type VisitSummaryDto } from '@eccs/shared';
+import type { ApiClient } from '@eccs/api-client';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { FieldMark, SavedCopyNote } from '@/components/field-sync-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -15,16 +17,55 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { dayBucket, formatDayShort, formatSlot, indiaToday } from '@/lib/format';
+import { fieldCache } from '@/lib/offline/field-cache';
+import { fieldSummary } from '@/lib/offline/field-ops';
+import { isNoSignal, outbox, useOutbox } from '@/lib/offline/outbox';
+import { useReloadOnSignal } from '@/lib/offline/use-signal';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
 // Past visits shown before the person has to look in the history calendar.
 const MAX_PAST = 10;
 
+// How many of a Supervisor's coming visits are fetched in full each time the list
+// loads, so they can be opened and worked on later with no signal. A copy fetched
+// within the last few minutes is not fetched again.
+const KEEP_FOR_OFFLINE = 15;
+const FRESH_MS = 5 * 60_000;
+
+/** Everything this screen shows, as the server last sent it. Kept on the phone under the outlet's name. */
+interface VisitLists {
+  open: VisitSummaryDto[];
+  past: VisitSummaryDto[];
+  requests: BookingDto[];
+  /** The outlet's plan, whose visits ECCS puts in the diary automatically. */
+  plan: OutletPlanDto | null;
+}
+
+/**
+ * Fetches each coming visit in full, one at a time so a weak signal is not
+ * swamped. If one does not get through, the rest are left for next time.
+ */
+async function keepForOffline(api: ApiClient, visits: VisitSummaryDto[]) {
+  for (const visit of visits.filter((entry) => isVisitAhead(entry.status)).slice(0, KEEP_FOR_OFFLINE)) {
+    if (Date.now() - (fieldCache.savedAt('visit', visit.id) ?? 0) < FRESH_MS) continue;
+    try {
+      fieldCache.putVisit(await api.visits.get(visit.id));
+    } catch {
+      return;
+    }
+  }
+}
+
 /**
  * Service visits. For a restaurant: book a service, see what is coming up,
  * sign off finished work and open past reports. For ECCS staff: the visits
  * to carry out (a Supervisor sees their own), set out by day.
+ *
+ * The list is kept on the phone each time it loads, so with no signal it is
+ * shown from there, with the time it was saved. For ECCS staff the coming
+ * visits are also fetched in full, so each can be opened and worked on without
+ * signal; work still waiting to be sent is marked on its card.
  */
 export default function ServicesScreen() {
   const theme = useTheme();
@@ -34,11 +75,10 @@ export default function ServicesScreen() {
   const role = user?.memberships[0]?.role;
   const eccs = role !== undefined && isEccsRole(role);
 
-  const [open, setOpen] = useState<VisitSummaryDto[] | null>(null);
-  const [past, setPast] = useState<VisitSummaryDto[]>([]);
-  const [requests, setRequests] = useState<BookingDto[]>([]);
-  /** The outlet's plan, whose visits ECCS puts in the diary automatically. */
-  const [plan, setPlan] = useState<OutletPlanDto | null>(null);
+  const box = useOutbox();
+  const userId = user?.id ?? null;
+  // False only once the server could not be reached; the line at the bottom of the app says so.
+  const hasSignal = box.online !== false;
   const [cancelling, setCancelling] = useState<BookingDto | null>(null);
   /** A request that could not be cancelled, so the message shows on that request. */
   const [cancelFailed, setCancelFailed] = useState<{ id: string; message: string } | null>(null);
@@ -48,8 +88,18 @@ export default function ServicesScreen() {
   const forOutlet = eccs ? undefined : (outletId ?? undefined);
   const ready = eccs || outletId !== null;
 
+  // The lists as the server last sent them, from the copy kept on the phone.
+  const listName = `visits:${forOutlet ?? 'all'}`;
+  const getSaved = useCallback(() => fieldCache.getList<VisitLists>(listName), [listName]);
+  const saved = useSyncExternalStore(fieldCache.subscribe, getSaved, getSaved);
+  const open = saved?.data.open ?? null;
+  const past = saved?.data.past ?? [];
+  const requests = saved?.data.requests ?? [];
+  const plan = saved?.data.plan ?? null;
+
   const load = useCallback(async () => {
-    if (!ready) return;
+    if (!ready || !userId) return;
+    await fieldCache.load(userId);
     const filter = forOutlet ? { outletId: forOutlet } : {};
     try {
       const [upcoming, closed, asked, onPlan] = await Promise.all([
@@ -59,16 +109,24 @@ export default function ServicesScreen() {
         // The plan is extra: if it cannot be read, the visits still show.
         !eccs && forOutlet ? api.plans.forOutlet(forOutlet).catch(() => null) : Promise.resolve(null),
       ]);
-      setPlan(onPlan);
-      setOpen(upcoming);
-      setPast(closed.filter((visit) => visit.status === 'APPROVED' || visit.status === 'IN_REVIEW').slice(0, MAX_PAST));
-      setRequests(asked);
+      fieldCache.putList(listName, {
+        open: upcoming,
+        past: closed.filter((visit) => visit.status === 'APPROVED' || visit.status === 'IN_REVIEW').slice(0, MAX_PAST),
+        requests: asked,
+        plan: onPlan,
+      } satisfies VisitLists);
+      outbox.noteReachable(true);
       setError(null);
+      // In the background, so the list does not wait for it.
+      if (eccs) void keepForOffline(api, upcoming);
     } catch (e) {
-      setError(errorMessage(e, t));
+      const noSignal = isNoSignal(e);
+      if (noSignal) outbox.noteReachable(false);
+      // With no signal the copy on the phone stays on screen, which is not an error.
+      setError(noSignal ? (fieldCache.getList(listName) ? null : t('offline.listNotOnPhone')) : errorMessage(e, t));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, eccs, forOutlet, ready]);
+  }, [api, eccs, forOutlet, listName, ready, userId]);
 
   // Reloads on coming back, so a new request or a signed-off visit shows.
   useFocusEffect(
@@ -76,6 +134,8 @@ export default function ServicesScreen() {
       void load();
     }, [load]),
   );
+  // And again the moment the signal comes back.
+  useReloadOnSignal(load);
 
   async function cancelRequest(booking: BookingDto) {
     setCancelling(null);
@@ -90,7 +150,13 @@ export default function ServicesScreen() {
     await load();
   }
 
-  const all = open ?? [];
+  // A visit the Supervisor checked in to without signal is under way, though the server has not heard yet.
+  const summaries = new Map((open ?? []).map((visit) => [visit.id, fieldSummary(box.ops, 'visit', visit.id)]));
+  const all = (open ?? []).map((visit): VisitSummaryDto => {
+    const mine = summaries.get(visit.id);
+    const startedHere = mine !== undefined && mine.unsent > 0 && (visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED');
+    return startedHere ? { ...visit, status: 'IN_PROGRESS' } : visit;
+  });
   const toSignOff = eccs ? [] : all.filter((visit) => visit.status === 'COMPLETED');
   const upcoming = all.filter((visit) => !toSignOff.includes(visit));
 
@@ -117,9 +183,17 @@ export default function ServicesScreen() {
             {empty}
           </ThemedText>
         )}
-        {visits.map((visit) => (
-          <VisitCard key={visit.id} visit={visit} showOutlet={eccs} />
-        ))}
+        {visits.map((visit) => {
+          const mine = summaries.get(visit.id);
+          return (
+            <VisitCard
+              key={visit.id}
+              visit={visit}
+              showOutlet={eccs}
+              mark={mine && (mine.unsent > 0 || mine.held > 0) ? <FieldMark summary={mine} hasSignal={hasSignal} /> : undefined}
+            />
+          );
+        })}
       </>
     );
 
@@ -128,7 +202,11 @@ export default function ServicesScreen() {
       back
       title={t(eccs ? 'svc.titleEccs' : 'svc.title')}
       subtitle={t(eccs ? (role === 'SUPERVISOR' ? 'svc.helpSupervisor' : 'svc.helpAdmin') : 'svc.help')}
-      onRefresh={load}>
+      onRefresh={async () => {
+        // Pulling down also sends anything still waiting, without waiting for the next automatic try.
+        outbox.kick();
+        await load();
+      }}>
       {!eccs && outlets.length > 1 && (
         <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
           {outlets.map((outlet) => (
@@ -138,7 +216,7 @@ export default function ServicesScreen() {
               selected={outlet.id === outletId}
               onPress={() => {
                 if (outlet.id === outletId) return;
-                setOpen(null);
+                setError(null);
                 choose(outlet.id);
               }}
             />
@@ -149,6 +227,8 @@ export default function ServicesScreen() {
       {!eccs && <Button label={t('svc.book')} onPress={() => router.push('/services/book')} disabled={!outletId} />}
 
       <ErrorText message={error} onRetry={() => void load()} />
+      {/* No signal: this is the phone's own copy, and how old it is. */}
+      {!hasSignal && saved && <SavedCopyNote at={saved.at} />}
       {(outletLoading || (open === null && !error)) && <ActivityIndicator color={theme.primary} />}
 
       {group(t('svc.toSignOff'), toSignOff)}

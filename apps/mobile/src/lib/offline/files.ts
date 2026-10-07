@@ -65,6 +65,23 @@ export async function writeJson(name: string, value: unknown): Promise<void> {
   fresh.moveSync(file);
 }
 
+/** Removes a saved value that is no longer needed. */
+export function removeJson(name: string) {
+  try {
+    if (isWeb) {
+      if (typeof localStorage !== 'undefined') localStorage.removeItem(WEB_PREFIX + name);
+      return;
+    }
+    const directory = folder();
+    for (const candidate of [`${safe(name)}.json`, `${safe(name)}.new`]) {
+      const file = new File(directory, candidate);
+      if (file.exists) file.delete();
+    }
+  } catch {
+    // Left behind; it is small and does no harm.
+  }
+}
+
 // ---- photos waiting to be sent ----
 
 // Browser preview only: the photos chosen since the page was opened.

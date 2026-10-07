@@ -23,6 +23,7 @@ import {
 import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { phoneTime, sameMoment } from '../services/services.service.js';
 import { sniffFile } from '../storage/attachments.controller.js';
 import { StorageService } from '../storage/storage.service.js';
 import { InspectionPdfService } from './inspection-pdf.service.js';
@@ -227,6 +228,8 @@ export class InspectionsService {
       severity?: InspectionSeverity | null | undefined;
       correctiveAction?: string | undefined;
       dueDate?: string | null | undefined;
+      /** When it was answered on the phone, if that was earlier than now (no signal at the time). */
+      at?: string | undefined;
     },
   ): Promise<InspectionAnswerResultDto> {
     const inspection = await this.requireRecordable(user, inspectionId);
@@ -234,12 +237,12 @@ export class InspectionsService {
     if (!item) throw new NotFoundException('That check is not part of this inspection');
 
     const failed = input.answer === 'NON_COMPLIANT';
-    const started = inspection.startedAt ?? new Date();
+    const now = phoneTime(input.at);
+    const started = inspection.startedAt ?? now;
     if (failed && input.dueDate && input.dueDate < indiaDate(started)) {
       throw new BadRequestException('The date to fix it by cannot be before the inspection');
     }
 
-    const now = new Date();
     const previous = inspection.responses.find((response) => response.itemId === itemId);
     const data = {
       answer: input.answer,
@@ -283,7 +286,21 @@ export class InspectionsService {
     inspectionId: string,
     itemId: string,
     file: { buffer: Buffer; size: number },
+    /** Chosen by the phone: the photo's id, so sending it twice stores it once, and when it was taken. */
+    phone: { id?: string | undefined; capturedAt?: string | undefined } = {},
   ): Promise<InspectionAnswerResultDto> {
+    if (phone.id) {
+      const earlier = await this.db.attachment.findUnique({
+        where: { id: phone.id },
+        select: { inspectionFinding: { select: { inspectionId: true } } },
+      });
+      // The same photo sent again after its first reply was lost: it is already on the check.
+      if (earlier?.inspectionFinding?.inspectionId === inspectionId) {
+        await this.requireInspection(user, inspectionId);
+        return this.answerResult(inspectionId, itemId);
+      }
+      if (earlier) throw new ConflictException('That photo has already been used elsewhere');
+    }
     const inspection = await this.requireRecordable(user, inspectionId);
     const finding = inspection.responses.find((response) => response.itemId === itemId)?.finding;
     if (!finding) throw new ConflictException('Mark the check as not compliant before adding a photo');
@@ -294,7 +311,7 @@ export class InspectionsService {
       throw new BadRequestException(`A check can have up to ${INSPECTION_MAX_PHOTOS} photos`);
     }
 
-    const id = randomUUID();
+    const id = phone.id ?? randomUUID();
     const now = new Date();
     const month = String(now.getUTCMonth() + 1).padStart(2, '0');
     const storageKey = `outlets/${inspection.outletId}/${now.getUTCFullYear()}/${month}/${id}.${image.extension}`;
@@ -308,17 +325,29 @@ export class InspectionsService {
         storageKey,
         mimeType: image.mimeType,
         sizeBytes: file.size,
-        capturedAt: now,
+        capturedAt: phoneTime(phone.capturedAt, now),
         uploadedById: user.id,
       },
     });
     return this.answerResult(inspection.id, itemId);
   }
 
-  async removePhoto(user: AuthUser, inspectionId: string, photoId: string): Promise<InspectionAnswerResultDto> {
+  /**
+   * `itemId` is the check the photo belonged to. A phone sends it so that the same
+   * removal sent twice is not an error: the photo is gone, which is what was wanted.
+   */
+  async removePhoto(
+    user: AuthUser,
+    inspectionId: string,
+    photoId: string,
+    itemId?: string,
+  ): Promise<InspectionAnswerResultDto> {
     const inspection = await this.requireRecordable(user, inspectionId);
     const response = inspection.responses.find((entry) => entry.finding?.attachments.some((photo) => photo.id === photoId));
     const photo = response?.finding?.attachments.find((entry) => entry.id === photoId);
+    if ((!response || !photo) && itemId && this.activeItems(inspection).some((item) => item.id === itemId)) {
+      return this.answerResult(inspection.id, itemId);
+    }
     if (!response || !photo) throw new NotFoundException('Photo not found');
     await this.db.attachment.delete({ where: { id: photo.id } });
     await this.storage.remove(photo.storageKey).catch(() => undefined);
@@ -330,7 +359,15 @@ export class InspectionsService {
    * non-compliance must have its details and a photo. The scores and the grade
    * are worked out here, the report gets its number, and it waits for ECCS.
    */
-  async finish(user: AuthUser, inspectionId: string): Promise<InspectionDto> {
+  async finish(user: AuthUser, inspectionId: string, at?: string): Promise<InspectionDto> {
+    if (at) {
+      // `at` is when Finish was pressed on the phone. The same Finish sent again (its first
+      // reply was lost on a weak signal) is not an error: the inspection is already finished.
+      const earlier = await this.requireInspection(user, inspectionId);
+      if (earlier.status !== 'DRAFT' && this.mayRecord(user, earlier) && sameMoment(earlier.completedAt, at)) {
+        return this.toDto(user, earlier);
+      }
+    }
     const inspection = await this.requireRecordable(user, inspectionId);
     const checks = this.checks(inspection);
     if (checks.some((check) => check.answer === null)) {
@@ -344,7 +381,7 @@ export class InspectionsService {
     const score = scoreInspection(this.scored(inspection));
     if (score.possible === 0) throw new BadRequestException('At least one check must apply to the outlet');
 
-    const now = new Date();
+    const now = phoneTime(at);
     for (let attempt = 0; ; attempt++) {
       try {
         await this.db.$transaction(async (tx) => {
@@ -544,8 +581,10 @@ export class InspectionsService {
   private async answerResult(inspectionId: string, itemId: string): Promise<InspectionAnswerResultDto> {
     const inspection = await this.db.inspection.findUniqueOrThrow({ where: { id: inspectionId }, include: detailInclude });
     const checks = this.checks(inspection);
+    const check = checks.find((entry) => entry.itemId === itemId);
+    if (!check) throw new NotFoundException('That check is not part of this inspection');
     return {
-      check: stripSection(checks.find((check) => check.itemId === itemId)!),
+      check: stripSection(check),
       status: stage(inspection),
       answered: checks.filter((check) => check.answer !== null).length,
       complete: checks.filter((check) => check.complete).length,

@@ -67,6 +67,7 @@ describe('Service loop (e2e)', () => {
     await db.document.deleteMany({ where: { attachment: { job: jobs } } });
     await db.attachment.deleteMany({ where: { job: jobs } });
     await db.serviceReport.deleteMany({ where: { job: jobs } });
+    await db.certificate.deleteMany({ where: { job: jobs } });
     await db.job.deleteMany({ where: jobs });
     await db.booking.deleteMany({ where: { notes: MARK } });
     await db.session.deleteMany({ where: { deviceName: DEVICE } });

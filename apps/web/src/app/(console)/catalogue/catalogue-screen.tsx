@@ -637,6 +637,8 @@ function KindCard({
 
       <ErrorMessage message={error} />
 
+      <KindCertificate kind={kind} onChange={onChange} />
+
       {inUse.length === 0 ? (
         <p className="text-muted">
           No tasks yet. A visit of this kind has nothing to tick: the Supervisor finishes it with photos and notes alone. Add the
@@ -675,6 +677,103 @@ function KindCard({
         </details>
       )}
     </Card>
+  );
+}
+
+/**
+ * Whether a visit of this kind ends with a certificate for the restaurant, and
+ * for how many days it is valid. Shown as one line; "Change" opens the two boxes.
+ * A change applies to reports approved from then on: certificates already
+ * issued keep the dates they were given.
+ */
+function KindCertificate({ kind, onChange }: { kind: ServiceKindAdminDto; onChange: Change }) {
+  const name = english(kind.name);
+  const [editing, setEditing] = useState(false);
+  const [issues, setIssues] = useState(kind.issuesCertificate);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  function open() {
+    setIssues(kind.issuesCertificate);
+    setError(null);
+    setErrors({});
+    setEditing(true);
+  }
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const days = formValues(form).certificateValidDays ?? "";
+    // When certificates are switched off the number of days is left as it was, for switching back on later.
+    const values = issues ? { issuesCertificate: true, certificateValidDays: days } : { issuesCertificate: false };
+    const found = checkAgainst(updateServiceKindSchema, values);
+    if (issues && !days.trim()) found.certificateValidDays = "Enter how many days the certificate is valid for.";
+    setErrors(found);
+    if (hasErrors(found)) return focusFirstError(form, found);
+
+    setBusy(true);
+    const failed = await onChange(
+      () => api.catalogue.updateKind(kind.code, values),
+      issues ? `Saved: ${name} certificates are valid for ${Number(days)} days` : `Saved: ${name} visits no longer issue a certificate`,
+    );
+    setBusy(false);
+    setError(failed);
+    if (!failed) setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-1 text-sm">
+        <span className="font-semibold">Certificate:</span>
+        <span>
+          {kind.issuesCertificate && kind.certificateValidDays
+            ? `issued when the report is approved, valid for ${kind.certificateValidDays} day${kind.certificateValidDays === 1 ? "" : "s"}`
+            : "none for this kind of service"}
+          {kind.certificateCount > 0 && <span className="text-muted"> · {kind.certificateCount} issued so far</span>}
+        </span>
+        <Button variant="link" aria-label={`Change the certificate of ${name}`} onClick={open}>
+          Change
+        </Button>
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={save} noValidate aria-label={`Certificate of ${name}`} className="flex max-w-xl flex-col gap-3 rounded-lg border border-primary p-3">
+      <SelectField
+        label="Does a visit of this kind end with a certificate?"
+        name="issuesCertificate"
+        value={issues ? "yes" : "no"}
+        onChange={(e) => setIssues(e.target.value === "yes")}
+        hint="It is issued by itself when ECCS approves the visit's report, and filed in the outlet's documents."
+      >
+        <option value="yes">Yes, issue a certificate</option>
+        <option value="no">No certificate</option>
+      </SelectField>
+      {issues && (
+        <Field
+          label="Valid for how many days?"
+          name="certificateValidDays"
+          required
+          inputMode="numeric"
+          maxLength={4}
+          defaultValue={kind.certificateValidDays ?? ""}
+          hint="Counted from the day of the visit. Certificates already issued keep their dates."
+          error={errors.certificateValidDays}
+          wrapperClassName="max-w-xs"
+        />
+      )}
+      <ErrorMessage message={error} />
+      <div className="flex gap-3">
+        <Button type="submit" loading={busy}>
+          Save
+        </Button>
+        <Button type="button" variant="secondary" disabled={busy} onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }
 

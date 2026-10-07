@@ -1,11 +1,22 @@
-import { isEccsRole, localize, type VisitDto, type VisitPhotoDto, type VisitPhotoKind, type VisitTaskDto } from '@eccs/shared';
+import {
+  isEccsRole,
+  localize,
+  VISIT_MAX_PHOTOS,
+  VISIT_MAX_TECHNICIANS,
+  type VisitDto,
+  type VisitPhotoDto,
+  type VisitPhotoKind,
+  type VisitTaskDto,
+} from '@eccs/shared';
+import { ApiError } from '@eccs/api-client';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DirectionView } from '@/components/direction-view';
+import { HeldNotice, SavedCopyNote } from '@/components/field-sync-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -15,11 +26,18 @@ import { Screen } from '@/components/ui/screen';
 import { StarRating, type Stars } from '@/components/ui/star-rating';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
+import { UnsentMark } from '@/components/unsent-mark';
 import { VisitStatusBadge } from '@/components/visit-card';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { formatDateTime, formatDayLong, formatSlot } from '@/lib/format';
+import { ltrText } from '@/lib/direction';
+import { formatDate, formatDateTime, formatDayLong, formatSlot } from '@/lib/format';
+import { fieldCache } from '@/lib/offline/field-cache';
+import { applyVisitPending, type NewFieldOp } from '@/lib/offline/field-ops';
+import { keepPhoto, keptPhotoUri, newId } from '@/lib/offline/files';
+import { isNoSignal, outbox, useOutbox } from '@/lib/offline/outbox';
+import { useReloadOnSignal } from '@/lib/offline/use-signal';
 import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
 import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
@@ -36,6 +54,14 @@ const REASONS = ['inUse', 'noAccess', 'hot', 'notMoved', 'repair', 'noEquipment'
 
 const PHOTOS_PER_ROW = 3;
 
+// How this screen works without signal, for the Supervisor. Everything they do
+// on the visit (checking in, a task, a photo, the team and notes, Finish) is
+// first saved on the phone in the "outbox" and shown as done at once; the outbox
+// sends it to the server in the background, in order, whenever there is signal
+// (see lib/offline). The visit itself is the server's last copy, kept on the
+// phone, with whatever is still waiting laid over it. So recording never waits
+// for the network. The restaurant's sign-off and the PDF still need signal.
+
 /**
  * One service visit. Before it starts it shows what is booked. The ECCS
  * Supervisor checks in here and records the work: tasks, photos, who did it.
@@ -50,11 +76,14 @@ export default function VisitScreen() {
   // Keeps the enlarged photo and its Close button clear of the status bar and home indicator.
   const insets = useSafeAreaInsets();
 
-  const [visit, setVisit] = useState<VisitDto | null>(null);
+  const box = useOutbox();
+  // The visit as the server last sent it, from the copy kept on the phone.
+  const getSaved = useCallback(() => fieldCache.getVisit(visitId), [visitId]);
+  const saved = useSyncExternalStore(fieldCache.subscribe, getSaved, getSaved);
   const [loadError, setLoadError] = useState<string | null>(null);
   /** What went wrong and which control caused it, so the message shows beside that control. */
   const [failed, setFailed] = useState<{ at: string; message: string } | null>(null);
-  /** What is being sent to the server, so the right button shows as busy. */
+  /** What is being sent to the server (sign-off, the PDF) or kept on the phone (a photo), so the right button shows as busy. */
   const [busy, setBusy] = useState<string | null>(null);
   /** The task being marked as not done; `typing` once "Other" is chosen and a reason is being typed. */
   const [explaining, setExplaining] = useState<string | null>(null);
@@ -80,32 +109,70 @@ export default function VisitScreen() {
   /** How far down the page each task and the photo button sit, for scrolling to them. */
   const positions = useRef<Record<string, number>>({});
 
+  const userId = user?.id ?? null;
+  const userName = user?.name ?? null;
+  // False only once the server could not be reached; the line at the bottom of the app says so.
+  const hasSignal = box.online !== false;
+
+  /**
+   * Fetches the visit and keeps it on the phone. With no signal the copy
+   * already on the phone stays on screen, which is not an error.
+   */
   const load = useCallback(async () => {
+    if (!userId) return;
+    await fieldCache.load(userId);
+    await fieldCache.open('visit', visitId);
     try {
-      setVisit(await api.visits.get(visitId));
+      fieldCache.putVisit(await api.visits.get(visitId));
+      outbox.noteReachable(true);
       setLoadError(null);
     } catch (e) {
-      setLoadError(errorMessage(e, t));
+      if (isNoSignal(e)) {
+        outbox.noteReachable(false);
+        setLoadError(fieldCache.getVisit(visitId) ? null : t('offline.visitNotOnPhone'));
+      } else if (e instanceof ApiError && (e.status === 403 || e.status === 404)) {
+        // Given to someone else, or removed. The old copy goes, unless work for it is still on this phone.
+        if (!outbox.hasFieldWork('visit', visitId)) fieldCache.forget('visit', visitId);
+        setLoadError(t('offline.visitGone'));
+      } else {
+        setLoadError(errorMessage(e, t));
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, visitId]);
+  }, [api, visitId, userId]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
   );
+  // And again the moment the signal comes back.
+  useReloadOnSignal(load);
+
+  const view = saved
+    ? applyVisitPending(saved.data, box.ops, userId && userName !== null ? { id: userId, name: userName } : null)
+    : null;
+  const finishWaiting = view?.finishPending ?? false;
+  const finishedOnServer = saved !== null && saved.data.completedAt !== null && saved.data.status !== 'IN_PROGRESS';
+
+  // "Visit finished" is said when the server has it, not when Finish was pressed.
+  const wasWaiting = useRef(false);
+  useEffect(() => {
+    if (wasWaiting.current && !finishWaiting && finishedOnServer) notify(t('visit.finishedDone'));
+    wasWaiting.current = finishWaiting;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finishWaiting, finishedOnServer]);
 
   /**
-   * Sends one change and shows the visit as the server now has it. `key` is
-   * what shows as busy, `at` is where an error is shown, `done` is the brief
-   * message shown when it worked.
+   * For the steps that need signal (the restaurant's sign-off): sends one change
+   * and keeps the visit as the server now has it. `key` is what shows as busy,
+   * `at` is where an error is shown, `done` is the brief message shown when it worked.
    */
   async function run(key: string, at: string, action: () => Promise<VisitDto>, done?: string): Promise<boolean> {
     setBusy(key);
     setFailed(null);
     try {
-      setVisit(await action());
+      fieldCache.putVisit(await action());
       if (done) notify(done);
       return true;
     } catch (e) {
@@ -113,6 +180,22 @@ export default function VisitScreen() {
       return false;
     } finally {
       setBusy(null);
+    }
+  }
+
+  /**
+   * Saves one thing the Supervisor did: onto the phone first, then the outbox
+   * sends it. The only way this fails is the phone refusing to store it.
+   */
+  async function save(at: string, step: Record<string, unknown> & { kind: NewFieldOp['kind'] }, done?: string): Promise<boolean> {
+    setFailed(null);
+    try {
+      await outbox.enqueue({ subject: 'visit', subjectId: visitId, ...step } as NewFieldOp);
+      if (done) notify(done);
+      return true;
+    } catch {
+      setFailed({ at, message: t('offline.saveFailed') });
+      return false;
     }
   }
 
@@ -130,8 +213,20 @@ export default function VisitScreen() {
       return;
     }
     if (!photo) return;
-    const file = photo.file;
-    await run(`photo-${kind}`, `photo-${kind}`, () => api.visits.addPhoto(visitId, kind, file));
+    // The time is when the photo was taken, however much later it reaches the server.
+    const capturedAt = new Date().toISOString();
+    // The phone chooses the photo's id, so sending it twice stores it once.
+    const photoId = newId();
+    setBusy(`photo-${kind}`);
+    try {
+      // The camera saves into a folder the phone may clear; keep our own copy until it is sent.
+      await keepPhoto(photoId, photo);
+      await save(`photo-${kind}`, { kind: 'visitPhoto', photoId, photoKind: kind, capturedAt });
+    } catch {
+      setFailed({ at: `photo-${kind}`, message: t('offline.saveFailed') });
+    } finally {
+      setBusy(null);
+    }
   }
 
   /** Opens the signed-off report as a PDF in the phone's viewer. The first time, the server makes it, which takes a few seconds. */
@@ -149,7 +244,23 @@ export default function VisitScreen() {
     }
   }
 
-  if (!visit) {
+  /** Opens the certificate issued for this visit, as a PDF. Needs signal, like the report. */
+  async function openCertificate() {
+    const certificate = view?.visit.certificate;
+    if (busy !== null || !certificate) return;
+    setBusy('certificate');
+    setFailed(null);
+    try {
+      const { path } = await api.certificates.pdf(certificate.id);
+      await Linking.openURL(api.fileUrl(path));
+    } catch (e) {
+      setFailed({ at: 'certificate', message: errorMessage(e, t) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (!view) {
     return (
       <Screen back title={t('visit.title')} onRefresh={load}>
         <ErrorText message={loadError} onRetry={() => void load()} />
@@ -158,9 +269,15 @@ export default function VisitScreen() {
     );
   }
 
+  // The server's copy with this Supervisor's waiting work laid over it.
+  const visit = view.visit;
+  // Work the server refused is kept on the phone; nothing more is recorded until that is settled.
+  const held = view.holdReason !== null;
   const started = visit.status !== 'SCHEDULED' && visit.status !== 'ASSIGNED' && visit.status !== 'CANCELLED';
-  const recording = visit.canRecord && visit.status === 'IN_PROGRESS';
-  const isReport = visit.status === 'IN_REVIEW' || visit.status === 'COMPLETED' || visit.status === 'APPROVED';
+  // Once Finish is pressed the visit is closed on this phone, even while the Finish waits to be sent.
+  const recording = visit.canRecord && visit.status === 'IN_PROGRESS' && !finishWaiting && !held;
+  const isReport =
+    visit.status === 'IN_REVIEW' || visit.status === 'COMPLETED' || visit.status === 'APPROVED' || finishWaiting;
   const viewerRole = user?.memberships[0]?.role;
   const forRestaurant = viewerRole === undefined || !isEccsRole(viewerRole);
   const answered = visit.tasks.filter((task) => task.done !== null).length;
@@ -178,7 +295,7 @@ export default function VisitScreen() {
   /** Finish is always pressable: if something is missing it shows what, instead of sitting greyed out. */
   function pressFinish() {
     if (busy !== null) return;
-    const unanswered = visit?.tasks.find((task) => task.done === null);
+    const unanswered = visit.tasks.find((task) => task.done === null);
     const lacking = unanswered ? `task-${unanswered.itemId}` : hasAfterPhoto ? null : 'photo-AFTER';
     if (lacking) {
       setMissing(lacking);
@@ -189,22 +306,35 @@ export default function VisitScreen() {
     setConfirming('finish');
   }
 
-  const details = () => ({ technicianNames: splitNames(teamText), notes: notesText.trim() });
+  // Kept within what the server accepts, so a long list of names is never a reason for it to refuse the step later.
+  const details = () => ({
+    technicianNames: splitNames(teamText)
+      .map((name) => name.slice(0, 60))
+      .slice(0, VISIT_MAX_TECHNICIANS),
+    notes: notesText.trim(),
+  });
 
   async function saveDetails() {
     if (busy !== null) return;
-    if (await run('details', 'details', () => api.visits.updateRecord(visitId, details()), t('common.saved'))) {
-      setDirty(false);
-    }
+    if (await save('details', { kind: 'visitRecord', ...details() }, t('common.saved'))) setDirty(false);
   }
 
+  /**
+   * Finish joins the outbox behind the tasks and photos still waiting, so the
+   * server gets them in the order they were done. `at` is the moment Finish was
+   * pressed: the report shows that time, and the server uses it to recognise the
+   * same Finish arriving twice.
+   */
   async function finish() {
     // A team or note typed but not saved would be lost once the visit is closed, so it is saved first.
     if (dirty) {
-      if (!(await run('finish', 'finish', () => api.visits.updateRecord(visitId, details())))) return;
+      if (!(await save('finish', { kind: 'visitRecord', ...details() }))) return;
       setDirty(false);
     }
-    await run('finish', 'finish', () => api.visits.complete(visitId), t('visit.finishedDone'));
+    if (await save('finish', { kind: 'visitComplete', at: new Date().toISOString() })) {
+      if (!hasSignal) notify(t('offline.submitSaved'));
+      scrollToY(scrollRef, 0);
+    }
   }
 
   function closeReason() {
@@ -215,9 +345,9 @@ export default function VisitScreen() {
 
   function saveNotDone(task: VisitTaskDto, note: string) {
     if (busy !== null) return;
-    void run(`task-${task.itemId}`, `task-${task.itemId}`, () =>
-      api.visits.answerTask(visitId, task.itemId, { done: false, note }),
-    ).then((ok) => ok && closeReason());
+    void save(`task-${task.itemId}`, { kind: 'visitTask', itemId: task.itemId, done: false, note }).then(
+      (ok) => ok && closeReason(),
+    );
   }
 
   const heading = (text: string) => (
@@ -253,6 +383,7 @@ export default function VisitScreen() {
               {task.note}
             </ThemedText>
           )}
+          {view.unsentTasks.has(task.itemId) && view.held === 0 && <UnsentMark sending={hasSignal} />}
         </View>
       );
     }
@@ -275,7 +406,7 @@ export default function VisitScreen() {
             setReasonMissing(false);
             if (done) {
               closeReason();
-              void run(key, key, () => api.visits.answerTask(visitId, task.itemId, { done: true }));
+              void save(key, { kind: 'visitTask', itemId: task.itemId, done: true });
             } else {
               // An earlier typed reason comes back in the text field; a one-tap reason shows as its chip.
               const typed = task.done === false && task.note !== null && !reasonTexts.includes(task.note);
@@ -311,7 +442,8 @@ export default function VisitScreen() {
           {choice(true)}
           {choice(false)}
         </View>
-        {busy === key && <ActivityIndicator color={theme.primary} />}
+        {/* Done here and on its way. The Supervisor can carry on; this mark goes once the server has it. */}
+        {view.unsentTasks.has(task.itemId) && <UnsentMark sending={hasSignal} />}
         {open ? (
           <>
             <ThemedText type="smallBold" themeColor="textSecondary">
@@ -354,7 +486,6 @@ export default function VisitScreen() {
                 <Button
                   label={t('visit.saveReason')}
                   variant="secondary"
-                  loading={busy === key}
                   onPress={() => {
                     if (reason.trim().length === 0) setReasonMissing(true);
                     else saveNotDone(task, reason.trim());
@@ -385,12 +516,15 @@ export default function VisitScreen() {
     return rows.map((row, rowIndex) => (
       <View key={row[0]!.id} style={styles.photoRow}>
         {row.map((photo, index) => {
-          const uri = api.fileUrl(photo.path);
-          const label = t('visit.photoNumber', {
+          // A photo taken on this phone is shown from the phone until the server has it.
+          const waiting = view.localPhotos.has(photo.id);
+          const uri = waiting ? (keptPhotoUri(photo.id) ?? '') : api.fileUrl(photo.path);
+          const numbered = t('visit.photoNumber', {
             title,
             number: rowIndex * PHOTOS_PER_ROW + index + 1,
             total: shown.length,
           });
+          const label = waiting ? `${numbered}. ${t('offline.photoWaiting')}` : numbered;
           return (
             <View key={photo.id} style={styles.photoCell}>
               <Pressable
@@ -400,6 +534,12 @@ export default function VisitScreen() {
                 onPress={() => setViewing({ uri, label })}
                 style={[styles.thumb, { backgroundColor: theme.backgroundElement }]}>
                 <Image source={{ uri }} style={styles.thumbImage} resizeMode="cover" />
+                {/* A cloud in the corner of a photo that is on this phone only, as well as the words below. */}
+                {waiting && (
+                  <View style={styles.waitingMark}>
+                    <Ionicons name="cloud-upload-outline" size={18} color="#ffffff" />
+                  </View>
+                )}
               </Pressable>
               {recording && (
                 <Pressable
@@ -428,6 +568,7 @@ export default function VisitScreen() {
     if (!recording && shown.length === 0 && !isReport) return null;
     const key = `photo-${kind}`;
     const flagged = missing === key && !hasAfterPhoto;
+    const full = visit.photos.length >= VISIT_MAX_PHOTOS;
     return (
       <View
         style={styles.section}
@@ -441,7 +582,13 @@ export default function VisitScreen() {
           </ThemedText>
         )}
         {photoGrid(shown, title)}
-        {recording && (
+        {shown.some((photo) => view.localPhotos.has(photo.id)) && view.held === 0 && <UnsentMark sending={hasSignal} />}
+        {recording && full && (
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('offline.maxPhotos', { count: VISIT_MAX_PHOTOS })}
+          </ThemedText>
+        )}
+        {recording && !full && (
           <Button
             icon="camera"
             label={t(kind === 'BEFORE' ? 'visit.addBefore' : 'visit.addAfter')}
@@ -488,7 +635,7 @@ export default function VisitScreen() {
         </View>
       </View>
       <ErrorText message={errorAt('finish')} />
-      <Button label={t('visit.finish')} loading={busy === 'finish'} onPress={pressFinish} />
+      <Button label={t('visit.finish')} onPress={pressFinish} />
     </>
   ) : visit.canSignOff ? (
     <>
@@ -513,13 +660,25 @@ export default function VisitScreen() {
       back
       title={localize(visit.serviceName, language)}
       subtitle={[visit.outletName, visit.organizationName].filter((name, index, all) => all.indexOf(name) === index).join(' · ')}
-      onRefresh={load}
+      onRefresh={async () => {
+        // Pulling down also sends anything still waiting, without waiting for the next automatic try.
+        outbox.kick();
+        await load();
+      }}
       scrollRef={scrollRef}
       footer={footer}>
       {/* A refresh that failed: the visit shown is the last one loaded. */}
       <ErrorText message={loadError} onRetry={() => void load()} />
+      {/* No signal: this is the phone's own copy, and how old it is. */}
+      {!hasSignal && saved && <SavedCopyNote at={saved.at} />}
+      {view.holdReason && (
+        <HeldNotice subject="visit" subjectId={visitId} reason={view.holdReason} count={view.held} />
+      )}
 
+      {/* Until the server has the Finish, the visit is not shown as finished: nobody else can see it yet. */}
       <VisitStatusBadge status={visit.status} />
+      {finishWaiting && !held && <UnsentMark sending={hasSignal} text={t('offline.finishWaiting')} />}
+      {view.checkInPending && !finishWaiting && !held && <UnsentMark sending={hasSignal} />}
       {visit.reportNumber && (
         <ThemedText type="default" style={styles.reportNumber}>
           {t('visit.report')} · {visit.reportNumber}
@@ -537,12 +696,14 @@ export default function VisitScreen() {
         {!recording && fact(t('visit.team'), visit.technicianNames.join(', ') || null)}
       </View>
 
-      {visit.canRecord && !started && (
+      {visit.canRecord && !started && !held && (
         <>
           <Button
             label={t('visit.checkIn')}
-            loading={busy === 'checkIn'}
-            onPress={() => void run('checkIn', 'checkIn', () => api.visits.checkIn(visitId), t('visit.checkedIn'))}
+            // The time is when the Supervisor tapped, however much later it reaches the server.
+            onPress={() =>
+              void save('checkIn', { kind: 'visitCheckIn', at: new Date().toISOString() }, t('visit.checkedIn'))
+            }
           />
           <ErrorText message={errorAt('checkIn')} />
           <ThemedText type="small" themeColor="textSecondary">
@@ -592,12 +753,8 @@ export default function VisitScreen() {
             multiline
             style={styles.notes}
           />
-          <Button
-            label={t('visit.saveDetails')}
-            variant="secondary"
-            loading={busy === 'details'}
-            onPress={() => void saveDetails()}
-          />
+          <Button label={t('visit.saveDetails')} variant="secondary" onPress={() => void saveDetails()} />
+          {view.recordPending && !dirty && <UnsentMark sending={hasSignal} />}
           <ErrorText message={errorAt('details')} />
         </>
       ) : (
@@ -639,6 +796,23 @@ export default function VisitScreen() {
             onPress={() => void openPdf()}
           />
           <ErrorText message={errorAt('pdf')} />
+        </>
+      )}
+      {/* Some kinds of visit (pest control, for one) also carry a certificate, issued with the approval. */}
+      {visit.certificate && (
+        <>
+          <ThemedText type="default">
+            {t('cert.number', { number: ltrText(visit.certificate.number) })} ·{' '}
+            {t('cert.validUntil', { date: formatDate(visit.certificate.validUntil, language) })}
+          </ThemedText>
+          <Button
+            icon="ribbon-outline"
+            label={t('cert.open')}
+            variant="secondary"
+            loading={busy === 'certificate'}
+            onPress={() => void openCertificate()}
+          />
+          <ErrorText message={errorAt('certificate')} />
         </>
       )}
       {visit.status === 'IN_REVIEW' && (
@@ -720,12 +894,7 @@ export default function VisitScreen() {
           const photo = removing;
           setRemoving(null);
           if (photo) {
-            void run(
-              'remove',
-              `photo-${photo.kind}`,
-              () => api.visits.removePhoto(visitId, photo.id),
-              t('visit.photoRemoved'),
-            );
+            void save(`photo-${photo.kind}`, { kind: 'visitPhotoRemove', photoId: photo.id }, t('visit.photoRemoved'));
           }
         }}
         onCancel={() => setRemoving(null)}
@@ -792,6 +961,17 @@ const styles = StyleSheet.create({
   photoCell: { flex: 1 },
   thumb: { width: '100%', aspectRatio: 1, borderRadius: Spacing.two, overflow: 'hidden' },
   thumbImage: { width: '100%', height: '100%' },
+  waitingMark: {
+    position: 'absolute',
+    top: Spacing.one,
+    end: Spacing.one,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   remove: { minHeight: MinTouchSize, borderRadius: Spacing.two, alignItems: 'center', justifyContent: 'center' },
   progress: { gap: Spacing.half },
   progressPhoto: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { LocalizedText } from "./checklists.js";
+import type { VisitCertificateDto } from "./certificates.js";
 
 // The service loop: a restaurant books a service from the catalogue, ECCS
 // confirms a date and assigns a Supervisor, the Supervisor records the visit
@@ -294,4 +295,11 @@ export interface VisitDto extends VisitSummaryDto {
   /** ECCS admins, once the restaurant has signed off: approve the report or send it back. */
   canReview: boolean;
   canManage: boolean;
+  /**
+   * The certificate issued for this visit, once ECCS has approved the report of a kind
+   * of service that carries one. Null when there is none (or the person may not read
+   * certificates). Optional because a visit saved on a phone before certificates
+   * existed does not have the field at all.
+   */
+  certificate?: VisitCertificateDto | null;
 }

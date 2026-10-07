@@ -71,6 +71,7 @@ describe('Notifications (e2e)', () => {
     await db.document.deleteMany({ where: { attachment: { job: jobs } } });
     await db.attachment.deleteMany({ where: { job: jobs } });
     await db.serviceReport.deleteMany({ where: { job: jobs } });
+    await db.certificate.deleteMany({ where: { job: jobs } });
     await db.signOff.deleteMany({ where: { job: jobs } });
     await db.jobTaskResponse.deleteMany({ where: { job: jobs } });
     await db.job.deleteMany({ where: jobs });

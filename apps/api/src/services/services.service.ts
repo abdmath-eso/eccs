@@ -20,6 +20,7 @@ import {
   type VisitSummaryDto,
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
+import { CertificatesService, toVisitCertificate } from '../certificates/certificates.service.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -73,6 +74,8 @@ const visitDetailInclude = {
   taskResponses: true,
   attachments: { where: { kind: { in: ['BEFORE', 'AFTER'] } }, orderBy: { createdAt: 'asc' } },
   signOff: true,
+  // The certificate issued for the visit, if its kind of service carries one (a visit has at most one).
+  certificates: { orderBy: { createdAt: 'asc' }, take: 1, select: { id: true, number: true, validFrom: true, validUntil: true } },
 } as const satisfies Prisma.JobInclude;
 
 type BookingRow = Prisma.BookingGetPayload<{ include: typeof bookingInclude }>;
@@ -108,6 +111,7 @@ export class ServicesService {
     private readonly storage: StorageService,
     private readonly reports: ReportPdfService,
     private readonly notify: NotifyService,
+    private readonly certificates: CertificatesService,
   ) {}
 
   private get db() {
@@ -403,11 +407,14 @@ export class ServicesService {
   async checkIn(
     user: AuthUser,
     visitId: string,
-    position: { latitude?: number | undefined; longitude?: number | undefined },
+    position: { latitude?: number | undefined; longitude?: number | undefined; at?: string | undefined },
   ): Promise<VisitDto> {
     const visit = await this.requireVisit(user, visitId);
     this.requireRecorder(user, visit);
     if (visit.status !== 'SCHEDULED' && visit.status !== 'ASSIGNED') {
+      // A phone that checked in without signal sends the check-in later, and may send it
+      // twice if the first reply was lost. The same check-in (same time) is not an error.
+      if (visit.status !== 'CANCELLED' && sameMoment(visit.checkInAt, position.at)) return this.getVisit(user, visit.id);
       throw new ConflictException('This visit has already been started');
     }
     const outlet = await this.db.outlet.findUnique({
@@ -419,7 +426,7 @@ export class ServicesService {
       where: { id: visit.id },
       data: {
         status: 'IN_PROGRESS',
-        checkInAt: new Date(),
+        checkInAt: phoneTime(position.at),
         // Whoever starts an unassigned visit takes it.
         supervisorId: visit.supervisorId ?? user.id,
         ...(located && {
@@ -476,7 +483,15 @@ export class ServicesService {
     visitId: string,
     kind: VisitPhotoKind,
     file: { buffer: Buffer; size: number },
+    /** Chosen by the phone: the photo's id, so sending it twice stores it once, and when it was taken. */
+    phone: { id?: string | undefined; capturedAt?: string | undefined } = {},
   ): Promise<VisitDto> {
+    if (phone.id) {
+      const earlier = await this.db.attachment.findUnique({ where: { id: phone.id }, select: { jobId: true } });
+      // The same photo sent again after its first reply was lost: it is already on the visit.
+      if (earlier?.jobId === visitId) return this.getVisit(user, visitId);
+      if (earlier) throw new ConflictException('That photo has already been used elsewhere');
+    }
     const visit = await this.requireInProgress(user, visitId);
     const image = sniffFile(file.buffer, false);
     if (!image) throw new BadRequestException('Only JPEG, PNG or WebP photos are accepted');
@@ -485,7 +500,7 @@ export class ServicesService {
       throw new BadRequestException(`A visit can have up to ${VISIT_MAX_PHOTOS} photos`);
     }
 
-    const id = randomUUID();
+    const id = phone.id ?? randomUUID();
     const now = new Date();
     const month = String(now.getUTCMonth() + 1).padStart(2, '0');
     const storageKey = `outlets/${visit.outletId}/${now.getUTCFullYear()}/${month}/${id}.${image.extension}`;
@@ -499,7 +514,7 @@ export class ServicesService {
         storageKey,
         mimeType: image.mimeType,
         sizeBytes: file.size,
-        capturedAt: now,
+        capturedAt: phoneTime(phone.capturedAt, now),
         uploadedById: user.id,
       },
     });
@@ -509,7 +524,8 @@ export class ServicesService {
   async removePhoto(user: AuthUser, visitId: string, photoId: string): Promise<VisitDto> {
     const visit = await this.requireInProgress(user, visitId);
     const photo = visit.attachments.find((entry) => entry.id === photoId);
-    if (!photo) throw new NotFoundException('Photo not found');
+    // Already gone (the same removal sent twice, say): the visit is as the person wanted it.
+    if (!photo) return this.getVisit(user, visit.id);
     await this.db.attachment.delete({ where: { id: photo.id } });
     await this.storage.remove(photo.storageKey).catch(() => undefined);
     return this.getVisit(user, visit.id);
@@ -520,7 +536,15 @@ export class ServicesService {
    * least one photo of the finished work. The visit gets its report number
    * here and waits for the restaurant's sign-off.
    */
-  async complete(user: AuthUser, visitId: string): Promise<VisitDto> {
+  async complete(user: AuthUser, visitId: string, at?: string): Promise<VisitDto> {
+    if (at) {
+      // `at` is when Finish was pressed on the phone. The same Finish sent again (its first
+      // reply was lost on a weak signal) is not an error: the visit is already finished.
+      const earlier = await this.requireVisit(user, visitId);
+      this.requireRecorder(user, earlier);
+      const finished = earlier.status === 'COMPLETED' || earlier.status === 'APPROVED';
+      if (finished && sameMoment(earlier.completedAt, at)) return this.getVisit(user, visitId);
+    }
     const visit = await this.requireInProgress(user, visitId);
     const items = visitTasks(visit);
     const answered = new Set(visit.taskResponses.map((response) => response.itemId));
@@ -531,7 +555,7 @@ export class ServicesService {
       throw new BadRequestException('Add at least one photo of the finished work');
     }
 
-    const now = new Date();
+    const now = phoneTime(at);
     for (let attempt = 0; ; attempt++) {
       try {
         await this.db.$transaction(async (tx) => {
@@ -575,6 +599,8 @@ export class ServicesService {
     });
     // Takes a few seconds, so the approval does not wait for it.
     this.reports.ensureLater(visit.id);
+    // A kind of service that carries a certificate gets it now. This never fails the approval.
+    await this.certificates.issueOnApproval(visit.id);
     await this.notify.reportApproved(user, visit.id);
     return this.getVisit(user, visit.id);
   }
@@ -783,6 +809,8 @@ export class ServicesService {
       correctionNote: forRestaurant ? null : visit.reviewNote,
       canReview: inReview && this.isEccsAdmin(user),
       canManage: ahead && this.isEccsAdmin(user),
+      certificate:
+        visit.certificates[0] && can(user.memberships, 'reports', 'read') ? toVisitCertificate(visit.certificates[0]) : null,
     };
   }
 }
@@ -839,6 +867,21 @@ function toBookingDto(booking: BookingRow, names: Map<string, string>): BookingD
     visitDate: visit ? fromDbDate(visit.scheduledDate) : null,
     visitSlot: visit ? toSlot(visit.scheduledSlot) : null,
   };
+}
+
+// A phone can do things with no signal and send them later, so it says when each was
+// really done. Its clock is believed unless it is ahead of ours by more than this.
+const PHONE_CLOCK_AHEAD_MS = 5 * 60_000;
+
+/** The time the phone says something was done; our own time if it gave none or its clock is ahead. */
+export function phoneTime(at: string | undefined, now = new Date()): Date {
+  const said = at ? Date.parse(at) : Number.NaN;
+  return Number.isNaN(said) || said > now.getTime() + PHONE_CLOCK_AHEAD_MS ? now : new Date(said);
+}
+
+/** True when a time we stored is the very one the phone is sending again: the same action, repeated. */
+export function sameMoment(stored: Date | null, at: string | undefined): boolean {
+  return stored !== null && at !== undefined && stored.getTime() === Date.parse(at);
 }
 
 /** Distance between two points on the ground, in whole metres. */

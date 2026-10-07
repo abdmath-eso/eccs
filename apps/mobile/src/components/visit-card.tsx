@@ -1,6 +1,7 @@
 import { localize, type VisitStatus, type VisitSummaryDto } from '@eccs/shared';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -35,8 +36,15 @@ export function VisitStatusBadge({ status }: { status: VisitStatus }) {
   );
 }
 
+interface VisitCardProps {
+  visit: VisitSummaryDto;
+  showOutlet?: boolean;
+  /** Shown under the status: for a Supervisor, that work on this visit is saved on the phone and not sent yet. */
+  mark?: ReactNode;
+}
+
 /** One service visit in a list. Tapping it opens the visit. */
-export function VisitCard({ visit, showOutlet }: { visit: VisitSummaryDto; showOutlet?: boolean }) {
+export function VisitCard({ visit, showOutlet, mark }: VisitCardProps) {
   const theme = useTheme();
   const { t, language } = useSession();
   const { forwardGlyph } = useDirection();
@@ -74,6 +82,7 @@ export function VisitCard({ visit, showOutlet }: { visit: VisitSummaryDto; showO
         </View>
       )}
       <VisitStatusBadge status={visit.status} />
+      {mark}
       {visit.fromPlan && !showOutlet && (
         <ThemedText type="small" themeColor="textSecondary">
           {t('svc.fromPlan')}

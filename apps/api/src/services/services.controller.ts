@@ -38,8 +38,17 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const checkInSchema = z.object({
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
+  /** When the Supervisor checked in on the phone, if that was earlier than now (no signal at the time). */
+  at: z.iso.datetime().optional(),
 });
-const photoFieldsSchema = z.object({ kind: z.enum(VISIT_PHOTO_KINDS) });
+const photoFieldsSchema = z.object({
+  kind: z.enum(VISIT_PHOTO_KINDS),
+  /** Chosen by the phone so that sending the same photo twice stores it once. */
+  id: z.uuid().optional(),
+  capturedAt: z.iso.datetime().optional(),
+});
+/** Finish may come with no body at all; `at` is when Finish was pressed on the phone. */
+const completeSchema = z.object({ at: z.iso.datetime().optional() }).optional();
 
 @Controller()
 export class ServicesController {
@@ -228,7 +237,7 @@ export class ServicesController {
     const fields = photoFieldsSchema.safeParse(body);
     if (!fields.success) throw new BadRequestException('Say whether the photo is from before or after the work');
     if (!file) throw new BadRequestException('A photo is required');
-    return this.services.addPhoto(user, id, fields.data.kind, file);
+    return this.services.addPhoto(user, id, fields.data.kind, file, fields.data);
   }
 
   @Delete('visits/:id/photos/:photoId')
@@ -240,8 +249,12 @@ export class ServicesController {
   @Post('visits/:id/complete')
   @HttpCode(200)
   @RequirePermission('jobs', 'update')
-  complete(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.services.complete(user, id);
+  complete(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(completeSchema)) body: z.output<typeof completeSchema>,
+  ) {
+    return this.services.complete(user, id, body?.at);
   }
 
   @Post('visits/:id/approve-report')

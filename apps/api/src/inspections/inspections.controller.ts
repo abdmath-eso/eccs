@@ -28,6 +28,11 @@ import { InspectionsService } from './inspections.service.js';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
+/** Sent with a photo by a phone: its own id for the photo (so sending it twice stores it once) and when it was taken. */
+const photoFieldsSchema = z.object({ id: z.uuid().optional(), capturedAt: z.iso.datetime().optional() });
+/** Finish may come with no body at all; `at` is when Finish was pressed on the phone. */
+const finishSchema = z.object({ at: z.iso.datetime().optional() }).optional();
+
 @Controller('inspections')
 export class InspectionsController {
   constructor(private readonly inspections: InspectionsService) {}
@@ -99,22 +104,34 @@ export class InspectionsController {
     @Param('id') id: string,
     @Param('itemId') itemId: string,
     @UploadedFile() file: { buffer: Buffer; size: number } | undefined,
+    @Body() body: unknown,
   ) {
+    const fields = photoFieldsSchema.safeParse(body ?? {});
+    if (!fields.success) throw new BadRequestException('Invalid upload');
     if (!file) throw new BadRequestException('A photo is required');
-    return this.inspections.addPhoto(user, id, itemId, file);
+    return this.inspections.addPhoto(user, id, itemId, file, fields.data);
   }
 
   @Delete(':id/photos/:photoId')
   @RequirePermission('inspections', 'update')
-  removePhoto(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('photoId') photoId: string) {
-    return this.inspections.removePhoto(user, id, photoId);
+  removePhoto(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('photoId') photoId: string,
+    @Query('itemId') itemId?: string,
+  ) {
+    return this.inspections.removePhoto(user, id, photoId, itemId || undefined);
   }
 
   @Post(':id/finish')
   @HttpCode(200)
   @RequirePermission('inspections', 'update')
-  finish(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.inspections.finish(user, id);
+  finish(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(finishSchema)) body: z.output<typeof finishSchema>,
+  ) {
+    return this.inspections.finish(user, id, body?.at);
   }
 
   // ───────────────────────── Review by ECCS ─────────────────────────

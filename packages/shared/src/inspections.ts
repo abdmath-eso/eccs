@@ -176,6 +176,11 @@ export const answerInspectionCheckSchema = z.object({
   correctiveAction: z.string().trim().max(INSPECTION_NOTE_MAX).optional(),
   /** YYYY-MM-DD the restaurant must have put it right by. */
   dueDate: dateSchema.nullish(),
+  /**
+   * When the check was answered on the phone. Sent by a phone that may have had no
+   * signal at the time, so the inspection is dated by when it was done, not when it arrived.
+   */
+  at: z.iso.datetime().optional(),
 });
 export type AnswerInspectionCheckInput = z.input<typeof answerInspectionCheckSchema>;
 

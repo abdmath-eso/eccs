@@ -14,6 +14,7 @@ import {
   type VisitStatus,
   type VisitSummaryDto,
 } from "@eccs/shared";
+import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
@@ -800,6 +801,24 @@ function VisitDetail({
       </div>
 
       {visit.reportNumber && <p className="font-semibold">Service report {visit.reportNumber}</p>}
+
+      {/* Issued by itself when the report was approved, for a kind of service that carries a certificate. */}
+      {visit.certificate && (
+        <p className="text-sm">
+          <span className="font-semibold">Certificate </span>
+          <Link
+            href={`/certificates?q=${encodeURIComponent(visit.certificate.number)}`}
+            className="font-semibold text-primary hover:underline"
+          >
+            {visit.certificate.number}
+          </Link>
+          <span className="text-muted">
+            {" "}
+            · valid until {shortDay(visit.certificate.validUntil)}
+            {visit.certificate.state === "EXPIRED" ? " (expired)" : ""}
+          </span>
+        </p>
+      )}
 
       {visit.correctionNote && (
         <p className="rounded-lg border border-border p-3 text-sm">

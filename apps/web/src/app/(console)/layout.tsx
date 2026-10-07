@@ -24,6 +24,7 @@ const NAV: readonly { href: string; label: string; count?: keyof NavCounts; wait
   { href: "/monitoring", label: "Monitoring" },
   { href: "/visits", label: "Visits", count: "visits", waiting: "waiting for a date, a Supervisor or a report check" },
   { href: "/inspections", label: "Inspections" },
+  { href: "/certificates", label: "Certificates" },
   { href: "/issues", label: "Issues", count: "issues", waiting: "open" },
   { href: "/licences", label: "Licences", count: "licences", waiting: "expired or expiring" },
   { href: "/sops", label: "SOPs" },

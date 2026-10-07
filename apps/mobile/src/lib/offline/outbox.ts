@@ -1,9 +1,12 @@
 import { ApiError } from '@eccs/api-client';
+import { isVisitDone } from '@eccs/shared';
 import { useSyncExternalStore } from 'react';
 
 import { api } from '@/lib/api';
 
 import { checklistCache } from './checklist-cache';
+import { fieldCache } from './field-cache';
+import type { FieldOp, FieldState } from './field-ops';
 import { discardPhoto, newId, openKeptPhoto, readJson, writeJson } from './files';
 import { Outbox, type Failure, type OutboxFile } from './outbox-core';
 
@@ -29,6 +32,91 @@ function classify(error: unknown): Failure {
   return 'rejected';
 }
 
+/**
+ * Sends one step of a Supervisor's visit or inspection and keeps the server's
+ * reply on the phone. Each call is safe to repeat: times and photo ids are
+ * chosen on the phone, and the server recognises them when they arrive twice.
+ */
+async function sendField(op: FieldOp): Promise<void> {
+  const id = op.subjectId;
+  switch (op.kind) {
+    case 'visitCheckIn':
+      return fieldCache.putVisit(await api.visits.checkIn(id, { at: op.at }));
+    case 'visitTask':
+      return fieldCache.putVisit(
+        await api.visits.answerTask(id, op.itemId, { done: op.done, ...(op.note && { note: op.note }) }),
+      );
+    case 'visitRecord':
+      return fieldCache.putVisit(
+        await api.visits.updateRecord(id, { technicianNames: op.technicianNames, notes: op.notes }),
+      );
+    case 'visitPhoto': {
+      const file = await openKeptPhoto(op.photoId);
+      if (!file) throw new MissingPhotoError();
+      return fieldCache.putVisit(
+        await api.visits.addPhoto(id, op.photoKind, file, { id: op.photoId, capturedAt: op.capturedAt }),
+      );
+    }
+    case 'visitPhotoRemove':
+      return fieldCache.putVisit(await api.visits.removePhoto(id, op.photoId));
+    case 'visitComplete':
+      return fieldCache.putVisit(await api.visits.complete(id, { at: op.at }));
+    case 'inspFinish':
+      return fieldCache.putInspection(await api.inspections.finish(id, { at: op.at }));
+    default:
+      break;
+  }
+
+  // The rest are single checks of an inspection: the server replies with just that
+  // check, which goes into the copy saved on the phone (read from its file first,
+  // in case the app was only just opened).
+  let result;
+  if (op.kind === 'inspAnswer') {
+    const failed = op.answer === 'NON_COMPLIANT';
+    result = await api.inspections.answer(id, op.itemId, {
+      answer: op.answer,
+      at: op.at,
+      ...(failed && {
+        note: op.note ?? '',
+        severity: op.severity ?? null,
+        correctiveAction: op.correctiveAction ?? '',
+        dueDate: op.dueDate ?? null,
+      }),
+    });
+  } else if (op.kind === 'inspPhoto') {
+    const file = await openKeptPhoto(op.photoId);
+    if (!file) throw new MissingPhotoError();
+    result = await api.inspections.addPhoto(id, op.itemId, file, { id: op.photoId, capturedAt: op.capturedAt });
+  } else {
+    result = await api.inspections.removePhoto(id, op.photoId, op.itemId);
+  }
+  await fieldCache.open('inspection', id);
+  fieldCache.patchCheck(id, result);
+}
+
+/**
+ * After the server refused a step: how the visit or inspection stands there
+ * now. Its latest copy is kept on the phone, so the screen shows the truth.
+ */
+async function inspectField(op: FieldOp): Promise<FieldState> {
+  try {
+    if (op.subject === 'visit') {
+      const visit = await api.visits.get(op.subjectId);
+      fieldCache.putVisit(visit);
+      if (visit.canRecord) return 'open';
+      return visit.status === 'CANCELLED' ? 'cancelled' : isVisitDone(visit.status) ? 'finished' : 'gone';
+    }
+    const inspection = await api.inspections.get(op.subjectId);
+    fieldCache.putInspection(inspection);
+    if (inspection.canRecord) return 'open';
+    return inspection.status === 'SUBMITTED' || inspection.status === 'APPROVED' ? 'finished' : 'gone';
+  } catch (error) {
+    // Given to someone else, or removed: the server no longer shows it to this person.
+    if (error instanceof ApiError && (error.status === 403 || error.status === 404)) return 'gone';
+    throw error;
+  }
+}
+
 export const outbox = new Outbox({
   load: () => readJson<OutboxFile>(FILE),
   save: (file) => writeJson(FILE, file),
@@ -52,10 +140,17 @@ export const outbox = new Outbox({
     submit: (op) => api.checklists.submit(op.runId),
     fetchRun: (runId) => api.checklists.run(runId),
   },
+  field: { send: sendField, inspect: inspectField },
   classify,
   onRun: (run) => checklistCache.putRun(run),
   discardPhoto,
   newId,
+});
+
+// A visit's or inspection's saved copy is kept for as long as work for it is waiting on this phone.
+fieldCache.keepWhile(async (subject, id) => {
+  await outbox.init();
+  return outbox.hasFieldWork(subject, id);
 });
 
 /** The outbox as it is now, for a screen; the screen redraws whenever it changes. */

@@ -7,6 +7,7 @@
 // it. A service is "no longer offered" and a task is "retired" instead.
 
 import { z } from "zod";
+import { CERTIFICATE_MAX_VALID_DAYS } from "./certificates.js";
 import type { LocalizedText } from "./checklists.js";
 
 export const CATALOG_MAX_PRICE_RUPEES = 1_000_000;
@@ -69,6 +70,16 @@ export type UpdateCatalogItemInput = z.input<typeof updateCatalogItemSchema>;
 export const updateServiceKindSchema = z.object({
   name: z.string().trim().min(2, "Enter the name of this kind of service").max(120).optional(),
   isActive: z.boolean().optional(),
+  /** Whether a visit of this kind ends with a certificate for the restaurant. */
+  issuesCertificate: z.boolean().optional(),
+  /** How many days that certificate is valid for, counted from the day of the visit. */
+  certificateValidDays: typedNumber(
+    z
+      .number({ error: "Enter the number of days, in figures" })
+      .int("Enter whole days")
+      .min(1, "Enter at least 1 day")
+      .max(CERTIFICATE_MAX_VALID_DAYS, `Enter no more than ${CERTIFICATE_MAX_VALID_DAYS} days (five years)`),
+  ).optional(),
 });
 export type UpdateServiceKindInput = z.input<typeof updateServiceKindSchema>;
 
@@ -124,6 +135,12 @@ export interface ServiceKindAdminDto {
   visitCount: number;
   /** The plans on offer that include this kind of service. */
   planNames: LocalizedText[];
+  /** Whether a visit of this kind ends with a certificate for the restaurant. */
+  issuesCertificate: boolean;
+  /** How many days that certificate is valid for; null when none is set. */
+  certificateValidDays: number | null;
+  /** How many certificates of this kind have been issued so far. */
+  certificateCount: number;
 }
 
 export interface CatalogAdminDto {

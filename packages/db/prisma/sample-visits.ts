@@ -32,7 +32,7 @@ export async function addSampleVisits(prisma: PrismaClient): Promise<{ added: nu
           serviceTypeId: schedule.serviceTypeId,
           scheduleId: schedule.id,
           scheduledDate: date,
-          scheduledSlot: "after closing",
+          scheduledSlot: "AFTER_CLOSING",
           status: "APPROVED",
           supervisorId,
           technicianNames: ["Sample Technician"],

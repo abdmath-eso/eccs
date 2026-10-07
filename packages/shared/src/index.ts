@@ -11,3 +11,4 @@ export * from "./holidays.js";
 export * from "./calendar.js";
 export * from "./sops.js";
 export * from "./profile.js";
+export * from "./services.js";

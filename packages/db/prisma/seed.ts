@@ -424,7 +424,7 @@ async function seedOutletData(
           serviceTypeId: line.serviceTypeId,
           scheduleId: schedule.id,
           scheduledDate: nextDue,
-          scheduledSlot: "after closing",
+          scheduledSlot: "AFTER_CLOSING",
           status: "ASSIGNED",
           supervisorId,
         },

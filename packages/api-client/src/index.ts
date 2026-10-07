@@ -1,7 +1,20 @@
 import type {
   AddChecklistItemInput,
   AnswerChecklistItemInput,
+  AnswerVisitTaskInput,
   AttachmentDto,
+  BookingDto,
+  ConfirmBookingInput,
+  CreateBookingInput,
+  CreateVisitInput,
+  ServiceCatalogItemDto,
+  ServiceTypeDto,
+  SupervisorDto,
+  UpdateVisitInput,
+  UpdateVisitRecordInput,
+  VisitDto,
+  VisitPhotoKind,
+  VisitSummaryDto,
   CalendarMonthDto,
   ChecklistRunDto,
   ChecklistRunSummaryDto,
@@ -296,6 +309,60 @@ export function createApiClient(options: ApiClientOptions) {
         /** Copies it into the outlet's own SOPs and returns the copy. */
         add: (outletId: string, itemId: string) => call<SopDto>("POST", `/sops/library/${id(itemId)}/add`, { outletId }),
       },
+    },
+    /** What ECCS offers, and who can be sent. */
+    services: {
+      /** One-time services a restaurant can book, with prices. */
+      catalog: () => call<ServiceCatalogItemDto[]>("GET", "/services/catalog"),
+      types: () => call<ServiceTypeDto[]>("GET", "/services/types"),
+      /** ECCS admins only: the Supervisors a visit can be given to. */
+      supervisors: () => call<SupervisorDto[]>("GET", "/services/supervisors"),
+    },
+    /** A restaurant's requests for one-time services. */
+    bookings: {
+      /** Requests waiting for ECCS come first. `requestedOnly` keeps only those. */
+      list: (filter: { outletId?: string; requestedOnly?: boolean } = {}) =>
+        call<BookingDto[]>(
+          "GET",
+          `/bookings${query({ ...(filter.outletId && { outletId: filter.outletId }), ...(filter.requestedOnly && { status: "requested" }) })}`,
+        ),
+      create: (input: CreateBookingInput) => call<BookingDto>("POST", "/bookings", input),
+      /** ECCS accepts a request and puts the visit in the diary. */
+      confirm: (bookingId: string, input: ConfirmBookingInput) =>
+        call<BookingDto>("POST", `/bookings/${id(bookingId)}/confirm`, input),
+      cancel: (bookingId: string) => call<BookingDto>("POST", `/bookings/${id(bookingId)}/cancel`),
+    },
+    /** Service visits: the diary, the record made on site, the sign-off and the report. */
+    visits: {
+      /** "open": to come, under way or waiting for sign-off. "closed": signed off or cancelled. */
+      list: (filter: { outletId?: string; state?: "open" | "closed" } = {}) =>
+        call<VisitSummaryDto[]>(
+          "GET",
+          `/visits${query({ ...(filter.outletId && { outletId: filter.outletId }), state: filter.state ?? "open" })}`,
+        ),
+      get: (visitId: string) => call<VisitDto>("GET", `/visits/${id(visitId)}`),
+      create: (input: CreateVisitInput) => call<VisitDto>("POST", "/visits", input),
+      update: (visitId: string, input: UpdateVisitInput) => call<VisitDto>("PATCH", `/visits/${id(visitId)}`, input),
+      cancel: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/cancel`),
+      /** The Supervisor arrives at the outlet. */
+      checkIn: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/check-in`, {}),
+      answerTask: (visitId: string, itemId: string, input: AnswerVisitTaskInput) =>
+        call<VisitDto>("PUT", `/visits/${id(visitId)}/tasks/${id(itemId)}`, input),
+      updateRecord: (visitId: string, input: UpdateVisitRecordInput) =>
+        call<VisitDto>("PATCH", `/visits/${id(visitId)}/record`, input),
+      addPhoto(visitId: string, kind: VisitPhotoKind, file: UploadFile) {
+        const form = new FormData();
+        form.append("kind", kind);
+        form.append("file", file, "photo.jpg");
+        // The content type is left unset so the boundary is filled in automatically.
+        return send<VisitDto>("POST", `/visits/${id(visitId)}/photos`, form, undefined, true);
+      },
+      removePhoto: (visitId: string, photoId: string) =>
+        call<VisitDto>("DELETE", `/visits/${id(visitId)}/photos/${id(photoId)}`),
+      /** The Supervisor finishes; the visit then waits for the restaurant's sign-off. */
+      complete: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/complete`),
+      /** The restaurant's Owner or Manager confirms the work was done. */
+      signOff: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/sign-off`),
     },
     /** One month ("2026-10") of an outlet's history calendar. */
     calendar: {

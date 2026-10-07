@@ -45,6 +45,8 @@ const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A:
 // A = mark a submitted checklist as reviewed.
 // For sopTemplates: restaurant roles with C and U write SOPs for their own
 // outlet only; ECCS's standard SOPs are read-only to them.
+// For jobs (service visits): ECCS roles with U record the visit on site; restaurant
+// roles with A sign off the finished work.
 // ECCS roles get nothing on staff, attendance and salary: that is the
 // restaurant's private employee data.
 const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
@@ -71,7 +73,7 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
   OWNER: {
     clients: "R", restaurantUsers: "CRU", sopTemplates: "CRU", checklists: "CRUA",
     foodLabels: "CRU", issues: "CRU", catalog: "R", bookings: "CRU", subscriptions: "CRU",
-    schedule: "R", jobs: "R", inspections: "R", reports: "R", publicPage: "RU",
+    schedule: "R", jobs: "RA", inspections: "R", reports: "R", publicPage: "RU",
     licences: "CRU", documents: "CRU", scores: "R", staff: "CRU", attendance: "CRU",
     salary: "CRU", invoices: "R", payments: "C",
   },

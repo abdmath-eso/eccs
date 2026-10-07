@@ -14,3 +14,6 @@ export * from "./profile.js";
 export * from "./services.js";
 export * from "./notifications.js";
 export * from "./inspections.js";
+export * from "./scores.js";
+export * from "./monitoring.js";
+export * from "./catalog.js";

@@ -106,6 +106,8 @@ export type SessionDto = z.infer<typeof sessionSchema>;
 /** Error codes the apps react to, sent as `code` in an error response. */
 export const AUTH_ERROR = {
   deviceNotLinked: "DEVICE_NOT_LINKED",
+  /** The PIN is right, but ECCS has switched this restaurant or outlet off. */
+  restaurantInactive: "RESTAURANT_INACTIVE",
 } as const;
 
 // ───────── Restaurant staff logins, managed by the Owner or Manager ─────────

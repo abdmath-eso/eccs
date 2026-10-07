@@ -21,11 +21,13 @@ const ROLE_NAMES: Record<string, string> = {
 // `count` names the number shown beside the section; `waiting` says in words what the number means.
 const NAV: readonly { href: string; label: string; count?: keyof NavCounts; waiting?: string }[] = [
   { href: "/", label: "Clients" },
+  { href: "/monitoring", label: "Monitoring" },
   { href: "/visits", label: "Visits", count: "visits", waiting: "waiting for a date, a Supervisor or a report check" },
   { href: "/inspections", label: "Inspections" },
   { href: "/issues", label: "Issues", count: "issues", waiting: "open" },
   { href: "/licences", label: "Licences", count: "licences", waiting: "expired or expiring" },
   { href: "/sops", label: "SOPs" },
+  { href: "/catalogue", label: "Catalogue" },
 ];
 
 /** Frame for every console page. Sends anyone who is not logged in to the login page. */

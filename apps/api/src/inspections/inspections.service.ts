@@ -25,6 +25,7 @@ import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { sniffFile } from '../storage/attachments.controller.js';
 import { StorageService } from '../storage/storage.service.js';
+import { InspectionPdfService } from './inspection-pdf.service.js';
 
 const MAX_LISTED = 200;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -78,6 +79,7 @@ export class InspectionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly pdfs: InspectionPdfService,
   ) {}
 
   private get db() {
@@ -383,7 +385,18 @@ export class InspectionsService {
       where: { id: inspection.id },
       data: { status: 'APPROVED', approvedById: user.id, approvedAt: new Date(), reviewNote: null },
     });
+    // The PDF takes a few seconds, so the approval does not wait for it.
+    this.pdfs.ensureLater(inspection.id);
     return this.get(user, inspection.id);
+  }
+
+  /** A link to the approved report as a PDF. Makes the PDF first if it is not there yet. */
+  async reportPdf(user: AuthUser, inspectionId: string): Promise<{ path: string }> {
+    const inspection = await this.requireInspection(user, inspectionId);
+    if (inspection.status !== 'APPROVED') {
+      throw new ConflictException('The PDF is ready once ECCS has approved the inspection report');
+    }
+    return { path: this.storage.signedPath(await this.pdfs.ensure(inspection.id)) };
   }
 
   /**

@@ -3,6 +3,8 @@
 // inspection template loaded (pnpm inspection:load in packages/db) and local
 // object storage running. Uses the Deccan Biryani outlet and removes what it creates.
 
+import { writeFileSync } from 'node:fs';
+import { crc32, deflateSync } from 'node:zlib';
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { scoreInspection, type InspectionAnswer, type ScoredCheck } from '@eccs/shared';
@@ -12,6 +14,7 @@ import { AppModule } from './../src/app.module.js';
 import { indiaDate } from './../src/checklists/checklists.service.js';
 import { env } from './../src/config/env.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
+import { StorageService } from './../src/storage/storage.service.js';
 
 const CODES = { kukatpally: 'DECCA-KP6R3T', jubilee: 'SPICE-JH2K7M' };
 const PINS = { owner: '3917', chef: '8264', otherManager: '4821' };
@@ -55,6 +58,41 @@ type Inspection = {
 };
 
 const daysAhead = (days: number) => indiaDate(new Date(Date.now() + days * 86_400_000));
+
+/**
+ * A real picture (a 320 × 240 PNG of coloured bands), so the printed report has
+ * photos a browser can draw. `shade` makes each one look different.
+ */
+function picture(shade: number): Buffer {
+  const width = 320;
+  const height = 240;
+  const rows = Buffer.alloc(height * (1 + width * 3));
+  for (let y = 0; y < height; y++) {
+    const start = y * (1 + width * 3);
+    for (let x = 0; x < width; x++) {
+      const band = Math.floor((x + y) / 40) % 2;
+      rows.set([(shade * 67) % 256, band ? 150 : 90, (y + shade * 40) % 256], start + 1 + x * 3);
+    }
+  }
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const size = Buffer.alloc(4);
+    size.writeUInt32BE(data.length);
+    const sum = Buffer.alloc(4);
+    sum.writeUInt32BE(crc32(body));
+    return Buffer.concat([size, body, sum]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8); // 8 bits a colour, red-green-blue
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(rows)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
 
 describe('The scoring rule', () => {
   const check = (section: string, marks: number, answer: InspectionAnswer | null): ScoredCheck => ({ section, marks, answer });
@@ -122,6 +160,12 @@ describe('Inspections (e2e)', () => {
 
   async function cleanUp() {
     const db = prisma.client;
+    // The report PDFs: the file, its place in the outlet's documents and its attachment.
+    const reports = await db.inspection.findMany({ where: { id: { in: created }, pdfKey: { not: null } }, select: { pdfKey: true } });
+    const keys = reports.map((report) => report.pdfKey!);
+    await db.document.deleteMany({ where: { attachment: { storageKey: { in: keys } } } });
+    await db.attachment.deleteMany({ where: { storageKey: { in: keys } } });
+    await Promise.all(keys.map((key) => app.get(StorageService).remove(key).catch(() => undefined)));
     await db.attachment.deleteMany({ where: { inspectionFinding: { inspectionId: { in: created } } } });
     await db.inspection.deleteMany({ where: { id: { in: created } } });
     await db.session.deleteMany({ where: { deviceName: DEVICE } });
@@ -155,11 +199,12 @@ describe('Inspections (e2e)', () => {
     (await http().get(`/inspections/${id}`).set(bearer(token)).expect(200)).body;
   const answer = (token: string, itemId: string, body: Record<string, unknown>, id = inspectionId) =>
     http().put(`/inspections/${id}/checks/${itemId}`).set(bearer(token)).send(body);
-  const addPhoto = (token: string, itemId: string, id = inspectionId) =>
+  const addPhoto = (token: string, itemId: string, id = inspectionId, photo: Buffer = PHOTO) =>
     http()
       .post(`/inspections/${id}/checks/${itemId}/photos`)
       .set(bearer(token))
-      .attach('file', PHOTO, { filename: 'finding.jpg', contentType: 'image/jpeg' });
+      .attach('file', photo, { filename: 'finding.jpg', contentType: 'image/jpeg' });
+  const pdf = (token: string, id = inspectionId) => http().post(`/inspections/${id}/report-pdf`).set(bearer(token));
   /** The check numbered `place` within section `section`, both counted from 1. */
   const pick = (inspection: Inspection, section: number, place: number) => inspection.sections[section - 1]!.checks[place - 1]!;
 
@@ -396,6 +441,10 @@ describe('Inspections (e2e)', () => {
     it('still hides a finished report from the restaurant until ECCS approves it', async () => {
       expect((await list(owner)).map((entry) => entry.id)).not.toContain(inspectionId);
       await http().get(`/inspections/${inspectionId}`).set(bearer(owner)).expect(404);
+      // No PDF either: the report can still change.
+      await pdf(admin).expect(409);
+      await pdf(supervisor).expect(409);
+      await pdf(owner).expect(404);
     });
 
     it('lets only ECCS send it back, with a note the Supervisor sees', async () => {
@@ -473,6 +522,136 @@ describe('Inspections (e2e)', () => {
       expect((await list(otherManager)).map((entry) => entry.id)).not.toContain(inspectionId);
       expect(await list(otherManager, { outletId })).toEqual([]);
       await http().get(`/inspections/${inspectionId}`).set(bearer(otherManager)).expect(404);
+    });
+  });
+
+  // These really print: a browser (Chrome, Edge or Chromium) must be installed.
+  describe('the report as a PDF', () => {
+    let fullId: string;
+    let reportNumber: string;
+
+    const download = async (path: string): Promise<Buffer> =>
+      (
+        await http()
+          .get(path)
+          .buffer(true)
+          .parse((res, done) => {
+            const chunks: Buffer[] = [];
+            res.on('data', (chunk: Buffer) => chunks.push(chunk));
+            res.on('end', () => done(null, Buffer.concat(chunks)));
+          })
+          .expect(200)
+          .expect('Content-Type', /application\/pdf/)
+      ).body as Buffer;
+
+    it('is not there until ECCS approves the report', async () => {
+      // A full inspection: four non-compliances with photos, one of them a critical check,
+      // notes typed in several scripts, and some checks that do not apply.
+      fullId = (await start(admin, { supervisorId })).body.id as string;
+      const blank = await get(supervisor, fullId);
+      const findings = [
+        {
+          check: pick(blank, 8, 1),
+          photos: 2,
+          note: 'Live cockroaches behind the dishwasher and droppings under the dry store racks.',
+          severity: 'CRITICAL',
+          correctiveAction: 'Book a pest control treatment, seal the gap behind the dishwasher and clean under the racks daily.',
+          dueDate: daysAhead(2),
+        },
+        {
+          check: pick(blank, 2, 1),
+          photos: 1,
+          note: 'ఫ్రయ్యర్ కింద నేలపై గ్రీజు పేరుకుపోయింది.',
+          severity: 'HIGH',
+          correctiveAction: 'నేలను డీగ్రీజ్ చేసి, ముగింపు చెక్‌లిస్ట్‌లో చేర్చండి.',
+          dueDate: daysAhead(7),
+        },
+        {
+          check: pick(blank, 4, 3),
+          photos: 3,
+          note: 'कच्चा चिकन पके हुए खाने के ऊपर वाली शेल्फ़ पर रखा था।',
+          severity: 'MEDIUM',
+          correctiveAction: 'कच्चा मांस हमेशा सबसे नीचे की शेल्फ़ पर, ढककर रखें।\nStaff to be briefed at the next shift meeting.',
+          dueDate: daysAhead(3),
+        },
+        {
+          check: pick(blank, 6, 2),
+          photos: 1,
+          note: 'ایک ملازم کا ایپرن صاف نہیں تھا۔',
+          severity: 'LOW',
+          correctiveAction: 'Issue two clean aprons per person per shift.',
+          dueDate: daysAhead(15),
+        },
+      ];
+      expect(findings[0]!.check.critical).toBe(true);
+      const notApplicable = new Set(blank.sections[9]!.checks.slice(0, 3).map((check) => check.itemId));
+
+      let shade = 0;
+      for (const check of blank.sections.flatMap((section) => section.checks)) {
+        const finding = findings.find((entry) => entry.check.itemId === check.itemId);
+        if (finding) {
+          const { check: _check, photos, ...details } = finding;
+          await answer(supervisor, check.itemId, { answer: 'NON_COMPLIANT', ...details }, fullId).expect(200);
+          for (let count = 0; count < photos; count++) await addPhoto(supervisor, check.itemId, fullId, picture(++shade)).expect(200);
+        } else {
+          const value = notApplicable.has(check.itemId) ? 'NOT_APPLICABLE' : 'COMPLIANT';
+          await answer(supervisor, check.itemId, { answer: value }, fullId).expect(200);
+        }
+      }
+      const finished = (await http().post(`/inspections/${fullId}/finish`).set(bearer(supervisor)).expect(200)).body as Inspection;
+      expect(finished).toMatchObject({ status: 'SUBMITTED', nonCompliant: 4, criticalFailed: 1, grade: 'NON_COMPLIANT' });
+      reportNumber = finished.reportNumber!;
+
+      await pdf(admin, fullId).expect(409);
+      await pdf(supervisor, fullId).expect(409);
+      await pdf(owner, fullId).expect(404);
+      await http().post(`/inspections/${fullId}/approve`).set(bearer(admin)).expect(200);
+    }, 120_000);
+
+    it('is there once approved, for the restaurant, ECCS and the Supervisor, and for nobody else', async () => {
+      await pdf(chef, fullId).expect(403);
+      await pdf(otherManager, fullId).expect(404);
+      await http().post(`/inspections/${fullId}/report-pdf`).expect(401);
+
+      const link = (await pdf(owner, fullId).expect(200)).body as { path: string };
+      const file = await download(link.path);
+      expect(file.subarray(0, 5).toString('ascii')).toBe('%PDF-');
+      // Seven photos and several pages: far more than an empty page.
+      expect(file.length).toBeGreaterThan(20_000);
+      // A copy to look at, when asked for: INSPECTION_PDF_SAMPLE=<where to put it>.
+      if (process.env.INSPECTION_PDF_SAMPLE) writeFileSync(process.env.INSPECTION_PDF_SAMPLE, file);
+
+      // Asking again gives the same file, not a second copy.
+      const again = (await pdf(admin, fullId).expect(200)).body as { path: string };
+      expect(again.path.split('?')[0]).toBe(link.path.split('?')[0]);
+      const third = (await pdf(supervisor, fullId).expect(200)).body as { path: string };
+      expect(third.path.split('?')[0]).toBe(link.path.split('?')[0]);
+      expect(await prisma.client.attachment.count({ where: { storageKey: { endsWith: `/inspection-reports/${reportNumber}.pdf` } } })).toBe(1);
+      const saved = await prisma.client.inspection.findUniqueOrThrow({ where: { id: fullId }, select: { pdfKey: true } });
+      expect(saved.pdfKey).toBe(`outlets/${outletId}/inspection-reports/${reportNumber}.pdf`);
+    }, 60_000);
+
+    it('is made in the background on approval, without being asked for', async () => {
+      // The first report was approved earlier in this suite and nobody has asked for its PDF.
+      // Asking now joins or follows the background job, so it is finished before the suite tidies up.
+      const link = (await pdf(owner).expect(200)).body as { path: string };
+      expect((await download(link.path)).subarray(0, 5).toString('ascii')).toBe('%PDF-');
+      const report = await prisma.client.inspection.findUniqueOrThrow({ where: { id: inspectionId }, select: { pdfKey: true, reportNumber: true } });
+      expect(report.pdfKey).toContain(report.reportNumber!);
+    }, 60_000);
+
+    it('is filed in the outlet’s documents', async () => {
+      const documents = (await http().get('/documents').query({ outletId }).set(bearer(owner)).expect(200)).body as {
+        title: string;
+        category: string;
+      }[];
+      const filed = documents.filter((document) => document.title.startsWith(`Inspection report ${reportNumber}:`));
+      expect(filed).toHaveLength(1);
+      expect(filed[0]!.category).toBe('report');
+      // Another restaurant's documents do not gain it.
+      const elsewhere = (await http().get('/documents').query({ outletId: otherOutletId }).set(bearer(otherManager)).expect(200))
+        .body as { title: string }[];
+      expect(elsewhere.some((document) => document.title.includes(reportNumber))).toBe(false);
     });
   });
 });

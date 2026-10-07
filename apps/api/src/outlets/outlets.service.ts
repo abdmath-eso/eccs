@@ -23,7 +23,8 @@ export class OutletsService {
     }
 
     const outlets = await this.prisma.client.outlet.findMany({
-      where: { ...where, isActive: true },
+      // Outlets ECCS has switched off, and those of a client that is switched off, are left out for everyone.
+      where: { ...where, isActive: true, organization: { isActive: true } },
       select: {
         id: true,
         name: true,

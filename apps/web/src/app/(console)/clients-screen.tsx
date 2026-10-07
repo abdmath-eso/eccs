@@ -20,6 +20,8 @@ import { addDays, describe, english, longDay, matchesSearch, rupees, shortDay, t
 import { useQuery, useQueryField } from "@/lib/query";
 import { useSession } from "@/lib/session";
 
+import { ClientSummary, OutletEditing, OwnerSummary, Tag, useLinkedPhones } from "./client-editing";
+
 type Outlet = OrganizationDto["outlets"][number];
 
 /** What to write beside each field so it is typed correctly the first time. */
@@ -123,6 +125,11 @@ export default function ClientsScreen() {
     notify(`Outlet added: ${outlet.name}`);
   }
 
+  /** After any change to a client, the server sends the whole client back; it replaces the one in the list. */
+  function changed(client: OrganizationDto) {
+    setClients((current) => (current ?? []).map((c) => (c.id === client.id ? client : c)));
+  }
+
   // Sorted here by name, whatever order the server sent.
   const sorted = [...(clients ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   const matching = sorted.filter((client) =>
@@ -220,6 +227,11 @@ export default function ClientsScreen() {
                               </span>
                               {client.name}
                             </button>
+                            {!client.isActive && (
+                              <div className="pb-1.5 pl-7">
+                                <Tag>Switched off</Tag>
+                              </div>
+                            )}
                           </th>
                           <td className="py-3 pr-4 align-top">
                             {owner ? (
@@ -245,7 +257,7 @@ export default function ClientsScreen() {
                         {open && (
                           <tr id={`client-${client.id}`} className="border-b border-border bg-primary/5">
                             <td colSpan={4} className="px-2 pt-1 pb-4 sm:px-7">
-                              <ClientDetail client={client} onOutletAdded={(outlet) => outletAdded(client.id, outlet)} />
+                              <ClientDetail client={client} onOutletAdded={(outlet) => outletAdded(client.id, outlet)} onChanged={changed} />
                             </td>
                           </tr>
                         )}
@@ -373,8 +385,22 @@ function OnboardForm({ onCreated, onCancel }: { onCreated: (client: Organization
   );
 }
 
-/** What opens under a client's row: everyone who owns it, its outlets with their codes and plans, and adding an outlet. */
-function ClientDetail({ client, onOutletAdded }: { client: OrganizationDto; onOutletAdded: (outlet: Outlet) => void }) {
+/**
+ * What opens under a client's row: its details and everyone who owns it, its
+ * outlets with their codes and plans, and adding an outlet. Each part has its
+ * own Change link (see client-editing.tsx); nothing is ever deleted.
+ */
+function ClientDetail({
+  client,
+  onOutletAdded,
+  onChanged,
+}: {
+  client: OrganizationDto;
+  onOutletAdded: (outlet: Outlet) => void;
+  onChanged: (client: OrganizationDto) => void;
+}) {
+  // Fetched once for the client and shared by its Owner and each outlet.
+  const linked = useLinkedPhones(client.id);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -408,16 +434,12 @@ function ClientDetail({ client, onOutletAdded }: { client: OrganizationDto; onOu
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-muted">
-        {client.owners.map((owner) => (
-          <p key={owner.id}>
-            Owner: {owner.name} · {owner.phone ?? "no number"}
-            {owner.email ? ` · ${owner.email}` : ""} ·{" "}
-            {owner.hasPin ? "PIN set" : <span className="font-semibold text-danger">has not set a PIN yet</span>}
-          </p>
-        ))}
-        {client.gstin && <p>GSTIN {client.gstin}</p>}
-      </div>
+      <ClientSummary client={client} onChanged={onChanged} />
+      {client.owners.map((owner) => (
+        <div key={owner.id} className="border-t border-border pt-3">
+          <OwnerSummary client={client} owner={owner} linked={linked} onChanged={onChanged} />
+        </div>
+      ))}
 
       <table className="w-full text-left">
         <caption className="sr-only">Outlets of {client.name}</caption>
@@ -438,18 +460,30 @@ function ClientDetail({ client, onOutletAdded }: { client: OrganizationDto; onOu
           {client.outlets.map((outlet) => (
             <Fragment key={outlet.id}>
               <tr>
-                <td className="py-2.5 pr-4 font-medium">{outlet.name}</td>
+                <td className="py-2.5 pr-4 font-medium">
+                  {outlet.name}
+                  {!outlet.isActive && (
+                    <span className="ml-2">
+                      <Tag>Switched off</Tag>
+                    </span>
+                  )}
+                </td>
                 <td className="py-2.5 pr-4 text-muted">
-                  {outlet.address}, {outlet.city}
+                  {[outlet.address, outlet.city, outlet.pincode].filter(Boolean).join(", ")}
+                  {outlet.fssaiNumber && <div>FSSAI {outlet.fssaiNumber}</div>}
                 </td>
                 <td className="py-2.5">
                   <Code>{outlet.code}</Code>
                 </td>
               </tr>
-              {/* The outlet's plan sits directly under the outlet it belongs to, so the two are read together. */}
+              {/* What can be changed about the outlet, then its plan, sit directly under it so they are read together. */}
               <tr className="border-b border-border last:border-0">
                 <td colSpan={3} className="pb-3">
-                  <OutletPlan outlet={outlet} />
+                  <div className="flex flex-col gap-2">
+                    <OutletEditing client={client} outlet={outlet} linked={linked} onChanged={onChanged} />
+                    {/* An outlet that is switched off gets no plan visits, so its plan is not offered for changing. */}
+                    {outlet.isActive && <OutletPlan outlet={outlet} />}
+                  </div>
                 </td>
               </tr>
             </Fragment>

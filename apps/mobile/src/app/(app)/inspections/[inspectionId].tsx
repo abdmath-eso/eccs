@@ -15,7 +15,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useRef, useState, type ComponentProps } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { InspectionStatusBadge, ScoreSummary, SectionScoreRow } from '@/components/inspection-parts';
 import { ProofPhoto } from '@/components/proof-photo';
@@ -98,7 +98,7 @@ export default function InspectionScreen() {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   /** The check whose details were saved with something missing: its fields show what. */
   const [checked, setChecked] = useState<string | null>(null);
-  /** What is being sent that should show as busy: `details-<id>`, `photo-<id>`, `finish`. */
+  /** What is being sent that should show as busy: `details-<id>`, `photo-<id>`, `finish`, `pdf`. */
   const [busy, setBusy] = useState<string | null>(null);
   /** The check Finish found unanswered or incomplete. */
   const [missing, setMissing] = useState<string | null>(null);
@@ -331,6 +331,21 @@ export default function InspectionScreen() {
       scrollToY(scrollRef, 0);
     } catch (e) {
       setFailed((current) => ({ ...current, finish: errorMessage(e, t) }));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Opens the approved report as a PDF in the phone's viewer. The first time, the server makes it, which takes a few seconds. */
+  async function openPdf() {
+    if (busy !== null) return;
+    setBusy('pdf');
+    clearFailure('pdf');
+    try {
+      const { path } = await api.inspections.reportPdf(inspectionId);
+      await Linking.openURL(api.fileUrl(path));
+    } catch (e) {
+      setFailed((current) => ({ ...current, pdf: errorMessage(e, t) }));
     } finally {
       setBusy(null);
     }
@@ -747,6 +762,19 @@ export default function InspectionScreen() {
               </ThemedText>
             )}
           </View>
+          {/* Only an approved report is final, so only then is there a PDF to keep or pass on. */}
+          {inspection.status === 'APPROVED' && (
+            <>
+              <Button
+                icon="document-text"
+                label={t('visit.pdf')}
+                variant="secondary"
+                loading={busy === 'pdf'}
+                onPress={() => void openPdf()}
+              />
+              <ErrorText message={failed.pdf ?? null} />
+            </>
+          )}
           {inspection.status !== 'PLANNED' && report}
         </>
       )}

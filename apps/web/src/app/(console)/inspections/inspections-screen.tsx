@@ -486,6 +486,27 @@ function InspectionDetail({
     void act(() => api.inspections.sendBack(inspection.id, { note }), "Report sent back to the Supervisor");
   }
 
+  const [openingPdf, setOpeningPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  /** Opens the approved report as a PDF in a new tab. The first time, the server makes it, which takes a few seconds. */
+  async function openPdf() {
+    setOpeningPdf(true);
+    setPdfError(null);
+    // Opened straight away, while the click still counts, so the browser does not block it as a pop-up.
+    const tab = window.open("", "_blank");
+    try {
+      const { path } = await api.inspections.reportPdf(inspection.id);
+      if (tab) tab.location.href = api.fileUrl(path);
+      else window.location.href = api.fileUrl(path);
+    } catch (e) {
+      tab?.close();
+      setPdfError(describe(e));
+    } finally {
+      setOpeningPdf(false);
+    }
+  }
+
   const checks = inspection.sections.flatMap((section) => section.checks);
   const findings = checks.filter((check) => check.answer === "NON_COMPLIANT");
   const notApplicable = checks.filter((check) => check.answer === "NOT_APPLICABLE").length;
@@ -510,6 +531,18 @@ function InspectionDetail({
       </div>
 
       {inspection.reportNumber && <p className="font-semibold">Inspection report {inspection.reportNumber}</p>}
+
+      {/* Only an approved report is final, so only then is there a PDF. It is also filed in the outlet's documents. */}
+      {inspection.status === "APPROVED" && (
+        <div className="flex flex-col gap-2">
+          <ErrorMessage message={pdfError} />
+          <div>
+            <Button type="button" variant="secondary" loading={openingPdf} onClick={() => void openPdf()}>
+              Open the report as a PDF
+            </Button>
+          </div>
+        </div>
+      )}
 
       {inspection.correctionNote && (
         <p className="rounded-lg border border-border p-3 text-sm">

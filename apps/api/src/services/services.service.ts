@@ -60,10 +60,11 @@ const visitDetailInclude = {
       name: true,
       checklistTemplate: {
         select: {
+          // Retired tasks are read too: a visit that answered one keeps showing it (see visitTasks).
           items: {
-            where: { isActive: true, outletId: null },
+            where: { outletId: null },
             orderBy: { position: 'asc' },
-            select: { id: true, label: true },
+            select: { id: true, label: true, isActive: true },
           },
         },
       },
@@ -77,6 +78,22 @@ const visitDetailInclude = {
 type BookingRow = Prisma.BookingGetPayload<{ include: typeof bookingInclude }>;
 type VisitRow = Prisma.JobGetPayload<{ include: typeof visitInclude }>;
 type VisitDetailRow = Prisma.JobGetPayload<{ include: typeof visitDetailInclude }>;
+
+/**
+ * The tasks of one visit. ECCS can add and retire tasks in the console's
+ * Catalogue, and a visit must not change under the people who did it:
+ * - a task the visit has an answer for always stays, even if retired since;
+ * - a visit still to be done, or under way, also has every task in use today;
+ * - a finished visit has only what was answered, so a task added afterwards
+ *   never appears on an old report as "not done".
+ */
+function visitTasks(visit: VisitDetailRow) {
+  const answered = new Set(visit.taskResponses.map((response) => response.itemId));
+  const open = visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED' || visit.status === 'IN_PROGRESS';
+  return (visit.serviceType.checklistTemplate?.items ?? []).filter(
+    (item) => answered.has(item.id) || (open && item.isActive),
+  );
+}
 
 /**
  * The service loop. A restaurant books a service from the catalogue; ECCS
@@ -172,10 +189,12 @@ export class ServicesService {
   ): Promise<BookingDto> {
     const outlet = await this.db.outlet.findUnique({
       where: { id: input.outletId },
-      select: { id: true, organizationId: true, isActive: true },
+      select: { id: true, organizationId: true, isActive: true, organization: { select: { isActive: true } } },
     });
+    // An outlet ECCS has switched off, or one of a client that is switched off, takes no bookings.
     const allowed =
       outlet?.isActive &&
+      outlet.organization.isActive &&
       can(user.memberships, 'bookings', 'create', { organizationId: outlet.organizationId, outletId: outlet.id });
     if (!outlet || !allowed) throw new ForbiddenException('You cannot book a service for this outlet');
 
@@ -308,7 +327,10 @@ export class ServicesService {
   ): Promise<VisitDto> {
     if (!this.isEccsAdmin(user)) throw new ForbiddenException('Only ECCS can schedule a visit');
     const [outlet, serviceType] = await Promise.all([
-      this.db.outlet.findFirst({ where: { id: input.outletId, isActive: true }, select: { id: true } }),
+      this.db.outlet.findFirst({
+        where: { id: input.outletId, isActive: true, organization: { isActive: true } },
+        select: { id: true },
+      }),
       this.db.serviceType.findFirst({ where: { code: input.serviceCode, isActive: true }, select: { id: true } }),
     ]);
     if (!outlet) throw new BadRequestException('Outlet not found');
@@ -421,7 +443,7 @@ export class ServicesService {
     input: { done: boolean; note?: string | undefined },
   ): Promise<VisitDto> {
     const visit = await this.requireInProgress(user, visitId);
-    const items = visit.serviceType.checklistTemplate?.items ?? [];
+    const items = visitTasks(visit);
     if (!items.some((item) => item.id === itemId)) throw new NotFoundException('That task is not part of this service');
 
     const answer = { valueBool: input.done, note: input.note || null, capturedAt: new Date() };
@@ -500,7 +522,7 @@ export class ServicesService {
    */
   async complete(user: AuthUser, visitId: string): Promise<VisitDto> {
     const visit = await this.requireInProgress(user, visitId);
-    const items = visit.serviceType.checklistTemplate?.items ?? [];
+    const items = visitTasks(visit);
     const answered = new Set(visit.taskResponses.map((response) => response.itemId));
     if (items.some((item) => !answered.has(item.id))) {
       throw new BadRequestException('Answer every task before finishing');
@@ -733,7 +755,7 @@ export class ServicesService {
       checkInAt: visit.checkInAt?.toISOString() ?? null,
       completedAt: visit.completedAt?.toISOString() ?? null,
       notes: visit.notes,
-      tasks: (visit.serviceType.checklistTemplate?.items ?? []).map((item) => {
+      tasks: visitTasks(visit).map((item) => {
         const answer = answers.get(item.id);
         return {
           itemId: item.id,

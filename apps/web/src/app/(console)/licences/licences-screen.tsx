@@ -15,6 +15,7 @@ import {
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
+import { OutletScorePanel } from "@/components/outlet-score-panel";
 import { useToast } from "@/components/toast";
 import { Button, Card, ErrorMessage, Field, Loading, SelectField } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -361,6 +362,9 @@ export default function LicencesScreen() {
             </Button>
           </div>
         )}
+
+        {/* Read only: the outlet's hygiene score, which its licences below count towards. */}
+        {outlet && <OutletScorePanel outletId={outletId} outletName={outlet.name} />}
 
         {outlet && current && (
           <section className="flex flex-col gap-3">

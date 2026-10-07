@@ -126,6 +126,14 @@ export class InspectionsController {
     return this.inspections.approve(user, id);
   }
 
+  /** A signed link to the approved report as a PDF, for anyone who may read the report. */
+  @Post(':id/report-pdf')
+  @HttpCode(200)
+  @RequirePermission('inspections', 'read')
+  reportPdf(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.inspections.reportPdf(user, id);
+  }
+
   @Post(':id/send-back')
   @HttpCode(200)
   @RequirePermission('inspections', 'approve')

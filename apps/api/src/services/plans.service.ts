@@ -145,7 +145,9 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
       where: {
         isActive: true,
         nextDueDate: { lte: until },
-        outlet: { isActive: true },
+        // Nothing is created for an outlet or client ECCS has switched off, or for a kind of service it no longer does.
+        outlet: { isActive: true, organization: { isActive: true } },
+        serviceType: { isActive: true },
         ...(outletId && { outletId }),
         OR: [{ subscriptionId: null }, { subscription: { status: 'ACTIVE' } }],
       },

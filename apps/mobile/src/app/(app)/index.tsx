@@ -7,6 +7,7 @@ import { isEccsUser } from '@/components/app-nav';
 import { NotificationBell } from '@/components/notification-bell';
 import { OutletOverview } from '@/components/outlet-overview';
 import { PinReveal } from '@/components/pin-reveal';
+import { ScoreCard } from '@/components/score-parts';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
@@ -31,6 +32,8 @@ export default function HomeScreen() {
   const [visits, setVisits] = useState<VisitSummaryDto[] | null>(null);
   const [chosenOutlet, setChosenOutlet] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // When the overview was last loaded: the score card reloads whenever this changes.
+  const [loadedAt, setLoadedAt] = useState(0);
 
   const membership = user?.memberships[0];
   const eccs = isEccsUser(membership?.role);
@@ -45,6 +48,7 @@ export default function HomeScreen() {
         const [outlets, remembered] = await Promise.all([api.dashboard.get(), recallOutlet()]);
         setOverview(outlets);
         setChosenOutlet(remembered);
+        setLoadedAt(Date.now());
       }
       setError(null);
     } catch (e) {
@@ -134,6 +138,8 @@ export default function HomeScreen() {
                 </View>
               )}
 
+              {/* The hygiene score for this outlet; it is fetched again each time Home reloads. */}
+              <ScoreCard outletId={outlet.outletId} stamp={loadedAt} />
               <OutletOverview outlet={outlet} />
               {outlet.visits && (
                 <>
@@ -148,9 +154,6 @@ export default function HomeScreen() {
                   {outlet.visits.map((visit) => (
                     <VisitCard key={visit.id} visit={visit} />
                   ))}
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {t('dash.scoreSoon')}
-                  </ThemedText>
                 </>
               )}
             </>

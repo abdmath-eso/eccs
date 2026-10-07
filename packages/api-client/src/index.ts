@@ -67,6 +67,25 @@ import type {
 
 // notifications-types: the notifications worker imports its types from "@eccs/shared" on the next line
 import type { NotificationPageDto, UnreadCountDto } from "@eccs/shared";
+// scores-types: the hygiene score worker imports its types from "@eccs/shared" on the next line
+import type { HygieneScoreDto } from "@eccs/shared";
+// monitoring-types: the monitoring worker imports its types from "@eccs/shared" on the next line
+import type { MonitoringBoardDto } from "@eccs/shared";
+// catalog-types: the console-editing worker imports its types from "@eccs/shared" on the next line
+import type {
+  AddServiceTaskInput,
+  CatalogAdminDto,
+  CatalogItemChangeDto,
+  CreateCatalogItemInput,
+  LinkedPhoneDto,
+  MoveServiceTaskInput,
+  UpdateCatalogItemInput,
+  UpdateOrganizationInput,
+  UpdateOutletInput,
+  UpdateOwnerInput,
+  UpdateServiceKindInput,
+  UpdateServiceTaskInput,
+} from "@eccs/shared";
 // inspections-types: the inspections worker imports its types from "@eccs/shared" on the next line
 import type {
   AnswerInspectionCheckInput,
@@ -429,6 +448,64 @@ export function createApiClient(options: ApiClientOptions) {
       markRead: (notificationId: string) => call<UnreadCountDto>("POST", `/notifications/${id(notificationId)}/read`),
       markAllRead: () => call<UnreadCountDto>("POST", "/notifications/read-all"),
     },
+    // scores-api: the hygiene score worker adds `scores: { ... },` on the next line
+    /** The hygiene score: one number out of 100 per outlet, with what it is made of. */
+    scores: {
+      /**
+       * An outlet's score now, its band and the change on last week. Everyone but the
+       * Head Chef also gets the breakdown and the last 30 days (`detail`).
+       */
+      get: (outletId: string) => call<HygieneScoreDto>("GET", `/scores/${id(outletId)}`),
+    },
+    // monitoring-api: the monitoring worker adds `monitoring: { ... },` on the next line
+    /** The ECCS monitoring board: every outlet the person may see, worst first. ECCS staff only. */
+    monitoring: {
+      /** `days` is how far back the checklist and rating figures look; 7 when left out. */
+      board: (filter: { days?: number } = {}) =>
+        call<MonitoringBoardDto>("GET", `/monitoring${query(filter.days ? { days: String(filter.days) } : {})}`),
+    },
+    // catalog-api: the console-editing worker adds its calls on the next line
+    /**
+     * ECCS admins change a client after onboarding. Nothing is deleted: a client or outlet is
+     * switched off (`isActive: false`) and can be switched back on. Each call that changes the
+     * client answers with the whole client as it now stands.
+     */
+    clients: {
+      update: (organizationId: string, input: UpdateOrganizationInput) =>
+        call<OrganizationDto>("PATCH", `/organizations/${id(organizationId)}`, input),
+      updateOutlet: (organizationId: string, outletId: string, input: UpdateOutletInput) =>
+        call<OrganizationDto>("PATCH", `/organizations/${id(organizationId)}/outlets/${id(outletId)}`, input),
+      /** A new restaurant code for the outlet. Phones already linked stay linked. */
+      newOutletCode: (organizationId: string, outletId: string) =>
+        call<OrganizationDto>("POST", `/organizations/${id(organizationId)}/outlets/${id(outletId)}/new-code`),
+      /** The phones linked to the client: each outlet's, and the Owner's own (no outlet). */
+      phones: (organizationId: string) => call<LinkedPhoneDto[]>("GET", `/organizations/${id(organizationId)}/phones`),
+      /** Unlinks one phone and answers with those still linked. */
+      unlinkPhone: (organizationId: string, phoneId: string) =>
+        call<LinkedPhoneDto[]>("DELETE", `/organizations/${id(organizationId)}/phones/${id(phoneId)}`),
+      updateOwner: (organizationId: string, userId: string, input: UpdateOwnerInput) =>
+        call<OrganizationDto>("PATCH", `/organizations/${id(organizationId)}/owners/${id(userId)}`, input),
+      /** Removes the Owner's PIN and logs them out, so their next one-time-code login gives them a new PIN. */
+      resetOwnerSetup: (organizationId: string, userId: string) =>
+        call<OrganizationDto>("POST", `/organizations/${id(organizationId)}/owners/${id(userId)}/reset-setup`),
+    },
+    /** ECCS admins manage what is on offer: bookable services, kinds of service and each kind's task list. */
+    catalogue: {
+      /** Everything, including services no longer offered and retired tasks. */
+      get: () => call<CatalogAdminDto>("GET", "/catalog"),
+      addItem: (input: CreateCatalogItemInput) => call<CatalogAdminDto>("POST", "/catalog/items", input),
+      /** A booked service whose price changes is kept as it was and replaced by a new one; `replacedById` says so. */
+      updateItem: (itemId: string, input: UpdateCatalogItemInput) =>
+        call<CatalogItemChangeDto>("PATCH", `/catalog/items/${id(itemId)}`, input),
+      updateKind: (serviceCode: string, input: UpdateServiceKindInput) =>
+        call<CatalogAdminDto>("PATCH", `/catalog/kinds/${id(serviceCode)}`, input),
+      addTask: (serviceCode: string, input: AddServiceTaskInput) =>
+        call<CatalogAdminDto>("POST", `/catalog/kinds/${id(serviceCode)}/tasks`, input),
+      updateTask: (taskId: string, input: UpdateServiceTaskInput) =>
+        call<CatalogAdminDto>("PATCH", `/catalog/tasks/${id(taskId)}`, input),
+      moveTask: (taskId: string, input: MoveServiceTaskInput) =>
+        call<CatalogAdminDto>("POST", `/catalog/tasks/${id(taskId)}/move`, input),
+    },
     // inspections-api: the inspections worker adds `inspections: { ... },` on the next line
     /** Scored inspections: ECCS's audit of an outlet, its scored report and the approval. */
     inspections: {
@@ -469,6 +546,11 @@ export function createApiClient(options: ApiClientOptions) {
       /** ECCS gives it back to the Supervisor, saying what to correct. */
       sendBack: (inspectionId: string, input: ReturnInspectionInput) =>
         call<InspectionDto>("POST", `/inspections/${id(inspectionId)}/send-back`, input),
+      /**
+       * A link to the approved report as a PDF (relative to the API base URL, valid for a
+       * limited time). May take a few seconds the first time, while the PDF is made.
+       */
+      reportPdf: (inspectionId: string) => call<{ path: string }>("POST", `/inspections/${id(inspectionId)}/report-pdf`),
     },
     /** One month ("2026-10") of an outlet's history calendar. */
     calendar: {

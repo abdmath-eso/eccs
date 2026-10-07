@@ -1,47 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { VISIT_SLOTS, visitSlotWindow, type LocalizedText } from '@eccs/shared';
-import puppeteer from 'puppeteer-core';
-import { env } from '../config/env.js';
+import { PdfPrinterService } from '../pdf/pdf-printer.service.js';
+import { day, escapeHtml, factRow as row, moment, reportFooter, reportPage } from '../pdf/report-page.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 
-// Where a Chromium-based browser is usually installed. The report is laid out as a web
-// page and printed to PDF by a browser, so text in any Indian script comes out right.
-const BROWSER_PATHS = [
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/google-chrome',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-];
-
 const RATING_WORDS = ['Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
-
-const escapeHtml = (text: string) =>
-  text.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
 
 const english = (text: unknown) => {
   const localized = (text ?? {}) as LocalizedText;
   return localized.en ?? Object.values(localized)[0] ?? '';
 };
-
-const day = (date: Date) =>
-  new Intl.DateTimeFormat('en-IN', { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(date);
-
-const moment = (date: Date) =>
-  new Intl.DateTimeFormat('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
 
 const clock = (hhmm: string) => {
   const [hours, minutes] = hhmm.split(':').map(Number) as [number, number];
@@ -68,6 +38,7 @@ export class ReportPdfService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly printer: PdfPrinterService,
   ) {}
 
   private get db() {
@@ -89,7 +60,8 @@ export class ReportPdfService {
             name: true,
             checklistTemplate: {
               select: {
-                items: { where: { isActive: true, outletId: null }, orderBy: { position: 'asc' }, select: { id: true, label: true } },
+                // Retired tasks are read too: the report lists what this visit answered (see below).
+                items: { where: { outletId: null }, orderBy: { position: 'asc' }, select: { id: true, label: true } },
               },
             },
           },
@@ -120,14 +92,15 @@ export class ReportPdfService {
     const number = visit.serviceReport.number;
     const signOff = visit.signOff;
 
-    const row = (label: string, value: string | null | undefined) =>
-      value ? `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>` : '';
     const gallery = (kind: 'BEFORE' | 'AFTER', title: string) => {
       const shown = photos.filter((photo) => photo.kind === kind);
       if (shown.length === 0) return '';
       return `<h2>${title}</h2><div class="photos">${shown.map((photo) => `<img src="${photo.src}" alt="">`).join('')}</div>`;
     };
+    // Only the tasks this visit answered: one retired in the Catalogue since still belongs
+    // on the report, and one added since was never part of this visit.
     const tasks = (visit.serviceType.checklistTemplate?.items ?? [])
+      .filter((item) => answers.has(item.id))
       .map((item) => {
         const answer = answers.get(item.id);
         const done = answer?.valueBool === true;
@@ -137,39 +110,16 @@ export class ReportPdfService {
       })
       .join('');
 
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>
-      @page { size: A4; margin: 16mm 14mm; }
-      * { box-sizing: border-box; }
-      body { font-family: "Noto Sans", "Nirmala UI", "Segoe UI", Arial, sans-serif; font-size: 11pt; color: #11181c; margin: 0; }
-      header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0b7a6e; padding-bottom: 10px; }
-      .company { font-size: 18pt; font-weight: 700; color: #0b7a6e; }
-      .muted { color: #5b6770; font-size: 9.5pt; }
-      .title { text-align: right; }
-      .title b { font-size: 15pt; }
-      h2 { font-size: 12pt; margin: 18px 0 6px; color: #0b7a6e; }
-      table { width: 100%; border-collapse: collapse; }
-      .facts th { text-align: left; font-weight: 600; color: #5b6770; width: 32%; padding: 3px 8px 3px 0; vertical-align: top; }
-      .facts td { padding: 3px 0; }
+    // The page's base styles and header are shared with the inspection report (src/pdf/report-page.ts).
+    const styles = `
       .tasks td { padding: 5px 6px; border-bottom: 1px solid #d5dbdf; vertical-align: top; }
       .mark { width: 22px; font-weight: 700; }
       .done { color: #0b7a6e; } .not { color: #c62828; }
       .reason { color: #c62828; font-size: 10pt; }
-      .photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-      .photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; }
-      .box { border: 1px solid #0b7a6e; border-radius: 6px; padding: 10px 12px; break-inside: avoid; }
       .stars { color: #b45309; font-size: 14pt; letter-spacing: 2px; }
-      p { margin: 4px 0; white-space: pre-wrap; }
-      h2, .tasks tr { break-after: avoid; } .tasks tr { break-inside: avoid; }
-      footer { margin-top: 22px; border-top: 1px solid #d5dbdf; padding-top: 6px; }
-    </style></head><body>
-      <header>
-        <div>
-          <div class="company">ECCS</div>
-          <div class="muted">Eosfera Commercial Cleaning Services, Hyderabad<br>${escapeHtml(env.SUPPORT_PHONE)}</div>
-        </div>
-        <div class="title"><b>Service report</b><br>${escapeHtml(number)}</div>
-      </header>
-
+      .tasks tr { break-after: avoid; break-inside: avoid; }
+    `;
+    const body = `
       <h2>Visit</h2>
       <table class="facts">
         ${row('Service', service)}
@@ -201,9 +151,11 @@ export class ReportPdfService {
       </div>
 
       <footer class="muted">Report ${escapeHtml(number)} · made on ${moment(new Date())} · Sample format</footer>
-    </body></html>`;
+    `;
 
-    const pdf = await this.print(html);
+    const pdf = await this.printer.print(reportPage({ title: 'Service report', number, styles, body }), {
+      footer: reportFooter('Service report', number),
+    });
     await this.storage.put(storageKey, pdf, 'application/pdf');
 
     const id = randomUUID();
@@ -246,21 +198,5 @@ export class ReportPdfService {
   /** Makes it in the background, right after ECCS approves the report. A failure is logged, not shown. */
   ensureLater(visitId: string): void {
     this.ensure(visitId).catch((error) => this.logger.warn(`Could not make the report PDF for visit ${visitId}: ${String(error)}`));
-  }
-
-  /** Lays the page out in a browser without a window and prints it to PDF. */
-  private async print(html: string): Promise<Buffer> {
-    const executablePath = env.PDF_BROWSER_PATH ?? BROWSER_PATHS.find((path) => existsSync(path));
-    if (!executablePath) {
-      throw new ServiceUnavailableException('PDF reports are not set up on this server yet');
-    }
-    const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox', '--disable-gpu'] });
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'load' });
-      return Buffer.from(await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true }));
-    } finally {
-      await browser.close();
-    }
   }
 }

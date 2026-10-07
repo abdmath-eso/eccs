@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -52,11 +53,34 @@ const OTP_ROLES: Role[] = [...ECCS_ROLES, 'OWNER'];
 const userInclude = {
   memberships: {
     include: {
-      organization: { select: { name: true } },
-      outlet: { select: { name: true, organizationId: true } },
+      organization: { select: { name: true, isActive: true } },
+      outlet: { select: { name: true, organizationId: true, isActive: true, organization: { select: { isActive: true } } } },
     },
   },
 } as const;
+
+/**
+ * The person with only the roles that still count. ECCS can switch an outlet,
+ * or a whole client, off in the console: a role at a place that is switched
+ * off is left out, so its Manager and Head Chefs cannot log in while the Owner
+ * (whose role is at the client, not the outlet) still can. Someone left with no
+ * role at all cannot log in. Switching the place back on restores everything.
+ */
+function withLiveRoles<
+  T extends {
+    memberships: {
+      organization: { isActive: boolean } | null;
+      outlet: { isActive: boolean; organization: { isActive: boolean } } | null;
+    }[];
+  },
+>(user: T): T {
+  return {
+    ...user,
+    memberships: user.memberships.filter(
+      (m) => (m.organization?.isActive ?? true) && (m.outlet?.isActive ?? true) && (m.outlet?.organization.isActive ?? true),
+    ),
+  };
+}
 
 const otpHash = (challengeId: string, code: string) => sha256(`${challengeId}:${code}`);
 
@@ -75,11 +99,15 @@ export class AuthService {
 
   // ───────────────────────── One-time code ─────────────────────────
 
-  private otpUser(phone: string) {
-    return this.db.user.findFirst({
+  private async otpUser(phone: string) {
+    const user = await this.db.user.findFirst({
       where: { phone, isActive: true, memberships: { some: { role: { in: OTP_ROLES } } } },
       include: userInclude,
     });
+    if (!user) return null;
+    // The Owner of a client ECCS has switched off is treated like an unknown number.
+    const live = withLiveRoles(user);
+    return live.memberships.some((m) => OTP_ROLES.includes(m.role)) ? live : null;
   }
 
   /**
@@ -231,11 +259,21 @@ export class AuthService {
       throw new UnauthorizedException('Wrong PIN');
     }
 
+    // The PIN is right, but ECCS has switched this person's outlet (or the whole
+    // restaurant) off. Said plainly, and not counted as a wrong PIN.
+    const live = withLiveRoles(user);
+    if (live.memberships.length === 0) {
+      throw new ForbiddenException({
+        code: AUTH_ERROR.restaurantInactive,
+        message: 'This restaurant is not active with ECCS at the moment. Please call ECCS.',
+      });
+    }
+
     await this.db.linkedDevice.update({
       where: { id: device.id },
       data: { failedPinAttempts: 0, pinLockedUntil: null, lastUsedAt: new Date() },
     });
-    return this.startSession(user, device.name ?? undefined, device.id);
+    return this.startSession(live, device.name ?? undefined, device.id);
   }
 
   /** Gives a restaurant user a new random PIN, unique within the organisation. Returns it once. */
@@ -272,12 +310,15 @@ export class AuthService {
     if (!session || session.revokedAt || session.expiresAt <= new Date() || !session.user.isActive) {
       return null;
     }
+    // Checked on every request, so switching an outlet off in the console logs its staff out at once.
+    const user = withLiveRoles(session.user);
+    if (user.memberships.length === 0) return null;
 
     if (Date.now() - session.lastUsedAt.getTime() > LAST_USED_REFRESH_MS) {
       await this.db.session.update({ where: { id: session.id }, data: { lastUsedAt: new Date() } });
     }
 
-    return { ...toDto(session.user), sessionId: session.id, contentLanguage: session.user.language };
+    return { ...toDto(user), sessionId: session.id, contentLanguage: user.language };
   }
 
   async logout(sessionId: string): Promise<void> {

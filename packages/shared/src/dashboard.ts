@@ -1,5 +1,6 @@
 import type { ChecklistRunStatus, LocalizedText } from "./checklists.js";
 import type { LicenceState, LicenceType } from "./licences.js";
+import type { VisitSummaryDto } from "./services.js";
 
 // The restaurant's home screen: how today is going at each outlet, built
 // from what is already recorded (checklists, licences, issues with ECCS).
@@ -47,4 +48,9 @@ export interface OutletDashboardDto {
   licences: DashboardLicenceDto[] | null;
   /** Issues raised with ECCS that are not yet resolved. Null for the Head Chef, who sees only checklists here. */
   issues: { open: number; inProgress: number } | null;
+  /**
+   * ECCS visits waiting for sign-off, under way or coming up, soonest first, a few at
+   * most. Null for the Head Chef.
+   */
+  visits: VisitSummaryDto[] | null;
 }

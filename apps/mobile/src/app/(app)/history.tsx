@@ -9,6 +9,7 @@ import {
   type CalendarLicenceDto,
   type CalendarMonthDto,
   type CalendarVisitDto,
+  VISIT_SLOTS,
 } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -147,22 +148,31 @@ export default function HistoryScreen() {
     [theme.textSecondary, t('hist.holiday')],
   ];
 
+  const slotName = (slot: string | null) => {
+    const known = VISIT_SLOTS.find((value) => value === slot);
+    return known ? t(`slot.${known}`) : slot;
+  };
+
   const visitRow = (visit: CalendarVisitDto, date?: string) => (
-    <View key={visit.id} style={[styles.row, { borderColor: theme.border }]}>
+    <Pressable
+      key={visit.id}
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: '/services/[visitId]', params: { visitId: visit.id } })}
+      style={[styles.row, { borderColor: theme.border }]}>
       <View style={[styles.stripe, { backgroundColor: visitColor(visit) }]} />
       <View style={styles.rowText}>
         <ThemedText type="default" style={styles.rowTitle}>
           {localize(visit.service, language)}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          {[date ? formatDate(date, language) : null, visit.slot].filter(Boolean).join(' · ')}
+          {[date ? formatDate(date, language) : null, slotName(visit.slot)].filter(Boolean).join(' · ')}
         </ThemedText>
       </View>
       <ThemedText type="smallBold" style={{ color: visit.state === 'DONE' ? theme.primary : visitColor(visit) }}>
         {visit.state === 'DONE' ? '✓ ' : ''}
         {t(`visitState.${visit.state}`)}
       </ThemedText>
-    </View>
+    </Pressable>
   );
 
   const licenceRow = (licence: CalendarLicenceDto, date: string, showDate: boolean) => (

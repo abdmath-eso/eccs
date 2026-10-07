@@ -15,6 +15,7 @@ const ROLE_NAMES: Record<string, string> = {
 
 const NAV = [
   { href: "/", label: "Clients" },
+  { href: "/visits", label: "Visits" },
   { href: "/issues", label: "Issues" },
   { href: "/licences", label: "Licences" },
   { href: "/sops", label: "SOPs" },

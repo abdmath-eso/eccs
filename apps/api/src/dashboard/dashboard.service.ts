@@ -5,6 +5,10 @@ import { ChecklistsService, indiaDate } from '../checklists/checklists.service.j
 import { IssuesService } from '../issues/issues.service.js';
 import { LicencesService } from '../licences/licences.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ServicesService } from '../services/services.service.js';
+
+// The home screen lists this many visits; the rest are under Services.
+const MAX_VISITS = 3;
 
 /**
  * The restaurant's home screen: how today is going at each of the person's
@@ -18,6 +22,7 @@ export class DashboardService {
     private readonly checklists: ChecklistsService,
     private readonly licences: LicencesService,
     private readonly issues: IssuesService,
+    private readonly services: ServicesService,
   ) {}
 
   /**
@@ -38,9 +43,11 @@ export class DashboardService {
       orderBy: { name: 'asc' },
     });
 
-    const [licences, issues] = await Promise.all([
+    const [licences, issues, visits] = await Promise.all([
       this.licences.listLicences(user, { attentionOnly: true }),
       this.issues.list(user, { openOnly: true }),
+      // Soonest first, and that puts visits waiting for sign-off at the top.
+      this.services.listVisits(user, { state: 'open' }),
     ]);
     const today = indiaDate();
 
@@ -80,6 +87,7 @@ export class DashboardService {
                 inProgress: outletIssues.filter((issue) => issue.status === 'IN_PROGRESS').length,
               }
             : null,
+          visits: overview ? visits.filter((visit) => visit.outletId === outlet.id).slice(0, MAX_VISITS) : null,
         };
       }),
     );

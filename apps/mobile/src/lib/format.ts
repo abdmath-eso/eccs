@@ -44,6 +44,52 @@ export function formatDate(isoDate: string, language: LanguageCode): string {
   }
 }
 
+/** A calendar date with a short weekday and no year, e.g. "Thu, 8 Oct". */
+export function formatDayShort(isoDate: string, language: LanguageCode): string {
+  try {
+    return new Intl.DateTimeFormat(LOCALES[language], {
+      timeZone: 'UTC',
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    }).format(new Date(`${isoDate}T00:00:00Z`));
+  } catch {
+    return isoDate;
+  }
+}
+
+/** A YYYY-MM-DD date moved by a number of days. */
+export function addDays(isoDate: string, days: number): string {
+  return new Date(Date.parse(`${isoDate}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** An amount held in paise as rupees, e.g. "₹1,800". */
+export function formatRupees(paise: number, language: LanguageCode): string {
+  const rupees = Math.round(paise / 100);
+  try {
+    return new Intl.NumberFormat(LOCALES[language], { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(
+      rupees,
+    );
+  } catch {
+    return `₹${rupees}`;
+  }
+}
+
+/** A length of time in minutes as people say it, e.g. "1.5 hours" or "45 minutes". */
+export function formatDuration(minutes: number, language: LanguageCode): string {
+  const inHours = minutes >= 60;
+  const value = inHours ? Math.round((minutes / 60) * 10) / 10 : minutes;
+  try {
+    return new Intl.NumberFormat(LOCALES[language], {
+      style: 'unit',
+      unit: inHours ? 'hour' : 'minute',
+      unitDisplay: 'long',
+    }).format(value);
+  } catch {
+    return `${value} ${inHours ? 'h' : 'min'}`;
+  }
+}
+
 /** Today's calendar date in India as YYYY-MM-DD, whatever the phone's own time zone. */
 export function indiaToday(): string {
   try {

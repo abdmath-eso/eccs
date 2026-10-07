@@ -8,6 +8,7 @@ import { OutletOverview } from '@/components/outlet-overview';
 import { PinReveal } from '@/components/pin-reveal';
 import { SideMenu, type MenuItem } from '@/components/side-menu';
 import { ThemedText } from '@/components/themed-text';
+import { VisitCard } from '@/components/visit-card';
 import { ErrorText } from '@/components/ui/error-text';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
@@ -28,7 +29,7 @@ const HEAD_CHEF_MENU: MenuItem[] = [
 ];
 const MANAGER_MENU: MenuItem[] = [
   ...HEAD_CHEF_MENU,
-  { label: 'tile.services', icon: 'construct-outline' },
+  { label: 'tile.services', icon: 'construct-outline', href: '/services' },
   { label: 'tile.dues', icon: 'receipt-outline' },
   { label: 'tile.salary', icon: 'wallet-outline' },
   { label: 'tile.history', icon: 'calendar-outline', href: '/history' },
@@ -38,7 +39,7 @@ const MANAGER_MENU: MenuItem[] = [
 const ECCS_MENU: MenuItem[] = [
   { label: 'tile.clients', icon: 'business-outline' },
   { label: 'tile.monitoring', icon: 'pulse-outline' },
-  { label: 'tile.jobs', icon: 'construct-outline' },
+  { label: 'tile.jobs', icon: 'construct-outline', href: '/services' },
   { label: 'tile.inspections', icon: 'clipboard-outline' },
 ];
 const MENU: Record<Role, MenuItem[]> = {
@@ -50,7 +51,7 @@ const MENU: Record<Role, MenuItem[]> = {
     { label: 'tile.qr', icon: 'qr-code-outline' },
   ],
   SUPERVISOR: [
-    { label: 'tile.jobs', icon: 'construct-outline' },
+    { label: 'tile.jobs', icon: 'construct-outline', href: '/services' },
     { label: 'tile.inspections', icon: 'clipboard-outline' },
     { label: 'tile.issues', icon: 'chatbubble-ellipses-outline' },
     { label: 'tile.clients', icon: 'business-outline' },
@@ -189,10 +190,23 @@ export default function HomeScreen() {
           <ErrorText message={error} />
           {overview === null && !error && <ActivityIndicator color={theme.primary} />}
           {outlet && <OutletOverview outlet={outlet} />}
-          {outlet && membership.role !== 'HEAD_CHEF' && (
-            <ThemedText type="small" themeColor="textSecondary">
-              {t('dash.soon')}
-            </ThemedText>
+          {outlet?.visits && (
+            <>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
+                {t('dash.visits')}
+              </ThemedText>
+              {outlet.visits.length === 0 && (
+                <ThemedText type="default" themeColor="textSecondary">
+                  {t('dash.noVisits')}
+                </ThemedText>
+              )}
+              {outlet.visits.map((visit) => (
+                <VisitCard key={visit.id} visit={visit} />
+              ))}
+              <ThemedText type="small" themeColor="textSecondary">
+                {t('dash.scoreSoon')}
+              </ThemedText>
+            </>
           )}
         </>
       ) : (
@@ -232,6 +246,7 @@ const styles = StyleSheet.create({
   },
   headerText: { flex: 1, gap: Spacing.one },
   greeting: { fontSize: 24, lineHeight: 30 },
+  sectionGap: { marginTop: Spacing.three },
   outlets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   outlet: {
     minHeight: MinTouchSize - 8,

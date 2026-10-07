@@ -40,10 +40,10 @@ export function FileChooser({ value, onChange, error: missing }: FileChooserProp
       </ThemedText>
       <View style={styles.buttons}>
         <View style={styles.button}>
-          <Button label={`📷  ${t('docs.takePhoto')}`} variant="secondary" onPress={() => void pick(photographDocument)} />
+          <Button icon="camera" label={t('docs.takePhoto')} variant="secondary" onPress={() => void pick(photographDocument)} />
         </View>
         <View style={styles.button}>
-          <Button label={`📄  ${t('docs.chooseFile')}`} variant="secondary" onPress={() => void pick(chooseDocument)} />
+          <Button icon="document-attach" label={t('docs.chooseFile')} variant="secondary" onPress={() => void pick(chooseDocument)} />
         </View>
       </View>
       {value && (

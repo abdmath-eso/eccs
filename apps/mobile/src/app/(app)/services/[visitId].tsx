@@ -418,7 +418,8 @@ export default function VisitScreen() {
         {photoGrid(shown, title)}
         {recording && (
           <Button
-            label={`📷  ${t(kind === 'BEFORE' ? 'visit.addBefore' : 'visit.addAfter')}`}
+            icon="camera"
+            label={t(kind === 'BEFORE' ? 'visit.addBefore' : 'visit.addAfter')}
             variant="secondary"
             loading={busy === key}
             onPress={() => void addPhoto(kind)}

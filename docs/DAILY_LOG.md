@@ -35,6 +35,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - 135 new pieces of app text, translated into the 11 other languages by three translation jobs and checked by program.
 - Tested: the full build, type check and lint pass; 138 end-to-end tests pass (the PIN lockout test was adjusted: the fifth wrong PIN now locks at once and reports the time left). Opened in Chrome: the bottom bar and moving between sections, the calendar, a checklist with its pinned progress and Submit, Services, Raise an issue, Licences, and in the console Visits (grouped diary, filters, the cancel dialog), Clients (table and search) and the counts in the menu. Most reworked behaviour was not exercised by hand (retrying a failed photo, the PIN lockout countdown, reordering SOP steps, sharing a PIN, the Supervisor's recording flow after the rework), and nothing was tried on a phone.
 - Choices the workers made that the founder should confirm are listed in STATUS section 4 under "UI review".
+- Founder asked what "buttons are words only" meant, then asked for the icons back. The shared button now takes an icon from the app's own icon set (the standard is a small icon before the label), and the take-photo, choose-file, call, WhatsApp, share-PIN and add buttons carry one. Type check and lint pass; not looked at in the browser or on a phone.
 
 **Carried over from yesterday**
 

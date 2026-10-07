@@ -505,7 +505,7 @@ export default function DocumentsScreen() {
             <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
           </View>
         ) : (
-          <Button label={`+  ${t('docs.addLicence')}`} variant="secondary" onPress={() => openForm('licence')} />
+          <Button icon="add" label={t('docs.addLicence')} variant="secondary" onPress={() => openForm('licence')} />
         ))}
 
       {/* ── Document vault ── */}
@@ -590,7 +590,7 @@ export default function DocumentsScreen() {
             <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
           </View>
         ) : (
-          <Button label={`+  ${t('docs.addDocument')}`} variant="secondary" onPress={() => openForm('document')} />
+          <Button icon="add" label={t('docs.addDocument')} variant="secondary" onPress={() => openForm('document')} />
         ))}
 
       <ConfirmDialog

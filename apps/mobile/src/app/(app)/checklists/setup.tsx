@@ -326,7 +326,8 @@ export default function ChecklistSetupScreen() {
           </View>
         ) : (
           <Button
-            label={`+  ${t('setup.newList')}`}
+            icon="add"
+            label={t('setup.newList')}
             hint={t('setup.newListHelp')}
             variant="secondary"
             onPress={() => setCreating(true)}

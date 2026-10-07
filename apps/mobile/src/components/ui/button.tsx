@@ -1,3 +1,5 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -6,6 +8,12 @@ import { useTheme } from '@/hooks/use-theme';
 
 interface ButtonProps {
   label: string;
+  /**
+   * A small picture before the label that says what the button does (a camera, a
+   * phone). Drawn from the app's own icon set, so it looks the same on every phone;
+   * do not put emoji in labels, which cheap phones draw differently or not at all.
+   */
+  icon?: ComponentProps<typeof Ionicons>['name'];
   /** Smaller explanatory line under the label. */
   hint?: string;
   onPress: () => void;
@@ -19,7 +27,7 @@ interface ButtonProps {
   fill?: boolean;
 }
 
-export function Button({ label, hint, onPress, variant = 'primary', loading, disabled, fill }: ButtonProps) {
+export function Button({ label, icon, hint, onPress, variant = 'primary', loading, disabled, fill }: ButtonProps) {
   const theme = useTheme();
   const inactive = disabled || loading;
 
@@ -47,7 +55,7 @@ export function Button({ label, hint, onPress, variant = 'primary', loading, dis
         { backgroundColor: background, opacity: inactive ? 0.5 : pressed ? 0.8 : 1 },
       ]}>
       <View style={styles.row}>
-        {loading && <ActivityIndicator color={color} />}
+        {loading ? <ActivityIndicator color={color} /> : icon ? <Ionicons name={icon} size={22} color={color} /> : null}
         <View style={styles.labels}>
           <ThemedText type="default" style={[styles.label, { color }]}>
             {label}

@@ -242,6 +242,7 @@ export default function RaiseIssueScreen() {
           <ErrorText message={photoError} />
           {photos.length < MAX_PHOTOS && (
             <Button
+              icon="camera"
               label={t('support.addPhoto')}
               variant="secondary"
               onPress={() => void addPhoto()}
@@ -274,6 +275,7 @@ export default function RaiseIssueScreen() {
             <View style={styles.contactButton}>
               <Button
                 fill
+                icon="call"
                 label={t('support.call')}
                 variant="secondary"
                 onPress={() => void Linking.openURL(`tel:${contact.phone}`)}
@@ -282,6 +284,7 @@ export default function RaiseIssueScreen() {
             <View style={styles.contactButton}>
               <Button
                 fill
+                icon="logo-whatsapp"
                 label={t('support.whatsapp')}
                 variant="secondary"
                 onPress={() => void Linking.openURL(`https://wa.me/${contact.whatsapp}`)}

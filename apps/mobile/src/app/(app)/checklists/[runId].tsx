@@ -478,6 +478,7 @@ function ItemCard({ number, item, run, editable, draft, onDraft, flagged, onPlac
       )}
       {editable && !tickOnly && (
         <Button
+          icon="camera"
           label={uploading ? t('checklists.uploading') : photoUri ? t('checklists.retakePhoto') : t('checklists.takePhoto')}
           variant={photoUri ? 'secondary' : 'primary'}
           onPress={() => void takePhoto()}

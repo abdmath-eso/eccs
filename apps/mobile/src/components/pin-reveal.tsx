@@ -85,7 +85,7 @@ export function PinReveal({ pin, message, restaurantCode, shareFor, onDone }: Pi
 
       {shareFor !== undefined && (
         <View style={styles.share}>
-          <Button label={t('newPin.share')} variant="secondary" onPress={() => void share()} />
+          <Button icon="share-social" label={t('newPin.share')} variant="secondary" onPress={() => void share()} />
           <ErrorText message={shareError} />
         </View>
       )}

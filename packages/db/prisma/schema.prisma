@@ -737,9 +737,9 @@ model Certificate {
 // ───────────────────────── Inspections ─────────────────────────
 
 enum InspectionStatus {
-  DRAFT
-  SUBMITTED
-  APPROVED
+  DRAFT /// planned or being filled in by the Supervisor
+  SUBMITTED /// finished and scored; waiting for ECCS to approve
+  APPROVED /// final; the restaurant can read it
 }
 
 enum Severity {
@@ -749,20 +749,39 @@ enum Severity {
   CRITICAL
 }
 
+/// How one check of an inspection was answered.
+enum InspectionAnswer {
+  COMPLIANT
+  NON_COMPLIANT
+  NOT_APPLICABLE /// left out of the score altogether
+}
+
 /// A scored ECCS audit of an outlet, modelled on FSSAI Schedule 4.
 model Inspection {
   id            String           @id @default(uuid())
   outletId      String
   templateId    String
+  /// Who carries it out: the Supervisor it was given to, or the person who started it.
   supervisorId  String
   status        InspectionStatus @default(DRAFT)
   conductedAt   DateTime
+  /// The day it is meant to happen (India date).
+  plannedDate   DateTime?        @db.Date
+  /// Set when the first check is answered. A DRAFT without it has not been started.
+  startedAt     DateTime?
+  /// When the Supervisor finished and the score was worked out.
+  completedAt   DateTime?
   overallScore  Float? /// 0 to 100
   sectionScores Json?
+  /// "A_PLUS", "A", "B" or "NON_COMPLIANT" (INSPECTION_GRADES in @eccs/shared).
+  grade         String?
   reportNumber  String?          @unique
   pdfKey        String?
   approvedById  String?
   approvedAt    DateTime?
+  /// What ECCS asked the Supervisor to correct when sending the report back.
+  reviewNote    String?
+  createdById   String?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
@@ -773,18 +792,24 @@ model Inspection {
   findings   InspectionFinding[]
 
   @@index([outletId, conductedAt])
+  @@index([supervisorId, status])
 }
 
 model InspectionResponse {
-  id           String   @id @default(uuid())
+  id           String           @id @default(uuid())
   inspectionId String
   itemId       String
+  answer       InspectionAnswer
   passed       Boolean?
+  /// Marks earned: the check's weight if compliant, 0 if not, empty if not applicable.
   score        Float?
   note         String?
+  answeredAt   DateTime         @default(now())
 
-  inspection Inspection    @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  item       ChecklistItem @relation(fields: [itemId], references: [id])
+  inspection Inspection         @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  item       ChecklistItem      @relation(fields: [itemId], references: [id])
+  /// The non-compliance recorded for this check, when the answer is NON_COMPLIANT.
+  finding    InspectionFinding?
 
   @@unique([inspectionId, itemId])
 }
@@ -793,13 +818,17 @@ model InspectionResponse {
 model InspectionFinding {
   id               String    @id @default(uuid())
   inspectionId     String
-  severity         Severity
+  /// The answer this non-compliance belongs to; its photos are Attachment rows pointing here.
+  responseId       String?   @unique
+  /// Empty until the Supervisor has chosen one; required before the inspection can be finished.
+  severity         Severity?
   description      String
   correctiveAction String?
   dueDate          DateTime? @db.Date
   resolvedAt       DateTime?
 
-  inspection  Inspection   @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  inspection  Inspection          @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  response    InspectionResponse? @relation(fields: [responseId], references: [id], onDelete: Cascade)
   attachments Attachment[]
   issues      Issue[]
 
@@ -1155,17 +1184,25 @@ model PublicPhoto {
 model Notification {
   id        String    @id @default(uuid())
   userId    String
-  channel   String /// "push", "sms", "email"
+  channel   String /// "app" (the list inside the app), later "push", "sms", "email"
+  /// What it is about, e.g. "REPORT_READY". The apps word it in the reader's language
+  /// from this and `data`; `title` and `body` hold the English wording as a fallback.
+  type      String?
   title     String
   body      String
+  /// The values for the wording (names, dates) and where tapping it leads.
   data      Json?
+  /// Set for reminders, so the same reminder is not sent to the same person twice.
+  dedupeKey String?
   sentAt    DateTime?
   readAt    DateTime?
   createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, dedupeKey])
   @@index([userId, readAt])
+  @@index([userId, createdAt])
 }
 
 /// A one-time login code sent to a phone. Only a hash of the code is stored.

@@ -18,6 +18,7 @@ import {
 import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { env } from '../config/env.js';
+import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 const DAY_MS = 86_400_000;
@@ -44,7 +45,10 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PlansService.name);
   private timers: NodeJS.Timeout[] = [];
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notify: NotifyService,
+  ) {}
 
   private get db() {
     return this.prisma.client;
@@ -112,14 +116,15 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
         },
       },
     });
-    await this.generateAll(today, outletId);
+    await this.generateAll(today, outletId, user.id);
+    await this.notify.planStarted(user, outletId);
     return this.describe(outletId);
   }
 
   /** ECCS takes an outlet off its plan. Plan visits that have not started are cancelled. */
   async stopOutletPlan(user: AuthUser, outletId: string): Promise<OutletPlanDto> {
     await this.requireOutlet(user, outletId, 'manage');
-    await this.stop(outletId, indiaDate());
+    await this.notify.planEnded(user, await this.stop(outletId, indiaDate()));
     return this.describe(outletId);
   }
 
@@ -129,9 +134,11 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
    * Creates every plan visit that falls due from `asOf` (today, unless a test
    * says otherwise) up to a few weeks ahead and does not exist yet. Safe to
    * run as often as wanted: a visit is tied to the date it was due on, so one
-   * that was moved, done or cancelled is never created again.
+   * that was moved, done or cancelled is never created again. `actorId` is the
+   * admin whose change set this off, if one did, so that they are not notified
+   * of their own work.
    */
-  async generateAll(asOf: string = indiaDate(), outletId?: string): Promise<{ created: number }> {
+  async generateAll(asOf: string = indiaDate(), outletId?: string, actorId?: string): Promise<{ created: number }> {
     const from = toDbDate(asOf);
     const until = addDays(from, PLAN_VISITS_DAYS_AHEAD);
     const schedules = await this.db.serviceSchedule.findMany({
@@ -145,7 +152,7 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
       include: { subscription: { select: { endDate: true } } },
     });
 
-    let created = 0;
+    const createdIds: string[] = [];
     for (const schedule of schedules) {
       let due = schedule.nextDueDate;
       // Days already gone are not filled in afterwards; the rhythm is kept.
@@ -164,7 +171,7 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
         const exists = await this.db.job.findFirst({ where: { scheduleId: schedule.id, plannedFor: due }, select: { id: true } });
         if (!exists) {
           try {
-            await this.db.job.create({
+            const visit = await this.db.job.create({
               data: {
                 outletId: schedule.outletId,
                 serviceTypeId: schedule.serviceTypeId,
@@ -176,7 +183,7 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
                 supervisorId,
               },
             });
-            created++;
+            createdIds.push(visit.id);
           } catch (error) {
             // Another run created the same visit at the same moment.
             if ((error as { code?: string }).code !== 'P2002') throw error;
@@ -188,17 +195,19 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
         await this.db.serviceSchedule.update({ where: { id: schedule.id }, data: { nextDueDate: due } });
       }
     }
-    return { created };
+    await this.notify.planVisitsAdded(actorId, createdIds);
+    return { created: createdIds.length };
   }
 
   // ───────────────────────── Helpers ─────────────────────────
 
-  private async stop(outletId: string, today: string) {
+  /** Stops the outlet's plan and returns the subscriptions that were stopped (none if it had no plan). */
+  private async stop(outletId: string, today: string): Promise<string[]> {
     const active = await this.db.subscription.findMany({
       where: { outletId, status: 'ACTIVE' },
       select: { id: true, schedules: { select: { id: true } } },
     });
-    if (active.length === 0) return;
+    if (active.length === 0) return [];
     const scheduleIds = active.flatMap((subscription) => subscription.schedules.map((schedule) => schedule.id));
     await this.db.$transaction([
       this.db.subscription.updateMany({
@@ -212,6 +221,7 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
         data: { status: 'CANCELLED' },
       }),
     ]);
+    return active.map((subscription) => subscription.id);
   }
 
   private async describe(outletId: string): Promise<OutletPlanDto> {

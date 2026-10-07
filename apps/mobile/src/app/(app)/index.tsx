@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { isEccsUser } from '@/components/app-nav';
+import { NotificationBell } from '@/components/notification-bell';
 import { OutletOverview } from '@/components/outlet-overview';
 import { PinReveal } from '@/components/pin-reveal';
 import { ThemedText } from '@/components/themed-text';
@@ -83,13 +84,17 @@ export default function HomeScreen() {
 
   return (
     <Screen onRefresh={load}>
-      <View style={styles.header}>
-        <ThemedText type="subtitle" style={styles.greeting}>
-          {t('home.greeting', { name: user.name })}
-        </ThemedText>
-        <ThemedText type="default" themeColor="primary">
-          {roleAndPlace}
-        </ThemedText>
+      <View style={styles.top}>
+        <View style={styles.header}>
+          <ThemedText type="subtitle" style={styles.greeting}>
+            {t('home.greeting', { name: user.name })}
+          </ThemedText>
+          <ThemedText type="default" themeColor="primary">
+            {roleAndPlace}
+          </ThemedText>
+        </View>
+        {/* Top right, where people look for it. It fetches its own number each time Home comes into view. */}
+        <NotificationBell />
       </View>
 
       <ErrorText message={error} onRetry={() => void load()} />
@@ -155,7 +160,8 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: Spacing.one, paddingTop: Spacing.two },
+  top: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  header: { flex: 1, gap: Spacing.one, paddingTop: Spacing.two },
   greeting: { fontSize: 24, lineHeight: 30 },
   sectionGap: { marginTop: Spacing.three },
   outlets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

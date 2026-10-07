@@ -4,8 +4,10 @@ import { AuthModule } from './auth/auth.module.js';
 import { CalendarModule } from './calendar/calendar.module.js';
 import { ChecklistsModule } from './checklists/checklists.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
+import { InspectionsModule } from './inspections/inspections.module.js';
 import { IssuesModule } from './issues/issues.module.js';
 import { LicencesModule } from './licences/licences.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
 import { OutletsModule } from './outlets/outlets.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -31,6 +33,8 @@ import { StorageModule } from './storage/storage.module.js';
     SopsModule,
     ProfileModule,
     ServicesModule,
+    NotificationsModule,
+    InspectionsModule,
   ],
   controllers: [AppController],
 })

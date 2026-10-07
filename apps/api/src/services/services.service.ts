@@ -21,6 +21,7 @@ import {
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate } from '../checklists/checklists.service.js';
+import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { sniffFile } from '../storage/attachments.controller.js';
 import { StorageService } from '../storage/storage.service.js';
@@ -89,6 +90,7 @@ export class ServicesService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly reports: ReportPdfService,
+    private readonly notify: NotifyService,
   ) {}
 
   private get db() {
@@ -194,6 +196,7 @@ export class ServicesService {
         requestedById: user.id,
       },
     });
+    await this.notify.bookingRequested(user, booking.id);
     return this.getBooking(booking.id);
   }
 
@@ -223,6 +226,7 @@ export class ServicesService {
       }),
       this.db.booking.update({ where: { id: booking.id }, data: { status: 'CONFIRMED' } }),
     ]);
+    await this.notify.bookingConfirmed(user, booking.id);
     return this.getBooking(booking.id);
   }
 
@@ -246,6 +250,7 @@ export class ServicesService {
       ...(booking.job ? [this.db.job.update({ where: { id: booking.job.id }, data: { status: 'CANCELLED' } })] : []),
       this.db.booking.update({ where: { id: booking.id }, data: { status: 'CANCELLED' } }),
     ]);
+    await this.notify.bookingCancelled(user, booking.id, { confirmed: booking.status === 'CONFIRMED' });
     return this.getBooking(booking.id);
   }
 
@@ -321,6 +326,7 @@ export class ServicesService {
         supervisorId,
       },
     });
+    await this.notify.visitCreated(user, visit.id);
     return this.getVisit(user, visit.id);
   }
 
@@ -348,6 +354,7 @@ export class ServicesService {
         status: supervisorId ? 'ASSIGNED' : 'SCHEDULED',
       },
     });
+    await this.notify.visitChanged(user, visit);
     return this.getVisit(user, visit.id);
   }
 
@@ -364,6 +371,7 @@ export class ServicesService {
         ? [this.db.booking.update({ where: { id: visit.bookingId }, data: { status: 'CANCELLED' } })]
         : []),
     ]);
+    await this.notify.visitCancelled(user, visit.id);
     return this.getVisit(user, visit.id);
   }
 
@@ -402,6 +410,7 @@ export class ServicesService {
         }),
       },
     });
+    await this.notify.visitStarted(user, visit.id);
     return this.getVisit(user, visit.id);
   }
 
@@ -528,6 +537,7 @@ export class ServicesService {
         if (attempt >= 3 || (error as { code?: string }).code !== 'P2002') throw error;
       }
     }
+    await this.notify.visitFinished(user, visit.id);
     return this.getVisit(user, visit.id);
   }
 
@@ -543,6 +553,7 @@ export class ServicesService {
     });
     // Takes a few seconds, so the approval does not wait for it.
     this.reports.ensureLater(visit.id);
+    await this.notify.reportApproved(user, visit.id);
     return this.getVisit(user, visit.id);
   }
 
@@ -557,6 +568,7 @@ export class ServicesService {
       where: { id: visit.id },
       data: { status: 'IN_PROGRESS', completedAt: null, reviewNote: note },
     });
+    await this.notify.reportReturned(user, visit.id);
     return this.getVisit(user, visit.id);
   }
 
@@ -601,6 +613,7 @@ export class ServicesService {
         data: { status: 'APPROVED', approvedById: user.id, approvedAt: now, reviewedAt: null, reviewedById: null },
       }),
     ]);
+    await this.notify.visitSignedOff(user, visit.id);
     return this.getVisit(user, visit.id);
   }
 

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { ConfirmProvider } from "@/components/confirm-dialog";
+import { NotificationBell } from "@/components/notification-bell";
 import { ToastProvider } from "@/components/toast";
 import { Button, Loading } from "@/components/ui";
 import { NavCountsProvider, useNavCounts, type NavCounts } from "@/lib/nav-counts";
@@ -21,6 +22,7 @@ const ROLE_NAMES: Record<string, string> = {
 const NAV: readonly { href: string; label: string; count?: keyof NavCounts; waiting?: string }[] = [
   { href: "/", label: "Clients" },
   { href: "/visits", label: "Visits", count: "visits", waiting: "waiting for a date, a Supervisor or a report check" },
+  { href: "/inspections", label: "Inspections" },
   { href: "/issues", label: "Issues", count: "issues", waiting: "open" },
   { href: "/licences", label: "Licences", count: "licences", waiting: "expired or expiring" },
   { href: "/sops", label: "SOPs" },
@@ -59,6 +61,7 @@ export default function ConsoleLayout({ children }: LayoutProps<"/">) {
                   <SectionNav pathname={pathname} seesClients={seesClients} />
                 </div>
                 <div className="flex items-center gap-4 text-sm">
+                  <NotificationBell />
                   <span>
                     {user.name}
                     <span className="ml-2 text-muted">{ROLE_NAMES[role] ?? role}</span>

@@ -12,3 +12,5 @@ export * from "./calendar.js";
 export * from "./sops.js";
 export * from "./profile.js";
 export * from "./services.js";
+export * from "./notifications.js";
+export * from "./inspections.js";

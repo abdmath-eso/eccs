@@ -9,6 +9,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createPrismaClient, pinLookup, type Prisma } from "../src/index.js";
+import { loadInspectionTemplate } from "./inspection-template.js";
 import { loadChecklistLibrary } from "./library.js";
 import { addSampleVisits } from "./sample-visits.js";
 import { loadSampleSops } from "./sops.js";
@@ -475,6 +476,7 @@ async function main() {
   await addSampleVisits(prisma);
   await loadSampleSops(prisma);
   await loadSopLibrary(prisma);
+  await loadInspectionTemplate(prisma);
   await translateContent(prisma);
   const library = await loadChecklistLibrary(prisma);
 

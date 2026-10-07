@@ -1,8 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { ApiError, type UploadFile } from '@eccs/api-client';
+import { ApiError } from '@eccs/api-client';
 import { can, localize, type ChecklistItemDto, type ChecklistRunDto } from '@eccs/shared';
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type ScrollView } from 'react-native';
 
 import { ProofPhoto } from '@/components/proof-photo';
@@ -14,52 +14,54 @@ import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
+import { UnsentMark } from '@/components/unsent-mark';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { formatDateTime, formatDayLong } from '@/lib/format';
+import { checklistCache } from '@/lib/offline/checklist-cache';
+import { keepPhoto, keptPhotoUri, newId } from '@/lib/offline/files';
+import { isNoSignal, outbox, useOutbox } from '@/lib/offline/outbox';
+import { applyPending, type NewOp, type RunView } from '@/lib/offline/outbox-core';
 import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
 import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
 
+// How this screen works without signal. Everything the person does (a photo,
+// a tick, OK or Problem, Submit) is first saved on the phone in the "outbox"
+// and shown as done at once; the outbox sends it to the server in the
+// background, in order, whenever there is signal (see lib/offline). The
+// checklist itself is the server's last copy, kept on the phone, with whatever
+// is still waiting laid over it. So the screen never waits for the network,
+// and nothing here fails just because the signal dropped.
+
 /** The id of the photo behind a signed photo path such as /attachments/<id>/content?... */
 const photoId = (photoPath: string) => photoPath.split('/')[2] ?? '';
 
-/**
- * A photo taken on this phone for an item. It is kept, with its file, until
- * the server has it, so a failed upload can be sent again without retaking it.
- */
-interface PendingPhoto {
-  uri: string;
-  file: UploadFile;
-  capturedAt: string;
-  /** Set once the picture itself is stored, so a retry only repeats the step that failed. */
-  attachmentId?: string;
-  status: 'sending' | 'failed' | 'sent';
-}
-
-/** What the person has started on an item and the server does not have yet. */
+/** What the person has started on an item and not saved yet. */
 interface ItemDraft {
   /** True after tapping Problem and before the reason has been saved. */
   describing: boolean;
   /** The reason as typed; null means "as saved". */
   note: string | null;
-  photo: PendingPhoto | null;
 }
 
-const NO_DRAFT: ItemDraft = { describing: false, note: null, photo: null };
+const NO_DRAFT: ItemDraft = { describing: false, note: null };
 
-// A photo item is done once it has its photo; a tick-only item once it is ticked or reported.
-const isMissing = (item: ChecklistItemDto) => (item.photoRequired ? !item.response?.photoPath : !item.response);
+/** What is known on this phone about an item beyond the server's copy. */
+type LocalItem = RunView['items'][string] | undefined;
+
+// A photo item is done once it has its photo (on the server, or taken and kept on this phone);
+// a tick-only item once it is ticked or reported.
+const isMissing = (item: ChecklistItemDto, local: LocalItem) =>
+  item.photoRequired ? !(item.response && (item.response.photoPath || local?.localPhotoId)) : !item.response;
 
 /** A problem was started, or its reason reworded, and not saved. */
 const hasUnsavedReason = (item: ChecklistItemDto, draft: ItemDraft) =>
   draft.describing ||
   (item.response?.passed === false && draft.note !== null && draft.note.trim() !== (item.response.note ?? ''));
 
-const hasUnsentPhoto = (draft: ItemDraft) => draft.photo !== null && draft.photo.status !== 'sent';
-
-type Blocker = { itemId: string; why: 'reason' | 'photo' | 'missing' };
+type Blocker = { itemId: string; why: 'reason' | 'missing' };
 
 /** One checklist: fill it in with a photo per item, submit it, or look back at what was recorded. */
 export default function ChecklistRunScreen() {
@@ -67,12 +69,13 @@ export default function ChecklistRunScreen() {
   const { t, api, user, language } = useSession();
   const notify = useSnackbar();
   const { runId } = useLocalSearchParams<{ runId: string }>();
-  const [run, setRun] = useState<ChecklistRunDto | null>(null);
+  const box = useOutbox();
+  // The checklist as the server last sent it, from the copy kept on the phone.
+  const getSaved = useCallback(() => checklistCache.getRun(runId), [runId]);
+  const saved = useSyncExternalStore(checklistCache.subscribe, getSaved, getSaved);
   const [loadError, setLoadError] = useState<string | null>(null);
   // An error from Submit or Mark as reviewed, shown beside that button.
   const [actionError, setActionError] = useState<string | null>(null);
-  // Said at the top when someone else submitted the checklist while it was open here.
-  const [lockedNote, setLockedNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, ItemDraft>>({});
   // The item Submit last pointed at, and why it stops the checklist being submitted.
@@ -81,29 +84,64 @@ export default function ChecklistRunScreen() {
   // Where each item sits in the scrolling page, so Submit can jump to one.
   const positions = useRef<Record<string, number>>({});
 
-  useEffect(() => {
-    let cancelled = false;
-    api.checklists
-      .run(runId)
-      .then((loaded) => !cancelled && setRun(loaded))
-      .catch((e) => !cancelled && setLoadError(errorMessage(e, t)));
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, runId]);
+  const userId = user?.id ?? null;
+  const myName = user?.name ?? null;
+  // False only once the server could not be reached; the line at the bottom of the app says so.
+  const hasSignal = box.online !== false;
 
-  /** Loads the checklist again: for pull-to-refresh and "Try again". */
-  async function load() {
+  /**
+   * Fetches the checklist and keeps it on the phone. With no signal the copy
+   * already on the phone stays on screen, which is not an error.
+   */
+  const load = useCallback(async () => {
+    if (!userId) return;
+    await checklistCache.load(userId);
     try {
-      setRun(await api.checklists.run(runId));
+      checklistCache.putRun(await api.checklists.run(runId));
+      outbox.noteReachable(true);
       setLoadError(null);
     } catch (e) {
-      setLoadError(errorMessage(e, t));
+      if (isNoSignal(e)) {
+        outbox.noteReachable(false);
+        setLoadError(checklistCache.getRun(runId) ? null : t('offline.notOnPhone'));
+      } else {
+        setLoadError(errorMessage(e, t));
+      }
     }
-  }
+    // `t` changes with language; reloading for that is unnecessary.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, runId, userId]);
 
-  if (!run) {
+  // Loads on opening and whenever the screen comes back into view.
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  // And again the moment the signal comes back.
+  useEffect(() => {
+    let before = outbox.getSnapshot().online;
+    return outbox.subscribe(() => {
+      const now = outbox.getSnapshot().online;
+      if (before === false && now === true) void load();
+      before = now;
+    });
+  }, [load]);
+
+  const view = saved ? applyPending(saved, box.ops, myName) : null;
+  const submitWaiting = view?.submitPending ?? false;
+  const submittedByMe = saved?.status === 'SUBMITTED' && saved.submittedByName === myName;
+
+  // "Checklist submitted" is said when the server has it, not when Submit was pressed.
+  const wasWaiting = useRef(false);
+  useEffect(() => {
+    if (wasWaiting.current && !submitWaiting && submittedByMe) notify(t('checklists.submitted'));
+    wasWaiting.current = submitWaiting;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitWaiting, submittedByMe]);
+
+  if (!view) {
     return (
       <Screen back>
         <ErrorText message={loadError} onRetry={() => void load()} />
@@ -112,13 +150,18 @@ export default function ChecklistRunScreen() {
     );
   }
 
+  const run = view.run;
+  const localItems = view.items;
   const memberships = user?.memberships ?? [];
   const open = run.status === 'PENDING' || run.status === 'IN_PROGRESS';
   const mayFill = open && can(memberships, 'checklists', 'create', { outletId: run.outletId });
   const mayReview =
-    run.status === 'SUBMITTED' && !run.reviewedAt && can(memberships, 'checklists', 'approve', { outletId: run.outletId });
+    run.status === 'SUBMITTED' &&
+    !submitWaiting &&
+    !run.reviewedAt &&
+    can(memberships, 'checklists', 'approve', { outletId: run.outletId });
   const total = run.items.length;
-  const done = run.items.filter((item) => !isMissing(item)).length;
+  const done = run.items.filter((item) => !isMissing(item, localItems[item.id])).length;
   const draftOf = (itemId: string) => drafts[itemId] ?? NO_DRAFT;
 
   function patchDraft(itemId: string, patch: Partial<ItemDraft>) {
@@ -127,69 +170,34 @@ export default function ChecklistRunScreen() {
 
   /** What, if anything, still stops this checklist being submitted: the first such item, top to bottom. */
   function findBlocker(): Blocker | null {
-    const items = run?.items ?? [];
-    const unsaved = items.find((item) => hasUnsavedReason(item, draftOf(item.id)));
+    const unsaved = run.items.find((item) => hasUnsavedReason(item, draftOf(item.id)));
     if (unsaved) return { itemId: unsaved.id, why: 'reason' };
-    const unsent = items.find((item) => hasUnsentPhoto(draftOf(item.id)));
-    if (unsent) return { itemId: unsent.id, why: 'photo' };
-    const missing = items.find(isMissing);
+    const missing = run.items.find((item) => isMissing(item, localItems[item.id]));
     if (missing) return { itemId: missing.id, why: 'missing' };
     return null;
   }
 
   /** Whether the item Submit pointed at is still in the way; once it is dealt with the message goes. */
   function stillBlocked(found: Blocker): boolean {
-    const item = run?.items.find((candidate) => candidate.id === found.itemId);
+    const item = run.items.find((candidate) => candidate.id === found.itemId);
     if (!item) return false;
     if (found.why === 'reason') return hasUnsavedReason(item, draftOf(item.id));
-    if (found.why === 'photo') return hasUnsentPhoto(draftOf(item.id));
-    return isMissing(item);
+    return isMissing(item, localItems[item.id]);
   }
 
   const shownBlocker = blocker && stillBlocked(blocker) ? blocker : null;
   const blockerNumber = shownBlocker ? run.items.findIndex((item) => item.id === shownBlocker.itemId) + 1 : 0;
   const blockerMessage = shownBlocker
-    ? t(
-        shownBlocker.why === 'reason'
-          ? 'checklists.unsavedReason'
-          : shownBlocker.why === 'photo'
-            ? 'checklists.unsentPhoto'
-            : 'checklists.itemMissing',
-        { number: blockerNumber },
-      )
+    ? t(shownBlocker.why === 'reason' ? 'checklists.unsavedReason' : 'checklists.itemMissing', { number: blockerNumber })
     : null;
 
   /**
-   * Another person at the outlet submitted this checklist while it was open
-   * here. Loads what they submitted, which locks the screen, and says who.
+   * Submits, or, if something is still to do, scrolls to the first such item
+   * and marks it. Submit joins the outbox behind the answers and photos still
+   * waiting, so the server gets them in the order they were done. If someone
+   * else has submitted meanwhile, the outbox drops it and says so.
    */
-  async function showLocked() {
-    try {
-      const latest = await api.checklists.run(runId);
-      setRun(latest);
-      setLockedNote(latest.submittedByName ? t('checklists.lockedBy', { name: latest.submittedByName }) : null);
-      scrollToY(scrollRef, 0);
-    } catch (e) {
-      setActionError(errorMessage(e, t));
-    }
-  }
-
-  async function act(action: () => Promise<ChecklistRunDto>, savedMessage: string) {
-    setBusy(true);
-    setActionError(null);
-    try {
-      setRun(await action());
-      notify(savedMessage);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) await showLocked();
-      else setActionError(errorMessage(e, t));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /** Submits, or, if something is still to do, scrolls to the first such item and marks it. */
-  function pressSubmit() {
+  async function pressSubmit() {
     const found = findBlocker();
     if (found) {
       setBlocker(found);
@@ -198,7 +206,32 @@ export default function ChecklistRunScreen() {
       return;
     }
     setBlocker(null);
-    void act(() => api.checklists.submit(run!.id), t('checklists.submitted'));
+    setBusy(true);
+    setActionError(null);
+    try {
+      await outbox.enqueue({ kind: 'submit', runId: run.id });
+      if (!hasSignal) notify(t('offline.submitSaved'));
+      scrollToY(scrollRef, 0);
+    } catch {
+      setActionError(t('offline.saveFailed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Marking as reviewed is the Manager's or Owner's step and needs signal. */
+  async function markReviewed() {
+    setBusy(true);
+    setActionError(null);
+    try {
+      checklistCache.putRun(await api.checklists.review(run.id));
+      notify(t('checklists.reviewed'));
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) await load();
+      else setActionError(errorMessage(e, t));
+    } finally {
+      setBusy(false);
+    }
   }
 
   const footer = mayFill ? (
@@ -213,16 +246,12 @@ export default function ChecklistRunScreen() {
         <View style={[styles.trackFill, { backgroundColor: theme.primary, width: `${total ? (done / total) * 100 : 0}%` }]} />
       </View>
       <ErrorText message={blockerMessage ?? actionError} />
-      <Button label={t('checklists.submit')} onPress={pressSubmit} loading={busy} />
+      <Button label={t('checklists.submit')} onPress={() => void pressSubmit()} loading={busy} />
     </>
   ) : mayReview ? (
     <>
       <ErrorText message={actionError} />
-      <Button
-        label={t('checklists.markReviewed')}
-        onPress={() => void act(() => api.checklists.review(run.id), t('checklists.reviewed'))}
-        loading={busy}
-      />
+      <Button label={t('checklists.markReviewed')} onPress={() => void markReviewed()} loading={busy} />
     </>
   ) : undefined;
 
@@ -232,10 +261,15 @@ export default function ChecklistRunScreen() {
       title={localize(run.title, language)}
       subtitle={formatDayLong(run.date, language)}
       footer={footer}
-      onRefresh={load}
+      onRefresh={async () => {
+        // Pulling down also sends anything still waiting, without waiting for the next automatic try.
+        outbox.kick();
+        await load();
+      }}
       scrollRef={scrollRef}>
-      <StatusBadge status={run.status} reviewed={run.reviewedAt !== null} />
-      <ErrorText message={lockedNote} />
+      {/* Until the server has the Submit, the checklist is not shown as "Submitted": nobody else can see it yet. */}
+      <StatusBadge status={submitWaiting ? 'IN_PROGRESS' : run.status} reviewed={run.reviewedAt !== null} />
+      {submitWaiting && <UnsentMark sending={hasSignal} text={t('offline.submitWaiting')} />}
       {/* A refresh that fails leaves the checklist as it was, and says so here. */}
       <ErrorText message={loadError} onRetry={() => void load()} />
       {run.status === 'MISSED' && (
@@ -243,7 +277,7 @@ export default function ChecklistRunScreen() {
           {t('checklists.missedNote')}
         </ThemedText>
       )}
-      {run.submittedByName && (
+      {run.submittedByName && !submitWaiting && (
         <ThemedText type="small" themeColor="textSecondary">
           {t('checklists.submittedBy', { name: run.submittedByName })}
           {run.reviewedByName ? ` · ${t('checklists.reviewedBy', { name: run.reviewedByName })}` : ''}
@@ -255,16 +289,16 @@ export default function ChecklistRunScreen() {
           key={item.id}
           number={index + 1}
           item={item}
+          local={localItems[item.id]}
           run={run}
           editable={mayFill}
+          hasSignal={hasSignal}
           draft={draftOf(item.id)}
           onDraft={(patch) => patchDraft(item.id, patch)}
           flagged={shownBlocker?.itemId === item.id && shownBlocker.why === 'missing'}
           onPlaced={(y) => {
             positions.current[item.id] = y;
           }}
-          onSaved={setRun}
-          onLocked={() => void showLocked()}
         />
       ))}
     </Screen>
@@ -273,23 +307,22 @@ export default function ChecklistRunScreen() {
 
 interface ItemCardProps {
   number: number;
+  /** The item with any answer still waiting on this phone already laid over it. */
   item: ChecklistItemDto;
+  /** Set when this item has an answer or photo the server does not have yet. */
+  local: LocalItem;
   run: ChecklistRunDto;
   editable: boolean;
+  hasSignal: boolean;
   draft: ItemDraft;
   onDraft: (patch: Partial<ItemDraft>) => void;
   /** Submit was pressed while this item was still to do. */
   flagged: boolean;
   /** Reports how far down the page this card starts. */
   onPlaced: (y: number) => void;
-  onSaved: (run: ChecklistRunDto) => void;
-  /** Called when the server says the checklist was already submitted by someone else. */
-  onLocked: () => void;
 }
 
-const isLocked = (error: unknown) => error instanceof ApiError && error.status === 409;
-
-function ItemCard({ number, item, run, editable, draft, onDraft, flagged, onPlaced, onSaved, onLocked }: ItemCardProps) {
+function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraft, flagged, onPlaced }: ItemCardProps) {
   const theme = useTheme();
   const { t, api, language } = useSession();
   const notify = useSnackbar();
@@ -298,45 +331,39 @@ function ItemCard({ number, item, run, editable, draft, onDraft, flagged, onPlac
   const [error, setError] = useState<{ at: 'photo' | 'answer' | 'reason'; message: string } | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [keeping, setKeeping] = useState(false);
   const tickOnly = !item.photoRequired;
 
-  const pending = draft.photo;
-  const uploading = pending?.status === 'sending';
-  const photoFailed = pending?.status === 'failed';
-  const photoUri = pending?.uri ?? (response?.photoPath ? api.fileUrl(response.photoPath) : null);
+  // A photo taken on this phone is shown from the phone until the server has it.
+  const localPhotoId = local?.localPhotoId ?? null;
+  const photoUri = localPhotoId
+    ? keptPhotoUri(localPhotoId)
+    : response?.photoPath
+      ? api.fileUrl(response.photoPath)
+      : null;
+  // The photo an answer points at: the one waiting on this phone, or the one on the server.
+  const attachmentId = localPhotoId ?? (response?.photoPath ? photoId(response.photoPath) : undefined);
   const problem = response?.passed === false;
   const note = draft.note ?? response?.note ?? '';
-  // "Problem" was tapped, or the reason reworded, and the server does not know yet.
+  // "Problem" was tapped, or the reason reworded, and it is not saved yet.
   const unsaved = hasUnsavedReason(item, draft);
   const showReason = problem || draft.describing;
 
-  /** Sends a photo and records it against the item. Also used to send a failed one again. */
-  async function sendPhoto(photo: PendingPhoto) {
+  /**
+   * Saves something the person did: onto the phone first, then the outbox
+   * sends it. The only way this fails is the phone refusing to store it.
+   */
+  async function save(op: NewOp, at: 'photo' | 'answer' | 'reason'): Promise<boolean> {
     setError(null);
-    onDraft({ photo: { ...photo, status: 'sending' } });
-    let attachmentId = photo.attachmentId;
+    setSaving(true);
     try {
-      if (!attachmentId) {
-        const uploaded = await api.attachments.upload({
-          outletId: run.outletId,
-          file: photo.file,
-          capturedAt: photo.capturedAt,
-        });
-        attachmentId = uploaded.id;
-      }
-      const saved = await api.checklists.answer(run.id, item.id, {
-        passed: response?.passed ?? true,
-        note: response?.note ?? undefined,
-        attachmentId,
-        capturedAt: photo.capturedAt,
-      });
-      onDraft({ photo: { ...photo, attachmentId, status: 'sent' } });
-      onSaved(saved);
-    } catch (e) {
-      // The photo stays on the card, marked as not sent, so it can be sent again as it is.
-      onDraft({ photo: { ...photo, attachmentId, status: 'failed' } });
-      if (isLocked(e)) onLocked();
-      else setError({ at: 'photo', message: errorMessage(e, t, { 0: 'error.upload' }) });
+      await outbox.enqueue(op);
+      return true;
+    } catch {
+      setError({ at, message: t('offline.saveFailed') });
+      return false;
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -350,7 +377,33 @@ function ItemCard({ number, item, run, editable, draft, onDraft, flagged, onPlac
       return;
     }
     if (!photo) return;
-    await sendPhoto({ uri: photo.uri, file: photo.file, capturedAt: new Date().toISOString(), status: 'sending' });
+    // The proof time is the moment the photo was taken, however much later it reaches the server.
+    const capturedAt = new Date().toISOString();
+    // The phone chooses the photo's id, so sending it twice stores it once.
+    const id = newId();
+    setKeeping(true);
+    try {
+      // The camera saves into a folder the phone may clear; keep our own copy until it is sent.
+      await keepPhoto(id, photo);
+      await save(
+        {
+          kind: 'answer',
+          runId: run.id,
+          outletId: run.outletId,
+          itemId: item.id,
+          passed: response?.passed ?? true,
+          note: response?.note ?? undefined,
+          attachmentId: id,
+          photo: 'toUpload',
+          capturedAt,
+        },
+        'photo',
+      );
+    } catch {
+      setError({ at: 'photo', message: t('offline.saveFailed') });
+    } finally {
+      setKeeping(false);
+    }
   }
 
   /**
@@ -359,26 +412,20 @@ function ItemCard({ number, item, run, editable, draft, onDraft, flagged, onPlac
    * Returns whether it was saved.
    */
   async function update(passed: boolean, nextNote: string, at: 'answer' | 'reason'): Promise<boolean> {
-    if (item.photoRequired && !response?.photoPath) return false;
-    setError(null);
-    setSaving(true);
-    try {
-      onSaved(
-        await api.checklists.answer(run.id, item.id, {
-          passed,
-          note: passed ? undefined : nextNote,
-          attachmentId: response?.photoPath ? photoId(response.photoPath) : undefined,
-          capturedAt: response?.capturedAt ?? new Date().toISOString(),
-        }),
-      );
-      return true;
-    } catch (e) {
-      if (isLocked(e)) onLocked();
-      else setError({ at, message: errorMessage(e, t) });
-      return false;
-    } finally {
-      setSaving(false);
-    }
+    if (item.photoRequired && !attachmentId) return false;
+    return save(
+      {
+        kind: 'answer',
+        runId: run.id,
+        outletId: run.outletId,
+        itemId: item.id,
+        passed,
+        note: passed ? undefined : nextNote,
+        attachmentId,
+        capturedAt: response?.capturedAt ?? new Date().toISOString(),
+      },
+      at,
+    );
   }
 
   /** Tick-only items: one tap marks it done, another tap takes the tick back. */
@@ -388,17 +435,7 @@ function ItemCard({ number, item, run, editable, draft, onDraft, flagged, onPlac
       await update(true, '', 'answer');
       return;
     }
-    setError(null);
-    setSaving(true);
-    try {
-      onSaved(await api.checklists.clearAnswer(run.id, item.id));
-      onDraft({ note: null });
-    } catch (e) {
-      if (isLocked(e)) onLocked();
-      else setError({ at: 'answer', message: errorMessage(e, t) });
-    } finally {
-      setSaving(false);
-    }
+    if (await save({ kind: 'clear', runId: run.id, itemId: item.id }, 'answer')) onDraft({ note: null });
   }
 
   /** Puts the reason box back to what is saved. */
@@ -461,29 +498,20 @@ function ItemCard({ number, item, run, editable, draft, onDraft, flagged, onPlac
         {state.text}
         {item.isCustom ? `  ·  ${t('checklists.yourItem')}` : ''}
       </ThemedText>
+      {/* Done here and on its way. The person can carry on; this mark goes once the server has it. */}
+      {local && <UnsentMark sending={hasSignal} />}
       {flagged && <ErrorText message={t('checklists.stillToDo')} />}
 
-      {photoUri && (
-        <ProofPhoto
-          uri={photoUri}
-          label={localize(item.label, language)}
-          stamp={stamp}
-          state={uploading ? 'sending' : photoFailed ? 'failed' : null}
-          onRetry={pending ? () => void sendPhoto(pending) : undefined}
-        />
-      )}
+      {photoUri && <ProofPhoto uri={photoUri} label={localize(item.label, language)} stamp={stamp} />}
       {error?.at === 'photo' && <ErrorText message={error.message} />}
 
-      {editable && !tickOnly && photoFailed && pending && (
-        <Button label={t('checklists.sendAgain')} onPress={() => void sendPhoto(pending)} />
-      )}
       {editable && !tickOnly && (
         <Button
           icon="camera"
-          label={uploading ? t('checklists.uploading') : photoUri ? t('checklists.retakePhoto') : t('checklists.takePhoto')}
+          label={photoUri ? t('checklists.retakePhoto') : t('checklists.takePhoto')}
           variant={photoUri ? 'secondary' : 'primary'}
           onPress={() => void takePhoto()}
-          loading={uploading}
+          loading={keeping}
         />
       )}
 
@@ -499,15 +527,11 @@ function ItemCard({ number, item, run, editable, draft, onDraft, flagged, onPlac
             { borderColor: response ? theme.primary : theme.outline },
             (response || pressed) && { backgroundColor: theme.backgroundElement },
           ]}>
-          {saving && !draft.describing ? (
-            <ActivityIndicator color={theme.primary} style={styles.tickBusy} />
-          ) : (
-            <Ionicons
-              name={response ? 'checkmark-circle' : 'ellipse-outline'}
-              size={44}
-              color={response ? theme.primary : theme.textSecondary}
-            />
-          )}
+          <Ionicons
+            name={response ? 'checkmark-circle' : 'ellipse-outline'}
+            size={44}
+            color={response ? theme.primary : theme.textSecondary}
+          />
           <View style={styles.tickText}>
             <ThemedText type="default" style={styles.tickLabel} themeColor={response ? 'primary' : 'text'}>
               {response ? t('checklists.done') : t('checklists.tapToTick')}
@@ -613,7 +637,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
-  tickBusy: { width: 44, height: 44 },
   tickText: { flex: 1, gap: Spacing.half },
   tickLabel: { fontWeight: 700, fontSize: 18 },
   reason: { gap: Spacing.two },

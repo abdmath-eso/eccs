@@ -17,6 +17,7 @@ import {
   type OutletChecklistDto,
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
+import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 
@@ -108,6 +109,7 @@ export class ChecklistsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly notify: NotifyService,
   ) {}
 
   private get db() {
@@ -238,6 +240,7 @@ export class ChecklistsService {
       where: { id: runId },
       data: { status: 'SUBMITTED', submittedById: user.id, submittedAt: new Date() },
     });
+    await this.notify.checklistSubmitted(user, runId);
     return this.getRun(user, runId);
   }
 

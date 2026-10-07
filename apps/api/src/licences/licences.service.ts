@@ -16,6 +16,7 @@ import {
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate } from '../checklists/checklists.service.js';
+import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { LicenceReaderService } from './licence-reader.service.js';
@@ -48,6 +49,7 @@ export class LicencesService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly reader: LicenceReaderService,
+    private readonly notify: NotifyService,
   ) {}
 
   private get db() {
@@ -149,6 +151,7 @@ export class LicencesService {
       },
       include: licenceInclude,
     });
+    await this.notify.documentChanged(user, licence.outletId, name);
     return this.toLicenceDto(licence, indiaDate());
   }
 
@@ -190,6 +193,7 @@ export class LicencesService {
     if (documentId !== undefined && existing.documentId && existing.documentId !== documentId) {
       await this.deleteDocument(existing.documentId);
     }
+    await this.notify.documentChanged(user, licence.outletId, name);
     return this.toLicenceDto(licence, indiaDate());
   }
 
@@ -234,6 +238,7 @@ export class LicencesService {
   ): Promise<DocumentDto[]> {
     await this.requireOutlet(user, 'documents', 'create', input.outletId);
     await this.fileDocument(user, input.outletId, input.attachmentId, input.category, input.title);
+    await this.notify.documentChanged(user, input.outletId, input.title);
     return this.listDocuments(user, input.outletId);
   }
 

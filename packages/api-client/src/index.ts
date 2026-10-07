@@ -65,6 +65,20 @@ import type {
   VerifyOtpInput,
 } from "@eccs/shared";
 
+// notifications-types: the notifications worker imports its types from "@eccs/shared" on the next line
+import type { NotificationPageDto, UnreadCountDto } from "@eccs/shared";
+// inspections-types: the inspections worker imports its types from "@eccs/shared" on the next line
+import type {
+  AnswerInspectionCheckInput,
+  InspectionAnswerResultDto,
+  InspectionDto,
+  InspectionOutletDto,
+  InspectionSummaryDto,
+  ReturnInspectionInput,
+  StartInspectionInput,
+  UpdateInspectionInput,
+} from "@eccs/shared";
+
 /** A failed API call. `message` is safe to show to the user. */
 export class ApiError extends Error {
   /** Machine-readable reason, e.g. "DEVICE_NOT_LINKED". */
@@ -400,6 +414,61 @@ export function createApiClient(options: ApiClientOptions) {
       /** The restaurant's Owner or Manager confirms the work was done and rates it out of five. */
       signOff: (visitId: string, input: SignOffVisitInput) =>
         call<VisitDto>("POST", `/visits/${id(visitId)}/sign-off`, input),
+    },
+    // notifications-api: the notifications worker adds `notifications: { ... },` on the next line
+    /** The person's own notifications: the list behind the bell. */
+    notifications: {
+      /** Newest first, a page at a time. `before` is the `nextCursor` of the page before. */
+      list: (page: { before?: string; limit?: number } = {}) =>
+        call<NotificationPageDto>(
+          "GET",
+          `/notifications${query({ ...(page.before && { before: page.before }), ...(page.limit && { limit: page.limit }) })}`,
+        ),
+      /** The number for the badge on the bell. */
+      unreadCount: () => call<UnreadCountDto>("GET", "/notifications/unread-count"),
+      markRead: (notificationId: string) => call<UnreadCountDto>("POST", `/notifications/${id(notificationId)}/read`),
+      markAllRead: () => call<UnreadCountDto>("POST", "/notifications/read-all"),
+    },
+    // inspections-api: the inspections worker adds `inspections: { ... },` on the next line
+    /** Scored inspections: ECCS's audit of an outlet, its scored report and the approval. */
+    inspections: {
+      /** Newest first. A restaurant gets only the approved reports of its outlets. */
+      list: (filter: { outletId?: string } = {}) =>
+        call<InspectionSummaryDto[]>("GET", `/inspections${query(filter.outletId ? { outletId: filter.outletId } : {})}`),
+      /** The outlets the person may start an inspection for. */
+      outlets: () => call<InspectionOutletDto[]>("GET", "/inspections/outlets"),
+      get: (inspectionId: string) => call<InspectionDto>("GET", `/inspections/${id(inspectionId)}`),
+      start: (input: StartInspectionInput) => call<InspectionDto>("POST", "/inspections", input),
+      /** ECCS moves or reassigns an inspection nobody has started. */
+      update: (inspectionId: string, input: UpdateInspectionInput) =>
+        call<InspectionDto>("PATCH", `/inspections/${id(inspectionId)}`, input),
+      /** ECCS removes an inspection nobody has started. */
+      remove: (inspectionId: string) => call<void>("DELETE", `/inspections/${id(inspectionId)}`),
+      /** Saves one answer and returns just that check and the progress counts. */
+      answer: (inspectionId: string, itemId: string, input: AnswerInspectionCheckInput) =>
+        call<InspectionAnswerResultDto>("PUT", `/inspections/${id(inspectionId)}/checks/${id(itemId)}`, input),
+      /** Adds a photo to a check answered "not compliant". */
+      addPhoto(inspectionId: string, itemId: string, file: UploadFile) {
+        const form = new FormData();
+        form.append("file", file, "photo.jpg");
+        // The content type is left unset so the boundary is filled in automatically.
+        return send<InspectionAnswerResultDto>(
+          "POST",
+          `/inspections/${id(inspectionId)}/checks/${id(itemId)}/photos`,
+          form,
+          undefined,
+          true,
+        );
+      },
+      removePhoto: (inspectionId: string, photoId: string) =>
+        call<InspectionAnswerResultDto>("DELETE", `/inspections/${id(inspectionId)}/photos/${id(photoId)}`),
+      /** The Supervisor finishes: the scores are worked out and the report waits for ECCS. */
+      finish: (inspectionId: string) => call<InspectionDto>("POST", `/inspections/${id(inspectionId)}/finish`),
+      /** ECCS approves the report; the restaurant can read it from then on. */
+      approve: (inspectionId: string) => call<InspectionDto>("POST", `/inspections/${id(inspectionId)}/approve`),
+      /** ECCS gives it back to the Supervisor, saying what to correct. */
+      sendBack: (inspectionId: string, input: ReturnInspectionInput) =>
+        call<InspectionDto>("POST", `/inspections/${id(inspectionId)}/send-back`, input),
     },
     /** One month ("2026-10") of an outlet's history calendar. */
     calendar: {

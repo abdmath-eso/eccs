@@ -11,6 +11,7 @@ import {
   type IssueSummaryDto,
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
+import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 
@@ -43,6 +44,7 @@ export class IssuesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly notify: NotifyService,
   ) {}
 
   private get db() {
@@ -129,6 +131,7 @@ export class IssuesService {
       }
       return created;
     });
+    await this.notify.issueRaised(user, issue.id);
     return this.get(user, issue.id);
   }
 
@@ -140,6 +143,7 @@ export class IssuesService {
       // Touch the issue so lists sorted by activity reflect the new message.
       this.db.issue.update({ where: { id: issue.id }, data: { updatedAt: new Date() } }),
     ]);
+    await this.notify.issueReplied(user, issue.id, body);
     return this.get(user, issue.id);
   }
 
@@ -162,6 +166,7 @@ export class IssuesService {
         resolvedAt: status === 'RESOLVED' || status === 'CLOSED' ? (issue.resolvedAt ?? new Date()) : null,
       },
     });
+    await this.notify.issueStatusChanged(user, issue.id, issue.status);
     return this.get(user, issue.id);
   }
 

@@ -1,0 +1,461 @@
+{
+  "name": "Kitchen hygiene inspection (FSSAI Schedule 4)",
+  "source": "docs/FSSAI 2026 KITCHEN SAFETY CHECKLIST.docx, sections 1 to 10",
+  "marks": {
+    "normal": 2,
+    "critical": 4
+  },
+  "note": "The checks are the founder's wording. The document does not mark any check as critical; the ones marked here were chosen by matching FSSAI's asterisk (*) hygiene rating questions (see \"basis\") and need the founder's review.",
+  "sections": [
+    {
+      "number": 1,
+      "title": "FSSAI and food-safety management",
+      "checks": [
+        {
+          "code": "1.1",
+          "text": "FSSAI License/Registration is valid and displayed."
+        },
+        {
+          "code": "1.2",
+          "text": "Food Safety Display Board (FSDB) is displayed and readable."
+        },
+        {
+          "code": "1.3",
+          "text": "Food Safety Management System (FSMS) procedures are implemented."
+        },
+        {
+          "code": "1.4",
+          "text": "Good Hygiene Practices (GHP) and Good Manufacturing Practices (GMP) are followed."
+        },
+        {
+          "code": "1.5",
+          "text": "Food Safety Supervisor is appointed where applicable."
+        },
+        {
+          "code": "1.6",
+          "text": "Food handlers have received appropriate food-safety training."
+        },
+        {
+          "code": "1.7",
+          "text": "Training and food-safety records are maintained.",
+          "critical": true,
+          "basis": "Hygiene rating Q51*: documentation and records are available and retained"
+        },
+        {
+          "code": "1.8",
+          "text": "Consumer complaints are recorded and corrective actions are documented."
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "title": "Kitchen premises and infrastructure",
+      "checks": [
+        {
+          "code": "2.1",
+          "text": "Kitchen and surrounding areas are clean and hygienic."
+        },
+        {
+          "code": "2.2",
+          "text": "Floors are clean, washable, non-absorbent and non-slippery."
+        },
+        {
+          "code": "2.3",
+          "text": "Walls and ceilings are clean and maintained."
+        },
+        {
+          "code": "2.4",
+          "text": "Doors/windows are clean and prevent pest entry."
+        },
+        {
+          "code": "2.5",
+          "text": "Adequate lighting is available."
+        },
+        {
+          "code": "2.6",
+          "text": "Adequate ventilation/exhaust is available."
+        },
+        {
+          "code": "2.7",
+          "text": "Potable water is available for food preparation and cleaning.",
+          "critical": true,
+          "basis": "Hygiene rating Q8*: potable water is used"
+        },
+        {
+          "code": "2.8",
+          "text": "Water-testing records are maintained where applicable."
+        },
+        {
+          "code": "2.9",
+          "text": "Adequate space is available to prevent cross-contamination."
+        },
+        {
+          "code": "2.10",
+          "text": "Drains are clean and functioning properly."
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "title": "Personal hygiene and food handlers",
+      "checks": [
+        {
+          "code": "3.1",
+          "text": "Hands are washed properly before food handling.",
+          "critical": true,
+          "basis": "Hygiene rating Q46*: personal cleanliness and behaviour, hand washing"
+        },
+        {
+          "code": "3.2",
+          "text": "Hands are washed after toilet use and handling raw food/waste.",
+          "critical": true,
+          "basis": "Hygiene rating Q46*: personal cleanliness and behaviour, hand washing"
+        },
+        {
+          "code": "3.3",
+          "text": "Clean protective clothing/apron is worn."
+        },
+        {
+          "code": "3.4",
+          "text": "Hair is properly covered/restrained."
+        },
+        {
+          "code": "3.5",
+          "text": "Fingernails are short and clean."
+        },
+        {
+          "code": "3.6",
+          "text": "Jewellery is removed where it could contaminate food."
+        },
+        {
+          "code": "3.7",
+          "text": "Cuts/wounds are covered with suitable waterproof dressings."
+        },
+        {
+          "code": "3.8",
+          "text": "Food handlers do not smoke, spit or engage in unhygienic practices."
+        },
+        {
+          "code": "3.9",
+          "text": "Sick employees are prevented from handling food where appropriate."
+        },
+        {
+          "code": "3.10",
+          "text": "Applicable health/medical records are maintained."
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "title": "Receiving and food storage",
+      "checks": [
+        {
+          "code": "4.1",
+          "text": "Ingredients are purchased from approved/reliable suppliers."
+        },
+        {
+          "code": "4.2",
+          "text": "Incoming food is inspected for quality and contamination."
+        },
+        {
+          "code": "4.3",
+          "text": "Packaged food has intact packaging."
+        },
+        {
+          "code": "4.4",
+          "text": "Expiry/use-by dates are checked."
+        },
+        {
+          "code": "4.5",
+          "text": "Raw and ready-to-eat foods are segregated."
+        },
+        {
+          "code": "4.6",
+          "text": "Food is stored off the floor."
+        },
+        {
+          "code": "4.7",
+          "text": "FIFO/FEFO stock rotation is followed."
+        },
+        {
+          "code": "4.8",
+          "text": "Refrigerated foods are maintained at appropriate temperatures.",
+          "critical": true,
+          "basis": "Hygiene rating Q27*: cold food held at 5°C or below"
+        },
+        {
+          "code": "4.9",
+          "text": "Frozen foods are maintained under appropriate temperature control.",
+          "critical": true,
+          "basis": "Hygiene rating Q27*: frozen food held at -18°C or below"
+        },
+        {
+          "code": "4.10",
+          "text": "Refrigerators/freezers are clean."
+        },
+        {
+          "code": "4.11",
+          "text": "Temperature records are maintained."
+        },
+        {
+          "code": "4.12",
+          "text": "Chemicals are stored separately from food."
+        },
+        {
+          "code": "4.13",
+          "text": "Food containers are clean, covered and appropriately labelled."
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "title": "Food preparation and cooking",
+      "checks": [
+        {
+          "code": "5.1",
+          "text": "Raw and ready-to-eat food preparation is adequately segregated."
+        },
+        {
+          "code": "5.2",
+          "text": "Appropriate chopping boards/utensils are used."
+        },
+        {
+          "code": "5.3",
+          "text": "Fruits and vegetables are appropriately washed."
+        },
+        {
+          "code": "5.4",
+          "text": "Food is thoroughly cooked using an appropriate process.",
+          "critical": true,
+          "basis": "Hygiene rating Q24*: food cooked to the required core temperature"
+        },
+        {
+          "code": "5.5",
+          "text": "Cooking/reheating temperatures are monitored where required.",
+          "critical": true,
+          "basis": "Hygiene rating Q28*: reheating reaches 75°C at the core"
+        },
+        {
+          "code": "5.6",
+          "text": "Cooked food is protected from contamination."
+        },
+        {
+          "code": "5.7",
+          "text": "Ready-to-eat food is handled hygienically."
+        },
+        {
+          "code": "5.8",
+          "text": "Clean utensils are used for serving."
+        },
+        {
+          "code": "5.9",
+          "text": "Food is not unnecessarily handled with bare hands."
+        },
+        {
+          "code": "5.10",
+          "text": "Cooked/perishable food is not left at unsafe temperatures for extended periods.",
+          "critical": true,
+          "basis": "Hygiene rating Q25* and Q27*: cooling and holding temperatures"
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "title": "Cross-contamination control",
+      "checks": [
+        {
+          "code": "6.1",
+          "text": "Raw meat, poultry, fish and eggs are separated from ready-to-eat food."
+        },
+        {
+          "code": "6.2",
+          "text": "Separate utensils/equipment are used or properly sanitised between uses."
+        },
+        {
+          "code": "6.3",
+          "text": "Raw-food preparation surfaces are cleaned before ready-to-eat food preparation."
+        },
+        {
+          "code": "6.4",
+          "text": "Cleaning cloths are clean and changed regularly."
+        },
+        {
+          "code": "6.5",
+          "text": "Food handlers avoid contaminating food-contact surfaces."
+        },
+        {
+          "code": "6.6",
+          "text": "Stored food is covered and protected."
+        },
+        {
+          "code": "6.7",
+          "text": "Raw food is stored to prevent leakage onto other foods."
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "title": "Cleaning and sanitation",
+      "checks": [
+        {
+          "code": "7.1",
+          "text": "Food-contact surfaces are cleaned and sanitised regularly."
+        },
+        {
+          "code": "7.2",
+          "text": "Utensils and cookware are cleaned after use."
+        },
+        {
+          "code": "7.3",
+          "text": "Worktops and preparation areas are clean."
+        },
+        {
+          "code": "7.4",
+          "text": "Floors, walls and sinks are cleaned."
+        },
+        {
+          "code": "7.5",
+          "text": "Cleaning chemicals are correctly labelled."
+        },
+        {
+          "code": "7.6",
+          "text": "Cleaning chemicals are stored away from food."
+        },
+        {
+          "code": "7.7",
+          "text": "Cleaning equipment is kept clean and stored hygienically."
+        },
+        {
+          "code": "7.8",
+          "text": "Hand-washing facilities are clean and functional."
+        },
+        {
+          "code": "7.9",
+          "text": "Toilets are maintained in hygienic condition."
+        },
+        {
+          "code": "7.10",
+          "text": "Cleaning/sanitation records are maintained where required."
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "title": "Pest control",
+      "checks": [
+        {
+          "code": "8.1",
+          "text": "No visible signs of insects, rodents or other pests.",
+          "critical": true,
+          "basis": "Hygiene rating Q41*: no signs of pest activity or infestation"
+        },
+        {
+          "code": "8.2",
+          "text": "No pest droppings, eggs or larvae are observed.",
+          "critical": true,
+          "basis": "Hygiene rating Q41*: no signs of pest activity or infestation"
+        },
+        {
+          "code": "8.3",
+          "text": "Doors/windows/openings are adequately protected."
+        },
+        {
+          "code": "8.4",
+          "text": "Drains and other entry points are protected."
+        },
+        {
+          "code": "8.5",
+          "text": "Waste does not accumulate in food areas."
+        },
+        {
+          "code": "8.6",
+          "text": "Pest-control programme is implemented where applicable."
+        },
+        {
+          "code": "8.7",
+          "text": "Pest-control chemicals cannot contaminate food."
+        },
+        {
+          "code": "8.8",
+          "text": "Pest-control records and corrective actions are maintained."
+        }
+      ]
+    },
+    {
+      "number": 9,
+      "title": "Waste management",
+      "checks": [
+        {
+          "code": "9.1",
+          "text": "Food waste is removed regularly."
+        },
+        {
+          "code": "9.2",
+          "text": "Waste bins are suitable and clean."
+        },
+        {
+          "code": "9.3",
+          "text": "Waste bins do not overflow."
+        },
+        {
+          "code": "9.4",
+          "text": "Bins are covered where required."
+        },
+        {
+          "code": "9.5",
+          "text": "Waste is kept away from food preparation areas."
+        },
+        {
+          "code": "9.6",
+          "text": "Drains are free from blockage."
+        },
+        {
+          "code": "9.7",
+          "text": "Grease traps are maintained where applicable."
+        },
+        {
+          "code": "9.8",
+          "text": "Waste storage area is clean and hygienic."
+        }
+      ]
+    },
+    {
+      "number": 10,
+      "title": "Equipment and utensils",
+      "checks": [
+        {
+          "code": "10.1",
+          "text": "Equipment is clean and in good working condition."
+        },
+        {
+          "code": "10.2",
+          "text": "Food-contact equipment is made from suitable food-safe material."
+        },
+        {
+          "code": "10.3",
+          "text": "Damaged/corroded equipment is repaired or replaced."
+        },
+        {
+          "code": "10.4",
+          "text": "Thermometers are functional."
+        },
+        {
+          "code": "10.5",
+          "text": "Monitoring equipment is calibrated where necessary."
+        },
+        {
+          "code": "10.6",
+          "text": "Utensils are cleaned and sanitised."
+        },
+        {
+          "code": "10.7",
+          "text": "Clean utensils are stored hygienically."
+        },
+        {
+          "code": "10.8",
+          "text": "Refrigeration equipment is functioning correctly."
+        }
+      ]
+    }
+  ]
+}

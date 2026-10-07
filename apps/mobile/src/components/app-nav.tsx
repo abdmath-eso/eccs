@@ -46,9 +46,13 @@ const MANAGER_MENU: MenuItem[] = [
   { label: 'tile.services', icon: 'construct-outline', href: '/services' },
   { label: 'tile.history', icon: 'calendar-outline', href: '/history' },
   { label: 'tile.documents', icon: 'document-text-outline', href: '/documents' },
+  { label: 'tile.inspections', icon: 'clipboard-outline', href: '/inspections' },
   STAFF,
 ];
-const ECCS_MENU: MenuItem[] = [{ label: 'tile.jobs', icon: 'construct-outline', href: '/services' }];
+const ECCS_MENU: MenuItem[] = [
+  { label: 'tile.jobs', icon: 'construct-outline', href: '/services' },
+  { label: 'tile.inspections', icon: 'clipboard-outline', href: '/inspections' },
+];
 const MENU: Record<Role, MenuItem[]> = {
   HEAD_CHEF: HEAD_CHEF_MENU,
   MANAGER: MANAGER_MENU,

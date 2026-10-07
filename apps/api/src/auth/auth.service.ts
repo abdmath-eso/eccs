@@ -18,6 +18,7 @@ import {
   type SessionDto,
 } from '@eccs/shared';
 import { env } from '../config/env.js';
+import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { newToken, randomOtp, safeEqualHex, sha256 } from './auth.crypto.js';
 import type { AuthUser } from './auth.types.js';
@@ -63,7 +64,10 @@ const otpHash = (challengeId: string, code: string) => sha256(`${challengeId}:${
 export class AuthService {
   private readonly linkAttempts = new Map<string, { count: number; resetAt: number }>();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notify: NotifyService,
+  ) {}
 
   private get db() {
     return this.prisma.client;
@@ -174,6 +178,7 @@ export class AuthService {
     }
 
     const device = await this.createLinkedDevice(outlet.organizationId, outlet.id, deviceName);
+    await this.notify.deviceLinked(outlet.id);
     return { deviceToken: device.token, organizationName: outlet.organization.name, outletName: outlet.name };
   }
 
@@ -219,7 +224,10 @@ export class AuthService {
         },
       });
       // The wrong PIN that causes the lock is told so at once, so the app can show the wait straight away.
-      if (lockedUntil) throw pinLocked(lockedUntil);
+      if (lockedUntil) {
+        await this.notify.pinLocked(device);
+        throw pinLocked(lockedUntil);
+      }
       throw new UnauthorizedException('Wrong PIN');
     }
 

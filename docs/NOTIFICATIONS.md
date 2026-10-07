@@ -1,6 +1,6 @@
 # ECCS Platform: Notifications register
 
-Every message the platform should send to a person without them opening the app first. Started on 7 October 2026 at the founder's request, so that none is forgotten: **no notification is built or tested yet.** The founder will have them built and tested together later.
+Every message the platform should send to a person without them opening the app first. Started on 7 October 2026 at the founder's request, so that none is forgotten. **First version built on 7 October 2026: a list inside the app and the console (a bell with a count), with no push, SMS, WhatsApp or email yet.** The Status column says which rows are built; none has been tested by the founder.
 
 **How to use this file**
 
@@ -10,8 +10,12 @@ Every message the platform should send to a person without them opening the app 
 
 **What exists already**
 
-- The database has a `Notification` table (one row per message per person, with a read mark) and a `DeviceToken` table (where to push to). Nothing writes to them yet.
-- Nothing in the app shows notifications: there is no bell, no list and no badge.
+- The database has a `Notification` table (one row per message per person, with a read mark) and a `DeviceToken` table (where to push to). The API writes to `Notification`; nothing uses `DeviceToken` yet.
+- The mobile app has a bell with an unread count at the top right of Home, opening a Notifications screen. The console has a bell in its header, opening a Notifications page.
+- Each notification is stored as its kind and its values (names, dates), and the app words it in the reader's own language. **The wording exists in English only so far; the other eleven languages fall back to English until they are translated.** The console shows English.
+- Time-based reminders are checked every 15 minutes by the API (`apps/api/src/notifications/reminders.service.ts`); each is sent to a person once.
+- Nobody is notified of their own action. A failed notification never stops the action it is about.
+- Adding push later is one place: `outsideChannels` in `apps/api/src/notifications/notifications.service.ts`.
 - Push notifications cannot be fully tested in Expo Go. They need a proper build of the app installed on the phone.
 
 **Decisions still to make (founder)**
@@ -30,24 +34,24 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | # | When | Who | Says | Channel (suggested) | Status |
 |---|---|---|---|---|---|
-| S1 | ECCS approves a signed-off report, so its PDF is ready | O, M of the outlet | "Your service report SR-… for {service} is ready. Open it as a PDF." | Push + in-app | not built (**asked for by the founder, 7 Oct**) |
-| S2 | A restaurant sends a booking request | Adm | "{outlet} asked for {service} on {date}, {time}." | Console badge (exists as a count) + push | not built |
-| S3 | ECCS confirms a request | O, M | "ECCS confirmed {service} for {date}, {time}. Supervisor: {name}." | Push + in-app | not built |
-| S4 | ECCS turns down a request | O, M | "ECCS could not take your request for {service} on {date}. Call us to rearrange." | Push + in-app | not built |
-| S5 | ECCS moves a visit to another day or time | O, M; Sup | "{service} has moved to {date}, {time}." | Push + in-app | not built |
-| S6 | ECCS cancels a visit | O, M; Sup | "{service} on {date} has been cancelled." | Push + in-app | not built |
-| S7 | A visit is given to a Supervisor, or taken away | Sup | "New visit: {service} at {outlet}, {date}, {time}." | Push + in-app | not built |
-| S8 | The day before a visit | O, M; Sup | "Reminder: ECCS {service} tomorrow, {time}." | Push | not built |
+| S1 | ECCS approves a signed-off report, so its PDF is ready | O, M of the outlet | "Your service report SR-… for {service} is ready. Open it as a PDF." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) (**asked for by the founder, 7 Oct**) |
+| S2 | A restaurant sends a booking request | Adm | "{outlet} asked for {service} on {date}, {time}." | Console badge (exists as a count) + push | built 7 Oct (in-app list only; not tested by the founder) |
+| S3 | ECCS confirms a request | O, M | "ECCS confirmed {service} for {date}, {time}." (The Supervisor's name is not in the wording yet; it is on the visit.) | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| S4 | ECCS turns down a request it has not confirmed (cancelling one already confirmed is S6) | O, M | "ECCS could not take your request for {service} on {date}. Call us to rearrange." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| S5 | ECCS moves a visit to another day or time | O, M; Sup | "{service} has moved to {date}, {time}." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| S6 | ECCS cancels a visit | O, M; Sup | "{service} on {date} has been cancelled." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| S7 | A visit is given to a Supervisor (when ECCS confirms a request, adds a visit, changes who does it, or a plan visit is created with a Supervisor), or taken away | Sup | "New visit for you: {service} at {outlet}, {date}, {time}." / "{service} at {outlet} on {date} has been given to someone else or cancelled." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| S8 | The day before a visit | O, M; Sup | "Reminder: ECCS {service} tomorrow, {time}." | Push | built 7 Oct (in-app list only; not tested by the founder) |
 | S9 | The morning of a visit | Sup | "Today: {count} visits. First: {outlet}, {time}." | Push | not built |
-| S10 | The Supervisor checks in at the outlet | O, M | "The ECCS team has arrived for {service}." | Push | not built |
-| S11 | The Supervisor finishes the visit | O, M | "{service} is finished. Check the photos and sign off." | Push + in-app | not built |
-| S12 | A finished visit is still not signed off after a day | O, M | "{service} from {date} is waiting for your sign-off." | Push | not built |
-| S13 | The restaurant signs off | Adm; Sup | "{outlet} signed off {service}: {stars} stars. Report to approve." | Console badge (exists as a count) + push | not built |
-| S14 | The restaurant gives one or two stars | Adm | "Low rating at {outlet}: {stars} stars. '{comment}'" | Push, straight away | not built |
-| S15 | ECCS sends a report back for correction | Sup | "ECCS asked for a correction on {service} at {outlet}: {note}" | Push + in-app | not built |
-| S16 | A visit's date has passed and it was never started | Adm; Sup | "{service} at {outlet} on {date} was not done." | Console + push | not built |
-| S18 | Plan visits are added to the diary without a Supervisor | Adm | "{count} new plan visits need a Supervisor." | Console badge (exists as a count) | not built |
-| S19 | An outlet is put on a plan, its plan is changed, or its plan is stopped | O, M | "{outlet} is now on the {plan} plan. First visit: {date}." / "Your {plan} plan has ended." | Push + in-app | not built |
+| S10 | The Supervisor checks in at the outlet | O, M | "The ECCS team has arrived for {service}." | Push | built 7 Oct (in-app list only; not tested by the founder) |
+| S11 | The Supervisor finishes the visit (not when a report ECCS sent back after sign-off is finished again: that returns to ECCS) | O, M | "{service} is finished. Check the photos and sign off." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| S12 | A finished visit is still not signed off after a day (sent once) | O, M | "{service} from {date} is waiting for your sign-off." | Push | built 7 Oct (in-app list only; not tested by the founder) |
+| S13 | The restaurant signs off | Adm; Sup (for one or two stars the admins get S14 instead, the Supervisor still gets this) | "{outlet} signed off {service}: {stars} out of 5 stars. The report is ready to approve." | Console badge (exists as a count) + push | built 7 Oct (in-app list only; not tested by the founder) |
+| S14 | The restaurant gives one or two stars | Adm, in place of S13 | "{outlet} gave {service} {stars} out of 5 stars. '{comment}'" | Push, straight away | built 7 Oct (in-app list only; not tested by the founder) |
+| S15 | ECCS sends a report back for correction | Sup | "ECCS asked for a correction on {service} at {outlet}: {note}" | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| S16 | A visit's date has passed and it was never started (checked for the last 7 days; sent once per visit) | Adm; Sup | "{service} at {outlet} on {date} was not done." | Console + push | built 7 Oct (in-app list only; not tested by the founder) |
+| S18 | Plan visits are added to the diary without a Supervisor | Adm (not the admin who has just set the plan) | "New plan visits without a Supervisor: {count}." | Console badge (exists as a count) | built 7 Oct (in-app list only; not tested by the founder) |
+| S19 | An outlet is put on a plan, its plan is changed, or its plan is stopped | O, M | "{outlet} is now on the {plan} plan. First visit: {date}." / "The {plan} plan at {outlet} has ended." (Changing a plan sends only the first.) | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
 | S17 | A visit in the next two days has no Supervisor | Adm | "{service} at {outlet} on {date} has no Supervisor yet." | Console badge (exists as a count) | not built |
 
 ## 2. Daily checklists
@@ -55,9 +59,9 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 | # | When | Who | Says | Channel (suggested) | Status |
 |---|---|---|---|---|---|
 | C1 | 30 minutes before a checklist is due and it is not submitted | HC (and M) | "{checklist} is due by {time}. {done} of {total} done." | Push | not built |
-| C2 | A checklist's due time passes and it is not submitted | HC, M | "{checklist} is overdue." | Push | not built |
-| C3 | A checklist is submitted with a problem reported | M, O | "{name} reported a problem on {checklist}: {item}." | Push + in-app | not built |
-| C4 | A day ends with a checklist not submitted | M, O | "{checklist} was missed at {outlet} on {date}." | In-app (morning summary) | not built |
+| C2 | A checklist's due time passes and it is not submitted (checked every 15 minutes; sent once per checklist per day) | HC, M | "{checklist} is overdue." | Push | built 7 Oct (in-app list only; not tested by the founder) |
+| C3 | A checklist is submitted with a problem reported | M, O | "{name} reported a problem on {checklist}: {item}." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| C4 | A day ends with a checklist not submitted | M, O | "{checklist} was missed on {date}." (The outlet's name is shown under it.) | In-app (morning summary) | built 7 Oct (in-app list only; not tested by the founder) |
 | C5 | A submitted checklist has not been reviewed after a day | M | "{checklist} from {date} is waiting for your review." | In-app | not built |
 | C6 | A photo or answer saved without signal could not be sent after several tries (once offline working is built) | whoever took it | "Some checklist items have not been sent. Open the app when you have signal." | Push | not built |
 
@@ -65,20 +69,20 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | # | When | Who | Says | Channel (suggested) | Status |
 |---|---|---|---|---|---|
-| I1 | A restaurant raises an issue | Adm (Sup for their outlets) | "{outlet} raised an issue: {category}. '{first words}'" | Console badge (exists as a count) + push | not built |
-| I2 | ECCS replies on an issue | whoever raised it, plus M, O | "ECCS replied on {reference}: '{first words}'" | Push + in-app | not built |
-| I3 | The restaurant replies on an issue | Adm | "{outlet} replied on {reference}." | Console + push | not built |
-| I4 | ECCS marks an issue in progress or resolved | whoever raised it, plus M, O | "ECCS is working on {reference}." / "ECCS marked {reference} as resolved." | Push + in-app | not built |
-| I5 | The restaurant closes or reopens an issue | Adm | "{outlet} reopened {reference}." | Console + push | not built |
+| I1 | A restaurant raises an issue | Adm, and Supervisors who have a visit at that outlet | "{outlet} raised {reference}: {category}. '{first words}'" | Console badge (exists as a count) + push | built 7 Oct (in-app list only; not tested by the founder) |
+| I2 | ECCS replies on an issue | whoever raised it, plus M, O | "ECCS replied on {reference}: '{first words}'" | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| I3 | The restaurant replies on an issue | Adm, and Supervisors who have a visit at that outlet | "{outlet} replied on {reference}: '{first words}'" | Console + push | built 7 Oct (in-app list only; not tested by the founder) |
+| I4 | ECCS marks an issue in progress or resolved (ECCS closing or reopening one sends nothing) | whoever raised it, plus M, O | "ECCS is working on {reference}." / "ECCS marked {reference} as resolved." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| I5 | The restaurant closes or reopens an issue | Adm, and Supervisors who have a visit at that outlet | "{outlet} closed {reference}." / "{outlet} reopened {reference}." | Console + push | built 7 Oct (in-app list only; not tested by the founder) |
 | I6 | An open issue has had no reply from ECCS for a day | Adm | "{reference} at {outlet} has been waiting {hours} hours." | Console | not built |
 
 ## 4. Licences and documents
 
 | # | When | Who | Says | Channel (suggested) | Status |
 |---|---|---|---|---|---|
-| L1 | A licence expires in 30, 15, 7 and 1 days | O, M | "{licence} expires in {days} days ({date})." | Push + in-app | not built |
-| L2 | A licence has expired | O, M | "{licence} expired on {date}. Renew it and add the new copy." | Push + in-app, repeated weekly | not built |
-| L3 | ECCS adds or replaces a licence or document for the outlet | O, M | "ECCS added {title} to your documents." | In-app | not built |
+| L1 | A licence expires in 30, 15, 7 and 1 days (one first seen between two of these gets the reminder it has just passed) | O, M | "{licence} expires on {date}. Days left: {days}." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| L2 | A licence has expired (repeated every 7 days until it is renewed) | O, M | "{licence} expired on {date}. Renew it and add the new copy." | Push + in-app, repeated weekly | built 7 Oct (in-app list only; not tested by the founder) |
+| L3 | ECCS adds or replaces a licence or document for the outlet, or changes a licence's details | O, M | "ECCS added or updated {title} in your licences and documents." | In-app | built 7 Oct (in-app list only; not tested by the founder) |
 | L4 | A client's licence is expired or expiring | Adm | "{count} licences need attention." | Console badge (exists as a count) | not built |
 | L5 | A service report PDF is filed in the outlet's documents | O, M | Covered by S1 | – | see S1 |
 
@@ -86,8 +90,8 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | # | When | Who | Says | Channel (suggested) | Status |
 |---|---|---|---|---|---|
-| A1 | A new phone is linked to an outlet with its restaurant code | O (M for their outlet) | "A new phone was linked to {outlet}." | Push + in-app | not built |
-| A2 | A PIN is locked after five wrong tries | O, M | "Someone tried a wrong PIN five times at {outlet}." | In-app | not built |
+| A1 | A new phone is linked to an outlet with its restaurant code | O, M of the outlet | "A new phone was linked to {outlet}." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| A2 | A PIN is locked after five wrong tries | O, M of the outlet the phone is linked to (the Owners, for an Owner's own phone) | "Someone tried a wrong PIN five times at {outlet}." | In-app | built 7 Oct (in-app list only; not tested by the founder) |
 | A3 | The Owner asks for a new PIN by one-time code | the Owner | The one-time code itself | SMS (real SMS is not set up; sample code 123456 today) | not built |
 | A4 | A person's access is removed or given back | – | No message planned: they are told in person | – | not planned |
 
@@ -116,5 +120,6 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | Date | Change |
 |---|---|
+| 7 Oct 2026 | First version built as a list inside the app and the console: S1 to S8, S10 to S16, S18, S19, C2 to C4, I1 to I5, L1 to L3, A1, A2. Not built: S9, S17, C1, C5, C6, I6, L4, P1, A3. Rows corrected to match what was built: S3 (no Supervisor name in the wording), S4, S7, S11, S12, S13 and S14 (a low rating replaces the ordinary sign-off notification for admins), S16, S18, S19, C2, C4, I1, I3, I4, I5 (Supervisors with a visit at the outlet are included), L1, L2, L3, A1, A2. Not sent, and not in the register: a restaurant withdrawing its own request; ECCS adding a visit without a request (the restaurant first hears of it from S8); a corrected report coming back to ECCS for approval. |
 | 7 Oct 2026 | Added S18 and S19 with automatic plan visits. |
 | 7 Oct 2026 | Register started. S1 (report PDF ready) recorded as asked for by the founder; everything else listed by Claude from the features built so far. Nothing built. |

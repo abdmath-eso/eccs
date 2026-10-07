@@ -30,7 +30,7 @@ type Visit = {
   outletAddress: string | null;
   tasks: { itemId: string; done: boolean | null; note: string | null }[];
   photos: { id: string; kind: string; path: string }[];
-  signOff: { name: string; role: string | null; signedAt: string } | null;
+  signOff: { name: string; role: string | null; signedAt: string; rating: number | null; comment: string | null } | null;
   technicianNames: string[];
   notes: string | null;
   checkInAt: string | null;
@@ -323,13 +323,21 @@ describe('Service loop (e2e)', () => {
   describe('sign-off and the report', () => {
     it('is for the restaurant’s Owner or Manager only', async () => {
       expect((await visit(owner)).canSignOff).toBe(true);
-      const signOff = (token: string) => http().post(`/visits/${visitId}/sign-off`).set(bearer(token));
+      const signOff = (token: string, body: Record<string, unknown> = { rating: 4, comment: '  Clean and on time.  ' }) =>
+        http().post(`/visits/${visitId}/sign-off`).set(bearer(token)).send(body);
       await signOff(chef).expect(403);
       await signOff(supervisor).expect(403);
       await signOff(admin).expect(403);
       await signOff(otherManager).expect(404);
 
+      // A rating out of five is part of signing off; the comment is optional.
+      await signOff(owner, {}).expect(400);
+      await signOff(owner, { rating: 0 }).expect(400);
+      await signOff(owner, { rating: 6 }).expect(400);
+      await signOff(owner, { rating: 4.5 }).expect(400);
+
       const signed = (await signOff(owner).expect(200)).body as Visit;
+      expect(signed.signOff).toMatchObject({ rating: 4, comment: 'Clean and on time.' });
       expect(signed.status).toBe('APPROVED');
       expect(signed.signOff).toMatchObject({ role: 'OWNER', name: expect.any(String), signedAt: expect.any(String) });
       expect(signed.canSignOff).toBe(false);
@@ -346,7 +354,8 @@ describe('Service loop (e2e)', () => {
         const report = await visit(token);
         expect(report.photos).toHaveLength(2);
         expect(report.technicianNames).toEqual(['Ravi', 'Suresh']);
-        expect(report.signOff).not.toBeNull();
+        // ECCS and the Supervisor see what the restaurant thought of the visit.
+        expect(report.signOff).toMatchObject({ rating: 4, comment: 'Clean and on time.' });
       }
     });
   });

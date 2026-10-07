@@ -53,6 +53,7 @@ import type {
   RestaurantUserDto,
   RestaurantUserWithPinDto,
   SessionDto,
+  SignOffVisitInput,
   UpdateChecklistInput,
   UpdateChecklistItemInput,
   UpdateProfileInput,
@@ -369,8 +370,9 @@ export function createApiClient(options: ApiClientOptions) {
         call<VisitDto>("DELETE", `/visits/${id(visitId)}/photos/${id(photoId)}`),
       /** The Supervisor finishes; the visit then waits for the restaurant's sign-off. */
       complete: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/complete`),
-      /** The restaurant's Owner or Manager confirms the work was done. */
-      signOff: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/sign-off`),
+      /** The restaurant's Owner or Manager confirms the work was done and rates it out of five. */
+      signOff: (visitId: string, input: SignOffVisitInput) =>
+        call<VisitDto>("POST", `/visits/${id(visitId)}/sign-off`, input),
     },
     /** One month ("2026-10") of an outlet's history calendar. */
     calendar: {

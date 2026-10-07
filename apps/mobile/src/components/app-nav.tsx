@@ -10,7 +10,7 @@ import { SideMenu, type MenuItem } from '@/components/side-menu';
 import { ThemedText } from '@/components/themed-text';
 import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { isTabRoute } from '@/lib/navigation';
+import { isTabRoute, normalizePath, TAB_ROUTES, type TabHref } from '@/lib/navigation';
 import { useSession } from '@/lib/session';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -20,29 +20,16 @@ interface Tab {
   /** Outline when not selected, filled when selected. */
   icon: IconName;
   iconSelected: IconName;
-  href: '/' | '/checklists' | '/support' | '/services' | '/sops';
 }
 
-const HOME: Tab = { label: 'tab.home', icon: 'home-outline', iconSelected: 'home', href: '/' };
-const CHECKLISTS: Tab = { label: 'tab.checklists', icon: 'checkbox-outline', iconSelected: 'checkbox', href: '/checklists' };
-const ISSUES: Tab = {
-  label: 'tab.issues',
-  icon: 'chatbubble-ellipses-outline',
-  iconSelected: 'chatbubble-ellipses',
-  href: '/support',
-};
-const SERVICES: Tab = { label: 'tab.services', icon: 'construct-outline', iconSelected: 'construct', href: '/services' };
-const VISITS: Tab = { ...SERVICES, label: 'tab.visits' };
-const SOPS: Tab = { label: 'tab.sops', icon: 'book-outline', iconSelected: 'book', href: '/sops' };
-
-// The sections each role uses most, at most four, plus "More". The rest are in the menu.
-const TABS: Record<Role, Tab[]> = {
-  HEAD_CHEF: [HOME, CHECKLISTS, ISSUES, SOPS],
-  MANAGER: [HOME, CHECKLISTS, SERVICES, ISSUES],
-  OWNER: [HOME, CHECKLISTS, SERVICES, ISSUES],
-  SUPERVISOR: [HOME, VISITS],
-  OPS_MANAGER: [HOME, VISITS],
-  SUPER_ADMIN: [HOME, VISITS],
+// How each screen appears in the bar. Which ones a role gets is decided in lib/navigation.ts.
+const TAB: Record<TabHref, Tab> = {
+  '/': { label: 'tab.home', icon: 'home-outline', iconSelected: 'home' },
+  '/checklists': { label: 'tab.checklists', icon: 'checkbox-outline', iconSelected: 'checkbox' },
+  '/services': { label: 'tab.services', icon: 'construct-outline', iconSelected: 'construct' },
+  '/history': { label: 'tab.calendar', icon: 'calendar-outline', iconSelected: 'calendar' },
+  '/support': { label: 'tab.issues', icon: 'chatbubble-ellipses-outline', iconSelected: 'chatbubble-ellipses' },
+  '/sops': { label: 'tab.sops', icon: 'book-outline', iconSelected: 'book' },
 };
 
 const STAFF: MenuItem = { label: 'tile.staff', icon: 'key-outline', href: '/staff' };
@@ -99,14 +86,15 @@ export function AppNav() {
 
   const membership = user?.memberships[0];
   // An owner who has just been given a PIN must see it before anything else.
-  if (!user || !membership || newPin || !isTabRoute(pathname)) return null;
+  if (!user || !membership || newPin || !isTabRoute(pathname, membership.role)) return null;
 
-  const current = pathname.replace(/\/$/, '') || '/';
+  const current = normalizePath(pathname);
+  const eccs = isEccsRole(membership.role);
   const place =
     membership.outletName ?? membership.organizationName ?? (membership.role === 'OWNER' ? t('home.allOutlets') : null);
   const roleAndPlace = `${t(`role.${membership.role}`)}${place ? ` · ${place}` : ''}`;
 
-  function open(href: Tab['href']) {
+  function open(href: TabHref) {
     if (href === current) return;
     // Home stays underneath the other sections, so Back from any of them returns to it.
     if (href === '/') router.dismissAll();
@@ -138,11 +126,12 @@ export function AppNav() {
     <>
       <View style={[styles.bar, { backgroundColor: theme.background, borderColor: theme.border, paddingBottom: insets.bottom }]}>
         <View style={styles.items} accessibilityRole="tablist">
-          {TABS[membership.role].map((tab) =>
-            item(tab.href, t(tab.label), tab.href === current ? tab.iconSelected : tab.icon, tab.href === current, () =>
-              open(tab.href),
-            ),
-          )}
+          {TAB_ROUTES[membership.role].map((href) => {
+            const tab = TAB[href];
+            // For ECCS staff the services screen is their list of visits.
+            const label = t(eccs && href === '/services' ? 'tab.visits' : tab.label);
+            return item(href, label, href === current ? tab.iconSelected : tab.icon, href === current, () => open(href));
+          })}
           {item('more', t('tab.more'), 'menu', false, () => setMenuOpen(true))}
         </View>
       </View>

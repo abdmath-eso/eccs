@@ -38,6 +38,9 @@ const slotName = (slot: VisitSlot) => {
   return window ? `${clock(window.start)} – ${clock(window.end)}` : "After closing";
 };
 
+/** The word shown with each number of stars, the same as in the app. */
+const RATING_WORDS = ["Poor", "Fair", "Good", "Very good", "Excellent"];
+
 const STATUS: Record<VisitStatus, { label: string; style: string }> = {
   SCHEDULED: { label: "No Supervisor yet", style: "border-danger text-danger" },
   ASSIGNED: { label: "Assigned", style: "border-foreground text-foreground" },
@@ -828,11 +831,25 @@ function VisitDetail({
       )}
 
       {isReport && (
-        <p className={`rounded-lg border p-3 text-sm ${visit.signOff ? "border-primary text-primary" : "border-border text-muted"}`}>
-          {visit.signOff
-            ? `Signed off by ${visit.signOff.name} on ${when(visit.signOff.signedAt)}`
-            : "Waiting for the restaurant's Owner or Manager to sign off in the app."}
-        </p>
+        <div className={`rounded-lg border p-3 text-sm ${visit.signOff ? "border-primary" : "border-border text-muted"}`}>
+          <p className={visit.signOff ? "font-semibold text-primary" : undefined}>
+            {visit.signOff
+              ? `Signed off by ${visit.signOff.name} on ${when(visit.signOff.signedAt)}`
+              : "Waiting for the restaurant's Owner or Manager to sign off in the app."}
+          </p>
+          {visit.signOff?.rating != null && (
+            <p className="mt-2">
+              <span aria-hidden className="text-base tracking-wide text-amber-700">
+                {"★".repeat(visit.signOff.rating)}
+                {"☆".repeat(5 - visit.signOff.rating)}
+              </span>{" "}
+              <span className="font-semibold">
+                {visit.signOff.rating} out of 5 · {RATING_WORDS[visit.signOff.rating - 1]}
+              </span>
+            </p>
+          )}
+          {visit.signOff?.comment && <p className="mt-1 whitespace-pre-wrap">“{visit.signOff.comment}”</p>}
+        </div>
       )}
     </Card>
   );

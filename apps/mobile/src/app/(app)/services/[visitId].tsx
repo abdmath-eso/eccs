@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
+import { StarRating, type Stars } from '@/components/ui/star-rating';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
 import { VisitStatusBadge } from '@/components/visit-card';
@@ -19,6 +20,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { formatDateTime, formatDayLong, formatSlot } from '@/lib/format';
 import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
+import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
 
 const splitNames = (text: string) =>
@@ -67,6 +69,10 @@ export default function VisitScreen() {
   const [viewing, setViewing] = useState<{ uri: string; label: string } | null>(null);
   /** What Finish found missing: a task (`task-<id>`) or the after photo (`photo-AFTER`). */
   const [missing, setMissing] = useState<string | null>(null);
+  /** The restaurant's rating and comment, chosen before signing off. */
+  const [rating, setRating] = useState<Stars | null>(null);
+  const [comment, setComment] = useState('');
+  const [ratingMissing, setRatingMissing] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   /** How far down the page each task and the photo button sit, for scrolling to them. */
@@ -147,7 +153,7 @@ export default function VisitScreen() {
 
   const scrollTo = (key: string) => {
     const y = positions.current[key];
-    if (y !== undefined) scrollRef.current?.scrollTo({ y: Math.max(0, y - Spacing.three), animated: true });
+    if (y !== undefined) scrollToY(scrollRef, y);
   };
 
   /** Finish is always pressable: if something is missing it shows what, instead of sitting greyed out. */
@@ -471,7 +477,14 @@ export default function VisitScreen() {
       <Button
         label={t('visit.signOff')}
         loading={busy === 'signOff'}
-        onPress={() => busy === null && setConfirming('signOff')}
+        onPress={() => {
+          if (busy !== null) return;
+          // The rating is part of signing off: point at it rather than greying the button out.
+          if (rating === null) {
+            setRatingMissing(true);
+            scrollTo('rating');
+          } else setConfirming('signOff');
+        }}
       />
     </>
   ) : undefined;
@@ -576,6 +589,15 @@ export default function VisitScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             {formatDateTime(visit.signOff.signedAt, language)}
           </ThemedText>
+          {visit.signOff.rating !== null && (
+            <View style={styles.rated}>
+              <StarRating value={visit.signOff.rating} />
+              <ThemedText type="default" style={styles.signedText}>
+                {t(`visit.rating.${visit.signOff.rating as Stars}`)}
+              </ThemedText>
+            </View>
+          )}
+          {visit.signOff.comment && <ThemedText type="default">{visit.signOff.comment}</ThemedText>}
         </View>
       )}
       {visit.status === 'COMPLETED' && !visit.canSignOff && (
@@ -584,9 +606,40 @@ export default function VisitScreen() {
         </ThemedText>
       )}
       {visit.canSignOff && (
-        <ThemedText type="default" style={styles.sectionGap}>
-          {t('visit.signOffHelp')}
-        </ThemedText>
+        <View
+          style={[styles.rate, { borderColor: ratingMissing && rating === null ? theme.danger : theme.border }]}
+          onLayout={(event) => {
+            positions.current.rating = event.nativeEvent.layout.y;
+          }}>
+          <ThemedText type="default" style={styles.rateTitle}>
+            {t('visit.rate')}
+          </ThemedText>
+          <StarRating
+            value={rating}
+            disabled={busy !== null}
+            onChange={(stars) => {
+              setRating(stars);
+              setRatingMissing(false);
+            }}
+          />
+          {/* The word for the chosen number of stars, so the rating is not a guess. */}
+          <ThemedText type="default" themeColor={rating ? 'text' : 'textSecondary'} style={styles.rateWord}>
+            {rating ? t(`visit.rating.${rating}`) : t('visit.rateHelp')}
+          </ThemedText>
+          <ErrorText message={ratingMissing && rating === null ? t('visit.rateFirst') : null} />
+          <TextField
+            label={t('visit.comment')}
+            value={comment}
+            onChangeText={setComment}
+            placeholder={t('visit.commentPlaceholder')}
+            maxLength={500}
+            multiline
+            style={styles.notes}
+          />
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('visit.signOffHelp')}
+          </ThemedText>
+        </View>
       )}
 
       <ConfirmDialog
@@ -599,7 +652,14 @@ export default function VisitScreen() {
           const action = confirming;
           setConfirming(null);
           if (action === 'signOff') {
-            void run('signOff', 'signOff', () => api.visits.signOff(visitId), t('visit.signedOffDone'));
+            const stars = rating;
+            if (stars === null) return;
+            void run(
+              'signOff',
+              'signOff',
+              () => api.visits.signOff(visitId, { rating: stars, ...(comment.trim() && { comment: comment.trim() }) }),
+              t('visit.signedOffDone'),
+            );
           } else if (action === 'finish') void finish();
         }}
         onCancel={() => setConfirming(null)}
@@ -652,6 +712,10 @@ export default function VisitScreen() {
 }
 
 const styles = StyleSheet.create({
+  rate: { marginTop: Spacing.four, borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  rateTitle: { fontWeight: 700, fontSize: 18, textAlign: 'center' },
+  rateWord: { textAlign: 'center', fontWeight: 600 },
+  rated: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one },
   reportNumber: { fontWeight: 700 },
   facts: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   when: { fontWeight: 700, fontSize: 18 },

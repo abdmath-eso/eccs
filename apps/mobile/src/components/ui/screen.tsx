@@ -52,10 +52,10 @@ export function Screen({
   children,
 }: ScreenProps) {
   const theme = useTheme();
-  const { t } = useSession();
+  const { t, user } = useSession();
   const [refreshing, setRefreshing] = useState(false);
   // On a screen that shows the bottom bar, the bar itself keeps clear of the home indicator.
-  const aboveBottomBar = isTabRoute(usePathname());
+  const aboveBottomBar = isTabRoute(usePathname(), user?.memberships[0]?.role);
   // A main section is reached from the bottom bar and has nowhere to go "back" to,
   // unless the screen steps back within itself.
   const showBack = back && (!aboveBottomBar || onBack !== undefined);
@@ -96,6 +96,10 @@ export function Screen({
             </View>
           )}
           <ScrollView
+            // A screen often shows a loading state first, without `scrollRef`, and passes it
+            // once its data has arrived. The browser build only hands over the scroll view
+            // when it is first created, so make a fresh one when a ref appears.
+            key={scrollRef ? 'scrollable-from-outside' : 'plain'}
             ref={scrollRef}
             style={styles.flex}
             contentContainerStyle={styles.content}

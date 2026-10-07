@@ -687,6 +687,10 @@ model SignOff {
   signerRole            String?
   signatureAttachmentId String?
   signedAt              DateTime
+  /// How the restaurant rated the visit when signing it off, 1 (poor) to 5 (excellent).
+  rating                Int?
+  /// What they wrote about the service, if anything.
+  comment               String?
 
   job       Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
   signature Attachment? @relation(fields: [signatureAttachmentId], references: [id])

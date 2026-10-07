@@ -24,6 +24,7 @@ import {
   formatSlot,
   indiaToday,
 } from '@/lib/format';
+import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
@@ -82,7 +83,7 @@ export default function BookServiceScreen() {
     setMissing(lacking);
     if (lacking) {
       const y = positions.current[lacking];
-      if (y !== undefined) scrollRef.current?.scrollTo({ y: Math.max(0, y - Spacing.three), animated: true });
+      if (y !== undefined) scrollToY(scrollRef, y);
       return;
     }
     if (!outletId || !itemId || !date || !slot) return;

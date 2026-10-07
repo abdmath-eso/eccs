@@ -113,6 +113,13 @@ export const updateVisitRecordSchema = z.object({
 });
 export type UpdateVisitRecordInput = z.input<typeof updateVisitRecordSchema>;
 
+/** The restaurant signs off a finished visit: a rating out of five, and a comment if they wish. */
+export const signOffVisitSchema = z.object({
+  rating: z.number().int().min(1, "Choose a rating").max(5),
+  comment: z.string().trim().max(500).optional(),
+});
+export type SignOffVisitInput = z.input<typeof signOffVisitSchema>;
+
 export const VISIT_PHOTO_KINDS = ["BEFORE", "AFTER"] as const;
 export type VisitPhotoKind = (typeof VISIT_PHOTO_KINDS)[number];
 
@@ -204,6 +211,9 @@ export interface VisitSignOffDto {
   /** The signer's role at the restaurant, e.g. "MANAGER". */
   role: string | null;
   signedAt: string;
+  /** 1 (poor) to 5 (excellent). Null for visits signed off before ratings existed. */
+  rating: number | null;
+  comment: string | null;
 }
 
 /** One visit in full. Once completed, this is the service report. */

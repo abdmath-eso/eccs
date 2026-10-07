@@ -19,6 +19,7 @@ import {
   confirmBookingSchema,
   createBookingSchema,
   createVisitSchema,
+  signOffVisitSchema,
   updateVisitRecordSchema,
   updateVisitSchema,
   VISIT_PHOTO_KINDS,
@@ -202,7 +203,11 @@ export class ServicesController {
   @Post('visits/:id/sign-off')
   @HttpCode(200)
   @RequirePermission('jobs', 'approve')
-  signOff(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.services.signOff(user, id);
+  signOff(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(signOffVisitSchema)) body: z.output<typeof signOffVisitSchema>,
+  ) {
+    return this.services.signOff(user, id, body);
   }
 }

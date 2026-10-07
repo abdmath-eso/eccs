@@ -19,6 +19,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { formatDateTime, formatDayLong } from '@/lib/format';
 import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
+import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
 
 /** The id of the photo behind a signed photo path such as /attachments/<id>/content?... */
@@ -167,7 +168,7 @@ export default function ChecklistRunScreen() {
       const latest = await api.checklists.run(runId);
       setRun(latest);
       setLockedNote(latest.submittedByName ? t('checklists.lockedBy', { name: latest.submittedByName }) : null);
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      scrollToY(scrollRef, 0);
     } catch (e) {
       setActionError(errorMessage(e, t));
     }
@@ -193,7 +194,7 @@ export default function ChecklistRunScreen() {
     if (found) {
       setBlocker(found);
       setActionError(null);
-      scrollRef.current?.scrollTo({ y: Math.max(0, (positions.current[found.itemId] ?? 0) - Spacing.three), animated: true });
+      scrollToY(scrollRef, positions.current[found.itemId] ?? 0);
       return;
     }
     setBlocker(null);

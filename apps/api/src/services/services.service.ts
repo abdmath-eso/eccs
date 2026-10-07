@@ -513,8 +513,12 @@ export class ServicesService {
     return this.getVisit(user, visit.id);
   }
 
-  /** The restaurant's Owner or Manager confirms the work was done. */
-  async signOff(user: AuthUser, visitId: string): Promise<VisitDto> {
+  /** The restaurant's Owner or Manager confirms the work was done and rates it. */
+  async signOff(
+    user: AuthUser,
+    visitId: string,
+    input: { rating: number; comment?: string | undefined },
+  ): Promise<VisitDto> {
     const visit = await this.requireVisit(user, visitId);
     if (!this.maySignOff(user, visit)) throw new ForbiddenException('Only the Owner or Manager can sign off a visit');
     if (visit.status === 'APPROVED') throw new ConflictException('This visit has already been signed off');
@@ -526,7 +530,14 @@ export class ServicesService {
     )?.role;
     await this.db.$transaction([
       this.db.signOff.create({
-        data: { jobId: visit.id, signerName: user.name, signerRole: role ?? null, signedAt: now },
+        data: {
+          jobId: visit.id,
+          signerName: user.name,
+          signerRole: role ?? null,
+          signedAt: now,
+          rating: input.rating,
+          comment: input.comment || null,
+        },
       }),
       this.db.job.update({ where: { id: visit.id }, data: { status: 'APPROVED', approvedById: user.id, approvedAt: now } }),
     ]);
@@ -657,6 +668,8 @@ export class ServicesService {
             name: visit.signOff.signerName,
             role: visit.signOff.signerRole,
             signedAt: visit.signOff.signedAt.toISOString(),
+            rating: visit.signOff.rating,
+            comment: visit.signOff.comment,
           }
         : null,
       canRecord: (ahead || visit.status === 'IN_PROGRESS') && this.mayRecord(user, visit),

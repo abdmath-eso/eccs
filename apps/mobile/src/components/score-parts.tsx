@@ -31,7 +31,7 @@ const BAND_ICON: Record<ScoreBand, IconName> = {
   NEEDS_ATTENTION: 'alert-circle',
 };
 
-/** The sentence for one thing that cost points, e.g. "Checklists not handed in this week: 2 of 14". */
+/** The sentence for one thing that cost points, e.g. "Checklists not handed in today: 1 of 3". */
 export function useReasonText() {
   const { t } = useSession();
   return (reason: ScoreReason) =>
@@ -52,7 +52,7 @@ export function ScoreHeadline({ score }: { score: HygieneScoreDto }) {
       <View style={styles.headlineText}>
         <ThemedText type="subtitle">{t('score.notYet')}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          {t('score.notYetHelp', { count: 3 })}
+          {t('score.notYetHelp')}
         </ThemedText>
       </View>
     );
@@ -90,6 +90,14 @@ export function ScoreHeadline({ score }: { score: HygieneScoreDto }) {
             />
             <ThemedText type="small" themeColor="textSecondary" style={styles.changeText}>
               {change === 0 ? t('score.same') : t(change > 0 ? 'score.up' : 'score.down', { points: Math.abs(change) })}
+            </ThemedText>
+          </View>
+        )}
+        {score.provisional && (
+          <View style={styles.change}>
+            <Ionicons name="information-circle-outline" size={16} color={theme.textSecondary} />
+            <ThemedText type="small" themeColor="textSecondary" style={styles.changeText}>
+              {t('score.provisional')}
             </ThemedText>
           </View>
         )}

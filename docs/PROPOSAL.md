@@ -246,19 +246,22 @@ Decided by the founder on 5 Oct 2026; source document `docs/FSSAI 2026 KITCHEN S
 - The document's ten detailed sections (92 checks) are the basis for the ECCS scored inspection, not the daily list.
 
 ### Hygiene score, version 1
-A 0–100 score per outlet, recalculated nightly, with the breakdown always visible so nobody has to trust a black box:
+A 0–100 score per outlet with the breakdown always visible, so nobody has to trust a black box. The rule was set by the founder on 7 Oct 2026 and replaces the five-part draft this section first held:
 
-| Component | Weight |
+| Component | Points |
 |---|---|
-| Checklist completion over the last 7 days | 40 |
-| Checklists submitted on time | 15 |
-| Failed items and open issues, weighted by severity and age | 20 |
-| Scheduled services completed on time | 15 |
-| Licences valid and documents present | 10 |
+| The latest approved ECCS inspection (from the last 180 days), its score as a share of 60 | 60 |
+| Licences valid, each with a copy on file | 10 |
+| The day's checklists: handed in on time earns the full share, late half, not handed in nothing | 30 |
+
+- The inspection and licence points change rarely; the checklist points move through every day.
+- A checklist counts once it is handed in or past its due time. Until the first of the day does, yesterday's checklists are counted.
+- An outlet ECCS has not inspected yet is scored on licences and checklists alone, scaled to 100 and marked "Provisional".
+- A failed critical check lowers the inspection's own score but puts no further cap on the hygiene score.
+- Bands: Excellent from 88, Good from 80, Fair from 68, otherwise Needs attention.
+- Recalculated every 6 hours and whenever it is asked for; one snapshot a day is kept for the trend.
 
 Weights are configuration, so they can be tuned during the pilot.
-
-**As built on 7 Oct 2026** (first version; see STATUS for what awaits the founder's decision): the five parts keep these weights, with two changes of meaning: open issues with ECCS do not cost points, and the services part measures visits the restaurant has signed off rather than visits done on time. An approved ECCS inspection from the last 180 days adds a sixth part worth 25. The score is points earned ÷ points possible × 100, so a part with nothing to measure is left out rather than counted against the outlet, and there is no score until 3 checklists have fallen due. It is recalculated every 6 hours and whenever it is asked for, not only nightly.
 
 ---
 

@@ -8,7 +8,6 @@ import {
   SCORE_RULES,
   type HygieneScoreDto,
   type ScoreInput,
-  type ScoreProblem,
   type ScoreResult,
   type ScoreSnapshotBreakdown,
 } from '@eccs/shared';
@@ -16,7 +15,6 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { ChecklistsService, indiaDate, indiaTime } from '../checklists/checklists.service.js';
 import { env } from '../config/env.js';
 import { InspectionsService } from '../inspections/inspections.service.js';
-import { IssuesService } from '../issues/issues.service.js';
 import { LicencesService } from '../licences/licences.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -33,12 +31,11 @@ const WEEK_AGO_AT_MOST_DAYS = 10;
 const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const fromDbDate = (date: Date) => date.toISOString().slice(0, 10);
 const addDays = (date: string, days: number) => fromDbDate(new Date(toDbDate(date).getTime() + days * DAY_MS));
-const daysBetween = (from: string, to: string) => Math.round((toDbDate(to).getTime() - toDbDate(from).getTime()) / DAY_MS);
 /** "HH:mm" as minutes since midnight. */
 const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 
 /**
- * The scorer reads through the checklist, licence, inspection and issue services, so
+ * The scorer reads through the checklist, licence and inspection services, so
  * their rules (what counts as missed, expired and so on) stay in one place. Those
  * services ask who is reading; the timer has no person, so it reads as ECCS, which
  * may see every outlet. It is never used to change anything.
@@ -68,7 +65,6 @@ export class ScoresService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly checklists: ChecklistsService,
     private readonly licences: LicencesService,
-    private readonly issues: IssuesService,
     private readonly inspections: InspectionsService,
   ) {}
 
@@ -80,8 +76,11 @@ export class ScoresService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     // Tests work scores out themselves, at moments they choose.
     if (env.NODE_ENV === 'test') return;
+    // Yesterday first, so the trend keeps each day's final number and not the one from
+    // whenever the day's last look happened to be.
     const run = () =>
-      void this.recalculateAll()
+      void this.recalculateAll(addDays(indiaDate(), -1))
+        .then(() => this.recalculateAll())
         .then(({ outlets, scored }) => this.logger.log(`Hygiene scores worked out: ${scored} of ${outlets} outlets have one`))
         .catch((error) => this.logger.warn(`Could not work out the hygiene scores: ${String(error)}`));
     const first = setTimeout(run, FIRST_RECALCULATION_AFTER_MS);
@@ -127,6 +126,8 @@ export class ScoresService implements OnModuleInit, OnModuleDestroy {
       date: today,
       score: result.score,
       band: result.band,
+      provisional: result.provisional,
+      checklistsDay: result.checklistsDay,
       change: result.score !== null && before ? result.score - before.score : null,
       detail: full ? { earned: result.earned, possible: result.possible, components: result.components, history } : null,
     };
@@ -185,113 +186,60 @@ export class ScoresService implements OnModuleInit, OnModuleDestroy {
 
   /** Counts, from the records, the plain numbers the rule works from. */
   async gather(outletId: string, asOf: string = indiaDate()): Promise<ScoreInput> {
-    const [checklistPart, services, licences, inspection, issues] = await Promise.all([
+    const [checklists, licences, inspection] = await Promise.all([
       this.gatherChecklists(outletId, asOf),
-      this.gatherVisits(outletId, asOf),
       this.gatherLicences(outletId),
       this.gatherInspection(outletId, asOf),
-      SCORE_RULES.countIssuesWithEccs ? this.gatherIssues(outletId, asOf) : [],
     ]);
-    return {
-      checklists: checklistPart.checklists,
-      onTime: checklistPart.onTime,
-      problems: { answered: checklistPart.answered, open: [...checklistPart.problems, ...issues] },
-      services,
-      licences,
-      inspection,
-    };
+    return { checklists, licences, inspection };
   }
 
-  /** Checklists handed in, handed in on time, and checks reported as a problem day after day. */
-  private async gatherChecklists(outletId: string, asOf: string) {
-    const from = addDays(asOf, -(SCORE_RULES.checklistDays - 1));
+  /**
+   * The day's checklists: how many have been handed in or have passed their due time,
+   * and of those how many were handed in on time or late. Until the first of the day
+   * is one or the other, the day before is counted instead, so the score does not
+   * drop to nothing every morning.
+   */
+  private async gatherChecklists(outletId: string, asOf: string): Promise<ScoreInput['checklists']> {
+    const dayBefore = addDays(asOf, -1);
     // The checklist service knows which checklists were due each day, and records the ones nobody opened as missed.
-    const summaries = await this.checklists.between(READER, outletId, from, asOf);
+    const summaries = await this.checklists.between(READER, outletId, dayBefore, asOf);
     const runs = summaries.length
       ? await this.db.checklistRun.findMany({
           where: { id: { in: summaries.map((summary) => summary.id) } },
-          select: {
-            id: true,
-            submittedAt: true,
-            outletChecklist: { select: { dueTime: true } },
-            responses: { select: { itemId: true, passed: true, item: { select: { isActive: true, outletId: true } } } },
-          },
+          select: { id: true, submittedAt: true, outletChecklist: { select: { dueTime: true } } },
         })
       : [];
     const byId = new Map(runs.map((run) => [run.id, run]));
-
     const today = indiaDate();
     const now = indiaTime();
-    const checklists = { due: 0, submitted: 0 };
-    const onTime = { submitted: 0, onTime: 0 };
-    let answered = 0;
-    /** For each check still on a checklist: how it was answered, newest day first. */
-    const answers = new Map<string, boolean[]>();
 
-    // Newest first, which is the order the answers of each check are wanted in.
-    for (const summary of [...summaries].sort((a, b) => b.date.localeCompare(a.date))) {
-      const run = byId.get(summary.id);
-      if (!run) continue;
-      const dueTime = run.outletChecklist.dueTime;
-      const handedIn = summary.status === 'SUBMITTED';
-
-      // Today's checklist is not held against anyone while there is still time to do it.
-      const settled = summary.date !== today || handedIn || (dueTime !== null && now > dueTime);
-      if (settled) {
-        checklists.due += 1;
-        if (handedIn) checklists.submitted += 1;
-      }
-      if (handedIn && dueTime !== null && run.submittedAt) {
-        onTime.submitted += 1;
+    const count = (date: string) => {
+      const counts = { due: 0, onTime: 0, late: 0 };
+      for (const summary of summaries) {
+        const run = byId.get(summary.id);
+        if (!run || summary.date !== date) continue;
+        const dueTime = run.outletChecklist.dueTime;
+        const handedIn = summary.status === 'SUBMITTED';
+        // Today's checklist is not held against anyone while there is still time to do it.
+        const settled = date !== today || handedIn || (dueTime !== null && now > dueTime);
+        if (!settled) continue;
+        counts.due += 1;
+        if (!handedIn) continue;
         const inTime =
-          indiaDate(run.submittedAt) === summary.date &&
-          minutes(indiaTime(run.submittedAt)) <= minutes(dueTime) + SCORE_RULES.onTimeGraceMinutes;
-        if (inTime) onTime.onTime += 1;
+          dueTime === null ||
+          !run.submittedAt ||
+          (indiaDate(run.submittedAt) === date &&
+            minutes(indiaTime(run.submittedAt)) <= minutes(dueTime) + SCORE_RULES.onTimeGraceMinutes);
+        if (inTime) counts.onTime += 1;
+        else counts.late += 1;
       }
+      return counts;
+    };
 
-      answered += run.responses.length;
-      for (const response of run.responses) {
-        // A check the restaurant has since removed is no longer its problem.
-        const current = response.item.isActive && (response.item.outletId === null || response.item.outletId === outletId);
-        if (!current || response.passed === null) continue;
-        answers.set(response.itemId, [...(answers.get(response.itemId) ?? []), response.passed]);
-      }
-    }
-
-    // A check counts as a problem while its latest answer says so; its age is the
-    // number of days running, before that latest one, on which it was also a problem.
-    const problems: ScoreProblem[] = [];
-    for (const history of answers.values()) {
-      const firstOk = history.indexOf(true);
-      const daysRunning = firstOk === -1 ? history.length : firstOk;
-      if (daysRunning > 0) problems.push({ kind: 'CHECKLIST_ITEM', severity: 'MEDIUM', ageDays: daysRunning - 1 });
-    }
-    return { checklists, onTime, answered, problems };
-  }
-
-  /** ECCS visits of the last 30 days: signed off, waiting for sign-off, or not carried out. */
-  private async gatherVisits(outletId: string, asOf: string): Promise<ScoreInput['services']> {
-    const visits = await this.db.job.findMany({
-      where: {
-        outletId,
-        status: { not: 'CANCELLED' },
-        scheduledDate: { gte: toDbDate(addDays(asOf, -SCORE_RULES.visitDays)), lte: toDbDate(asOf) },
-      },
-      select: { scheduledDate: true, completedAt: true, signOff: { select: { signedAt: true } } },
-    });
-    const counts = { signedOff: 0, notSignedOff: 0, awaitingSignOff: 0, missedByEccs: 0 };
-    for (const visit of visits) {
-      if (visit.signOff) counts.signedOff += 1;
-      else if (visit.completedAt) {
-        const waited = daysBetween(indiaDate(visit.completedAt), asOf);
-        if (waited > SCORE_RULES.signOffGraceDays) counts.notSignedOff += 1;
-        else counts.awaitingSignOff += 1;
-      } else if (fromDbDate(visit.scheduledDate) < asOf) {
-        // Its day has passed and ECCS has not finished it: not the restaurant's doing.
-        counts.missedByEccs += 1;
-      }
-    }
-    return counts;
+    const ofTheDay = count(asOf);
+    if (ofTheDay.due > 0) return { day: 'TODAY', ...ofTheDay };
+    return { day: 'YESTERDAY', ...count(dayBefore) };
   }
 
   private async gatherLicences(outletId: string): Promise<ScoreInput['licences']> {
@@ -315,21 +263,6 @@ export class ScoresService implements OnModuleInit, OnModuleDestroy {
         inspection.status === 'APPROVED' && inspection.overallScore !== null && inspection.date <= asOf && inspection.date >= oldest,
     );
     return latest ? { score: latest.overallScore ?? 0, nonCompliant: latest.nonCompliant } : null;
-  }
-
-  /**
-   * Issues raised with ECCS that are still open. Only used if `countIssuesWithEccs`
-   * is switched on in the rule; requests for help with the app are never counted.
-   */
-  private async gatherIssues(outletId: string, asOf: string): Promise<ScoreProblem[]> {
-    const open = await this.issues.list(READER, { outletId, openOnly: true });
-    return open
-      .filter((issue) => issue.category !== 'SUPPORT')
-      .map((issue) => ({
-        kind: 'ISSUE' as const,
-        severity: 'MEDIUM' as const,
-        ageDays: Math.max(daysBetween(indiaDate(new Date(issue.createdAt)), asOf), 0),
-      }));
   }
 
   // ───────────────────────── Helpers ─────────────────────────

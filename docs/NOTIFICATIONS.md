@@ -120,6 +120,8 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 | H2 | The score falls 10 points or more in a week | O, M; Adm | "Hygiene score at {outlet} fell from {from} to {to} this week." | Push + in-app | not built |
 | H3 | A new outlet gets its first score | O, M | "Your first hygiene score is ready: {score}." | In-app | not built |
 | H4 | Weekly summary of the score and what is costing points | O | "This week: {score} ({change}). {reason}." | In-app | not built |
+| H5 | The first inspection is approved, so the score stops being provisional | O, M | "Your hygiene score now includes your ECCS inspection: {score}." | In-app (can be joined to N4) | not built |
+| H6 | The inspection in the score will be 180 days old within a month | O, M; Adm | "Your ECCS inspection is due again. After {date} your score becomes provisional." | In-app | not built |
 
 ## 9. Monitoring (to ECCS)
 
@@ -157,6 +159,7 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | Date | Change |
 |---|---|
+| 7 Oct 2026 | Hygiene score rule changed (inspection 60, licences 10, checklists 30): added H5 and H6, not built. |
 | 7 Oct 2026 | Added sections 8 to 10 (hygiene score, monitoring, console changes), not built. The inspection report's PDF is ready at the moment N4 would fire, so it needs no notification of its own. |
 | 7 Oct 2026 | Added section 7 for inspections (N1 to N6), not built. |
 | 7 Oct 2026 | First version built as a list inside the app and the console: S1 to S8, S10 to S16, S18, S19, C2 to C4, I1 to I5, L1 to L3, A1, A2. Not built: S9, S17, C1, C5, C6, I6, L4, P1, A3. Rows corrected to match what was built: S3 (no Supervisor name in the wording), S4, S7, S11, S12, S13 and S14 (a low rating replaces the ordinary sign-off notification for admins), S16, S18, S19, C2, C4, I1, I3, I4, I5 (Supervisors with a visit at the outlet are included), L1, L2, L3, A1, A2. Not sent, and not in the register: a restaurant withdrawing its own request; ECCS adding a visit without a request (the restaurant first hears of it from S8); a corrected report coming back to ECCS for approval. |

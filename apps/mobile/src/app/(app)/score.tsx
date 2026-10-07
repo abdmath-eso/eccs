@@ -17,16 +17,13 @@ import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
 // Where each part of the score is put right, and what the button to go there says.
-const FIX: Record<ScoreComponentKey, { href: Href; label: 'checklists' | 'services' | 'documents' | 'inspections' }> = {
-  checklists: { href: '/checklists', label: 'checklists' },
-  onTime: { href: '/checklists', label: 'checklists' },
-  problems: { href: '/checklists', label: 'checklists' },
-  services: { href: '/services', label: 'services' },
-  licences: { href: '/documents', label: 'documents' },
+const FIX: Record<ScoreComponentKey, { href: Href; label: 'checklists' | 'documents' | 'inspections' }> = {
   inspection: { href: '/inspections', label: 'inspections' },
+  licences: { href: '/documents', label: 'documents' },
+  checklists: { href: '/checklists', label: 'checklists' },
 };
 
-/** Points as people read them: "34.3", but "40" rather than "40.0". */
+/** Points as people read them: "7.5", but "30" rather than "30.0". */
 const points = (value: number) => String(Math.round(value * 10) / 10);
 
 /**
@@ -95,6 +92,11 @@ export default function ScoreScreen() {
         <ThemedText type="small" themeColor="textSecondary">
           {t(entry.measured ? `score.about.${entry.key}` : `score.empty.${entry.key}`)}
         </ThemedText>
+        {entry.key === 'checklists' && entry.measured && score?.checklistsDay === 'YESTERDAY' && (
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('score.checklistsYesterday')}
+          </ThemedText>
+        )}
         {entry.reasons.map((reason) => (
           <View key={reason.code} style={styles.reason}>
             <Ionicons
@@ -156,6 +158,11 @@ export default function ScoreScreen() {
               <ThemedText type="small" themeColor="textSecondary">
                 {t('score.how')}
               </ThemedText>
+              {score.provisional && (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {t('score.provisionalHelp')}
+                </ThemedText>
+              )}
               {detail.components.map(part)}
 
               <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>

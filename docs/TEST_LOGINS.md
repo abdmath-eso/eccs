@@ -137,7 +137,7 @@ The Head Chef does not see services. The Supervisor sees only visits given to th
 
 ## 9. Trying the hygiene score, the monitoring board and console editing
 
-- **Hygiene score (app).** About half a minute after the API starts, Home shows the score for the chosen outlet. Tap it for the breakdown and the 30-day trend. An outlet with fewer than 3 checklists due shows "No score yet".
+- **Hygiene score (app).** About half a minute after the API starts, Home shows the score for the chosen outlet. Tap it for the breakdown and the 30-day trend. The sample outlets have not been inspected, so their scores say "Provisional" and come from licences and checklists only; approve an inspection (section 7) to see the inspection take 60 of the 100 points. Hand in a checklist and pull down to refresh to watch the score move.
 - **Monitoring (console).** Open Monitoring: every outlet, worst first. The tiles at the top filter the list; open a row to see what it is behind on.
 - **Catalogue (console).** Open Catalogue to add or change a bookable service, its price, and the task list for each kind of service.
 - **Editing a client or outlet (console).** On Clients, open a client: Change details, New restaurant code, Linked phones, Switch off.

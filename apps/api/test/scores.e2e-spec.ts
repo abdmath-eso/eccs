@@ -1,10 +1,11 @@
 // The hygiene score. Runs against the local database with the sample seed loaded.
-// The numbers are checked on a throwaway outlet of its own, whose checklists, visits,
+// The numbers are checked on a throwaway outlet of its own, whose checklists,
 // licences and inspection are written straight into the database so that the score
 // is known in advance; the outlet and everything on it are removed afterwards.
 
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { calculateScore } from '@eccs/shared';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
@@ -27,6 +28,8 @@ type Score = {
   date: string;
   score: number | null;
   band: string | null;
+  provisional: boolean;
+  checklistsDay: string | null;
   change: number | null;
   detail: { earned: number; possible: number; components: Component[]; history: { date: string; score: number }[] } | null;
 };
@@ -49,7 +52,6 @@ describe('Hygiene score (e2e)', () => {
   let admin: string;
   let supervisor: string;
   let supervisorId: string;
-  let finishedVisitId: string;
 
   const http = () => request(app.getHttpServer());
   const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
@@ -66,8 +68,6 @@ describe('Hygiene score (e2e)', () => {
       const lists = await db.outletChecklist.findMany({ where: { outletId: outlet.id }, select: { id: true, templateId: true } });
       await db.hygieneScoreSnapshot.deleteMany({ where: { outletId: outlet.id } });
       await db.inspection.deleteMany({ where: { outletId: outlet.id } });
-      // Sign-offs go with their visits.
-      await db.job.deleteMany({ where: { outletId: outlet.id } });
       await db.licence.deleteMany({ where: { outletId: outlet.id } });
       // Answers go with their checklists, and items with their template.
       await db.checklistRun.deleteMany({ where: { outletId: outlet.id } });
@@ -129,15 +129,21 @@ describe('Hygiene score (e2e)', () => {
 
   it('gives a new outlet no number, and keeps no snapshot for it', async () => {
     const body = await score();
-    expect(body).toMatchObject({ outletId, outletName: 'E2E score outlet', date: indiaDate(), score: null, band: null, change: null });
+    expect(body).toMatchObject({
+      outletId,
+      outletName: 'E2E score outlet',
+      date: indiaDate(),
+      score: null,
+      band: null,
+      provisional: false,
+      checklistsDay: null,
+      change: null,
+    });
     // Nothing to measure yet, except that the FSSAI licence every kitchen needs is not on record.
-    expect(body.detail!.components.map((entry) => [entry.key, entry.measured])).toEqual([
-      ['checklists', false],
-      ['onTime', false],
-      ['problems', false],
-      ['services', false],
-      ['licences', true],
-      ['inspection', false],
+    expect(body.detail!.components.map((entry) => [entry.key, entry.max, entry.measured])).toEqual([
+      ['inspection', 60, false],
+      ['licences', 10, true],
+      ['checklists', 30, false],
     ]);
     expect(part(body, 'licences').reasons).toEqual([{ code: 'FSSAI_MISSING', count: 1, lost: 10 }]);
     expect(body.detail!.history).toEqual([]);
@@ -162,17 +168,18 @@ describe('Hygiene score (e2e)', () => {
     // Whether the sample outlet has a number today depends on the sample data; the band always goes with it.
     expect(body.band === null).toBe(body.score === null);
     // The Owner of the same outlet gets the breakdown.
-    expect(((await get(owner, seededOutletId).expect(200)).body as Score).detail!.components).toHaveLength(6);
+    expect(((await get(owner, seededOutletId).expect(200)).body as Score).detail!.components).toHaveLength(3);
   });
 
-  it('works the score out from checklists and licences, leaving out what cannot be measured yet', async () => {
+  it('scores an outlet not yet inspected on its licences and the day’s checklists, as provisional', async () => {
     const db = prisma.client;
-    // One checklist, due at 10 am, with one check, in use for the last ten days.
+    // One checklist, due at the very end of the day (so today's is never overdue while this runs),
+    // with one check, in use for the last ten days.
     const list = await db.outletChecklist.create({
       data: {
         outlet: { connect: { id: outletId } },
         frequency: 'DAILY',
-        dueTime: '10:00',
+        dueTime: '23:59',
         createdAt: morning(daysAgo(10)),
         template: {
           create: { kind: 'DAILY', outletId, title: { en: 'E2E score checklist' }, items: { create: { position: 1, label: { en: 'Floor is clean' }, outletId } } },
@@ -181,26 +188,23 @@ describe('Hygiene score (e2e)', () => {
       include: { template: { include: { items: true } } },
     });
     const itemId = list.template.items[0]!.id;
-    // Yesterday and the day before: handed in on time, with the check reported as a problem both days.
-    // Three days ago: handed in at noon, two hours late. Four days ago: on time. Five and six days ago: not done.
-    const days: [number, Date, boolean][] = [
-      [1, morning(daysAgo(1)), false],
-      [2, morning(daysAgo(2)), false],
-      [3, noon(daysAgo(3)), true],
-      [4, morning(daysAgo(4)), true],
+    // Yesterday: handed in at noon, in time. Two days ago: handed in the next morning, late. Three days ago: not done.
+    const days: [number, Date][] = [
+      [1, noon(daysAgo(1))],
+      [2, morning(daysAgo(1))],
     ];
-    for (const [ago, submittedAt, passed] of days) {
-      await db.checklistRun.create({
+    const handIn = (date: string, submittedAt: Date) =>
+      db.checklistRun.create({
         data: {
           outletChecklistId: list.id,
           outletId,
-          date: dbDate(daysAgo(ago)),
+          date: dbDate(date),
           status: 'SUBMITTED',
           submittedAt,
-          responses: { create: { itemId, passed, valueBool: passed, capturedAt: submittedAt } },
+          responses: { create: { itemId, passed: true, valueBool: true, capturedAt: submittedAt } },
         },
       });
-    }
+    for (const [ago, submittedAt] of days) await handIn(daysAgo(ago), submittedAt);
     // An FSSAI licence in date but with no copy on file, and a trade licence that has expired.
     await db.licence.createMany({
       data: [
@@ -209,20 +213,10 @@ describe('Hygiene score (e2e)', () => {
       ],
     });
 
-    const body = await score();
-    // 4 of 6 handed in: 40 × 4/6 = 26.7. 3 of 4 on time: 11.3. One problem on a second day: 20 − 2 = 18.
-    // Licences: (½ + 0) ÷ 2 of 10 = 2.5. No visits and no inspection: left out.
-    // 58.4 of 85 possible = 69.
-    expect(part(body, 'checklists')).toEqual({
-      key: 'checklists',
-      measured: true,
-      max: 40,
-      earned: 26.7,
-      lost: 13.3,
-      reasons: [{ code: 'CHECKLISTS_MISSED', count: 2, total: 6, lost: 13.3 }],
-    });
-    expect(part(body, 'onTime')).toMatchObject({ earned: 11.3, reasons: [{ code: 'CHECKLISTS_LATE', count: 1, total: 4, lost: 3.8 }] });
-    expect(part(body, 'problems')).toMatchObject({ earned: 18, reasons: [{ code: 'PROBLEMS_NOT_FIXED', count: 1, lost: 2 }] });
+    // Nothing of today's has been handed in or fallen due, so yesterday's checklist is the one counted: 30 of 30.
+    // Licences: (½ + 0) ÷ 2 of 10 = 2.5. No inspection: left out. 32.5 of 40 possible = 81.
+    let body = await score();
+    expect(part(body, 'checklists')).toEqual({ key: 'checklists', measured: true, max: 30, earned: 30, lost: 0, reasons: [] });
     expect(part(body, 'licences')).toMatchObject({
       earned: 2.5,
       reasons: [
@@ -230,104 +224,74 @@ describe('Hygiene score (e2e)', () => {
         { code: 'LICENCE_COPIES_MISSING', count: 1, total: 2, lost: 2.5 },
       ],
     });
-    expect(part(body, 'services')).toMatchObject({ measured: false, earned: 0, reasons: [] });
-    expect(part(body, 'inspection').measured).toBe(false);
-    expect(body.detail).toMatchObject({ earned: 58.4, possible: 85 });
-    expect(body).toMatchObject({ score: 69, band: 'FAIR', change: null });
+    expect(part(body, 'inspection')).toMatchObject({ measured: false, earned: 0, reasons: [] });
+    expect(body.detail).toMatchObject({ earned: 32.5, possible: 40 });
+    expect(body).toMatchObject({ score: 81, band: 'GOOD', provisional: true, checklistsDay: 'YESTERDAY', change: null });
 
-    // Today's snapshot now exists, with the breakdown the monitoring board reads.
+    // The day it was handed in late: half the points. 15 + 2.5 of 40 = 44.
+    const late = calculateScore(await scores.gather(outletId, daysAgo(2)));
+    expect(late.components[2]).toMatchObject({ earned: 15, reasons: [{ code: 'CHECKLISTS_LATE', count: 1, total: 1, lost: 15 }] });
+    expect(late).toMatchObject({ score: 44, band: 'NEEDS_ATTENTION', checklistsDay: 'TODAY' });
+    // The day it was not done at all: nothing. 2.5 of 40 = 6.
+    const missed = calculateScore(await scores.gather(outletId, daysAgo(3)));
+    expect(missed.components[2]).toMatchObject({ earned: 0, reasons: [{ code: 'CHECKLISTS_MISSED', count: 1, total: 1, lost: 30 }] });
+    expect(missed.score).toBe(6);
+
+    // Today's is handed in: from now on today is the day counted.
+    await handIn(indiaDate(), new Date());
+    body = await score();
+    expect(part(body, 'checklists')).toMatchObject({ earned: 30, reasons: [] });
+    expect(body).toMatchObject({ score: 81, band: 'GOOD', provisional: true, checklistsDay: 'TODAY' });
+
+    // Today's snapshot now exists, with the breakdown.
     const rows = await snapshots();
     expect(rows).toHaveLength(1);
     expect(rows[0]!.date.toISOString().slice(0, 10)).toBe(indiaDate());
-    expect(rows[0]!.score).toBe(69);
-    expect(rows[0]!.breakdown).toMatchObject({ version: 1, band: 'FAIR', earned: 58.4, possible: 85 });
-    expect((rows[0]!.breakdown as { components: Component[] }).components).toHaveLength(6);
+    expect(rows[0]!.score).toBe(81);
+    expect(rows[0]!.breakdown).toMatchObject({ version: 2, band: 'GOOD', earned: 32.5, possible: 40 });
+    expect((rows[0]!.breakdown as { components: Component[] }).components).toHaveLength(3);
   });
 
-  it('counts a visit left unsigned, but never one that ECCS did not carry out', async () => {
+  it('makes the latest approved inspection 60 of the 100 points', async () => {
     const db = prisma.client;
-    const service = await db.serviceType.findFirstOrThrow({ where: { code: 'PEST' } });
-    // Finished five days ago and still not signed off; and one that ECCS never turned up for.
-    finishedVisitId = (
-      await db.job.create({
-        data: {
-          outletId,
-          serviceTypeId: service.id,
-          supervisorId,
-          scheduledDate: dbDate(daysAgo(5)),
-          status: 'COMPLETED',
-          completedAt: morning(daysAgo(5)),
-        },
-      })
-    ).id;
-    await db.job.create({
-      data: { outletId, serviceTypeId: service.id, supervisorId, scheduledDate: dbDate(daysAgo(2)), status: 'ASSIGNED' },
-    });
-
-    // ECCS visits are now measured: 0 of 15. 58.4 of 100 possible = 58.
-    const body = await score();
-    expect(part(body, 'services')).toEqual({
-      key: 'services',
-      measured: true,
-      max: 15,
-      earned: 0,
-      lost: 15,
-      reasons: [
-        { code: 'VISITS_NOT_SIGNED_OFF', count: 1, total: 1, lost: 15 },
-        { code: 'VISITS_MISSED_BY_ECCS', count: 1, lost: 0 },
-      ],
-    });
-    expect(body).toMatchObject({ score: 58, band: 'NEEDS_ATTENTION' });
-
-    // Still one snapshot for today, brought up to date.
-    const rows = await snapshots();
-    expect(rows).toHaveLength(1);
-    expect(rows[0]!.score).toBe(58);
-
-    // The Supervisor now has work at this outlet and may see its score.
-    expect(((await get(supervisor).expect(200)).body as Score).score).toBe(58);
-  });
-
-  it('gives the points back when the visit is signed off, and adds the inspection as a fifth of the score', async () => {
-    const db = prisma.client;
-    await db.signOff.create({ data: { jobId: finishedVisitId, signerName: 'E2E', signedAt: new Date(), rating: 5 } });
-    // 58.4 + 15 = 73.4 of 100.
-    expect(await score()).toMatchObject({ score: 73, band: 'FAIR' });
-
     const template = await db.checklistTemplate.findFirstOrThrow({ where: { kind: 'INSPECTION' } });
     const now = new Date();
     const inspection = await db.inspection.create({
-      data: { outletId, templateId: template.id, supervisorId, status: 'SUBMITTED', conductedAt: now, startedAt: now, completedAt: now, overallScore: 80, grade: 'A' },
+      data: { outletId, templateId: template.id, supervisorId, status: 'SUBMITTED', conductedAt: now, startedAt: now, completedAt: now, overallScore: 72, grade: 'B' },
     });
     // Not approved yet: it does not count.
-    expect((await score()).score).toBe(73);
+    expect(await score()).toMatchObject({ score: 81, provisional: true });
 
     await db.inspection.update({ where: { id: inspection.id }, data: { status: 'APPROVED', approvedAt: now } });
-    // 80 of 100 at the inspection is 20 of 25. 73.4 + 20 = 93.4 of 125 possible = 75.
+    // 72 of 100 at the inspection is 43.2 of 60. With licences 2.5 and checklists 30: 75.7 of 100 = 76.
     const body = await score();
-    expect(part(body, 'inspection')).toMatchObject({ measured: true, max: 25, earned: 20, lost: 5 });
-    expect(body.detail).toMatchObject({ earned: 93.4, possible: 125 });
-    expect(body).toMatchObject({ score: 75, band: 'FAIR' });
+    expect(part(body, 'inspection')).toMatchObject({ measured: true, max: 60, earned: 43.2, lost: 16.8 });
+    expect(part(body, 'inspection').reasons).toMatchObject([{ code: 'INSPECTION_NON_COMPLIANT', lost: 16.8 }]);
+    expect(body.detail).toMatchObject({ earned: 75.7, possible: 100 });
+    expect(body).toMatchObject({ score: 76, band: 'FAIR', provisional: false });
     expect(await snapshots()).toHaveLength(1);
+
+    // The Supervisor who inspected now has work at this outlet and may see its score.
+    expect(((await get(supervisor).expect(200)).body as Score).score).toBe(76);
   });
 
   it('keeps one snapshot per day, and shows the trend and the change on last week', async () => {
     await prisma.client.hygieneScoreSnapshot.create({
       data: { outletId, date: dbDate(daysAgo(7)), score: 60, breakdown: {} },
     });
-    // Yesterday's score, worked out "as of" yesterday: 4 of 7 checklists (22.9), on time 11.3, problems 18,
-    // licences 2.5, the signed-off visit 15; today's inspection had not happened. 69.6 of 100 = 70.
+    // Yesterday's score, worked out "as of" yesterday: its checklist on time (30), licences 2.5;
+    // today's inspection had not happened. 32.5 of 40 = 81, provisional.
     const yesterday = await scores.snapshot(outletId, daysAgo(1));
-    expect(yesterday.score).toBe(70);
+    expect(yesterday).toMatchObject({ score: 81, provisional: true });
     // Working the same day out again replaces its snapshot.
     await scores.snapshot(outletId, daysAgo(1));
 
     const body = await score();
-    expect(body).toMatchObject({ score: 75, change: 15 });
+    expect(body).toMatchObject({ score: 76, change: 16 });
     expect(body.detail!.history).toEqual([
       { date: daysAgo(7), score: 60 },
-      { date: daysAgo(1), score: 70 },
-      { date: indiaDate(), score: 75 },
+      { date: daysAgo(1), score: 81 },
+      { date: indiaDate(), score: 76 },
     ]);
     expect(await snapshots()).toHaveLength(3);
 

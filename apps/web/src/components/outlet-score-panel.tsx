@@ -15,21 +15,16 @@ const BAND: Record<ScoreBand, { label: string; style: string }> = {
 };
 
 const PART: Record<ScoreComponentKey, string> = {
-  checklists: "Checklists done (last 7 days)",
-  onTime: "Checklists on time",
-  problems: "Problems fixed",
-  services: "ECCS visits signed off (last 30 days)",
+  inspection: "ECCS inspection (latest approved, last 180 days)",
   licences: "Licences",
-  inspection: "ECCS inspection",
+  checklists: "Checklists (the day's, on time in full, late half)",
 };
 
 const REASON: Record<ScoreReasonCode, (reason: ScoreReason) => string> = {
-  CHECKLISTS_MISSED: (r) => `${r.count} of ${r.total} checklists not handed in`,
-  CHECKLISTS_LATE: (r) => `${r.count} of ${r.total} handed in late`,
-  PROBLEMS_NOT_FIXED: (r) => `${r.count} reported as a problem on more than one day running`,
-  ISSUES_OPEN: (r) => `${r.count} issues still open`,
-  VISITS_NOT_SIGNED_OFF: (r) => `${r.count} waiting more than 3 days for the restaurant's sign-off`,
-  VISITS_MISSED_BY_ECCS: (r) => `${r.count} not carried out by ECCS (not counted against the restaurant)`,
+  CHECKLISTS_MISSED: (r) => `${r.count} of ${r.total} not handed in today`,
+  CHECKLISTS_LATE: (r) => `${r.count} of ${r.total} handed in late today`,
+  CHECKLISTS_MISSED_YESTERDAY: (r) => `${r.count} of ${r.total} not handed in yesterday`,
+  CHECKLISTS_LATE_YESTERDAY: (r) => `${r.count} of ${r.total} handed in late yesterday`,
   LICENCES_EXPIRED: (r) => `${r.count} expired`,
   FSSAI_MISSING: () => "No FSSAI licence on record",
   LICENCE_COPIES_MISSING: (r) => `${r.count} with no copy on file`,
@@ -69,7 +64,7 @@ export function OutletScorePanel({ outletId, outletName }: { outletId: string; o
       <ErrorMessage message={error} />
 
       {score && score.score === null && (
-        <p className="text-muted">No score yet: fewer than 3 checklists have fallen due at this outlet.</p>
+        <p className="text-muted">No score yet: this outlet has not been inspected and no checklist has fallen due.</p>
       )}
       {score && score.score !== null && score.band && (
         <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -85,6 +80,12 @@ export function OutletScorePanel({ outletId, outletName }: { outletId: string; o
                 : `${score.change > 0 ? "Up" : "Down"} ${Math.abs(score.change)} since last week`}
             </span>
           )}
+        </p>
+      )}
+      {score && score.provisional && (
+        <p className="text-sm text-muted">
+          Provisional: not yet inspected by ECCS (or the last inspection is over 180 days old), so the score comes from licences and
+          checklists alone.
         </p>
       )}
 
@@ -132,7 +133,9 @@ export function OutletScorePanel({ outletId, outletName }: { outletId: string; o
             </table>
           </div>
           <p className="mt-2 text-sm text-muted">
-            Score = points earned ÷ points possible × 100. A part with nothing to measure yet is left out.
+            Score = points earned ÷ points possible × 100. The inspection counts for 60, licences for 10 and the checklists of the day for 30.
+            A part with nothing to measure yet is left out.
+            {score?.checklistsDay === "YESTERDAY" ? " Yesterday's checklists are counted until the first one falls due today." : ""}
           </p>
         </details>
       )}

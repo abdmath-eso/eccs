@@ -56,7 +56,7 @@ export default function ServicesScreen() {
         eccs ? Promise.resolve([]) : api.bookings.list({ ...filter, requestedOnly: true }),
       ]);
       setOpen(upcoming);
-      setPast(closed.filter((visit) => visit.status === 'APPROVED').slice(0, MAX_PAST));
+      setPast(closed.filter((visit) => visit.status === 'APPROVED' || visit.status === 'IN_REVIEW').slice(0, MAX_PAST));
       setRequests(asked);
       setError(null);
     } catch (e) {

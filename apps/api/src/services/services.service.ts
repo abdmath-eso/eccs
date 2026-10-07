@@ -48,6 +48,7 @@ const visitInclude = {
   serviceType: { select: { code: true, name: true } },
   supervisor: { select: { id: true, name: true } },
   serviceReport: { select: { number: true } },
+  signOff: { select: { signedAt: true } },
 } as const satisfies Prisma.JobInclude;
 
 const visitDetailInclude = {
@@ -271,17 +272,24 @@ export class ServicesService {
     }
 
     const open = filter.state === 'open';
+    const forRestaurant = scope.kind === 'restaurant';
+    // A visit the restaurant has signed off is finished for them, but stays on ECCS's
+    // list until ECCS has approved its report.
+    const underWay: Prisma.JobWhereInput = { status: { in: ['SCHEDULED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED'] } };
+    const stage: Prisma.JobWhereInput = forRestaurant
+      ? open
+        ? underWay
+        : { status: { in: ['APPROVED', 'CANCELLED'] } }
+      : open
+        ? { OR: [underWay, { status: 'APPROVED', reviewedAt: null }] }
+        : { OR: [{ status: 'CANCELLED' }, { status: 'APPROVED', reviewedAt: { not: null } }] };
     const visits = await this.db.job.findMany({
-      where: {
-        ...where,
-        ...(filter.outletId && { outletId: filter.outletId }),
-        status: { in: open ? ['SCHEDULED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED'] : ['APPROVED', 'CANCELLED'] },
-      },
+      where: { AND: [where, stage, filter.outletId ? { outletId: filter.outletId } : {}] },
       include: visitInclude,
       orderBy: [{ scheduledDate: open ? 'asc' : 'desc' }, { createdAt: 'asc' }],
       take: MAX_LISTED,
     });
-    return visits.map(toSummary);
+    return visits.map((visit) => toSummary(visit, forRestaurant));
   }
 
   async getVisit(user: AuthUser, visitId: string): Promise<VisitDto> {
@@ -479,7 +487,7 @@ export class ServicesService {
   /**
    * The Supervisor finishes. Every task must be answered and there must be at
    * least one photo of the finished work. The visit gets its report number
-   * here and goes to ECCS to be checked; the restaurant sees it once approved.
+   * here and waits for the restaurant's sign-off.
    */
   async complete(user: AuthUser, visitId: string): Promise<VisitDto> {
     const visit = await this.requireInProgress(user, visitId);
@@ -504,7 +512,12 @@ export class ServicesService {
               data: { jobId: visit.id, number: `${prefix}${String(issued + 1 + attempt).padStart(5, '0')}` },
             });
           }
-          await tx.job.update({ where: { id: visit.id }, data: { status: 'COMPLETED', completedAt: now } });
+          // A visit ECCS sent back after the restaurant had signed it off does not need
+          // signing again: once corrected it returns to ECCS for approval.
+          await tx.job.update({
+            where: { id: visit.id },
+            data: { status: visit.signOff ? 'APPROVED' : 'COMPLETED', completedAt: now },
+          });
           if (visit.bookingId) {
             await tx.booking.update({ where: { id: visit.bookingId }, data: { status: 'COMPLETED' } });
           }
@@ -518,13 +531,18 @@ export class ServicesService {
     return this.getVisit(user, visit.id);
   }
 
-  /** ECCS has checked the finished visit's report and releases it to the restaurant. */
+  /**
+   * ECCS has checked the signed-off visit's report. It is final from here: its
+   * PDF is made and filed in the outlet's documents for the Owner and Manager.
+   */
   async approveReport(user: AuthUser, visitId: string): Promise<VisitDto> {
     const visit = await this.requireReportInReview(user, visitId);
     await this.db.job.update({
       where: { id: visit.id },
       data: { reviewedAt: new Date(), reviewedById: user.id, reviewNote: null },
     });
+    // Takes a few seconds, so the approval does not wait for it.
+    this.reports.ensureLater(visit.id);
     return this.getVisit(user, visit.id);
   }
 
@@ -534,19 +552,18 @@ export class ServicesService {
    */
   async returnReport(user: AuthUser, visitId: string, note: string): Promise<VisitDto> {
     const visit = await this.requireReportInReview(user, visitId);
-    await this.db.$transaction([
-      this.db.job.update({ where: { id: visit.id }, data: { status: 'IN_PROGRESS', completedAt: null, reviewNote: note } }),
-      ...(visit.bookingId
-        ? [this.db.booking.update({ where: { id: visit.bookingId }, data: { status: 'CONFIRMED' } })]
-        : []),
-    ]);
+    // The restaurant's sign-off and rating are kept; they do not sign again after the correction.
+    await this.db.job.update({
+      where: { id: visit.id },
+      data: { status: 'IN_PROGRESS', completedAt: null, reviewNote: note },
+    });
     return this.getVisit(user, visit.id);
   }
 
   private async requireReportInReview(user: AuthUser, visitId: string): Promise<VisitDetailRow> {
     const visit = await this.requireVisit(user, visitId);
     if (!this.isEccsAdmin(user)) throw new ForbiddenException('Only ECCS can check a report');
-    if (visit.status !== 'COMPLETED' || visit.reviewedAt) {
+    if (visit.status !== 'APPROVED' || visit.reviewedAt) {
       throw new ConflictException('This report is not waiting to be checked');
     }
     return visit;
@@ -562,7 +579,6 @@ export class ServicesService {
     if (!this.maySignOff(user, visit)) throw new ForbiddenException('Only the Owner or Manager can sign off a visit');
     if (visit.status === 'APPROVED') throw new ConflictException('This visit has already been signed off');
     if (visit.status !== 'COMPLETED') throw new ConflictException('The visit is not finished yet');
-    if (!visit.reviewedAt) throw new ConflictException('ECCS is still checking this report');
 
     const now = new Date();
     const role = user.memberships.find(
@@ -579,19 +595,20 @@ export class ServicesService {
           comment: input.comment || null,
         },
       }),
-      this.db.job.update({ where: { id: visit.id }, data: { status: 'APPROVED', approvedById: user.id, approvedAt: now } }),
+      // Signed off; the report now waits for ECCS to approve it.
+      this.db.job.update({
+        where: { id: visit.id },
+        data: { status: 'APPROVED', approvedById: user.id, approvedAt: now, reviewedAt: null, reviewedById: null },
+      }),
     ]);
-    // The report is final now: make its PDF and file it in the outlet's documents. This
-    // takes a few seconds, so the sign-off does not wait for it.
-    this.reports.ensureLater(visit.id);
     return this.getVisit(user, visit.id);
   }
 
-  /** A link to the signed-off visit's report as a PDF. Makes the PDF first if it is not there yet. */
+  /** A link to the final report as a PDF. Makes the PDF first if it is not there yet. */
   async reportPdf(user: AuthUser, visitId: string): Promise<{ path: string }> {
     const visit = await this.requireVisit(user, visitId);
-    if (visit.status !== 'APPROVED') {
-      throw new ConflictException('The report is ready as a PDF once the visit has been signed off');
+    if (visit.status !== 'APPROVED' || !visit.reviewedAt) {
+      throw new ConflictException('The PDF is ready once the visit is signed off and ECCS has approved the report');
     }
     return { path: this.storage.signedPath(await this.reports.ensure(visit.id)) };
   }
@@ -695,16 +712,15 @@ export class ServicesService {
   private toDto(user: AuthUser, visit: VisitDetailRow): VisitDto {
     const answers = new Map(visit.taskResponses.map((response) => [response.itemId, response]));
     const ahead = visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED';
-    const inReview = visit.status === 'COMPLETED' && !visit.reviewedAt;
-    // Until ECCS has approved the report, the restaurant sees that the visit happened but not what was recorded.
-    const withheld = inReview && !user.memberships.some((m) => isEccsRole(m.role));
+    const inReview = visit.status === 'APPROVED' && !visit.reviewedAt;
+    const forRestaurant = !user.memberships.some((m) => isEccsRole(m.role));
     return {
-      ...toSummary(visit),
-      technicianNames: withheld ? [] : visit.technicianNames,
+      ...toSummary(visit, forRestaurant),
+      technicianNames: visit.technicianNames,
       checkInAt: visit.checkInAt?.toISOString() ?? null,
       completedAt: visit.completedAt?.toISOString() ?? null,
-      notes: withheld ? null : visit.notes,
-      tasks: (withheld ? [] : (visit.serviceType.checklistTemplate?.items ?? [])).map((item) => {
+      notes: visit.notes,
+      tasks: (visit.serviceType.checklistTemplate?.items ?? []).map((item) => {
         const answer = answers.get(item.id);
         return {
           itemId: item.id,
@@ -713,7 +729,7 @@ export class ServicesService {
           note: answer?.note ?? null,
         };
       }),
-      photos: (withheld ? [] : visit.attachments).map((photo) => ({
+      photos: visit.attachments.map((photo) => ({
         id: photo.id,
         kind: photo.kind as VisitPhotoKind,
         path: this.storage.signedPath(photo.id),
@@ -728,15 +744,27 @@ export class ServicesService {
           }
         : null,
       canRecord: (ahead || visit.status === 'IN_PROGRESS') && this.mayRecord(user, visit),
-      canSignOff: visit.status === 'COMPLETED' && !inReview && this.maySignOff(user, visit),
-      correctionNote: user.memberships.some((m) => isEccsRole(m.role)) ? visit.reviewNote : null,
+      canSignOff: visit.status === 'COMPLETED' && this.maySignOff(user, visit),
+      correctionNote: forRestaurant ? null : visit.reviewNote,
       canReview: inReview && this.isEccsAdmin(user),
       canManage: ahead && this.isEccsAdmin(user),
     };
   }
 }
 
-function toSummary(visit: VisitRow): VisitSummaryDto {
+/**
+ * Where the visit stands, as the person asking sees it. Signed off but not yet
+ * approved by ECCS is its own stage. A visit ECCS sent back for correction after
+ * sign-off is "under way" again for ECCS, but for the restaurant, who has nothing
+ * more to do, it is still with ECCS.
+ */
+function visitStage(visit: VisitRow, forRestaurant: boolean): VisitStatus {
+  if (visit.status === 'APPROVED' && !visit.reviewedAt) return 'IN_REVIEW';
+  if (visit.status === 'IN_PROGRESS' && visit.signOff && forRestaurant) return 'IN_REVIEW';
+  return visit.status as VisitStatus;
+}
+
+function toSummary(visit: VisitRow, forRestaurant: boolean): VisitSummaryDto {
   return {
     id: visit.id,
     outletId: visit.outletId,
@@ -747,8 +775,7 @@ function toSummary(visit: VisitRow): VisitSummaryDto {
     serviceName: visit.serviceType.name as LocalizedText,
     date: fromDbDate(visit.scheduledDate),
     slot: toSlot(visit.scheduledSlot),
-    // Finished but not yet approved by ECCS is shown as its own stage.
-    status: visit.status === 'COMPLETED' && !visit.reviewedAt ? 'IN_REVIEW' : (visit.status as VisitStatus),
+    status: visitStage(visit, forRestaurant),
     supervisorId: visit.supervisor?.id ?? null,
     supervisorName: visit.supervisor?.name ?? null,
     booked: visit.bookingId !== null,

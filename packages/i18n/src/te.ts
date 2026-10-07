@@ -599,8 +599,8 @@ export const te: Messages = {
   "visit.rateFirst": "సైన్ ఆఫ్ చేసే ముందు రేటింగ్ ఎంచుకోండి.",
 
   "visitStatus.IN_REVIEW": "ECCS నివేదికను సరిచూస్తోంది",
-  "visit.inReviewRestaurant": "పని పూర్తయింది. ECCS నివేదికను సరిచూస్తోంది; ఆమోదించిన తర్వాత మీరు దాన్ని చదివి సైన్ ఆఫ్ చేయవచ్చు.",
-  "visit.inReviewEccs": "పని ముగిసింది. ECCS ఆఫీస్ నివేదికను ఆమోదించడం కోసం వేచి ఉంది.",
+  "visit.inReviewRestaurant": "సైన్ ఆఫ్ అయింది. ECCS నివేదికను సరిచూస్తోంది; ఆమోదించిన తర్వాత PDF ఇక్కడ కనిపిస్తుంది.",
+  "visit.inReviewEccs": "రెస్టారెంట్ సైన్ ఆఫ్ చేసింది. ECCS ఆఫీస్ నివేదికను ఆమోదించడం కోసం వేచి ఉంది.",
 
   "visit.reason.hot": "పరికరం వేడిగా ఉంది లేదా నడుస్తోంది",
   "visit.reason.notMoved": "పరికరాన్ని జరపలేకపోయాము",
@@ -610,4 +610,6 @@ export const te: Messages = {
   "visit.correction": "ECCS సరిదిద్దమని అడిగింది",
 
   "visit.pdf": "నివేదికను PDFగా చూడండి",
+
+
 };

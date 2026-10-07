@@ -599,8 +599,8 @@ export const gu: Messages = {
   "visit.rateFirst": "સહી કરતા પહેલાં રેટિંગ પસંદ કરો.",
 
   "visitStatus.IN_REVIEW": "ECCS રિપોર્ટ તપાસી રહ્યું છે",
-  "visit.inReviewRestaurant": "કામ પૂરું થયું છે. ECCS રિપોર્ટ તપાસી રહ્યું છે; મંજૂર થયા પછી તમે તેને વાંચીને સહી કરી શકશો.",
-  "visit.inReviewEccs": "પૂરું થયું. ECCS ઓફિસ રિપોર્ટ મંજૂર કરે તેની રાહ છે.",
+  "visit.inReviewRestaurant": "સહી થઈ ગઈ. ECCS રિપોર્ટ તપાસી રહ્યું છે; મંજૂર થયા પછી PDF અહીં મળશે.",
+  "visit.inReviewEccs": "રેસ્ટોરન્ટે સહી કરી દીધી છે. ECCS ઓફિસ રિપોર્ટ મંજૂર કરે તેની રાહ છે.",
 
   "visit.reason.hot": "સાધન ગરમ હતું અથવા ચાલુ હતું",
   "visit.reason.notMoved": "સાધન ખસેડી ન શકાયું",
@@ -610,4 +610,6 @@ export const gu: Messages = {
   "visit.correction": "ECCS એ સુધારો કરવા કહ્યું",
 
   "visit.pdf": "રિપોર્ટ PDF માં જુઓ",
+
+
 };

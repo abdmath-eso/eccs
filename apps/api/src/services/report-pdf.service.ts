@@ -76,8 +76,8 @@ export class ReportPdfService {
 
   /**
    * The attachment holding the visit's report PDF, made now if it does not
-   * exist yet. Only a signed-off visit has one: before that the report can
-   * still change.
+   * exist yet. Only a visit that is signed off and whose report ECCS has
+   * approved has one: before that the report can still change.
    */
   async ensure(visitId: string): Promise<string> {
     const visit = await this.db.job.findUnique({
@@ -101,8 +101,8 @@ export class ReportPdfService {
         serviceReport: true,
       },
     });
-    if (!visit || visit.status !== 'APPROVED' || !visit.serviceReport || !visit.signOff) {
-      throw new NotFoundException('The report is ready as a PDF once the visit has been signed off');
+    if (!visit || visit.status !== 'APPROVED' || !visit.reviewedAt || !visit.serviceReport || !visit.signOff) {
+      throw new NotFoundException('The PDF is ready once the visit is signed off and ECCS has approved the report');
     }
 
     const storageKey = `outlets/${visit.outletId}/reports/${visit.serviceReport.number}.pdf`;
@@ -243,7 +243,7 @@ export class ReportPdfService {
     }
   }
 
-  /** Makes it in the background, for example right after sign-off. A failure is logged, not shown. */
+  /** Makes it in the background, right after ECCS approves the report. A failure is logged, not shown. */
   ensureLater(visitId: string): void {
     this.ensure(visitId).catch((error) => this.logger.warn(`Could not make the report PDF for visit ${visitId}: ${String(error)}`));
   }

@@ -599,8 +599,8 @@ export const ur: Messages = {
   "visit.rateFirst": "منظوری دینے سے پہلے ریٹنگ چنیں۔",
 
   "visitStatus.IN_REVIEW": "ECCS رپورٹ چیک کر رہا ہے",
-  "visit.inReviewRestaurant": "کام مکمل ہو گیا ہے۔ ECCS رپورٹ چیک کر رہا ہے؛ پاس ہونے کے بعد آپ اسے پڑھ کر منظوری دے سکتے ہیں۔",
-  "visit.inReviewEccs": "کام ختم۔ ECCS آفس کے رپورٹ پاس کرنے کا انتظار ہے۔",
+  "visit.inReviewRestaurant": "منظور ہو گیا۔ ECCS رپورٹ چیک کر رہا ہے؛ ECCS کی تصدیق کے بعد PDF یہاں ملے گا۔",
+  "visit.inReviewEccs": "ریسٹورنٹ نے منظوری دے دی ہے۔ ECCS آفس کی طرف سے رپورٹ کی تصدیق کا انتظار ہے۔",
 
   "visit.reason.hot": "آلات گرم تھے یا چل رہے تھے",
   "visit.reason.notMoved": "آلات ہٹائے نہیں جا سکے",
@@ -610,4 +610,6 @@ export const ur: Messages = {
   "visit.correction": "ECCS نے درستی کرنے کو کہا",
 
   "visit.pdf": "رپورٹ PDF میں دیکھیں",
+
+
 };

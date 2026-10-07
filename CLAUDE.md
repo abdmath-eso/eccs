@@ -8,6 +8,7 @@ Enterprise platform for ECCS (Eosfera Commercial Cleaning Services), Hyderabad: 
 2. Read `docs/PROPOSAL.md` for the specification: stack, roles, data model, scope, roadmap, folder structure.
 3. Skim the latest entries in `docs/DAILY_LOG.md` for what happened recently and what was left open.
 4. Sample logins for testing are in `docs/TEST_LOGINS.md`; keep it in step with the seed.
+5. `docs/NOTIFICATIONS.md` lists every notification the platform should send; `docs/UI_REVIEW.md` is the screen review and what is left of it.
 
 ## Rules
 
@@ -20,5 +21,6 @@ Enterprise platform for ECCS (Eosfera Commercial Cleaning Services), Hyderabad: 
 - Use sample data for company details, prices, SOPs and certificates until the founder supplies real ones. No real SMS or payments.
 - Read STATUS.md section 6 "Notes for Claude sessions on this machine" before running commands.
 - Record the founder's decisions in STATUS.md section 3 with the date; move answered questions out of section 4.
+- **Keep `docs/NOTIFICATIONS.md` current (founder's rule, 7 Oct 2026).** Whenever a feature is built or changed, add or update the notifications it should send, in the same session. None is built yet; the founder will have them built and tested together later, so do not build one unless asked.
 - **Research the design first, and build to the industry standard (founder's rule, 7 Oct 2026).** Before building or changing any screen in the app or the console, look up how established apps and current UI/UX guidance handle that kind of screen (search the web, do not rely on memory alone), and build the common pattern rather than inventing one. When reporting the work, say briefly what pattern was followed and where it comes from. This applies to everything from now on, not only when asked.
 - The founder is not a full-time developer. Explain choices in plain language and give exact commands.

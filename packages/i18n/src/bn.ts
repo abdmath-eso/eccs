@@ -599,8 +599,8 @@ export const bn: Messages = {
   "visit.rateFirst": "সই করার আগে একটি রেটিং বেছে নিন।",
 
   "visitStatus.IN_REVIEW": "ECCS রিপোর্ট যাচাই করছে",
-  "visit.inReviewRestaurant": "কাজ শেষ হয়েছে। ECCS রিপোর্ট যাচাই করছে; অনুমোদন হলে আপনি এটি পড়ে সই করতে পারবেন।",
-  "visit.inReviewEccs": "শেষ হয়েছে। ECCS অফিসের রিপোর্ট অনুমোদনের অপেক্ষায়।",
+  "visit.inReviewRestaurant": "সই হয়ে গেছে। ECCS রিপোর্ট যাচাই করছে; অনুমোদন হলে PDF এখানে পাবেন।",
+  "visit.inReviewEccs": "রেস্টুরেন্ট সই করেছে। ECCS অফিসের রিপোর্ট অনুমোদনের অপেক্ষায়।",
 
   "visit.reason.hot": "যন্ত্রপাতি গরম ছিল বা চলছিল",
   "visit.reason.notMoved": "যন্ত্রপাতি সরানো যায়নি",
@@ -610,4 +610,6 @@ export const bn: Messages = {
   "visit.correction": "ECCS সংশোধন করতে বলেছে",
 
   "visit.pdf": "রিপোর্ট PDF হিসেবে দেখুন",
+
+
 };

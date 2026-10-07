@@ -599,8 +599,8 @@ export const kn: Messages = {
   "visit.rateFirst": "ಸೈನ್ ಆಫ್ ಮಾಡುವ ಮೊದಲು ರೇಟಿಂಗ್ ಆಯ್ಕೆ ಮಾಡಿ.",
 
   "visitStatus.IN_REVIEW": "ECCS ರಿಪೋರ್ಟ್ ಪರಿಶೀಲಿಸುತ್ತಿದೆ",
-  "visit.inReviewRestaurant": "ಕೆಲಸ ಮುಗಿದಿದೆ. ECCS ರಿಪೋರ್ಟ್ ಪರಿಶೀಲಿಸುತ್ತಿದೆ; ಅದು ಒಪ್ಪಿಗೆಯಾದ ನಂತರ ನೀವು ಓದಿ ಸೈನ್ ಆಫ್ ಮಾಡಬಹುದು.",
-  "visit.inReviewEccs": "ಮುಗಿದಿದೆ. ECCS ಆಫೀಸ್ ರಿಪೋರ್ಟ್ ಒಪ್ಪುವುದಕ್ಕಾಗಿ ಕಾಯುತ್ತಿದೆ.",
+  "visit.inReviewRestaurant": "ಸೈನ್ ಆಫ್ ಆಗಿದೆ. ECCS ರಿಪೋರ್ಟ್ ಪರಿಶೀಲಿಸುತ್ತಿದೆ; ಅನುಮೋದನೆ ಆದ ನಂತರ PDF ಇಲ್ಲಿ ಸಿಗುತ್ತದೆ.",
+  "visit.inReviewEccs": "ರೆಸ್ಟೋರೆಂಟ್ ಸೈನ್ ಆಫ್ ಮಾಡಿದೆ. ECCS ಆಫೀಸ್ ರಿಪೋರ್ಟ್ ಅನುಮೋದಿಸಲು ಕಾಯುತ್ತಿದೆ.",
 
   "visit.reason.hot": "ಉಪಕರಣ ಬಿಸಿಯಾಗಿತ್ತು ಅಥವಾ ಚಾಲೂ ಇತ್ತು",
   "visit.reason.notMoved": "ಉಪಕರಣ ಸರಿಸಲು ಆಗಲಿಲ್ಲ",
@@ -610,4 +610,6 @@ export const kn: Messages = {
   "visit.correction": "ECCS ತಿದ್ದುಪಡಿ ಕೇಳಿದೆ",
 
   "visit.pdf": "ರಿಪೋರ್ಟ್ PDF ಆಗಿ ನೋಡಿ",
+
+
 };

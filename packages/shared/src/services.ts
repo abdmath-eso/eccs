@@ -36,17 +36,17 @@ export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 /**
  * Where a visit stands:
  * SCHEDULED = a date is set but no Supervisor yet; ASSIGNED = a Supervisor has it;
- * IN_PROGRESS = the Supervisor has checked in at the outlet; IN_REVIEW = the work is
- * done and ECCS is checking the report before the restaurant sees it; COMPLETED = ECCS
- * approved the report and it waits for the restaurant's sign-off; APPROVED = the
- * restaurant signed it off.
+ * IN_PROGRESS = the Supervisor has checked in at the outlet; COMPLETED = the work is
+ * done and waits for the restaurant's sign-off; IN_REVIEW = the restaurant signed it
+ * off and ECCS is checking the report; APPROVED = ECCS approved the report, which is
+ * now final and available as a PDF.
  */
 export const VISIT_STATUSES = [
   "SCHEDULED",
   "ASSIGNED",
   "IN_PROGRESS",
-  "IN_REVIEW",
   "COMPLETED",
+  "IN_REVIEW",
   "APPROVED",
   "CANCELLED",
 ] as const;
@@ -250,7 +250,7 @@ export interface VisitDto extends VisitSummaryDto {
    * Only ECCS staff are told; null for the restaurant.
    */
   correctionNote: string | null;
-  /** ECCS admins, while the report waits for their check: approve it or send it back. */
+  /** ECCS admins, once the restaurant has signed off: approve the report or send it back. */
   canReview: boolean;
   canManage: boolean;
 }

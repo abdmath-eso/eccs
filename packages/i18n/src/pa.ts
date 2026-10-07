@@ -599,8 +599,8 @@ export const pa: Messages = {
   "visit.rateFirst": "ਸਾਈਨ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਰੇਟਿੰਗ ਚੁਣੋ।",
 
   "visitStatus.IN_REVIEW": "ECCS ਰਿਪੋਰਟ ਚੈੱਕ ਕਰ ਰਿਹਾ ਹੈ",
-  "visit.inReviewRestaurant": "ਕੰਮ ਪੂਰਾ ਹੋ ਗਿਆ ਹੈ। ECCS ਰਿਪੋਰਟ ਚੈੱਕ ਕਰ ਰਿਹਾ ਹੈ; ਮਨਜ਼ੂਰ ਹੋਣ ਤੋਂ ਬਾਅਦ ਤੁਸੀਂ ਇਸਨੂੰ ਪੜ੍ਹ ਕੇ ਸਾਈਨ ਕਰ ਸਕਦੇ ਹੋ।",
-  "visit.inReviewEccs": "ਕੰਮ ਮੁੱਕਿਆ। ECCS ਦਫ਼ਤਰ ਵੱਲੋਂ ਰਿਪੋਰਟ ਦੀ ਮਨਜ਼ੂਰੀ ਦੀ ਉਡੀਕ ਹੈ।",
+  "visit.inReviewRestaurant": "ਸਾਈਨ ਹੋ ਗਈ। ECCS ਰਿਪੋਰਟ ਚੈੱਕ ਕਰ ਰਿਹਾ ਹੈ; ਮਨਜ਼ੂਰ ਹੋਣ 'ਤੇ PDF ਇੱਥੇ ਮਿਲੇਗੀ।",
+  "visit.inReviewEccs": "ਰੈਸਟੋਰੈਂਟ ਨੇ ਸਾਈਨ ਕਰ ਦਿੱਤੇ ਹਨ। ECCS ਦਫ਼ਤਰ ਵੱਲੋਂ ਰਿਪੋਰਟ ਮਨਜ਼ੂਰ ਹੋਣ ਦੀ ਉਡੀਕ ਹੈ।",
 
   "visit.reason.hot": "ਮਸ਼ੀਨ ਗਰਮ ਸੀ ਜਾਂ ਚੱਲ ਰਹੀ ਸੀ",
   "visit.reason.notMoved": "ਮਸ਼ੀਨ ਹਟਾਈ ਨਹੀਂ ਜਾ ਸਕੀ",
@@ -610,4 +610,6 @@ export const pa: Messages = {
   "visit.correction": "ECCS ਨੇ ਸੁਧਾਰ ਕਰਨ ਲਈ ਕਿਹਾ",
 
   "visit.pdf": "ਰਿਪੋਰਟ PDF ਵਿੱਚ ਦੇਖੋ",
+
+
 };

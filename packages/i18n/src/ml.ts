@@ -599,8 +599,8 @@ export const ml: Messages = {
   "visit.rateFirst": "ഒപ്പിടുന്നതിന് മുമ്പ് ഒരു റേറ്റിംഗ് തിരഞ്ഞെടുക്കുക.",
 
   "visitStatus.IN_REVIEW": "ECCS റിപ്പോർട്ട് പരിശോധിക്കുന്നു",
-  "visit.inReviewRestaurant": "ജോലി കഴിഞ്ഞു. ECCS റിപ്പോർട്ട് പരിശോധിക്കുന്നു; അംഗീകരിച്ച ശേഷം നിങ്ങൾക്ക് അത് വായിച്ച് ഒപ്പിടാം.",
-  "visit.inReviewEccs": "കഴിഞ്ഞു. ECCS ഓഫീസ് റിപ്പോർട്ട് അംഗീകരിക്കാൻ കാത്തിരിക്കുന്നു.",
+  "visit.inReviewRestaurant": "ഒപ്പിട്ടു. ECCS റിപ്പോർട്ട് പരിശോധിക്കുന്നു; അംഗീകരിച്ചാൽ PDF ഇവിടെ ലഭിക്കും.",
+  "visit.inReviewEccs": "റെസ്റ്റോറന്റ് ഒപ്പിട്ടു. ECCS ഓഫീസ് റിപ്പോർട്ട് അംഗീകരിക്കാൻ കാത്തിരിക്കുന്നു.",
 
   "visit.reason.hot": "ഉപകരണം ചൂടായിരുന്നു അല്ലെങ്കിൽ ഓടുകയായിരുന്നു",
   "visit.reason.notMoved": "ഉപകരണം നീക്കാനായില്ല",
@@ -610,4 +610,6 @@ export const ml: Messages = {
   "visit.correction": "ECCS തിരുത്തൽ ആവശ്യപ്പെട്ടു",
 
   "visit.pdf": "റിപ്പോർട്ട് PDF ആയി കാണുക",
+
+
 };

@@ -307,11 +307,11 @@ describe('Service loop (e2e)', () => {
       expect(record.body).toMatchObject({ technicianNames: ['Ravi', 'Suresh'], notes: 'Gel bait applied under the sinks.' });
     });
 
-    it('finishes with a report number and goes to ECCS to be checked', async () => {
+    it('finishes with a report number and waits for the restaurant to sign off', async () => {
       const done = (await http().post(`/visits/${visitId}/complete`).set(bearer(supervisor)).expect(200)).body as Visit;
-      expect(done.status).toBe('IN_REVIEW');
+      expect(done.status).toBe('COMPLETED');
       expect(done.reportNumber).toMatch(/^SR-\d{4}-\d{5}$/);
-      expect(done).toMatchObject({ canRecord: false, canSignOff: false });
+      expect(done).toMatchObject({ canRecord: false, canSignOff: false, canReview: false });
 
       // Nothing can be changed afterwards.
       await http().put(`/visits/${visitId}/tasks/${done.tasks[0]!.itemId}`).set(bearer(supervisor)).send({ done: true }).expect(409);
@@ -323,65 +323,24 @@ describe('Service loop (e2e)', () => {
     });
   });
 
-  describe('ECCS checks the report', () => {
-    const approve = (token: string) => http().post(`/visits/${visitId}/approve-report`).set(bearer(token));
-    const sendBack = (token: string, note: unknown = 'The after photo is of the wrong area.') =>
-      http().post(`/visits/${visitId}/return-report`).set(bearer(token)).send({ note });
+  const approve = (token: string) => http().post(`/visits/${visitId}/approve-report`).set(bearer(token));
+  const sendBack = (token: string, note: unknown = 'The after photo is of the wrong area.') =>
+    http().post(`/visits/${visitId}/return-report`).set(bearer(token)).send({ note });
+  const pdf = (token: string, id = visitId) => http().post(`/visits/${id}/report-pdf`).set(bearer(token));
 
-    it('keeps the report from the restaurant until ECCS approves it', async () => {
-      const theirs = await visit(owner);
-      expect(theirs).toMatchObject({ status: 'IN_REVIEW', canSignOff: false, canReview: false });
-      expect(theirs.photos).toEqual([]);
-      expect(theirs.tasks).toEqual([]);
-      expect(theirs.notes).toBeNull();
-      expect(theirs.technicianNames).toEqual([]);
-      await http().post(`/visits/${visitId}/sign-off`).set(bearer(owner)).send({ rating: 5 }).expect(409);
-
-      // ECCS and the Supervisor still see everything.
-      expect((await visit(supervisor)).photos).toHaveLength(2);
-      expect(await visit(admin)).toMatchObject({ status: 'IN_REVIEW', canReview: true });
-    });
-
-    it('lets ECCS send it back to the Supervisor, who finishes again under the same number', async () => {
-      await sendBack(owner).expect(403);
-      await sendBack(supervisor).expect(403);
-      const number = (await visit(admin)).reportNumber;
-
-      // ECCS must say what to correct.
-      await sendBack(admin, '').expect(400);
-      await sendBack(admin, null).expect(400);
-      await sendBack(admin, 'x').expect(400);
-
-      const reopened = (await sendBack(admin).expect(200)).body as Visit;
-      expect(reopened).toMatchObject({ status: 'IN_PROGRESS', canReview: false });
-      // The Supervisor is told; the restaurant is not.
-      expect((await visit(supervisor)).correctionNote).toBe('The after photo is of the wrong area.');
-      expect((await visit(owner)).correctionNote).toBeNull();
-      await sendBack(admin).expect(409);
-      await approve(admin).expect(409);
-
-      await http().patch(`/visits/${visitId}/record`).set(bearer(supervisor)).send({ notes: 'Gel bait applied under the sinks.' }).expect(200);
-      const again = (await http().post(`/visits/${visitId}/complete`).set(bearer(supervisor)).expect(200)).body as Visit;
-      expect(again).toMatchObject({ status: 'IN_REVIEW', reportNumber: number });
-    });
-
-    it('lets ECCS approve it, which releases it to the restaurant', async () => {
-      await approve(owner).expect(403);
-      await approve(supervisor).expect(403);
-      const approved = (await approve(admin).expect(200)).body as Visit;
-      expect(approved).toMatchObject({ status: 'COMPLETED', canReview: false, correctionNote: null });
-      await approve(admin).expect(409);
-
+  describe('sign-off', () => {
+    it('lets the restaurant read everything straight away, without waiting for ECCS', async () => {
       const theirs = await visit(owner);
       expect(theirs).toMatchObject({ status: 'COMPLETED', canSignOff: true });
       expect(theirs.photos).toHaveLength(2);
       expect(theirs.tasks.length).toBeGreaterThan(0);
+      expect(theirs.technicianNames).toEqual(['Ravi', 'Suresh']);
+      // ECCS approves after the sign-off, not before it.
+      await approve(admin).expect(409);
+      await pdf(owner).expect(409);
     });
-  });
 
-  describe('sign-off and the report', () => {
-    it('is for the restaurant’s Owner or Manager only', async () => {
-      expect((await visit(owner)).canSignOff).toBe(true);
+    it('is for the restaurant’s Owner or Manager only, with a rating', async () => {
       const signOff = (token: string, body: Record<string, unknown> = { rating: 4, comment: '  Clean and on time.  ' }) =>
         http().post(`/visits/${visitId}/sign-off`).set(bearer(token)).send(body);
       await signOff(chef).expect(403);
@@ -396,23 +355,68 @@ describe('Service loop (e2e)', () => {
       await signOff(owner, { rating: 4.5 }).expect(400);
 
       const signed = (await signOff(owner).expect(200)).body as Visit;
-      expect(signed.signOff).toMatchObject({ rating: 4, comment: 'Clean and on time.' });
-      expect(signed.status).toBe('APPROVED');
-      expect(signed.signOff).toMatchObject({ role: 'OWNER', name: expect.any(String), signedAt: expect.any(String) });
-      expect(signed.canSignOff).toBe(false);
+      expect(signed.signOff).toMatchObject({ rating: 4, comment: 'Clean and on time.', role: 'OWNER' });
+      // Signed off: now with ECCS to approve the report.
+      expect(signed).toMatchObject({ status: 'IN_REVIEW', canSignOff: false });
       await signOff(owner).expect(409);
     });
 
-    it('keeps the finished visit as a report the restaurant and ECCS can open', async () => {
+    it('moves the visit off the restaurant’s to-do list and onto ECCS’s', async () => {
       expect((await visits(owner, { outletId })).map((entry) => entry.id)).not.toContain(visitId);
-      const closed = (await visits(owner, { outletId, state: 'closed' })).find((entry) => entry.id === visitId)!;
-      expect(closed.status).toBe('APPROVED');
-      expect(closed.reportNumber).toMatch(/^SR-/);
+      expect((await visits(owner, { outletId, state: 'closed' })).find((entry) => entry.id === visitId)!.status).toBe('IN_REVIEW');
+      expect((await visits(admin)).find((entry) => entry.id === visitId)!.status).toBe('IN_REVIEW');
+      expect((await visits(admin, { state: 'closed' })).map((entry) => entry.id)).not.toContain(visitId);
+      // No PDF until ECCS has approved.
+      await pdf(owner).expect(409);
+      await pdf(admin).expect(409);
+    });
+  });
 
+  describe('ECCS approves the report', () => {
+    it('can send it back to the Supervisor with a note, without the restaurant signing again', async () => {
+      await sendBack(owner).expect(403);
+      await sendBack(supervisor).expect(403);
+      const number = (await visit(admin)).reportNumber;
+      expect(await visit(admin)).toMatchObject({ status: 'IN_REVIEW', canReview: true });
+
+      // ECCS must say what to correct.
+      await sendBack(admin, '').expect(400);
+      await sendBack(admin, null).expect(400);
+      await sendBack(admin, 'x').expect(400);
+
+      const reopened = (await sendBack(admin).expect(200)).body as Visit;
+      expect(reopened).toMatchObject({ status: 'IN_PROGRESS', canReview: false });
+      await sendBack(admin).expect(409);
+      await approve(admin).expect(409);
+
+      // The Supervisor is told what to fix. The restaurant is not, and has nothing more to do.
+      expect(await visit(supervisor)).toMatchObject({
+        status: 'IN_PROGRESS',
+        canRecord: true,
+        correctionNote: 'The after photo is of the wrong area.',
+      });
+      expect(await visit(owner)).toMatchObject({ status: 'IN_REVIEW', canSignOff: false, correctionNote: null });
+
+      await http().patch(`/visits/${visitId}/record`).set(bearer(supervisor)).send({ notes: 'Gel bait applied under the sinks.' }).expect(200);
+      const again = (await http().post(`/visits/${visitId}/complete`).set(bearer(supervisor)).expect(200)).body as Visit;
+      // Straight back to ECCS, under the same number, with the sign-off kept.
+      expect(again).toMatchObject({ status: 'IN_REVIEW', reportNumber: number });
+      expect(again.signOff).toMatchObject({ rating: 4, comment: 'Clean and on time.' });
+    });
+
+    it('makes the report final', async () => {
+      await approve(owner).expect(403);
+      await approve(supervisor).expect(403);
+      const approved = (await approve(admin).expect(200)).body as Visit;
+      expect(approved).toMatchObject({ status: 'APPROVED', canReview: false, correctionNote: null });
+      await approve(admin).expect(409);
+      await sendBack(admin).expect(409);
+
+      expect((await visits(admin)).map((entry) => entry.id)).not.toContain(visitId);
       for (const token of [owner, admin, supervisor]) {
         const report = await visit(token);
+        expect(report.status).toBe('APPROVED');
         expect(report.photos).toHaveLength(2);
-        expect(report.technicianNames).toEqual(['Ravi', 'Suresh']);
         // ECCS and the Supervisor see what the restaurant thought of the visit.
         expect(report.signOff).toMatchObject({ rating: 4, comment: 'Clean and on time.' });
       }
@@ -420,9 +424,7 @@ describe('Service loop (e2e)', () => {
   });
 
   describe('the report as a PDF', () => {
-    const pdf = (token: string, id = visitId) => http().post(`/visits/${id}/report-pdf`).set(bearer(token));
-
-    it('is made once the visit is signed off, for the restaurant, ECCS and the Supervisor', async () => {
+    it('is there once ECCS has approved, for the restaurant, ECCS and the Supervisor', async () => {
       await pdf(chef).expect(403);
       await pdf(otherManager).expect(404);
 
@@ -448,11 +450,6 @@ describe('Service loop (e2e)', () => {
       }[];
       const filed = documents.filter((document) => document.title.startsWith('Service report SR-') && document.category === 'report');
       expect(filed.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('does not exist before sign-off', async () => {
-      const other = (await visits(owner, { outletId }))[0];
-      if (other) await pdf(owner, other.id).expect(409);
     });
   });
 

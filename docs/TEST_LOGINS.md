@@ -115,8 +115,9 @@ The loop needs three people (the restaurant, the ECCS office and the Supervisor)
 1. **Book (restaurant app).** Log in as an Owner or Manager. Menu → Services and booking → Book a service. Pick a service, a day and a time of day, and send. The request shows as "Waiting for ECCS to confirm".
 2. **Confirm (web console).** Log in as the Operations Manager (9000000002). Open Visits. The request is at the top: choose the day, the time and the Supervisor, then Confirm the visit. "Add a visit" puts one in the diary without a request.
 3. **Do the visit (app, as the Supervisor).** In the app choose Lock, then "Use a different restaurant" if needed to reach the welcome screen, then "ECCS staff login" with 9000000003 and the one-time code. Menu → My visits → open the visit → "I have arrived: check in". Mark each task, take a before and an after photo, type who did the work, then Finish the visit.
-4. **Approve the report (web console).** Back in the console as the Operations Manager, Visits shows the visit as "Report to check". Open it, look it over, and choose Approve the report (or Send back to the Supervisor). Until this is done the restaurant cannot read the report.
-5. **Sign off (restaurant app).** Log back in as the Owner or Manager of that outlet. Services and booking shows the visit under "Waiting for your sign-off". Open it, read it, give it a star rating, and Sign off this visit.
-6. **Read the report.** In the app it is under Past visits and on the History calendar. In the console it is under Visits → Finished.
+4. **Sign off (restaurant app).** Log back in as the Owner or Manager of that outlet. Services and booking shows the visit under "Waiting for your sign-off". Open it, read it, give it a star rating, and Sign off this visit. It then shows "ECCS is checking the report".
+5. **Approve the report (web console).** Back in the console as the Operations Manager, Visits shows the visit as "Report to approve". Open it, look it over, and choose Approve the report (or Send back to the Supervisor, with a note saying what to correct).
+6. **Open the PDF.** Once approved, the visit in the app and in the console has "Open the report as a PDF", and the PDF is filed in the outlet's Licences and documents.
+7. **Read the report.** In the app it is under Past visits and on the History calendar. In the console it is under Visits → Finished.
 
 The Head Chef does not see services. The Supervisor sees only visits given to them.

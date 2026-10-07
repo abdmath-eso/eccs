@@ -599,8 +599,8 @@ export const or: Messages = {
   "visit.rateFirst": "ସାଇନ୍ ଅଫ୍ କରିବା ପୂର୍ବରୁ ରେଟିଂ ବାଛନ୍ତୁ।",
 
   "visitStatus.IN_REVIEW": "ECCS ରିପୋର୍ଟ ଯାଞ୍ଚ କରୁଛି",
-  "visit.inReviewRestaurant": "କାମ ସରିଛି। ECCS ରିପୋର୍ଟ ଯାଞ୍ଚ କରୁଛି; ମଞ୍ଜୁର ହେଲା ପରେ ଆପଣ ଏହାକୁ ପଢ଼ି ସାଇନ୍ ଅଫ୍ କରିପାରିବେ।",
-  "visit.inReviewEccs": "କାମ ସରିଲା। ECCS ଅଫିସ୍ ରିପୋର୍ଟ ମଞ୍ଜୁର କରିବା ବାକି ଅଛି।",
+  "visit.inReviewRestaurant": "ସାଇନ୍ ଅଫ୍ ହୋଇଛି। ECCS ରିପୋର୍ଟ ଯାଞ୍ଚ କରୁଛି; ମଞ୍ଜୁର ହେଲେ PDF ଏଠାରେ ମିଳିବ।",
+  "visit.inReviewEccs": "ରେଷ୍ଟୁରାଣ୍ଟ ସାଇନ୍ ଅଫ୍ କରିଛି। ECCS ଅଫିସ୍ ରିପୋର୍ଟ ମଞ୍ଜୁର କରିବା ବାକି ଅଛି।",
 
   "visit.reason.hot": "ଯନ୍ତ୍ରପାତି ଗରମ ଥିଲା କିମ୍ବା ଚାଲୁଥିଲା",
   "visit.reason.notMoved": "ଯନ୍ତ୍ରପାତି ଘୁଞ୍ଚାଇ ହେଲା ନାହିଁ",
@@ -610,4 +610,6 @@ export const or: Messages = {
   "visit.correction": "ECCS ସଂଶୋଧନ କରିବାକୁ କହିଲା",
 
   "visit.pdf": "ରିପୋର୍ଟ PDF ରେ ଦେଖନ୍ତୁ",
+
+
 };

@@ -160,9 +160,8 @@ export default function VisitScreen() {
   const started = visit.status !== 'SCHEDULED' && visit.status !== 'ASSIGNED' && visit.status !== 'CANCELLED';
   const recording = visit.canRecord && visit.status === 'IN_PROGRESS';
   const isReport = visit.status === 'IN_REVIEW' || visit.status === 'COMPLETED' || visit.status === 'APPROVED';
-  // ECCS checks a finished report before the restaurant may read it.
   const viewerRole = user?.memberships[0]?.role;
-  const withheld = visit.status === 'IN_REVIEW' && (viewerRole === undefined || !isEccsRole(viewerRole));
+  const forRestaurant = viewerRole === undefined || !isEccsRole(viewerRole);
   const answered = visit.tasks.filter((task) => task.done !== null).length;
   const hasAfterPhoto = visit.photos.some((photo) => photo.kind === 'AFTER');
   const teamText = team ?? visit.technicianNames.join(', ');
@@ -562,9 +561,9 @@ export default function VisitScreen() {
 
       {/* While working: before photo, the tasks, then the after photo. In the
           finished report the before and after photos sit together, above the tasks. */}
-      {!withheld && photos('BEFORE')}
-      {!withheld && isReport && photos('AFTER')}
-      {!withheld && tasks}
+      {photos('BEFORE')}
+      {isReport && photos('AFTER')}
+      {tasks}
       {!isReport && photos('AFTER')}
 
       {recording ? (
@@ -628,7 +627,8 @@ export default function VisitScreen() {
           {visit.signOff.comment && <ThemedText type="default">{visit.signOff.comment}</ThemedText>}
         </View>
       )}
-      {visit.signOff && (
+      {/* The PDF exists once ECCS has approved the signed-off report. */}
+      {visit.status === 'APPROVED' && visit.signOff && (
         <>
           <Button
             icon="document-text"
@@ -642,7 +642,7 @@ export default function VisitScreen() {
       )}
       {visit.status === 'IN_REVIEW' && (
         <ThemedText type="default" themeColor="warning" style={styles.sectionGap}>
-          {t(withheld ? 'visit.inReviewRestaurant' : 'visit.inReviewEccs')}
+          {t(forRestaurant ? 'visit.inReviewRestaurant' : 'visit.inReviewEccs')}
         </ThemedText>
       )}
       {visit.status === 'COMPLETED' && !visit.canSignOff && (

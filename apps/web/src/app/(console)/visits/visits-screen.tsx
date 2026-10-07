@@ -45,7 +45,7 @@ const STATUS: Record<VisitStatus, { label: string; style: string }> = {
   SCHEDULED: { label: "No Supervisor yet", style: "border-danger text-danger" },
   ASSIGNED: { label: "Assigned", style: "border-foreground text-foreground" },
   IN_PROGRESS: { label: "In progress", style: "border-primary text-primary" },
-  IN_REVIEW: { label: "Report to check", style: "border-danger text-danger" },
+  IN_REVIEW: { label: "Report to approve", style: "border-danger text-danger" },
   COMPLETED: { label: "Waiting for sign-off", style: "border-foreground text-foreground" },
   APPROVED: { label: "Signed off", style: "border-primary text-primary" },
   CANCELLED: { label: "Cancelled", style: "border-border-strong text-muted" },
@@ -774,8 +774,8 @@ function VisitDetail({
       {visit.canReview && (
         <div className="flex flex-col gap-3 rounded-lg border border-danger p-3">
           <p className="text-sm">
-            The Supervisor has finished this visit. Check the tasks, photos and notes below. The restaurant cannot see the
-            report, or sign it off, until you approve it.
+            The restaurant has signed off this visit. Check the report below. Approving makes it final and gives the
+            Owner and Manager its PDF; if something is wrong, send it back to the Supervisor to correct.
           </p>
           <ErrorMessage message={error} />
           {returning ? (
@@ -783,7 +783,7 @@ function VisitDetail({
               <label className="flex flex-col gap-1 text-sm font-medium">
                 What should {visit.supervisorName ?? "the Supervisor"} correct?
                 <span className="font-normal text-muted">
-                  They will see this in the app, change the report and finish the visit again.
+                  They will see this in the app, change the report and finish the visit again. The restaurant does not have to sign again.
                 </span>
                 <textarea
                   value={correction}
@@ -810,7 +810,7 @@ function VisitDetail({
             </form>
           ) : (
             <div className="flex flex-wrap gap-2">
-              <Button type="button" loading={busy} onClick={() => void act(() => api.visits.approveReport(visit.id), () => "Report approved and sent to the restaurant")}>
+              <Button type="button" loading={busy} onClick={() => void act(() => api.visits.approveReport(visit.id), () => "Report approved. The restaurant can now open the PDF")}>
                 Approve the report
               </Button>
               <Button type="button" variant="secondary" disabled={busy} onClick={() => setReturning(true)}>
@@ -928,7 +928,7 @@ function VisitDetail({
           <p className={visit.signOff ? "font-semibold text-primary" : undefined}>
             {visit.signOff
               ? `Signed off by ${visit.signOff.name} on ${when(visit.signOff.signedAt)}`
-              : "Waiting for the restaurant's Owner or Manager to sign off in the app."}
+              : "Waiting for the restaurant's Owner or Manager to sign off in the app. You approve the report after that."}
           </p>
           {visit.signOff?.rating != null && (
             <p className="mt-2">
@@ -942,7 +942,7 @@ function VisitDetail({
             </p>
           )}
           {visit.signOff?.comment && <p className="mt-1 whitespace-pre-wrap">“{visit.signOff.comment}”</p>}
-          {visit.signOff && (
+          {visit.status === "APPROVED" && (
             <div className="mt-3 flex flex-col gap-2">
               <ErrorMessage message={pdfError} />
               <div>

@@ -20,4 +20,5 @@ Enterprise platform for ECCS (Eosfera Commercial Cleaning Services), Hyderabad: 
 - Use sample data for company details, prices, SOPs and certificates until the founder supplies real ones. No real SMS or payments.
 - Read STATUS.md section 6 "Notes for Claude sessions on this machine" before running commands.
 - Record the founder's decisions in STATUS.md section 3 with the date; move answered questions out of section 4.
+- **Research the design first, and build to the industry standard (founder's rule, 7 Oct 2026).** Before building or changing any screen in the app or the console, look up how established apps and current UI/UX guidance handle that kind of screen (search the web, do not rely on memory alone), and build the common pattern rather than inventing one. When reporting the work, say briefly what pattern was followed and where it comes from. This applies to everything from now on, not only when asked.
 - The founder is not a full-time developer. Explain choices in plain language and give exact commands.

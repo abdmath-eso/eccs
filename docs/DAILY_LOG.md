@@ -12,6 +12,21 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Wednesday 7 October 2026
+
+*In progress. To be written up at the end of the day.*
+
+**So far today**
+
+- Nothing yet.
+
+**Carried over from yesterday**
+
+- Phone retest of the 6 October work (see "Left open" below).
+- The founder has not yet chosen what to build next. Recommended: Phase 1b, the service loop.
+
+---
+
 ## Tuesday 6 October 2026
 
 The second day. Started with daily checklists as the only finished feature and ended with most of the restaurant side of Phase 1a in place: ECCS support, licences and documents, the dashboard, the history calendar, the SOP library, a profile page, and the app in twelve languages. 40 commits. Pushed to GitHub twice: once at midday when the repository was first put there, and once at the end of the day.

@@ -255,7 +255,7 @@ export class AuthService {
       await this.db.session.update({ where: { id: session.id }, data: { lastUsedAt: new Date() } });
     }
 
-    return { ...toDto(session.user), sessionId: session.id };
+    return { ...toDto(session.user), sessionId: session.id, contentLanguage: session.user.language };
   }
 
   async logout(sessionId: string): Promise<void> {

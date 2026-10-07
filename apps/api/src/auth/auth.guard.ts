@@ -1,9 +1,9 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { can } from '@eccs/shared';
+import { can, LANGUAGES } from '@eccs/shared';
 import { IS_PUBLIC, REQUIRED_PERMISSION, type RequiredPermission } from './auth.decorators.js';
 import { AuthService } from './auth.service.js';
-import type { AuthenticatedRequest } from './auth.types.js';
+import { APP_LANGUAGE_HEADER, type AuthenticatedRequest } from './auth.types.js';
 
 /**
  * Applied to every endpoint. Requires a valid session unless the endpoint is
@@ -28,6 +28,9 @@ export class AuthGuard implements CanActivate {
     if (!user) {
       throw new UnauthorizedException('Please log in');
     }
+    const sent = request.headers[APP_LANGUAGE_HEADER];
+    const onScreen = LANGUAGES.find((code) => code === sent);
+    if (onScreen) user.contentLanguage = onScreen;
     request.user = user;
 
     const required = this.reflector.getAllAndOverride<RequiredPermission | undefined>(REQUIRED_PERMISSION, targets);

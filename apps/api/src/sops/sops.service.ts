@@ -427,7 +427,7 @@ export class SopsService {
   }
 
   private languageOf(user: AuthUser): SopLanguage {
-    const language = user.language.toLowerCase();
+    const language = user.contentLanguage.toLowerCase();
     return (SOP_LANGUAGES as readonly string[]).includes(language)
       ? (language as SopLanguage)
       : 'en';

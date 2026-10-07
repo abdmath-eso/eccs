@@ -24,7 +24,7 @@ const SEARCH_DELAY_MS = 300;
 export default function SopLibraryScreen() {
   const theme = useTheme();
   const { outletId } = useLocalSearchParams<{ outletId: string }>();
-  const { t, api } = useSession();
+  const { t, api, language } = useSession();
   const [overview, setOverview] = useState<SopLibraryOverviewDto | null>(null);
   const [text, setText] = useState('');
   const [category, setCategory] = useState<SopCategory | null>(null);
@@ -46,7 +46,7 @@ export default function SopLibraryScreen() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, outletId]);
+  }, [api, outletId, language]);
 
   // Loads what is being looked at: the search if there is one, otherwise the chosen
   // section. Typing waits for a pause first. Runs again on coming back from an SOP,
@@ -73,7 +73,7 @@ export default function SopLibraryScreen() {
         clearTimeout(timer);
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [api, outletId, search, searching, category, section]),
+    }, [api, outletId, search, searching, category, section, language]),
   );
 
   function openCategory(next: SopCategory | null) {

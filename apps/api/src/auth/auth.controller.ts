@@ -53,7 +53,7 @@ export class AuthController {
 
   @Get('me')
   me(@CurrentUser() user: AuthUser): CurrentUserDto {
-    const { sessionId: _sessionId, ...dto } = user;
+    const { sessionId: _sessionId, contentLanguage: _contentLanguage, ...dto } = user;
     return dto;
   }
 

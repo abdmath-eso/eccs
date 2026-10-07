@@ -19,7 +19,7 @@ import { useSession } from '@/lib/session';
 export default function SopLibraryItemScreen() {
   const theme = useTheme();
   const { itemId, outletId } = useLocalSearchParams<{ itemId: string; outletId: string }>();
-  const { t, api } = useSession();
+  const { t, api, language } = useSession();
   const [item, setItem] = useState<SopLibraryItemDto | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export default function SopLibraryItemScreen() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, outletId, itemId]);
+  }, [api, outletId, itemId, language]);
 
   // The copy takes this screen's place, so Back from it returns to the library list.
   const openCopy = (sopId: string) => router.replace({ pathname: '/sops/[sopId]', params: { sopId } });

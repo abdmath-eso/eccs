@@ -8,9 +8,15 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/v1';
 // the current value. SessionProvider keeps it in step with stored state.
 let sessionToken: string | null = null;
 let unauthorizedHandler: (() => void) | null = null;
+// The language the screens are in, kept here for the same reason.
+let appLanguage: string | null = null;
 
 export const setSessionToken = (token: string | null) => {
   sessionToken = token;
+};
+
+export const setAppLanguage = (language: string) => {
+  appLanguage = language;
 };
 
 /** Registers what to do when the server says the session has ended. */
@@ -21,5 +27,6 @@ export const setUnauthorizedHandler = (handler: (() => void) | null) => {
 export const api = createApiClient({
   baseUrl: API_URL,
   getToken: () => sessionToken,
+  getLanguage: () => appLanguage,
   onUnauthorized: () => unauthorizedHandler?.(),
 });

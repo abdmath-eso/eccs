@@ -18,7 +18,8 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 **So far today**
 
-- Nothing yet.
+- Founder reported SOPs not showing in the newer languages. Cause: his API terminal had been started before the translation work was built. Restarting it fixed that.
+- Founder then sent three phone screenshots (filed in `docs/screenshots/` as `library-bengali-screen-marathi-content-android.png`, `library-bengali-screen-english-content-iphone.jpeg` and `library-sop-english-content-iphone.jpeg`): with the app set to Bengali, the SOP library showed Marathi on the Android phone and English on the iPhone; and on first opening, the language did not appear until after some refreshing. Cause: the screen follows the language chosen on that phone, but the library's wording followed the language saved on the account, and the two had drifted apart (one login on two phones; a save that failed silently, probably while the API was restarting). Fixed: the app now sends the language on screen with every request and the server answers in it; the library reloads when the language changes; a phone follows the saved language when the app opens, and re-sends its own choice if that never reached the server. One more check added to the end-to-end tests (122 pass). Not checked in the browser or on a phone yet.
 
 **Carried over from yesterday**
 

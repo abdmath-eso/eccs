@@ -3,11 +3,13 @@ import { createTranslator, LANGUAGE_CODES, type LanguageCode, type Translator } 
 import type { CurrentUserDto, LinkedDeviceDto, SessionDto } from '@eccs/shared';
 import { createContext, use, useEffect, useState, type ReactNode } from 'react';
 
-import { api, setSessionToken, setUnauthorizedHandler } from './api';
+import { api, setAppLanguage, setSessionToken, setUnauthorizedHandler } from './api';
 import { getItem, getJson, removeItem, setItem, setJson } from './storage';
 
 const KEYS = {
   language: 'eccs.language',
+  // Set while a language chosen on this phone has not reached the server yet.
+  languageUnsaved: 'eccs.languageUnsaved',
   linkedDevice: 'eccs.linkedDevice',
   token: 'eccs.sessionToken',
   user: 'eccs.user',
@@ -44,10 +46,16 @@ export function useSession(): SessionContextValue {
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
-  const [language, setLanguageState] = useState<LanguageCode>('EN');
+  const [language, setLanguageValue] = useState<LanguageCode>('EN');
   const [linkedDevice, setLinkedDevice] = useState<LinkedDeviceDto | null>(null);
   const [user, setUser] = useState<CurrentUserDto | null>(null);
   const [newPin, setNewPin] = useState<string | null>(null);
+
+  /** Changes the language of the screens and of what the server sends back. */
+  function setLanguageState(next: LanguageCode) {
+    setAppLanguage(next);
+    setLanguageValue(next);
+  }
 
   async function clearSession() {
     setSessionToken(null);
@@ -64,8 +72,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [storedLanguage, storedDevice, storedToken, storedUser] = await Promise.all([
+      const [storedLanguage, unsaved, storedDevice, storedToken, storedUser] = await Promise.all([
         getItem(KEYS.language),
+        getItem(KEYS.languageUnsaved),
         getJson<LinkedDeviceDto>(KEYS.linkedDevice),
         getItem(KEYS.token),
         getJson<CurrentUserDto>(KEYS.user),
@@ -80,13 +89,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // signal, then confirm with the server in the background.
         setSessionToken(storedToken);
         setUser(storedUser);
-        setLanguageState(storedUser.language);
+        if (!known) setLanguageState(storedUser.language);
       }
       setReady(true);
 
       if (storedToken && storedUser) {
         try {
-          const fresh = await api.auth.me();
+          let fresh = await api.auth.me();
+          if (known && unsaved && fresh.language !== known) {
+            // A language chosen on this phone never reached the server: send it now.
+            fresh = await api.auth.updateProfile({ language: known });
+          } else if (fresh.language !== known && !cancelled) {
+            // The person changed their language on another phone: follow it.
+            setLanguageState(fresh.language);
+            await setItem(KEYS.language, fresh.language);
+          }
+          await removeItem(KEYS.languageUnsaved);
           if (cancelled) return;
           setUser(fresh);
           await setJson(KEYS.user, fresh);
@@ -110,9 +128,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLanguageState(next);
       await setItem(KEYS.language, next);
       if (user) {
+        // Until the server has it, remember that this phone's choice is the newer one.
+        await setItem(KEYS.languageUnsaved, '1');
         const updated = await api.auth.updateProfile({ language: next });
         setUser(updated);
-        await setJson(KEYS.user, updated);
+        await Promise.all([setJson(KEYS.user, updated), removeItem(KEYS.languageUnsaved)]);
       }
     },
     linkedDevice,
@@ -145,6 +165,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setItem(KEYS.token, session.token),
         setJson(KEYS.user, session.user),
         setItem(KEYS.language, session.user.language),
+        removeItem(KEYS.languageUnsaved),
       ]);
     },
     async signOut() {

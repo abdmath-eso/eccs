@@ -70,6 +70,11 @@ export interface ApiClientOptions {
   baseUrl: string;
   /** Returns the current session token, if logged in. */
   getToken?: () => string | null | undefined;
+  /**
+   * Returns the language the screen is in, as a code such as "TE". Sent with every
+   * request so what the server words itself matches what the person is reading.
+   */
+  getLanguage?: () => string | null | undefined;
   /** Called when the server says the session is no longer valid. */
   onUnauthorized?: () => void;
 }
@@ -97,6 +102,8 @@ export function createApiClient(options: ApiClientOptions) {
     if (contentType) headers["Content-Type"] = contentType;
     const token = authenticated ? options.getToken?.() : null;
     if (token) headers["Authorization"] = `Bearer ${token}`;
+    const language = options.getLanguage?.();
+    if (language) headers["X-App-Language"] = language;
 
     let response: Response;
     try {

@@ -343,7 +343,7 @@ export class ChecklistsService {
             outletId: input.outletId,
             createdById: user.id,
             // Typed in one language; shown as typed to everyone at the outlet.
-            title: { [user.language.toLowerCase()]: input.title },
+            title: { [user.contentLanguage.toLowerCase()]: input.title },
           },
         },
       },
@@ -364,7 +364,7 @@ export class ChecklistsService {
       }
       await this.db.checklistTemplate.update({
         where: { id: list.templateId },
-        data: { title: { [user.language.toLowerCase()]: input.title } },
+        data: { title: { [user.contentLanguage.toLowerCase()]: input.title } },
       });
     }
     if (input.dueTime !== undefined) {
@@ -500,7 +500,7 @@ export class ChecklistsService {
       label = entry.text as Prisma.InputJsonValue;
     } else {
       // Typed in one language; shown as typed to everyone at the outlet.
-      label = { [user.language.toLowerCase()]: input.label ?? '' };
+      label = { [user.contentLanguage.toLowerCase()]: input.label ?? '' };
     }
 
     const last = await this.db.checklistItem.aggregate({

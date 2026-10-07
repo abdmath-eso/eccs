@@ -363,6 +363,26 @@ describe('SOP library (e2e)', () => {
       expect(mine.steps[3]).toContain('60°C');
       expect(mine.steps[3]).toContain('21°C');
 
+      // A phone can be showing another language than the one saved on the account (the
+      // same login on two phones, or a save that did not get through). The screen wins.
+      const inBengali = /[\u0980-\u09ff]/;
+      const onScreen = (
+        await http().get('/sops/library').query({ outletId, q: 'cooling' }).set(bearer(tamil)).set('X-App-Language', 'BN').expect(200)
+      ).body as Item[];
+      const shown = onScreen.find((item) => item.id === cooling.id)!;
+      expect(shown.name).toMatch(inBengali);
+      expect(shown.sectionLabel).toMatch(inBengali);
+      for (const step of shown.steps) expect(step).toMatch(inBengali);
+      // A language the app does not have is ignored.
+      const [unknown] = (
+        await http().get('/sops/library').query({ outletId, q: 'cooling' }).set(bearer(tamil)).set('X-App-Language', 'XX').expect(200)
+      ).body as Item[];
+      expect(unknown!.name).toMatch(inTamil);
+      // The saved language is untouched by all this.
+      const me = await http().get('/auth/me').set(bearer(tamil)).set('X-App-Language', 'BN').expect(200);
+      expect(me.body.language).toBe('TA');
+      expect(me.body.contentLanguage).toBeUndefined();
+
       const [closing] = await search(tamil, { q: 'restaurant closing' });
       expect(closing!.name).toMatch(inTamil);
       const [dish] = await search(tamil, { q: 'butter chicken' });

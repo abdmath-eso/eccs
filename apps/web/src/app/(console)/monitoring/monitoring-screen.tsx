@@ -75,7 +75,6 @@ const LICENCE: Record<LicenceType, string> = {
 
 const INSPECTION_PROBLEM: Record<MonitoringInspectionProblem, string> = {
   NO_GRADE: "Ended with no grade",
-  ACTIONS_OVERDUE: "Corrective actions past their date",
   REPORT_TO_APPROVE: "Report waiting for ECCS to approve",
   OVERDUE_PLANNED: "Planned day has passed, not finished",
 };
@@ -164,7 +163,6 @@ function cellText(outlet: MonitoringOutletDto, area: MonitoringArea): { main: st
       return {
         main: n.latest ? `${n.latest.score} out of 100 · ${GRADE[n.latest.grade]}` : "Not yet inspected",
         more: [
-          n.actionsOverdue > 0 && `${count(n.actionsOverdue, "action")} overdue`,
           n.toApprove > 0 && `${count(n.toApprove, "report")} to approve`,
           n.overduePlanned > 0 && `${n.overduePlanned} planned, not done`,
         ].filter(isText),
@@ -204,7 +202,7 @@ const SEVERITY: Record<MonitoringArea, (outlet: MonitoringOutletDto) => number> 
   issues: (o) => (o.issues.oldestUnresolvedDays ?? -1) + o.issues.unresolved / 100,
   licences: (o) => o.licences.expired * 100 + o.licences.expiring,
   visits: (o) => o.visits.overdue * 100 + o.visits.items.length,
-  inspections: (o) => o.inspections.actionsOverdue * 1000 + (100 - (o.inspections.latest?.score ?? 100)),
+  inspections: (o) => 100 - (o.inspections.latest?.score ?? 100),
   score: (o) => 100 - (o.score.score ?? 100),
 };
 
@@ -643,7 +641,7 @@ function Rules() {
         </dd>
         <dt className="font-semibold">Inspections</dt>
         <dd>
-          Needs attention when the latest approved inspection ended with no grade, one of its corrective actions is past its date, or a report
+          Needs attention when the latest approved inspection ended with no grade, or a report
           has waited more than {r.inspections.approvalAttentionDays} days for approval. Watch when the latest grade is B, a report is waiting for
           approval, or a planned inspection&apos;s day has passed.
         </dd>
@@ -767,7 +765,7 @@ function OutletDetail({ outlet, admin, days }: { outlet: MonitoringOutletDto; ad
                 Latest report{inspections.latest.reportNumber ? ` ${inspections.latest.reportNumber}` : ""}, {shortDay(inspections.latest.date)}
               </Link>
               {inspections.actionsOpen > 0 &&
-                ` · ${count(inspections.actionsOpen, "corrective action")} not marked as put right, ${inspections.actionsOverdue} past ${inspections.actionsOverdue === 1 ? "its" : "their"} date`}
+                ` · ${count(inspections.actionsOpen, "corrective action")} on the report`}
             </li>
           )}
           {inspections.items

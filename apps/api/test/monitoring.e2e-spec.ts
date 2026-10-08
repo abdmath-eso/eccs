@@ -92,7 +92,8 @@ describe('The rules of the monitoring board', () => {
     expect(inspectionLevel({ ...never, latestGrade: 'A' })).toBe('OK');
     expect(inspectionLevel({ ...never, latestGrade: 'B' })).toBe('WATCH');
     expect(inspectionLevel({ ...never, latestGrade: 'NON_COMPLIANT' })).toBe('ATTENTION');
-    expect(inspectionLevel({ ...never, latestGrade: 'A_PLUS', actionsOverdue: 1 })).toBe('ATTENTION');
+    // A corrective action past its date is not held against the outlet: nothing could clear it.
+    expect(inspectionLevel({ ...never, latestGrade: 'A_PLUS', actionsOverdue: 1 })).toBe('OK');
     expect(inspectionLevel({ ...never, toApprove: 1, oldestApprovalDays: 0 })).toBe('WATCH');
 
     expect(scoreLevel({ score: null, previous: null })).toBe('NONE');
@@ -320,8 +321,8 @@ describe('Monitoring board (e2e)', () => {
     const overdueToday = indiaTime() > '09:00' ? 1 : 0;
 
     expect(outlet).toMatchObject({ outletName: 'E2E monitoring busy outlet', plan: null, level: 'ATTENTION' });
-    expect(outlet.attention).toEqual(['issues', 'licences', 'visits', 'inspections', 'score']);
-    expect(outlet.watch).toEqual(['checklists']);
+    expect(outlet.attention).toEqual(['issues', 'licences', 'visits', 'score']);
+    expect(outlet.watch).toEqual(['checklists', 'inspections']);
 
     expect(outlet.checklists).toEqual({
       due: 4 + overdueToday,
@@ -374,9 +375,10 @@ describe('Monitoring board (e2e)', () => {
       toApprove: 0,
       overduePlanned: 0,
       latest: { id: inspectionId, score: 70, grade: 'B', date: day(-10) },
-      level: 'ATTENTION',
+      // Grade B is worth watching; the action past its date is counted but flags nothing.
+      level: 'WATCH',
     });
-    expect(outlet.inspections.items).toEqual([{ id: inspectionId, date: day(-10), problems: ['ACTIONS_OVERDUE'] }]);
+    expect(outlet.inspections.items).toEqual([]);
 
     // Compared with the latest score that is at least a week older, not with the one from three days ago.
     expect(outlet.score).toEqual({ score: 55, previous: 70, change: -15, date: day(0), previousDate: day(-8), level: 'ATTENTION' });

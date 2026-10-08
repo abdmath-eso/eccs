@@ -415,7 +415,6 @@ export class MonitoringService {
         overduePlanned: 0,
       };
       if (latest && grade === 'NON_COMPLIANT') flag(latest, 'NO_GRADE');
-      if (latest && facts.actionsOverdue > 0) flag(latest, 'ACTIONS_OVERDUE');
 
       for (const inspection of inspectionsBy.get(outletId) ?? []) {
         if (inspection.status === 'SUBMITTED') {

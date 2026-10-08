@@ -12,6 +12,22 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Thursday 8 October 2026
+
+*In progress. To be written up at the end of the day.*
+
+**So far today**
+
+- Founder decision: remove the "actions overdue" flag from the monitoring board, since without re-inspection nothing could clear it. Done: the board no longer marks an outlet for a corrective action past its date; it still shows how many the latest report carries. Monitoring tests updated.
+- Founder asked how to test working without signal; Claude gave the steps (also in `docs/TEST_LOGINS.md` section 12).
+
+**Carried over from yesterday**
+
+- Phone testing of everything built on the afternoon and evening of 7 October.
+- The choices awaiting the founder in `STATUS.md` section 4.
+
+---
+
 ## Wednesday 7 October 2026
 
 The third day, and the longest. Started with the restaurant side of Phase 1a in place and no service side at all; ended with Phase 1b, the whole service loop, built as first versions, and the last two pieces of 1a (checklists without signal, notifications) done as well. Much of the building was done by workers running in parallel, each on its own part of the code, with Claude preparing the shared files first and checking everything together afterwards. 37 commits. Pushed to GitHub once, at the end of the day.

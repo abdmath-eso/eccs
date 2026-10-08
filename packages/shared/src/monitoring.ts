@@ -237,8 +237,9 @@ export function visitLevel(facts: MonitoringVisitFacts): MonitoringLevel {
 
 /**
  * Scored inspections.
- * ATTENTION: the latest approved inspection ended with no grade (not compliant); one of its corrective actions is
- * past its fix-by date; or a finished report has waited more than 2 days for ECCS's approval.
+ * ATTENTION: the latest approved inspection ended with no grade (not compliant); or a finished report has waited
+ * more than 2 days for ECCS's approval. A corrective action past its fix-by date is not held against the outlet:
+ * there is no re-inspection (founder, 7 Oct 2026), so nothing could ever clear it. The count is still reported.
  * WATCH: the latest grade is B; a report is waiting for approval; or a planned inspection's day has passed.
  * NONE: the outlet has never been inspected and nothing is planned late.
  */
@@ -246,7 +247,6 @@ export function inspectionLevel(facts: MonitoringInspectionFacts): MonitoringLev
   const rules = MONITORING_RULES.inspections;
   if (
     facts.latestGrade === "NON_COMPLIANT" ||
-    facts.actionsOverdue > 0 ||
     (facts.oldestApprovalDays ?? 0) > rules.approvalAttentionDays
   ) {
     return "ATTENTION";
@@ -348,7 +348,7 @@ export interface MonitoringVisitsDto extends MonitoringVisitFacts {
   items: MonitoringVisitItemDto[];
 }
 
-export const MONITORING_INSPECTION_PROBLEMS = ["NO_GRADE", "ACTIONS_OVERDUE", "REPORT_TO_APPROVE", "OVERDUE_PLANNED"] as const;
+export const MONITORING_INSPECTION_PROBLEMS = ["NO_GRADE", "REPORT_TO_APPROVE", "OVERDUE_PLANNED"] as const;
 export type MonitoringInspectionProblem = (typeof MONITORING_INSPECTION_PROBLEMS)[number];
 
 export interface MonitoringInspectionItemDto {

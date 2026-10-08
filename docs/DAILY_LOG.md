@@ -21,6 +21,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Founder decision: remove the "actions overdue" flag from the monitoring board, since without re-inspection nothing could clear it. Done: the board no longer marks an outlet for a corrective action past its date; it still shows how many the latest report carries. Monitoring tests updated.
 - Founder asked how to test working without signal; Claude gave the steps (also in `docs/TEST_LOGINS.md` section 12).
 - The founder finished testing on the phone: everything built on 7 October, including the work without signal. "Everything is good." No faults reported.
+- Founder asked for phase 1c, billing, on sample prices: subscriptions and managing them, invoices, and sample payments. Claude added the database fields billing needed, wrote down how subscriptions and invoices fit together (billed in advance, one invoice per cycle; a one-time visit invoiced when ECCS approves its report), and started two workers in parallel.
 
 **Carried over from yesterday**
 

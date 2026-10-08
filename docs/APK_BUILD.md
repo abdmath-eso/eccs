@@ -380,3 +380,15 @@ Shared phone check: press **Lock** in the app (More → Lock). Send a test to th
 - Firebase, adding an Android app: https://firebase.google.com/docs/android/setup
 - Firebase pricing: https://firebase.google.com/pricing
 - The Windows commands (`ipconfig`, `Get-NetConnectionProfile`, `Set-NetConnectionProfile`, `New-NetFirewallRule`) are standard Windows PowerShell commands and were not checked against a web page.
+
+---
+
+## If a phone says "Notifications could not be set up on this phone"
+
+The screen shows a small technical line under that message. What it means:
+
+- **"Getting the push address ... SERVICE_NOT_AVAILABLE"**: Google refused to register the app on that phone. Seen on 8 October 2026 on the founder's POCO phone (HyperOS), while the same build worked on the virtual phone. The phone's network, Google Play services and other apps' notifications were all fine, and the cause was never found. It started working after uninstalling the app and installing it fresh once more. Try, in order: "Try again" a few times; restart the phone; uninstall and reinstall the app; dial `*#*#2432546#*#*` in the Phone app (asks Google Play services to check in again); switch off any VPN, ad blocker or Private DNS.
+- **"Telling the ECCS server ..."**: Google gave the phone its address but the API could not be reached. Check the phone is on the same Wi-Fi as the PC and the API terminal is running.
+- **"No Expo project id in this build"**: the APK was built before `eas init` was run. Build again.
+
+If the status line says the server is not sending, set `PUSH_NOTIFICATIONS=on` in `.env` and restart the API.

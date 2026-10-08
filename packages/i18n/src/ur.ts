@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ur: Partial<Messages> = {
+export const ur: Messages = {
   "app.name": "ECCS",
   "app.tagline": "صاف جگہیں۔ محفوظ کام۔ مضبوط کاروبار۔",
 
@@ -1025,4 +1025,24 @@ export const ur: Partial<Messages> = {
   "bill.paidAt": "تاریخ اور وقت",
   "bill.receiptLeft": "اس انوائس پر ادا کرنا باقی: {amount}",
   "bill.receiptPaidInFull": "اس انوائس کی پوری ادائیگی ہو گئی ہے۔",
+
+  "push.channel.updates": "اپ ڈیٹس",
+  "push.channel.updatesHelp": "وزٹ، رپورٹیں، مسائل اور لاگ ان، ہوتے ہی",
+  "push.channel.reminders": "یاد دہانیاں",
+  "push.channel.remindersHelp": "وہ چیک لسٹیں جن کا وقت گزر گیا، ختم ہونے والے لائسنس، آنے والے وزٹ",
+  "push.ask.title": "فوراً پتہ چلے؟",
+  "push.ask.body": "جب کسی چیز کو آپ کی توجہ چاہیے ہو تو ECCS اس فون پر نوٹیفکیشن دکھا سکتا ہے: وزٹ مکمل ہو گیا، ECCS نے جواب دیا، چیک لسٹ کا وقت گزر گیا، لائسنس ختم ہونے والا ہے۔ دیکھنے کے لیے آپ کو بار بار ایپ کھولنی نہیں پڑے گی۔",
+  "push.ask.shared": "مشترکہ فون پر یہ صرف اسی کو ملتے ہیں جس نے لاگ ان کیا ہے۔ لاک کرنے کے بعد کوئی نہیں دکھتا۔",
+  "push.ask.yes": "نوٹیفکیشن آن کریں",
+  "push.ask.notNow": "ابھی نہیں",
+  "push.status.on": "اس فون پر نوٹیفکیشن آن ہیں۔",
+  "push.status.off": "اس فون پر نوٹیفکیشن بند ہیں۔ نئے نوٹیفکیشن آپ کو ایپ کھولنے پر ہی نظر آئیں گے۔",
+  "push.status.blocked": "اس فون کی سیٹنگز میں ECCS کے نوٹیفکیشن بلاک ہیں۔ فوراً پتہ چلنے کے لیے وہاں ان کی اجازت دیں۔",
+  "push.status.failed": "اس فون پر نوٹیفکیشن سیٹ نہیں ہو سکے۔ انٹرنیٹ کنکشن دیکھیں اور دوبارہ کوشش کریں۔",
+  "push.status.serverOff": "اس فون پر نوٹیفکیشن آن ہیں، لیکن ECCS ابھی فون پر نوٹیفکیشن نہیں بھیج رہا۔",
+  "push.status.unavailable": "ایپ کا یہ ورژن فون پر نوٹیفکیشن نہیں دکھا سکتا۔ نئے نوٹیفکیشن آپ کو ایپ کھولنے پر نظر آئیں گے۔",
+  "push.openSettings": "فون کی سیٹنگز کھولیں",
+  "push.turnedOn": "نوٹیفکیشن آن ہو گئے",
+  "push.test.title": "ٹیسٹ نوٹیفکیشن",
+  "push.test.body": "اس فون پر ECCS کے نوٹیفکیشن کام کر رہے ہیں۔",
 };

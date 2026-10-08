@@ -189,3 +189,12 @@ About a minute after the API starts it renews the plans and raises the invoices 
 9. **Clients** > a client > an outlet: put it on a plan, change plan, pause, resume, cancel.
 10. **Invoices**: totals at the top, search and filters. Open an invoice: Open the PDF, **Record a payment** (try part of it, then try more than is left: refused), **Void** an unpaid one with a reason, then **Raise it again**.
 11. **A one-time visit**: book a service as the Owner, confirm it in Visits, do it as the Supervisor, sign off as the Owner, approve the report in the console. Its invoice appears in Invoices.
+
+## 14. Trying the installed Android app (APK)
+
+The APK is `apps\mobile\ECCS-test.apk` on the PC (how to build it: `docs/APK_BUILD.md`).
+
+1. The phone on the same Wi-Fi as the PC; the API terminal running on the PC.
+2. Copy the APK to the phone and open it to install. The app is called **ECCS**. It is separate from Expo Go and starts unlinked: enter a restaurant code and PIN from section 1 again.
+3. Everything in sections 6 to 13 works the same way. Checklists, visits and inspections without signal can now be tried by simply switching Wi-Fi off on the phone, with no Expo Go in the way.
+4. **Push notifications** arrive only after the Expo and Firebase accounts exist and the app has been rebuilt with them (`docs/APK_BUILD.md`, Part A). Until then More > Notifications says push is not available on this phone.

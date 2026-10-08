@@ -2,9 +2,36 @@
 
 Written 8 October 2026. This is the founder's guide to getting the ECCS app onto an Android phone as a real installed app (an APK file), and seeing push notifications arrive on it.
 
-Until now the app ran inside Expo Go. Expo Go cannot receive push notifications on Android, so this needs a real build. The build is done on Expo's computers ("EAS Build"), not on this PC: **no Android Studio and no Java are needed.**
+Until now the app ran inside Expo Go. Expo Go cannot receive push notifications on Android, so this needs a real build. There are two ways to make one, and both end in the same kind of APK file:
 
-**Nothing in this guide has been run yet.** No build could be made while writing it, because that needs the accounts below. Every command and file name was checked against the current Expo and Firebase documentation (the pages are listed at the end), but expect small differences in the wording of what you see on screen.
+- **On this PC** (set up on 8 October 2026, and the quicker way day to day): see "Building on this PC" just below. This has been run: the APK was built, installed on the virtual phone, and the app linked, logged in and showed Home.
+- **On Expo's computers** ("EAS Build"): Parts A to C of this guide. Needs no Android Studio, but each build takes one of 15 free builds a month and waits in a queue.
+
+**Push notifications need the two accounts in Part A whichever way the app is built.** Everything else in the app works without them.
+
+## Building on this PC
+
+Android Studio, the Android SDK and a virtual phone are installed on this PC. To build:
+
+1. Stop the mobile app's terminal (Expo) with Ctrl+C. The API and console terminals may stay running.
+2. In a PowerShell window:
+
+```powershell
+cd C:\Users\eosfera\eccs\apps\mobile
+.\build-apk.ps1
+```
+
+3. Wait. The first build takes 10 to 30 minutes; later ones a few minutes. It ends with "Done. The APK is at ...".
+4. The file is `C:\Users\eosfera\eccs\apps\mobile\ECCS-test.apk`. Send it to the phone (USB cable, WhatsApp to yourself, Google Drive) and open it there; Android asks once to allow installing from that app. Or connect the phone by USB with "USB debugging" on and run `.\build-apk.ps1 -Install`.
+
+Things to know:
+
+- **The API's address is built into the APK.** By default it is this PC's Wi-Fi address (today `192.168.1.40`), port 4000. The phone must be on the same Wi-Fi, the PC on, and the API terminal running. If the PC's address changes, build again. For another address: `.\build-apk.ps1 -ApiUrl "https://your-server/v1"`.
+- **The virtual phone:** open Android Studio > More Actions > Virtual Device Manager and press the play button, then `.\build-apk.ps1 -Install`. It is heavy on memory alongside Docker and the terminals.
+- **Java:** the build must use Java 17, which the script finds by itself. Android Studio's own Java (25) is too new and fails with "A restricted method in java.lang.System has been called".
+- **If Windows Firewall asks** whether Node may accept connections on private networks, allow it; otherwise the phone cannot reach the API.
+
+The rest of this guide is the cloud route and the accounts push needs. **The cloud-build steps (Parts B and C) have not been run yet.** No cloud build could be made while writing it, because that needs the accounts below. Every command and file name was checked against the current Expo and Firebase documentation (the pages are listed at the end), but expect small differences in the wording of what you see on screen.
 
 Steps marked **[Founder only]** need you personally: creating an account, logging in, or touching the phone. Claude can do the rest, or help with it.
 

@@ -1,12 +1,14 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, type OnModuleDestroy } from '@nestjs/common';
 import type { Prisma } from '@eccs/db';
 import {
   isNotificationType,
   NOTIFICATIONS_MAX_PAGE_SIZE,
+  NOTIFICATIONS_NEWS_SIZE,
   NOTIFICATIONS_PAGE_SIZE,
   type NotificationData,
   type NotificationDto,
   type NotificationLink,
+  type NotificationNewsDto,
   type NotificationPageDto,
   type NotificationParamsByType,
   type NotificationParamValue,
@@ -43,8 +45,14 @@ export interface SendOptions {
  * `NotifyService` (things that happen) and `RemindersService` (things that are due).
  */
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleDestroy {
   private readonly logger = new Logger(NotificationsService.name);
+
+  /** Per person, the wake-up of each "anything new?" request being held open for them. */
+  private readonly waiting = new Map<string, Set<() => void>>();
+
+  /** How long an "anything new?" request is held when nothing happens. Kept under the half minute at which proxies give up on a quiet connection. Tests shorten it. */
+  maxWaitMs = 25_000;
 
   /** The one place a delivery channel is added. The list inside the app is always written. */
   private readonly outsideChannels: OutsideChannel[];
@@ -94,6 +102,9 @@ export class NotificationsService {
       // The (person, key) pair is unique in the database, so a reminder sent before is skipped here.
       skipDuplicates: true,
     });
+
+    // Any console of theirs that is waiting to hear of something new is answered now.
+    this.wake(written.map((row) => row.userId));
 
     for (const channel of this.outsideChannels) {
       await channel
@@ -176,12 +187,66 @@ export class NotificationsService {
     const own = await this.db.notification.findFirst({ where: { id: notificationId, userId }, select: { readAt: true } });
     if (!own) throw new NotFoundException('Notification not found');
     if (!own.readAt) await this.db.notification.update({ where: { id: notificationId }, data: { readAt: new Date() } });
+    // So the number on the bell follows in the person's other windows too.
+    this.wake([userId]);
     return this.unreadCount(userId);
   }
 
   async markAllRead(userId: string): Promise<number> {
     await this.db.notification.updateMany({ where: { userId, readAt: null }, data: { readAt: new Date() } });
+    this.wake([userId]);
     return this.unreadCount(userId);
+  }
+
+  // ───────────────────────── "Anything new?" ─────────────────────────
+
+  /**
+   * Answers with the person's newest notifications, at once if the newest is
+   * not the one the asker already knows (`known`), otherwise as soon as
+   * something of theirs changes or `maxWaitMs` has passed. `gone` is set when
+   * the asker has left, so nothing is kept waiting for a closed browser tab.
+   *
+   * The people waiting are remembered in this process only. That is right
+   * while the API runs as one process; with several behind a load balancer
+   * the wake-up would have to travel between them (Postgres LISTEN/NOTIFY or
+   * Redis), or a console could wait the full time for news written elsewhere.
+   */
+  async waitForNews(userId: string, known: string | null, gone?: AbortSignal): Promise<NotificationNewsDto> {
+    let wake: () => void = () => undefined;
+    const woken = new Promise<void>((resolve) => (wake = resolve));
+    // Listening starts before the first look, so nothing written in between is missed.
+    const waiting = this.waiting.get(userId) ?? new Set<() => void>();
+    waiting.add(wake);
+    this.waiting.set(userId, waiting);
+    gone?.addEventListener('abort', wake);
+    const timer = setTimeout(wake, this.maxWaitMs);
+    try {
+      const now = await this.news(userId);
+      if (now.latestId !== known || gone?.aborted) return now;
+      await woken;
+      return gone?.aborted ? now : await this.news(userId);
+    } finally {
+      clearTimeout(timer);
+      gone?.removeEventListener('abort', wake);
+      waiting.delete(wake);
+      if (waiting.size === 0 && this.waiting.get(userId) === waiting) this.waiting.delete(userId);
+    }
+  }
+
+  private async news(userId: string): Promise<NotificationNewsDto> {
+    const { items, unreadCount } = await this.list(userId, { limit: NOTIFICATIONS_NEWS_SIZE });
+    return { items, latestId: items[0]?.id ?? null, unreadCount };
+  }
+
+  private wake(userIds: Iterable<string>) {
+    for (const userId of new Set(userIds)) {
+      for (const wake of this.waiting.get(userId) ?? []) wake();
+    }
+  }
+
+  /** On shutdown everyone waiting is answered, so open requests do not hold the server up. */
+  onModuleDestroy() {
+    for (const waiting of this.waiting.values()) for (const wake of waiting) wake();
   }
 }
 

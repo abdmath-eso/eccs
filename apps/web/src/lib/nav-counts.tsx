@@ -46,7 +46,7 @@ async function fetchCounts(): Promise<NavCounts> {
 }
 
 /**
- * Fetches the counts shown in the top menu: when the console opens, each time
+ * Fetches the counts shown in the side menu: when the console opens, each time
  * the person moves to another section, and whenever a page calls `refresh()`
  * after changing something.
  */

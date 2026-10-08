@@ -16,7 +16,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
-import { Button, Card, ErrorMessage, Field, Loading, SelectField, TextAreaField } from "@/components/ui";
+import { Button, Card, ErrorMessage, Field, LoadError, Loading, NoAccess, PageHeader, SelectField, TextAreaField } from "@/components/ui";
 import { api } from "@/lib/api";
 import { checkAgainst, focusFirstError, formValues, hasErrors, type FieldErrors } from "@/lib/forms";
 import { describe, english } from "@/lib/format";
@@ -124,10 +124,7 @@ export default function CatalogueScreen() {
 
   if (!mayManage) {
     return (
-      <Card>
-        <h1 className="text-xl font-bold">Nothing here for your role</h1>
-        <p className="mt-2 text-muted">The catalogue is managed by Super Admins and Operations Managers.</p>
-      </Card>
+      <NoAccess title="Catalogue">The catalogue is managed by Super Admins and Operations Managers.</NoAccess>
     );
   }
 
@@ -143,23 +140,21 @@ export default function CatalogueScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">Catalogue</h1>
-        <p className="text-muted">
-          The services restaurants can book, their prices, and the tasks a Supervisor ticks during each kind of visit. Nothing
-          is ever deleted here, because bookings and finished visits refer to it: you stop offering a service or retire a task,
-          and can bring either back. Plans and their prices are on the Plans page.
-        </p>
-      </div>
+      <PageHeader
+        title="Catalogue"
+        description="The services restaurants can book, their prices, and the tasks a Supervisor ticks during each kind of visit."
+        how={
+          <>
+            <p>
+              Nothing is ever deleted here, because bookings and finished visits refer to it: you stop offering a service or retire a
+              task, and can bring either back.
+            </p>
+            <p>Plans and their prices are on the Plans page.</p>
+          </>
+        }
+      />
 
-      {error && (
-        <div className="flex flex-col items-start gap-3">
-          <ErrorMessage message={error} />
-          <Button variant="secondary" onClick={() => setAttempt((current) => current + 1)}>
-            Try again
-          </Button>
-        </div>
-      )}
+      <LoadError message={error} onRetry={() => setAttempt((current) => current + 1)} />
       {catalogue === null && !error && <Loading />}
 
       {catalogue && (

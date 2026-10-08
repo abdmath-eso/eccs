@@ -1,33 +1,18 @@
 "use client";
 
-import type { NotificationDto, NotificationLink } from "@eccs/shared";
+import type { NotificationDto } from "@eccs/shared";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { NOTIFICATIONS_CHANGED } from "@/components/notification-bell";
 import { useToast } from "@/components/toast";
-import { Button, ErrorMessage, Loading } from "@/components/ui";
+import { Button, EmptyState, ErrorMessage, LoadError, Loading, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import { addDays, describe, today } from "@/lib/format";
+import { NOTIFICATION_ARRIVED, NOTIFICATIONS_CHANGED } from "@/lib/live-notifications";
+import { hrefFor } from "@/lib/notification-link";
 
+import { DesktopAlertsCard } from "./desktop-alerts-card";
 import { PushTest } from "./push-test";
-
-/** The console page a notification is about, if the console has one for it. */
-function hrefFor(link: NotificationLink | null): string | null {
-  switch (link?.kind) {
-    case "visit":
-      return `/visits?visit=${encodeURIComponent(link.visitId)}`;
-    case "services":
-      return "/visits";
-    case "issue":
-      return `/issues?issue=${encodeURIComponent(link.issueId)}`;
-    case "documents":
-      return "/licences";
-    default:
-      // Checklists and staff logins belong to the restaurant's app.
-      return null;
-  }
-}
 
 const indiaDay = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(iso));
 const indiaTime = (iso: string) =>
@@ -68,6 +53,13 @@ export default function NotificationsScreen() {
       cancelled = true;
     };
   }, [attempt]);
+
+  // One that arrives while the page is open is added by loading the newest page again.
+  useEffect(() => {
+    const reload = () => setAttempt((current) => current + 1);
+    window.addEventListener(NOTIFICATION_ARRIVED, reload);
+    return () => window.removeEventListener(NOTIFICATION_ARRIVED, reload);
+  }, []);
 
   const tellBell = () => window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED));
 
@@ -130,35 +122,31 @@ export default function NotificationsScreen() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Notifications</h1>
-          {items !== null && <p className="text-sm text-muted">{unread > 0 ? `${unread} unread` : "Nothing unread"}</p>}
-        </div>
-        {unread > 0 && (
-          <Button variant="secondary" loading={busy === "all"} onClick={() => void markAllRead()}>
-            Mark all as read
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Notifications"
+        description={items === null ? "What has happened that you should know about, newest first." : unread > 0 ? `${unread} unread` : "Nothing unread"}
+        secondary={
+          <a href="#this-pc" className="rounded-md px-2 py-1.5 text-sm font-semibold text-primary hover:underline">
+            Pop-ups and sound on this PC
+          </a>
+        }
+        action={
+          unread > 0 && (
+            <Button variant="secondary" loading={busy === "all"} onClick={() => void markAllRead()}>
+              Mark all as read
+            </Button>
+          )
+        }
+      />
 
-      <ErrorMessage message={error} />
-      {error && items === null && (
-        <div>
-          <Button variant="secondary" onClick={() => setAttempt((current) => current + 1)}>
-            Try again
-          </Button>
-        </div>
-      )}
+      {/* Before anything has loaded the failure comes with "Try again"; after that it is about one action and sits alone. */}
+      {items === null ? <LoadError message={error} onRetry={() => setAttempt((current) => current + 1)} /> : <ErrorMessage message={error} />}
       {items === null && !error && <Loading />}
 
       {items?.length === 0 && (
-        <div className="rounded-xl border border-dashed border-border-strong px-6 py-12 text-center">
-          <p className="text-lg font-semibold">No notifications yet</p>
-          <p className="mt-1 text-muted">
-            When a restaurant asks for a visit, signs one off, raises an issue or replies to one, it will appear here.
-          </p>
-        </div>
+        <EmptyState title="No notifications yet">
+          When a restaurant asks for a visit, signs one off, raises an issue or replies to one, it will appear here.
+        </EmptyState>
       )}
 
       {days.map((group) => (
@@ -213,6 +201,11 @@ export default function NotificationsScreen() {
           </Button>
         </div>
       )}
+
+      {/* Settings come after the list, which is what the page is for; the link in the header jumps here. */}
+      <div id="this-pc" className="scroll-mt-20">
+        <DesktopAlertsCard />
+      </div>
 
       {/* For ECCS admins: check that notifications reach phones. */}
       <PushTest />

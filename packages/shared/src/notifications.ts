@@ -200,6 +200,22 @@ export interface UnreadCountDto {
   unreadCount: number;
 }
 
+/** How many of the newest notifications the answer to "anything new?" carries. */
+export const NOTIFICATIONS_NEWS_SIZE = 20;
+
+/**
+ * The answer to "anything new?" (`GET /notifications/wait`): the person's
+ * newest notifications as they stand now. The asker compares them with the
+ * ones it has already shown to find what has just arrived.
+ */
+export interface NotificationNewsDto {
+  /** The newest few, newest first. */
+  items: NotificationDto[];
+  /** The id of the newest one, or null when the person has none. Pass it back as `latest` to wait for the next. */
+  latestId: string | null;
+  unreadCount: number;
+}
+
 /** How the values that are not plain text are written out in one language. */
 export interface NotificationFormatters {
   /** A name kept in several languages. */

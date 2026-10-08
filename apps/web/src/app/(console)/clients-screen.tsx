@@ -4,7 +4,7 @@ import { can, createOrganizationSchema, createOutletSchema, type OrganizationDto
 import { Fragment, useEffect, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/toast";
-import { Button, Card, Code, ErrorMessage, Field, Loading } from "@/components/ui";
+import { Button, Card, Code, ErrorMessage, Field, Loading, NoAccess, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import { checkAgainst, focusFirstError, formValues, hasErrors, type FieldErrors } from "@/lib/forms";
 import { describe, matchesSearch } from "@/lib/format";
@@ -70,12 +70,9 @@ export default function ClientsScreen() {
 
   if (!mayManage) {
     return (
-      <Card>
-        <h1 className="text-xl font-bold">Nothing here for your role yet</h1>
-        <p className="mt-2 text-muted">
-          Client management is for Super Admins and Operations Managers. Supervisors work from the ECCS mobile app.
-        </p>
-      </Card>
+      <NoAccess title="Clients">
+        Client management is for Super Admins and Operations Managers. Supervisors work from the ECCS mobile app.
+      </NoAccess>
     );
   }
 
@@ -104,13 +101,11 @@ export default function ClientsScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Clients</h1>
-          <p className="text-muted">Restaurants, their outlets and the codes their staff use to link a phone.</p>
-        </div>
-        {!onboarding && <Button onClick={() => setOnboarding(true)}>Onboard a restaurant</Button>}
-      </div>
+      <PageHeader
+        title="Clients"
+        description="Restaurants, their outlets and the codes their staff use to link a phone."
+        action={!onboarding && <Button onClick={() => setOnboarding(true)}>Onboard a restaurant</Button>}
+      />
 
       {justCreated && <HandoverCard client={justCreated} onDismiss={() => setJustCreated(null)} />}
       {onboarding && <OnboardForm onCreated={added} onCancel={() => setOnboarding(false)} />}

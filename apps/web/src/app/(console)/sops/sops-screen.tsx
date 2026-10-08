@@ -5,7 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
-import { Button, Card, ErrorMessage, Field, Loading, SelectField, TextAreaField } from "@/components/ui";
+import { Button, Card, ErrorMessage, Field, LoadError, Loading, PageHeader, SelectField, TextAreaField } from "@/components/ui";
 import { api } from "@/lib/api";
 import { focusFirstError, hasErrors, type FieldErrors } from "@/lib/forms";
 import { describe, matchesSearch } from "@/lib/format";
@@ -112,24 +112,20 @@ export default function SopsScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">SOPs</h1>
-        <p className="text-muted">
-          The standard procedures every restaurant sees in the app. A new SOP is a draft until you publish it. Restaurants can
-          also write their own, which only they see.
-        </p>
-      </div>
+      <PageHeader
+        title="SOPs"
+        description="The standard procedures every restaurant sees in the app."
+        how={
+          <>
+            <p>A new SOP is a draft until you publish it.</p>
+            <p>Restaurants can also write their own, which only they see.</p>
+          </>
+        }
+      />
 
       {mayEdit && <AddSopForm onChange={change} />}
 
-      {error && (
-        <div className="flex flex-col items-start gap-3">
-          <ErrorMessage message={error} />
-          <Button variant="secondary" onClick={() => setAttempt((current) => current + 1)}>
-            Try again
-          </Button>
-        </div>
-      )}
+      <LoadError message={error} onRetry={() => setAttempt((current) => current + 1)} />
       {sops === null && !error && <Loading />}
       {sops?.length === 0 && <p className="text-muted">No SOPs yet.</p>}
 

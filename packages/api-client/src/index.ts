@@ -66,7 +66,7 @@ import type {
 } from "@eccs/shared";
 
 // notifications-types: the notifications worker imports its types from "@eccs/shared" on the next line
-import type { NotificationPageDto, UnreadCountDto } from "@eccs/shared";
+import type { NotificationNewsDto, NotificationPageDto, UnreadCountDto } from "@eccs/shared";
 // push-types: the push worker imports its types from "@eccs/shared" on the next line
 import type {
   PushDeviceDto,
@@ -191,6 +191,8 @@ export function createApiClient(options: ApiClientOptions) {
     body: BodyInit | undefined,
     contentType: string | undefined,
     authenticated: boolean,
+    /** Lets the caller give up on a request that is held open (see `notifications.wait`). */
+    signal?: AbortSignal,
   ): Promise<T> {
     const headers: Record<string, string> = { Accept: "application/json" };
     if (contentType) headers["Content-Type"] = contentType;
@@ -201,7 +203,7 @@ export function createApiClient(options: ApiClientOptions) {
 
     let response: Response;
     try {
-      response = await fetch(`${baseUrl}${path}`, { method, headers, ...(body !== undefined && { body }) });
+      response = await fetch(`${baseUrl}${path}`, { method, headers, ...(body !== undefined && { body }), ...(signal && { signal }) });
     } catch {
       throw new ApiError("Could not reach the server. Check your connection.", 0);
     }
@@ -492,6 +494,13 @@ export function createApiClient(options: ApiClientOptions) {
       unreadCount: () => call<UnreadCountDto>("GET", "/notifications/unread-count"),
       markRead: (notificationId: string) => call<UnreadCountDto>("POST", `/notifications/${id(notificationId)}/read`),
       markAllRead: () => call<UnreadCountDto>("POST", "/notifications/read-all"),
+      /**
+       * "Anything new?" The server holds the request open (up to about 25 seconds) until the
+       * person's newest notification is no longer `latest`, or something of theirs is marked
+       * read, and then answers with the newest few. Ask again as soon as it answers.
+       */
+      wait: (latest: string | null, signal?: AbortSignal) =>
+        send<NotificationNewsDto>("GET", `/notifications/wait${query(latest ? { latest } : {})}`, undefined, undefined, true, signal),
     },
     // push-api: the push worker adds `push: { ... },` on the next line
     /** Push notifications: which phone is whose, and the console's test push. */

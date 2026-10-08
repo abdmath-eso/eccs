@@ -4,7 +4,7 @@ import { can, type BillingTotalsDto, type InvoiceSummaryDto } from "@eccs/shared
 import { useEffect, useState } from "react";
 
 import { useToast } from "@/components/toast";
-import { Button, Card, ErrorMessage, Field, Loading, SelectField, ToggleGroup } from "@/components/ui";
+import { Button, Card, ErrorMessage, Field, LoadError, Loading, NoAccess, PageHeader, SelectField, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
 import { describe, longDay as day, matchesSearch } from "@/lib/format";
 import { useNavCounts } from "@/lib/nav-counts";
@@ -91,10 +91,7 @@ export default function InvoicesScreen() {
 
   if (!allowed) {
     return (
-      <div className="flex flex-col gap-3">
-        <h1 className="text-2xl font-bold">Invoices</h1>
-        <p className="text-muted">Invoices and payments are for Super Admins and Operations Managers.</p>
-      </div>
+      <NoAccess title="Invoices">Invoices and payments are for Super Admins and Operations Managers.</NoAccess>
     );
   }
 
@@ -155,22 +152,33 @@ export default function InvoicesScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-3xl">
-          <h1 className="text-2xl font-bold">Invoices</h1>
-          <p className="text-muted">
-            The GST invoices ECCS has raised. One is raised by itself at the start of each cycle of an outlet&apos;s plan, and for a
-            booked one-time visit when you approve its report under Visits. The restaurant&apos;s Owner and Manager see theirs in
-            the app, where the Owner can pay.
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <Button variant="secondary" loading={raising} onClick={() => void raiseDue()}>
-            Raise invoices that are due
-          </Button>
-          <ErrorMessage message={raiseError} />
-        </div>
-      </div>
+      <PageHeader
+        title="Invoices"
+        description="The GST invoices ECCS has raised, and what is still owed on them."
+        secondary={
+          // A failure stays here, under the button that caused it.
+          <div className="flex flex-col items-end gap-2">
+            <Button variant="secondary" loading={raising} onClick={() => void raiseDue()}>
+              Raise invoices that are due
+            </Button>
+            <ErrorMessage message={raiseError} />
+          </div>
+        }
+        how={
+          <>
+            <p>
+              An invoice is raised by itself at the start of each cycle of an outlet&apos;s plan, and for a booked one-time visit when
+              you approve its report under Visits. The restaurant&apos;s Owner and Manager see theirs in the app, where the Owner can
+              pay.
+            </p>
+            <p>
+              An invoice is due 7 days after its date, and counts as overdue from the day after that while anything is still owed on
+              it. A void invoice stays on record with its number, which is never used again.
+            </p>
+            <p>Company details, prices and the invoice layout are samples, and no real payment is taken anywhere.</p>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap gap-4">
         {tile("Due", totals?.duePaise, `${invoicesNote(totals?.unpaidCount)} not yet paid in full`, "due")}
@@ -211,14 +219,7 @@ export default function InvoicesScreen() {
           ]}
         />
 
-        {error && (
-          <div className="flex flex-col items-start gap-3">
-            <ErrorMessage message={error} />
-            <Button variant="secondary" onClick={() => setVersion((value) => value + 1)}>
-              Try again
-            </Button>
-          </div>
-        )}
+        <LoadError message={error} onRetry={() => setVersion((value) => value + 1)} />
         {invoices === null && !error && <Loading />}
 
         {invoices !== null && all.length === 0 && (
@@ -320,12 +321,6 @@ export default function InvoicesScreen() {
           </div>
         )}
       </Card>
-
-      <p className="text-sm text-muted">
-        An invoice is due 7 days after its date, and counts as overdue from the day after that while anything is still owed on it. A
-        void invoice stays on record with its number, which is never used again. Company details, prices and the invoice layout are
-        samples, and no real payment is taken anywhere.
-      </p>
     </div>
   );
 }

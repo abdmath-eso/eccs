@@ -16,7 +16,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useConfirm } from "@/components/confirm-dialog";
 import { MasterDetail } from "@/components/master-detail";
 import { useToast } from "@/components/toast";
-import { Button, Card, ErrorMessage, Field, Loading, SelectField, ToggleGroup } from "@/components/ui";
+import { Button, Card, ErrorMessage, Field, Loading, PageHeader, SelectField, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
 import { focusFirstError, hasErrors, type FieldErrors } from "@/lib/forms";
 import { describe, english, shortDay, today, when } from "@/lib/format";
@@ -192,13 +192,11 @@ export default function InspectionsScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Inspections</h1>
-          <p className="text-muted">Plan kitchen hygiene inspections, and approve the scored reports before restaurants see them.</p>
-        </div>
-        {admin && !adding && <Button onClick={() => query.set({ new: "1", inspection: null })}>Plan an inspection</Button>}
-      </div>
+      <PageHeader
+        title="Inspections"
+        description="Plan kitchen hygiene inspections, and approve the scored reports before restaurants see them."
+        action={admin && !adding && <Button onClick={() => query.set({ new: "1", inspection: null })}>Plan an inspection</Button>}
+      />
 
       {/* On a narrow screen an open inspection takes the place of the filter as well as the list. */}
       <div className={detailOpen ? "hidden lg:block" : "block"}>

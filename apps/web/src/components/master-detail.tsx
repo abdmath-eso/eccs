@@ -31,7 +31,8 @@ export function MasterDetail({
     <div className="grid items-start gap-6 lg:grid-cols-5">
       <div className={`flex-col gap-3 lg:col-span-2 lg:flex ${detail ? "hidden" : "flex"}`}>{list}</div>
 
-      <div className="flex flex-col gap-3 lg:sticky lg:top-4 lg:col-span-3 lg:max-h-[calc(100dvh-2rem)]">
+      {/* Stays in view just under the console's top bar, which is itself always in view. */}
+      <div className="flex flex-col gap-3 lg:sticky lg:top-[calc(var(--topbar)+1rem)] lg:col-span-3 lg:max-h-[calc(100dvh-var(--topbar)-2rem)]">
         {detail ? (
           <>
             <a

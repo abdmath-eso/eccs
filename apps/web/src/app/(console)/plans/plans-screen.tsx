@@ -15,7 +15,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
-import { Button, Card, CONTROL_STYLE, ErrorMessage, Field, Loading, SelectField, TextAreaField } from "@/components/ui";
+import { Button, Card, CONTROL_STYLE, ErrorMessage, Field, LoadError, Loading, NoAccess, PageHeader, SelectField, TextAreaField } from "@/components/ui";
 import { api } from "@/lib/api";
 import { checkAgainst, focusFirstError, formValues, hasErrors, type FieldErrors } from "@/lib/forms";
 import { describe, english } from "@/lib/format";
@@ -102,10 +102,7 @@ export default function PlansScreen() {
 
   if (!mayManage) {
     return (
-      <Card>
-        <h1 className="text-xl font-bold">Nothing here for your role</h1>
-        <p className="mt-2 text-muted">Plans are managed by Super Admins and Operations Managers.</p>
-      </Card>
+      <NoAccess title="Plans">Plans are managed by Super Admins and Operations Managers.</NoAccess>
     );
   }
 
@@ -124,27 +121,23 @@ export default function PlansScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-4xl">
-          <h1 className="text-2xl font-bold">Plans</h1>
-          <p className="text-muted">
-            What a restaurant can subscribe to: a set of services, each repeated every so many days, for one price per billing
-            cycle. Prices here are before GST; the app shows restaurants the price with GST. Changing a plan never changes what an
-            outlet already on it pays or gets in its current cycle: the change reaches each outlet when its next cycle starts.
-            Plans are never deleted; you stop offering one, and outlets already on it keep it.
-          </p>
-        </div>
-        {data && !adding && <Button onClick={() => setAdding(true)}>Add a plan</Button>}
-      </div>
+      <PageHeader
+        title="Plans"
+        description="What a restaurant can subscribe to: a set of services, each repeated every so many days, for one price per billing cycle."
+        action={data && !adding && <Button onClick={() => setAdding(true)}>Add a plan</Button>}
+        how={
+          <>
+            <p>Prices here are before GST; the app shows restaurants the price with GST.</p>
+            <p>
+              Changing a plan never changes what an outlet already on it pays or gets in its current cycle: the change reaches each
+              outlet when its next cycle starts.
+            </p>
+            <p>Plans are never deleted; you stop offering one, and outlets already on it keep it.</p>
+          </>
+        }
+      />
 
-      {error && (
-        <div className="flex flex-col items-start gap-3">
-          <ErrorMessage message={error} />
-          <Button variant="secondary" onClick={() => setAttempt((current) => current + 1)}>
-            Try again
-          </Button>
-        </div>
-      )}
+      <LoadError message={error} onRetry={() => setAttempt((current) => current + 1)} />
       {data === null && !error && <Loading />}
 
       {data && adding && (

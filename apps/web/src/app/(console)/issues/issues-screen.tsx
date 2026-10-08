@@ -5,7 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { MasterDetail } from "@/components/master-detail";
 import { useToast } from "@/components/toast";
-import { Button, Card, ErrorMessage, Field, Loading, TextAreaField, ToggleGroup } from "@/components/ui";
+import { Button, Card, ErrorMessage, Field, Loading, PageHeader, TextAreaField, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
 import { describe, matchesSearch, when } from "@/lib/format";
 import { useNavCounts } from "@/lib/nav-counts";
@@ -141,10 +141,7 @@ export default function IssuesScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">Issues</h1>
-        <p className="text-muted">Raised by restaurants through ECCS support in the app.</p>
-      </div>
+      <PageHeader title="Issues" description="Raised by restaurants through ECCS support in the app." />
 
       <div className={`${issueId ? "hidden lg:flex" : "flex"} flex-wrap items-end justify-between gap-x-6 gap-y-3`}>
         <Field

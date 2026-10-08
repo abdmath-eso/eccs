@@ -20,7 +20,7 @@ import Link from "next/link";
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 
 import { MasterDetail } from "@/components/master-detail";
-import { Button, Card, ErrorMessage, Field, Loading, ToggleGroup } from "@/components/ui";
+import { Button, Card, ErrorMessage, Field, Loading, PageHeader, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
 import { describe, english, longDay, matchesSearch, shortDay } from "@/lib/format";
 import { isPlainClick, useQuery, useQueryField } from "@/lib/query";
@@ -390,18 +390,20 @@ export default function MonitoringScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Monitoring</h1>
-          <p className="text-muted">
+      <PageHeader
+        title="Monitoring"
+        description={
+          <>
             {admin ? "Every client outlet" : "The outlets you work at"}, worst first: who is falling behind, and on what.
             {board && ` Checklists and ratings cover ${shortDay(board.from)} to ${shortDay(board.to)}; everything else is as it stands now.`}
-          </p>
-        </div>
-        <Button variant="secondary" onClick={() => setVersion((current) => current + 1)}>
-          Refresh
-        </Button>
-      </div>
+          </>
+        }
+        secondary={
+          <Button variant="secondary" onClick={() => setVersion((current) => current + 1)}>
+            Refresh
+          </Button>
+        }
+      />
 
       {/* On a narrow screen an open outlet takes the place of the counts and filters as well as the list. */}
       <div className={`flex-col gap-4 ${open ? "hidden lg:flex" : "flex"}`}>

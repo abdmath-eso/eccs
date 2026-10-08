@@ -17,7 +17,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useConfirm } from "@/components/confirm-dialog";
 import { OutletScorePanel } from "@/components/outlet-score-panel";
 import { useToast } from "@/components/toast";
-import { Button, Card, ErrorMessage, Field, Loading, SelectField } from "@/components/ui";
+import { Button, Card, ErrorMessage, Field, Loading, PageHeader, SelectField } from "@/components/ui";
 import { api } from "@/lib/api";
 import { focusFirstError, hasErrors, type FieldErrors } from "@/lib/forms";
 import { describe, longDay as day, scrollBehavior } from "@/lib/format";
@@ -250,10 +250,7 @@ export default function LicencesScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">Licences</h1>
-        <p className="text-muted">Which clients have licences expired or expiring within 60 days, and each outlet&apos;s documents.</p>
-      </div>
+      <PageHeader title="Licences" description="Which clients have licences expired or expiring within 60 days, and each outlet's documents." />
 
       <Card>
         <h2 className="text-lg font-bold">Needs attention</h2>

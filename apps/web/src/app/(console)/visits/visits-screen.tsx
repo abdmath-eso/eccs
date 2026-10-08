@@ -20,7 +20,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useConfirm } from "@/components/confirm-dialog";
 import { MasterDetail } from "@/components/master-detail";
 import { useToast } from "@/components/toast";
-import { Button, Card, ErrorMessage, Field, Loading, SelectField, ToggleGroup } from "@/components/ui";
+import { Button, Card, ErrorMessage, Field, Loading, PageHeader, SelectField, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
 import { focusFirstError, hasErrors, type FieldErrors } from "@/lib/forms";
 import { addDays, describe, english, rupees, shortDay, today, when } from "@/lib/format";
@@ -323,20 +323,18 @@ export default function VisitsScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Visits</h1>
-          <p className="text-muted">Confirm what restaurants have asked for, and see every visit in the diary.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {mayFillDiary && (
+      <PageHeader
+        title="Visits"
+        description="Confirm what restaurants have asked for, and see every visit in the diary."
+        secondary={
+          mayFillDiary && (
             <Button variant="secondary" loading={checkingPlans} onClick={() => void checkPlans()}>
               Check plans now
             </Button>
-          )}
-          {!adding && <Button onClick={() => query.set({ new: "1", visit: null })}>Add a visit</Button>}
-        </div>
-      </div>
+          )
+        }
+        action={!adding && <Button onClick={() => query.set({ new: "1", visit: null })}>Add a visit</Button>}
+      />
 
       {/* A failure stays here, under the button that caused it, until the next try. */}
       <ErrorMessage message={plansError} />

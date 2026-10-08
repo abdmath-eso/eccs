@@ -10,15 +10,22 @@ import {
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "danger" | "link";
+  /**
+   * "sm" is for buttons that are not the main thing on the page: the choices
+   * of a filter, the buttons of the top bar. Still 32px tall, above the 24px
+   * a clickable thing needs.
+   */
+  size?: "md" | "sm";
   loading?: boolean;
   ref?: Ref<HTMLButtonElement>;
 }
 
-export function Button({ variant = "primary", loading, disabled, className = "", children, ...rest }: ButtonProps) {
+export function Button({ variant = "primary", size = "md", loading, disabled, className = "", children, ...rest }: ButtonProps) {
+  const box = size === "sm" ? "px-3 py-1.5 text-sm rounded-lg font-semibold" : "px-4 py-2.5 rounded-lg font-semibold";
   const styles = {
-    primary: "bg-primary text-white hover:bg-primary-hover px-4 py-2.5 rounded-lg font-semibold",
-    secondary: "bg-surface border border-border-strong hover:bg-background px-4 py-2.5 rounded-lg font-semibold",
-    danger: "bg-danger text-white hover:bg-danger-hover px-4 py-2.5 rounded-lg font-semibold",
+    primary: `bg-primary text-white hover:bg-primary-hover ${box}`,
+    secondary: `bg-surface border border-border-strong hover:bg-background ${box}`,
+    danger: `bg-danger text-white hover:bg-danger-hover ${box}`,
     // Padded so the clickable area is comfortably more than 24px tall and wide.
     link: "text-primary hover:underline font-semibold px-2 py-1 rounded-md",
   }[variant];
@@ -174,6 +181,8 @@ export function ToggleGroup<T extends string>({
         <Button
           key={option.value}
           type="button"
+          // Filters sit beside the content they filter and should not outweigh the page's one main button.
+          size="sm"
           variant={option.value === value ? "primary" : "secondary"}
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
@@ -183,6 +192,124 @@ export function ToggleGroup<T extends string>({
         </Button>
       ))}
     </div>
+  );
+}
+
+/**
+ * The top of every console page, always the same: the page's name, one short
+ * line saying what the page is for, and on the right at most one main button
+ * (`action`), with any lesser ones (`secondary`) before it. Anything longer
+ * than one line of explanation goes in `how`, which is folded away behind
+ * "How this works" so it is there for a newcomer and out of the way for
+ * someone who uses the page every day.
+ */
+export function PageHeader({
+  title,
+  description,
+  action,
+  secondary,
+  how,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+  secondary?: ReactNode;
+  how?: ReactNode;
+}) {
+  return (
+    <header className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0 max-w-3xl">
+          <h1 className="text-2xl font-bold">{title}</h1>
+          {description && <p className="mt-0.5 text-muted">{description}</p>}
+        </div>
+        {(action || secondary) && (
+          <div className="flex flex-wrap items-start gap-2">
+            {secondary}
+            {action}
+          </div>
+        )}
+      </div>
+      {how && <HowItWorks>{how}</HowItWorks>}
+    </header>
+  );
+}
+
+/** Explanation folded away until asked for. Each paragraph inside is a `<p>`. */
+export function HowItWorks({ label = "How this works", children }: { label?: string; children: ReactNode }) {
+  return (
+    <details className="text-sm">
+      <summary className="w-fit cursor-pointer rounded-md py-1 font-semibold text-primary">{label}</summary>
+      <div className="mt-1 flex max-w-3xl flex-col gap-2 text-muted">{children}</div>
+    </details>
+  );
+}
+
+/** A failed load: what went wrong, and a way to try again, beside where the content would have been. */
+export function LoadError({ message, onRetry, className = "" }: { message: string | null; onRetry: () => void; className?: string }) {
+  if (!message) return null;
+  return (
+    <div className={`flex flex-col items-start gap-3 ${className}`}>
+      <ErrorMessage message={message} />
+      <Button variant="secondary" onClick={onRetry}>
+        Try again
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * What a list shows when it has nothing in it: says so, says when something
+ * will appear or what to do, and can offer the one action that fills it.
+ */
+export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border-strong px-6 py-10 text-center">
+      <p className="text-lg font-semibold">{title}</p>
+      {children && <p className="mx-auto mt-1 max-w-xl text-muted">{children}</p>}
+      {action && <div className="mt-4 flex justify-center">{action}</div>}
+    </div>
+  );
+}
+
+/** Shown in place of a page to someone whose role cannot use it. The menu does not list such pages; this is for a typed or saved address. */
+export function NoAccess({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader title={title} />
+      <Card>
+        <p className="font-semibold">This page is not part of your role.</p>
+        <p className="mt-1 text-muted">{children}</p>
+      </Card>
+    </div>
+  );
+}
+
+/**
+ * An on/off switch with its label beside it. It says "On" or "Off" in words
+ * and the knob moves, so its state is not shown by colour alone.
+ */
+export function Switch({ label, checked, onChange, disabled }: { label: string; checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className="flex cursor-pointer items-center gap-3 rounded-lg py-1 text-left font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <span
+        aria-hidden="true"
+        className={`flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 ${checked ? "justify-end border-primary bg-primary" : "justify-start border-border-strong bg-surface"}`}
+      >
+        <span className={`h-4.5 w-4.5 rounded-full ${checked ? "bg-white" : "bg-border-strong"}`} />
+      </span>
+      <span>
+        {label}
+        <span className="ml-2 font-normal text-muted">{checked ? "On" : "Off"}</span>
+      </span>
+    </button>
   );
 }
 

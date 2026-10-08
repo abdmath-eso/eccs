@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
-import { Button, Card, ErrorMessage, Field, Loading, ToggleGroup } from "@/components/ui";
+import { Button, Card, ErrorMessage, Field, LoadError, Loading, PageHeader, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
 import { describe, english, longDay as day, matchesSearch } from "@/lib/format";
 import { useQuery, useQueryField } from "@/lib/query";
@@ -137,14 +137,26 @@ export default function CertificatesScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold">Certificates</h1>
-        <p className="text-muted">
-          The certificates of service ECCS has issued. One is issued by itself when you approve a report under Visits, for the
-          kinds of service set to carry a certificate in the Catalogue. The restaurant&apos;s Owner and Manager see theirs in the
-          app and in their documents.
-        </p>
-      </div>
+      <PageHeader
+        title="Certificates"
+        description="The certificates of service ECCS has issued."
+        how={
+          <>
+            <p>
+              One is issued by itself when you approve a report under Visits, for the kinds of service set to carry a certificate in
+              the Catalogue. The restaurant&apos;s Owner and Manager see theirs in the app and in their documents.
+            </p>
+            <p>
+              A certificate is ECCS&apos;s own record that a service was done; it is not a government document, and says so. It is
+              valid from the day of the visit for the number of days set for that kind of service in the{" "}
+              <Link href="/catalogue" className="font-medium text-primary hover:underline">
+                Catalogue
+              </Link>
+              , and counts as expiring soon over the last fifth of that time (at least 3 days, at most 30).
+            </p>
+          </>
+        }
+      />
 
       <Card className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -170,14 +182,7 @@ export default function CertificatesScreen() {
           />
         </div>
 
-        {error && (
-          <div className="flex flex-col items-start gap-3">
-            <ErrorMessage message={error} />
-            <Button variant="secondary" onClick={() => setAttempt((value) => value + 1)}>
-              Try again
-            </Button>
-          </div>
-        )}
+        <LoadError message={error} onRetry={() => setAttempt((value) => value + 1)} />
         {certificates === null && !error && <Loading />}
 
         {certificates !== null && all.length === 0 && (
@@ -309,15 +314,6 @@ export default function CertificatesScreen() {
           </div>
         )}
       </Card>
-
-      <p className="text-sm text-muted">
-        A certificate is ECCS&apos;s own record that a service was done; it is not a government document, and says so. It is
-        valid from the day of the visit for the number of days set for that kind of service in the{" "}
-        <Link href="/catalogue" className="font-medium text-primary hover:underline">
-          Catalogue
-        </Link>
-        , and counts as expiring soon over the last fifth of that time (at least 3 days, at most 30).
-      </p>
     </div>
   );
 }

@@ -13,6 +13,8 @@
   --primary-hover: #09665c;
   --danger: #c62828;
   --danger-hover: #a81f1f;
+  /* The height of the console's top bar. The side menu and anything that stays in view while the page scrolls start below it. */
+  --topbar: 3.5rem;
 }
 
 @theme inline {
@@ -51,4 +53,29 @@ body {
 
 dialog::backdrop {
   background: rgb(17 24 28 / 0.5);
+}
+
+/* The menu on a narrow window slides in from the left, unless the person has asked their computer for less movement. */
+@media (prefers-reduced-motion: no-preference) {
+  dialog.side-panel[open] {
+    animation: side-panel-in 160ms ease-out;
+  }
+}
+
+@keyframes side-panel-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+/* The link at the very top of each page that jumps past the menu: out of sight until the keyboard reaches it. */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -4rem;
+  z-index: 60;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
 }

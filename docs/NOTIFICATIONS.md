@@ -204,6 +204,7 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | Date | Change |
 |---|---|
+| 8 Oct 2026 | The console now announces every notification a logged-in ECCS person receives, while it is open in a browser tab: a desktop notification, a chime and an in-page message, opening the same page as the list. With the browser closed nothing is shown (web push is not built). |
 | 8 Oct 2026 | Added sections 13 (plans and subscriptions) and 14 (invoices and payments), not built. |
 | 7 Oct 2026 | Added sections 11 (certificates) and 12 (work done without signal), not built. A repeated check-in or finish from a phone does not notify twice. |
 | 7 Oct 2026 | Hygiene score rule changed (inspection 60, licences 10, checklists 30): added H5 and H6, not built. |

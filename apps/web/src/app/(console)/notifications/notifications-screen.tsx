@@ -10,6 +10,8 @@ import { Button, ErrorMessage, Loading } from "@/components/ui";
 import { api } from "@/lib/api";
 import { addDays, describe, today } from "@/lib/format";
 
+import { PushTest } from "./push-test";
+
 /** The console page a notification is about, if the console has one for it. */
 function hrefFor(link: NotificationLink | null): string | null {
   switch (link?.kind) {
@@ -211,6 +213,9 @@ export default function NotificationsScreen() {
           </Button>
         </div>
       )}
+
+      {/* For ECCS admins: check that notifications reach phones. */}
+      <PushTest />
     </div>
   );
 }

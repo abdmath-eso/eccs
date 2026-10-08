@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const bn: Messages = {
+export const bn: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "পরিষ্কার জায়গা। নিরাপদ কাজ। মজবুত ব্যবসা।",
 

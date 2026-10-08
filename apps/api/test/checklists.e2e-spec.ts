@@ -39,7 +39,11 @@ describe('Daily checklists (e2e)', () => {
   async function cleanUp() {
     const db = prisma.client;
     await db.checklistRun.deleteMany({ where: { outletId } });
-    await db.attachment.deleteMany({ where: { outletId } });
+    // Only the checklist photos: files that belong to a visit, an issue, an inspection or a filed
+  // document (an invoice or report PDF, say) are not this test's to remove.
+  await db.attachment.deleteMany({
+    where: { outletId, jobId: null, issueId: null, inspectionFindingId: null, documents: { none: {} }, signOffs: { none: {} }, publicPhotos: { none: {} } },
+  });
     await db.checklistItem.deleteMany({ where: { outletId } });
     await db.outletChecklist.deleteMany({ where: { template: { outletId } } });
     await db.checklistTemplate.deleteMany({ where: { outletId } });

@@ -1,0 +1,45 @@
+// How Expo's build service (EAS Build) builds the app. Step-by-step use: docs/APK_BUILD.md.
+// This file may contain comments like these; the EAS tools accept them.
+{
+  "cli": {
+    // The Android version code is the one written in app.json ("android.versionCode"),
+    // not a counter kept on Expo's servers. Raise it there by one for each build that
+    // is to replace an installed one from the Play Store later; for test APKs it does not matter.
+    "appVersionSource": "local"
+  },
+  "build": {
+    // The test build: an APK file that installs straight onto a phone, for the founder
+    // and testers. Build it with:  npx eas-cli@latest build --platform android --profile preview
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      // The same Node and pnpm as on the office PC (.node-version and "packageManager" in the root package.json).
+      "node": "24.21.0",
+      "pnpm": "12.9.1",
+      "env": {
+        // WHERE THE APP FINDS THE API. This address is built into the APK.
+        // Today it is the office PC's address on the Wi-Fi. CHANGE IT, AND BUILD AGAIN, WHEN:
+        //   - the PC's address changes (run `ipconfig`, look for "IPv4 Address" under Wi-Fi), or
+        //   - there is a real server (then use its https address and remove ECCS_ALLOW_HTTP below).
+        // The cloud build does not read apps/mobile/.env.local; only this line counts.
+        "EXPO_PUBLIC_API_URL": "http://192.168.1.40:4000/v1",
+        // Lets the app use a plain "http://" address, which Android otherwise refuses (see app.config.js).
+        "ECCS_ALLOW_HTTP": "1"
+      }
+    },
+    // The build for the Play Store. A stub for now: before using it, set the real server's
+    // https address here and raise "versionCode" in app.json.
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "node": "24.21.0",
+      "pnpm": "12.9.1",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-THE-REAL-SERVER/v1"
+      }
+    }
+  }
+}

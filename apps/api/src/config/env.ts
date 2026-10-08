@@ -30,6 +30,12 @@ const schema = z
     // The browser that prints service reports to PDF (Chrome, Edge or Chromium). Leave unset
     // to use one found in the usual places; set it on a server where it is installed elsewhere.
     PDF_BROWSER_PATH: z.string().optional(),
+    // Push notifications to phones, through Expo's push service. "off" (the default) sends
+    // nothing; "on" also sends every new notification to the person's registered phones.
+    // The words of each notification then pass through Expo's and Google's (or Apple's) servers.
+    PUSH_NOTIFICATIONS: z.enum(['on', 'off']).default('off'),
+    // Only if "enhanced security for push notifications" is switched on for the project at expo.dev.
+    EXPO_ACCESS_TOKEN: z.string().optional(),
     // Object storage for photos and documents. Locally this is SeaweedFS; in production, Amazon S3.
     S3_ENDPOINT: z.string().optional(),
     S3_REGION: z.string().default('ap-south-1'),

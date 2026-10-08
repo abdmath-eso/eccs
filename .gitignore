@@ -22,5 +22,12 @@ apps/mobile/ios/
 *.aab
 *.ipa
 
+# The Firebase service account key (a private key for sending push notifications).
+# It is uploaded to Expo once and must never be committed. Keep it outside this folder;
+# these lines are a safety net. (google-services.json is different: it holds no secret
+# and is committed, see docs/APK_BUILD.md.)
+*firebase-adminsdk*.json
+*service-account*.json
+
 # OCR language data, downloaded on first use
 *.traineddata

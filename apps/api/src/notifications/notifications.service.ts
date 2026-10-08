@@ -15,13 +15,14 @@ import {
 } from '@eccs/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { wordInEnglish } from './notifications.wording.js';
+import { PushService } from './push.service.js';
 
 type NotificationRow = Prisma.NotificationGetPayload<object>;
 
 /**
- * A way of reaching a person outside the app: push today's plan, later perhaps
- * SMS or WhatsApp. None exists yet. To add one, write a class with this shape
- * and put it in `outsideChannels` below; nothing else has to change.
+ * A way of reaching a person outside the app. Push notifications are the first
+ * (`PushService`); SMS or WhatsApp may follow. To add one, write a class with
+ * this shape and put it in `outsideChannels` below; nothing else has to change.
  */
 export interface OutsideChannel {
   name: string;
@@ -46,9 +47,15 @@ export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
   /** The one place a delivery channel is added. The list inside the app is always written. */
-  private readonly outsideChannels: OutsideChannel[] = [];
+  private readonly outsideChannels: OutsideChannel[];
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    push: PushService,
+  ) {
+    // Push sends nothing unless it is switched on (see `PushService.enabled`).
+    this.outsideChannels = [push];
+  }
 
   private get db() {
     return this.prisma.client;

@@ -4,12 +4,12 @@ import {
   localize,
   notificationWordingParams,
   type NotificationDto,
-  type NotificationLink,
 } from '@eccs/shared';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { PushStatus } from '@/components/push-status';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
@@ -20,8 +20,9 @@ import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { addDays, formatDate, formatDayLong, formatSlot, formatTime, indiaToday } from '@/lib/format';
 import { useDirection } from '@/lib/direction';
+import { openNotificationLink } from '@/lib/notification-link';
+import { onPushArrived } from '@/lib/push';
 import { useSession } from '@/lib/session';
-import { rememberOutlet } from '@/lib/use-outlet';
 
 /** The calendar date in India, and the time of day there, that a notification arrived. */
 function indiaDayAndTime(iso: string): { day: string; time: string } {
@@ -35,27 +36,6 @@ function indiaDayAndTime(iso: string): { day: string; time: string } {
     // A phone without time-zone data: India is five and a half hours ahead of UTC.
     const shifted = new Date(at.getTime() + 5.5 * 3_600_000).toISOString();
     return { day: shifted.slice(0, 10), time: shifted.slice(11, 16) };
-  }
-}
-
-/** Opens what a notification is about. An Owner with several branches lands on the right one. */
-function open(link: NotificationLink) {
-  if ('outletId' in link && link.outletId) void rememberOutlet(link.outletId);
-  switch (link.kind) {
-    case 'visit':
-      return router.push({ pathname: '/services/[visitId]', params: { visitId: link.visitId } });
-    case 'services':
-      return router.push('/services');
-    case 'issue':
-      return router.push({ pathname: '/support/[issueId]', params: { issueId: link.issueId } });
-    case 'checklist':
-      return link.runId
-        ? router.push({ pathname: '/checklists/[runId]', params: { runId: link.runId } })
-        : router.push('/checklists');
-    case 'documents':
-      return router.push('/documents');
-    case 'staff':
-      return router.push('/staff');
   }
 }
 
@@ -98,6 +78,9 @@ export default function NotificationsScreen() {
     }, [load]),
   );
 
+  // A push that arrives while this list is open is added to it straight away.
+  useEffect(() => onPushArrived(() => void load()), [load]);
+
   async function loadOlder() {
     if (!nextCursor) return;
     setLoadingOlder(true);
@@ -139,7 +122,7 @@ export default function NotificationsScreen() {
       setUnread((current) => Math.max(0, current - 1));
       api.notifications.markRead(item.id).catch(() => undefined);
     }
-    if (item.link) open(item.link);
+    if (item.link) openNotificationLink(item.link);
   }
 
   /** The title and body in the language the app is in, from the notification's kind and values. */
@@ -176,6 +159,9 @@ export default function NotificationsScreen() {
     <Screen back title={t('notif.title')} onRefresh={load}>
       <ErrorText message={error} onRetry={items === null ? () => void load() : undefined} />
       {items === null && !error && <ActivityIndicator color={theme.primary} />}
+
+      {/* Whether this phone shows notifications without the app being open, and how to turn that on. */}
+      <PushStatus />
 
       {unread > 0 && (
         <Button

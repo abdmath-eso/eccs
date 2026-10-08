@@ -2,6 +2,8 @@ import { Global, Module } from '@nestjs/common';
 import { NotificationsController } from './notifications.controller.js';
 import { NotificationsService } from './notifications.service.js';
 import { NotifyService } from './notify.service.js';
+import { PushController } from './push.controller.js';
+import { PushService } from './push.service.js';
 import { RemindersService } from './reminders.service.js';
 
 // Global, like the database module: almost every part of the API has something
@@ -10,8 +12,8 @@ import { RemindersService } from './reminders.service.js';
 // since login itself sends notifications).
 @Global()
 @Module({
-  controllers: [NotificationsController],
-  providers: [NotificationsService, NotifyService, RemindersService],
-  exports: [NotificationsService, NotifyService, RemindersService],
+  controllers: [NotificationsController, PushController],
+  providers: [PushService, NotificationsService, NotifyService, RemindersService],
+  exports: [NotificationsService, NotifyService, RemindersService, PushService],
 })
 export class NotificationsModule {}

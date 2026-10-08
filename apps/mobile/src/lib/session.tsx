@@ -4,6 +4,7 @@ import type { CurrentUserDto, LinkedDeviceDto, SessionDto } from '@eccs/shared';
 import { createContext, use, useEffect, useState, type ReactNode } from 'react';
 
 import { api, setAppLanguage, setSessionToken, setUnauthorizedHandler } from './api';
+import { unregisterPush } from './push';
 import { getItem, getJson, removeItem, setItem, setJson } from './storage';
 
 const KEYS = {
@@ -141,6 +142,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await setJson(KEYS.linkedDevice, device);
     },
     async unlinkDevice() {
+      // "Use a different restaurant": normally Lock has already taken this phone's push
+      // token away; this covers a login that ended some other way.
+      await unregisterPush(api);
       setLinkedDevice(null);
       await removeItem(KEYS.linkedDevice);
     },
@@ -169,6 +173,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ]);
     },
     async signOut() {
+      // First, while still logged in: stop this person's push notifications coming to this
+      // phone, so that after Lock a shared phone shows nothing meant for them.
+      await unregisterPush(api);
       try {
         await api.auth.logout();
       } catch {

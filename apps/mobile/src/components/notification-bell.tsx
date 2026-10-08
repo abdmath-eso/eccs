@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { MinTouchSize } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { onPushArrived } from '@/lib/push';
 import { useSession } from '@/lib/session';
 
 // A badge has room for two digits; anything more is shown as "99+".
@@ -24,13 +25,18 @@ export function NotificationBell() {
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      api.notifications
-        .unreadCount()
-        .then(({ unreadCount }) => !cancelled && setUnread(unreadCount))
-        // With no signal the bell simply keeps the number it had; the list itself reports the failure.
-        .catch(() => undefined);
+      const fetchCount = () =>
+        api.notifications
+          .unreadCount()
+          .then(({ unreadCount }) => !cancelled && setUnread(unreadCount))
+          // With no signal the bell simply keeps the number it had; the list itself reports the failure.
+          .catch(() => undefined);
+      void fetchCount();
+      // A push notification arriving while this screen is open means the number has just gone up.
+      const stopListening = onPushArrived(() => void fetchCount());
       return () => {
         cancelled = true;
+        stopListening();
       };
     }, [api]),
   );

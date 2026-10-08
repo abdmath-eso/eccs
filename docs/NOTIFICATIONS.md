@@ -10,13 +10,15 @@ Every message the platform should send to a person without them opening the app 
 
 **What exists already**
 
-- The database has a `Notification` table (one row per message per person, with a read mark) and a `DeviceToken` table (where to push to). The API writes to `Notification`; nothing uses `DeviceToken` yet.
+- The database has a `Notification` table (one row per message per person, with a read mark) and a `DeviceToken` table (where to push to). The API writes to `Notification`; `DeviceToken` holds the phones registered for push.
 - The mobile app has a bell with an unread count at the top right of Home, opening a Notifications screen. The console has a bell in its header, opening a Notifications page.
 - Each notification is stored as its kind and its values (names, dates), and the app words it in the reader's own language. **The wording exists in English only so far; the other eleven languages fall back to English until they are translated.** The console shows English.
 - Time-based reminders are checked every 15 minutes by the API (`apps/api/src/notifications/reminders.service.ts`); each is sent to a person once.
 - Nobody is notified of their own action. A failed notification never stops the action it is about.
-- Adding push later is one place: `outsideChannels` in `apps/api/src/notifications/notifications.service.ts`.
-- Push notifications cannot be fully tested in Expo Go. They need a proper build of the app installed on the phone.
+- **Channels (8 October 2026): the list inside the app, plus push when enabled.** Every notification is always written to the person's list inside the app. When the server has `PUSH_NOTIFICATIONS=on` in `.env`, each new notification is also sent as a push notification, through Expo's push service, to every phone registered for that person, worded in the person's saved language. With it off (the default, and always under tests) only the list is used. No new kinds of notification were added for push: it delivers the ones marked built below. Not yet tried on a phone.
+- A phone is registered for a person when they log in to the installed app and allow notifications, and is unregistered on Lock or logout, so a shared phone shows push notifications only for whoever is logged in (after Lock, none). The server also sends nothing to a person who is not logged in anywhere.
+- No SMS, WhatsApp or email. A further channel is added in one place: `outsideChannels` in `apps/api/src/notifications/notifications.service.ts` (push is `push.service.ts` beside it).
+- Push does not work in Expo Go or the browser preview. It needs the app built and installed on the phone: `docs/APK_BUILD.md`. ECCS admins can send a test push from the console's Notifications page.
 
 **Decisions still to make (founder)**
 

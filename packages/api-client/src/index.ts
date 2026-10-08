@@ -67,6 +67,14 @@ import type {
 
 // notifications-types: the notifications worker imports its types from "@eccs/shared" on the next line
 import type { NotificationPageDto, UnreadCountDto } from "@eccs/shared";
+// push-types: the push worker imports its types from "@eccs/shared" on the next line
+import type {
+  PushDeviceDto,
+  PushRecipientsDto,
+  PushTestResultDto,
+  RegisterPushDeviceInput,
+  SendTestPushInput,
+} from "@eccs/shared";
 // subscriptions-types: the subscriptions worker imports its types from "@eccs/shared" on the next line
 import type {
   CancelSubscriptionInput,
@@ -484,6 +492,18 @@ export function createApiClient(options: ApiClientOptions) {
       unreadCount: () => call<UnreadCountDto>("GET", "/notifications/unread-count"),
       markRead: (notificationId: string) => call<UnreadCountDto>("POST", `/notifications/${id(notificationId)}/read`),
       markAllRead: () => call<UnreadCountDto>("POST", "/notifications/read-all"),
+    },
+    // push-api: the push worker adds `push: { ... },` on the next line
+    /** Push notifications: which phone is whose, and the console's test push. */
+    push: {
+      /** After login: send this person's notifications to this phone. */
+      register: (input: RegisterPushDeviceInput) => call<PushDeviceDto>("POST", "/push/devices", input),
+      /** Before Lock or logout: stop sending them to this phone. */
+      unregister: (token: string) => call<PushDeviceDto>("POST", "/push/devices/unregister", { token }),
+      /** ECCS admins: everyone with a phone registered. */
+      recipients: () => call<PushRecipientsDto>("GET", "/push/recipients"),
+      /** ECCS admins: send a test push, to themselves unless a person is named. */
+      sendTest: (input: SendTestPushInput = {}) => call<PushTestResultDto>("POST", "/push/test", input),
     },
     // subscriptions-api: the subscriptions worker adds its calls on the next line
     /** Plans as ECCS configures them: what is on offer, and (for the office) every plan with who is on it. */

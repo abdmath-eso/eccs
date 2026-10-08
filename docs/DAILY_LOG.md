@@ -22,6 +22,8 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - Founder asked how to test working without signal; Claude gave the steps (also in `docs/TEST_LOGINS.md` section 12).
 - The founder finished testing on the phone: everything built on 7 October, including the work without signal. "Everything is good." No faults reported.
 - Founder asked for phase 1c, billing, on sample prices: subscriptions and managing them, invoices, and sample payments. Claude added the database fields billing needed, wrote down how subscriptions and invoices fit together (billed in advance, one invoice per cycle; a one-time visit invoiced when ECCS approves its report), and started two workers in parallel.
+- The two billing workers finished. Plans and subscriptions: a Plans page in the console, a Plan screen in the app (subscribe, change from the next cycle, cancel at the end of the cycle), and pause, resume and cancel at once for ECCS. Invoices and payments: GST tax invoices numbered per financial year with a PDF, raised per cycle and per approved one-time visit, an Invoices page in the console and screen in the app, a sample payment screen where no money moves, and payments recorded by hand. Claude joined the two (a new subscription raises its first invoice at once) and hid Plans and Invoices from the Supervisor's console menu.
+- Tested: build, type check and lint pass; 71 shared and 31 offline unit tests pass; 323 end-to-end tests pass (50 new). A permission change Claude tried while joining the pieces broke 7 billing tests and was taken back.
 
 **Carried over from yesterday**
 

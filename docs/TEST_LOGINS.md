@@ -165,3 +165,27 @@ After approving an inspection in the console (section 7), the report has "Open t
 6. Open an inspection offline. Answer checks, record one non-compliance with a photo, then Finish. The score and grade appear, marked as worked out on this phone.
 7. Turn the signal back on, or tap "Try now". It sends, then says all sent. Check both in the console.
 8. To see a refusal: offline, check in to another visit; cancel that visit in the console; turn the signal on. The visit shows a "Not sent" box with "Send again" and "Delete from this phone".
+
+## 13. Trying plans, invoices and sample payments
+
+About a minute after the API starts it renews the plans and raises the invoices that are due, so each sample outlet on a plan gets an invoice. **No money moves anywhere: every payment is a sample.**
+
+**Invoices and paying (app)**
+
+1. Log in as the Spice Route Owner (`SPICE-JH2K7M`, PIN `2580`). Home shows a "To pay" line when something is due.
+2. **More > Invoices**: the amount due is at the top. Open an invoice to see its lines, the GST split and "Open the invoice as a PDF".
+3. Tap **Pay**. The screen says "Sample payment. No money moves." Choose UPI, then "Make this payment fail": the invoice stays unpaid.
+4. Pay again and complete it: you get a receipt, and the PDF is now marked PAID.
+5. As the Manager (PIN `4821`): invoices can be read but there is no Pay button. As a Head Chef: no Invoices entry.
+
+**Plans (app)**
+
+6. As the Owner: **More > Plan** shows the current plan, what it includes, the price with GST, the cycle dates and the next invoice date. Try **Change plan** (it takes effect at the next cycle and can be undone) and **Cancel** (it ends at the end of the cycle and can be undone).
+7. To see the plans on offer and **Subscribe**: in the console cancel that outlet's plan with "Cancel now" first, then open More > Plan again. Subscribing raises the first invoice at once.
+
+**Console**
+
+8. **Plans**: add a plan, change a price. The form says how many outlets are on it and that they keep their price until their next cycle.
+9. **Clients** > a client > an outlet: put it on a plan, change plan, pause, resume, cancel.
+10. **Invoices**: totals at the top, search and filters. Open an invoice: Open the PDF, **Record a payment** (try part of it, then try more than is left: refused), **Void** an unpaid one with a reason, then **Raise it again**.
+11. **A one-time visit**: book a service as the Owner, confirm it in Visits, do it as the Supervisor, sign off as the Owner, approve the report in the console. Its invoice appears in Invoices.

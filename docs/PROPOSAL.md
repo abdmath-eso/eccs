@@ -200,6 +200,7 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - **Booking**: a one-time service request from a restaurant for a catalogue item and preferred slot. On confirmation it creates a Job.
 - **Invoice** and **InvoiceLines**: SAC code, taxable value, CGST/SGST or IGST, sequential invoice number per financial year. Raised per booking or per subscription cycle.
 - **Payment**: amount, method, Razorpay reference. Dues for an outlet are unpaid invoice balances.
+- **As built on 8 Oct 2026** (first version): a subscription is billed in advance, one invoice per cycle, with the price copied from the plan when the cycle starts; a booked one-time visit is invoiced when ECCS approves its report; payments in the app are samples behind a gateway interface that Razorpay can fill later, and ECCS can record payments by hand. The rules are in STATUS section 3 (8 Oct).
 
 ### Restaurant staff management
 - **StaffMember**: a restaurant employee (name, role, phone, monthly salary, joining date). Separate from User, because most staff never log in.

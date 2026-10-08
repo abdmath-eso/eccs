@@ -159,12 +159,39 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 | W1 | Work a Supervisor did offline was refused when sent (visit cancelled, reassigned, already finished) | Adm | "{supervisor} has unsent work for {visit} held on their phone." | In-app | not built (the Supervisor is told on the phone) |
 | W2 | A phone has had work waiting to send for more than a day | Sup | "You have work on this phone that has not been sent. Open the app where there is signal." | Local reminder on the phone | not built |
 
-## 13. Features not built yet (to fill in when they are)
+## 13. Plans and subscriptions
+
+The existing "plan started" and "plan ended" notifications (section 1) are reused: they now also fire when the Owner subscribes and when a plan ends at the end of its cycle.
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| P1 | The Owner subscribes | Adm | "{outlet} has taken the {plan} plan." | In-app | not built |
+| P2 | A plan change is asked for or undone | Adm when the Owner did it; O, M when ECCS did it | "{outlet} moves to {plan} on {date}." | In-app | not built |
+| P3 | A plan change takes effect | O, M | "You are now on {plan}." | In-app | not built |
+| P4 | A cancellation is asked for or undone | Adm when the Owner did it; O when ECCS did it | "{outlet}'s plan ends on {date}." | In-app | not built |
+| P5 | ECCS pauses or resumes a plan | O, M | "Your plan is paused." / "Your plan is running again." | Push + in-app | not built |
+| P6 | A plan renews | O, M | "Your {plan} plan has renewed until {date}." | In-app (can be joined to B1) | not built |
+| P7 | ECCS edits a plan: price or services change from a date | O, M of each subscriber | "From {date} your plan costs {amount}." | Push + in-app | not built |
+| P8 | Reminder: the plan ends in 3 days | O | "Your plan ends on {date}." | Push + in-app | not built |
+| P9 | Reminder: renewal in 3 days | O | "Your plan renews on {date} for {amount}." | In-app | not built |
+
+## 14. Invoices and payments
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| B1 | An invoice is raised | O, M | "Invoice {number} for {amount} is due on {date}." | Push + in-app | not built |
+| B2 | Reminder: an invoice is due tomorrow or today | O | "Invoice {number} for {amount} is due {when}." | Push + in-app | not built |
+| B3 | An invoice is overdue (then weekly) | O; Adm | "Invoice {number} is overdue by {days} days." | Push + in-app | not built |
+| B4 | A payment succeeds in the app | O (receipt); Adm | "Payment of {amount} received. Thank you." | In-app | not built |
+| B5 | A payment fails in the app | O | "Your payment did not go through. Nothing was charged." | In-app | not built |
+| B6 | ECCS records a payment by hand | O | "ECCS has recorded your payment of {amount}." | In-app | not built |
+| B7 | An invoice is made void, or raised again after a void | O, M | "Invoice {number} has been cancelled by ECCS." | In-app | not built |
+| B8 | An automatic invoice could not be raised | Adm | "An invoice for {outlet} could not be raised." | In-app | not built (only logged) |
+
+## 15. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
 |---|---|
-| Invoices and payments | Invoice raised; payment due soon; overdue; payment received |
-| Subscription | Renewal coming; plan changed; plan ended |
 | Attendance and salary | To be decided with the feature |
 | Food labels | Labelled food reaching its use-by time |
 | Customer QR page | A photo is waiting for approval |
@@ -175,6 +202,7 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 
 | Date | Change |
 |---|---|
+| 8 Oct 2026 | Added sections 13 (plans and subscriptions) and 14 (invoices and payments), not built. |
 | 7 Oct 2026 | Added sections 11 (certificates) and 12 (work done without signal), not built. A repeated check-in or finish from a phone does not notify twice. |
 | 7 Oct 2026 | Hygiene score rule changed (inspection 60, licences 10, checklists 30): added H5 and H6, not built. |
 | 7 Oct 2026 | Added sections 8 to 10 (hygiene score, monitoring, console changes), not built. The inspection report's PDF is ready at the moment N4 would fire, so it needs no notification of its own. |

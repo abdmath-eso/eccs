@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { syncPush, usePushState, wantPushQuestion, wasPushAsked, type PushState } from '@/lib/push';
+import { syncPush, usePushState, wantPushQuestion, wasPushAsked, type PushState, pushFailure } from '@/lib/push';
 import { useSession } from '@/lib/session';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -64,6 +64,12 @@ export function PushStatus() {
         </ThemedText>
       </View>
       {state === 'off' && <Button icon="notifications" label={t('push.ask.yes')} onPress={turnOn} loading={busy} />}
+      {state === 'failed' && pushFailure() && (
+        // The technical reason, as the phone gave it: for whoever is helping to put it right.
+        <ThemedText type="small" themeColor="textSecondary" selectable>
+          {pushFailure()}
+        </ThemedText>
+      )}
       {state === 'failed' && <Button label={t('common.retry')} variant="secondary" onPress={turnOn} loading={busy} />}
       {state === 'blocked' && (
         <Button

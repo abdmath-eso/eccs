@@ -19,8 +19,12 @@ import { getItem, removeItem, setItem } from './storage';
 
 type NotificationsModule = typeof import('expo-notifications');
 
-/** False in the browser preview, in Expo Go and on an emulator: there this file stays silent. */
-export const pushSupported = Platform.OS !== 'web' && Device.isDevice && !isRunningInExpoGo();
+/**
+ * False in the browser preview, in Expo Go and on an iPhone simulator: there this file
+ * stays silent. An Android virtual phone with Google Play can receive push like a real
+ * one, so it counts, which lets push be tried on the office PC.
+ */
+export const pushSupported = Platform.OS !== 'web' && !isRunningInExpoGo() && (Device.isDevice || Platform.OS === 'android');
 
 let loading: Promise<NotificationsModule | null> | null = null;
 
@@ -59,6 +63,18 @@ const subscribeToState = (listener: () => void) => {
   stateListeners.add(listener);
   return () => void stateListeners.delete(listener);
 };
+
+// Why the last attempt to register this phone failed, in the phone's or the server's own
+// words (English, technical). Shown small under the "could not be set up" line, because
+// without it nobody, including ECCS support, can tell a missing Firebase file from no signal.
+let failure: string | null = null;
+export const pushFailure = (): string | null => failure;
+
+function failed(step: string, error?: unknown): PushState {
+  const detail = error instanceof Error ? error.message : error === undefined ? '' : String(error);
+  failure = (detail ? `${step}: ${detail}` : step).slice(0, 300);
+  return setState('failed');
+}
 
 /** Whether push is on for this phone, kept up to date for any screen that shows it. */
 export const usePushState = (): PushState => useSyncExternalStore(subscribeToState, () => state, () => state);
@@ -165,13 +181,24 @@ export async function syncPush(api: ApiClient, options: { ask?: boolean } = {}):
     // The project id ties the token to this app's project at expo.dev. It is written
     // into the app's configuration by `eas init` (see docs/APK_BUILD.md).
     const projectId: unknown = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-    if (typeof projectId !== 'string' || !projectId) return setState('failed');
-    const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-    const { serverEnabled } = await api.push.register({ token, platform: Platform.OS === 'ios' ? 'ios' : 'android' });
+    if (typeof projectId !== 'string' || !projectId) return failed('No Expo project id in this build');
+    let token: string;
+    try {
+      token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    } catch (error) {
+      return failed('Getting the push address', error);
+    }
+    let serverEnabled: boolean;
+    try {
+      ({ serverEnabled } = await api.push.register({ token, platform: Platform.OS === 'ios' ? 'ios' : 'android' }));
+    } catch (error) {
+      return failed('Telling the ECCS server', error);
+    }
     await setItem(TOKEN_KEY, token);
+    failure = null;
     return setState(serverEnabled ? 'on' : 'serverOff');
-  } catch {
-    return setState('failed');
+  } catch (error) {
+    return failed('Checking permission', error);
   }
 }
 

@@ -294,7 +294,16 @@ export default function ServicesScreen() {
                 </ThemedText>
               </View>
             ))}
+            {/* The price, the cycle, changing and cancelling are on the Plan screen. */}
+            <Button label={t('plan.see')} variant="link" onPress={() => router.push('/plan')} />
           </View>
+        </>
+      )}
+      {/* No plan running: the way to the plans on offer (or to a plan ECCS has paused). */}
+      {!eccs && open !== null && !plan?.plan && (
+        <>
+          {heading(t('svc.plan'))}
+          <Button label={t('plan.seePlans')} variant="secondary" onPress={() => router.push('/plan')} />
         </>
       )}
       {open !== null && group(t('svc.past'), past, t('svc.noPast'))}

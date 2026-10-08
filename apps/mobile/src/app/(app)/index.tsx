@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { isEccsUser } from '@/components/app-nav';
+import { DuesLine } from '@/components/dues-line';
 import { NotificationBell } from '@/components/notification-bell';
 import { OutletOverview } from '@/components/outlet-overview';
 import { PinReveal } from '@/components/pin-reveal';
@@ -140,6 +141,8 @@ export default function HomeScreen() {
 
               {/* The hygiene score for this outlet; it is fetched again each time Home reloads. */}
               <ScoreCard outletId={outlet.outletId} stamp={loadedAt} />
+              {/* For the Owner and Manager, and only when something is due: how much, leading to Invoices. */}
+              <DuesLine outletId={outlet.outletId} stamp={loadedAt} />
               <OutletOverview outlet={outlet} />
               {outlet.visits && (
                 <>

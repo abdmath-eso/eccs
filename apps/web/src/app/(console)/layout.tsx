@@ -29,6 +29,8 @@ const NAV: readonly { href: string; label: string; count?: keyof NavCounts; wait
   { href: "/licences", label: "Licences", count: "licences", waiting: "expired or expiring" },
   { href: "/sops", label: "SOPs" },
   { href: "/catalogue", label: "Catalogue" },
+  { href: "/plans", label: "Plans" },
+  { href: "/invoices", label: "Invoices", count: "invoices", waiting: "overdue" },
 ];
 
 /** Frame for every console page. Sends anyone who is not logged in to the login page. */
@@ -88,7 +90,8 @@ function SectionNav({ pathname, seesClients }: { pathname: string; seesClients: 
 
   return (
     <nav className="flex flex-wrap gap-1 text-sm font-semibold" aria-label="Sections">
-      {NAV.filter((item) => item.href !== "/" || seesClients).map((item) => {
+      {/* Clients, Plans and Invoices are for ECCS admins; a Supervisor is not shown them. */}
+      {NAV.filter((item) => !["/", "/plans", "/invoices"].includes(item.href) || seesClients).map((item) => {
         const current = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
         const count = item.count ? counts[item.count] : null;
         return (

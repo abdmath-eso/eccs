@@ -95,7 +95,7 @@ function Tag({ children }: { children: string }) {
  *
  * Nothing here is deleted, because bookings and finished visits refer to it:
  * a service is stopped being offered and a task is retired, and both can be
- * brought back. Plans are not edited here yet.
+ * brought back. Plans are edited on the Plans page.
  */
 export default function CatalogueScreen() {
   const { user } = useSession();
@@ -148,7 +148,7 @@ export default function CatalogueScreen() {
         <p className="text-muted">
           The services restaurants can book, their prices, and the tasks a Supervisor ticks during each kind of visit. Nothing
           is ever deleted here, because bookings and finished visits refer to it: you stop offering a service or retire a task,
-          and can bring either back. Plans and their prices are not edited here yet.
+          and can bring either back. Plans and their prices are on the Plans page.
         </p>
       </div>
 

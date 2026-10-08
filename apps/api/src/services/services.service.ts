@@ -20,6 +20,7 @@ import {
   type VisitSummaryDto,
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
+import { BillingService } from '../billing/billing.service.js';
 import { CertificatesService, toVisitCertificate } from '../certificates/certificates.service.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { NotifyService } from '../notifications/notify.service.js';
@@ -112,6 +113,7 @@ export class ServicesService {
     private readonly reports: ReportPdfService,
     private readonly notify: NotifyService,
     private readonly certificates: CertificatesService,
+    private readonly billing: BillingService,
   ) {}
 
   private get db() {
@@ -601,6 +603,8 @@ export class ServicesService {
     this.reports.ensureLater(visit.id);
     // A kind of service that carries a certificate gets it now. This never fails the approval.
     await this.certificates.issueOnApproval(visit.id);
+    // A booked one-time visit is invoiced now (a plan's visit is covered by the plan's invoice). This never fails the approval either.
+    await this.billing.billOnApproval(visit.id);
     await this.notify.reportApproved(user, visit.id);
     return this.getVisit(user, visit.id);
   }

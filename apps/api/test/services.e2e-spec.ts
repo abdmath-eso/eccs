@@ -69,6 +69,8 @@ describe('Service loop (e2e)', () => {
     await db.serviceReport.deleteMany({ where: { job: jobs } });
     await db.certificate.deleteMany({ where: { job: jobs } });
     await db.job.deleteMany({ where: jobs });
+    // Approving a booked visit's report raises its invoice.
+    await db.invoice.deleteMany({ where: { booking: { notes: MARK } } });
     await db.booking.deleteMany({ where: { notes: MARK } });
     await db.session.deleteMany({ where: { deviceName: DEVICE } });
     await db.linkedDevice.deleteMany({ where: { name: DEVICE } });

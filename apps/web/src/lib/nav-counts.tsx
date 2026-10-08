@@ -13,9 +13,11 @@ export interface NavCounts {
   issues: number | null;
   /** Licences expired or expiring soon. */
   licences: number | null;
+  /** Invoices past their due date with money still owed. */
+  invoices: number | null;
 }
 
-const EMPTY: NavCounts = { visits: null, issues: null, licences: null };
+const EMPTY: NavCounts = { visits: null, issues: null, licences: null, invoices: null };
 
 const NavCountsContext = createContext<{ counts: NavCounts; refresh: () => void } | null>(null);
 
@@ -27,17 +29,19 @@ export function useNavCounts() {
 
 async function fetchCounts(): Promise<NavCounts> {
   // Each is fetched on its own, so one that fails (a Supervisor may not list requests) does not hide the others.
-  const [requests, visits, issues, licences] = await Promise.allSettled([
+  const [requests, visits, issues, licences, billing] = await Promise.allSettled([
     api.bookings.list({ requestedOnly: true }),
     api.visits.list({ state: "open" }),
     api.issues.list({ openOnly: true }),
     api.licences.list({ attentionOnly: true }),
+    api.billing.totals(),
   ]);
   const waiting = requests.status === "fulfilled" ? requests.value.length : 0;
   return {
     visits: visits.status === "fulfilled" ? waiting + visits.value.filter((visit) => visit.status === "SCHEDULED" || visit.status === "IN_REVIEW").length : null,
     issues: issues.status === "fulfilled" ? issues.value.length : null,
     licences: licences.status === "fulfilled" ? licences.value.length : null,
+    invoices: billing.status === "fulfilled" ? billing.value.overdueCount : null,
   };
 }
 

@@ -10,6 +10,7 @@ import {
 import {
   accessScope,
   can,
+  cyclePeriod,
   PLAN_VISITS_DAYS_AHEAD,
   type LocalizedText,
   type OutletPlanDto,
@@ -91,6 +92,11 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
    * ECCS puts an outlet on a plan. Each of the plan's services is first due on
    * the start date and then at its own interval. Any plan the outlet was on
    * before is stopped first.
+   *
+   * This is the first, simpler way of putting an outlet on a plan (replace at
+   * once). The console and the app now go through the subscriptions module
+   * (`apps/api/src/subscriptions`), which changes plan at the next cycle; this
+   * one is kept working for anything that still calls it.
    */
   async setOutletPlan(user: AuthUser, outletId: string, input: { planCode: string; startDate: string }): Promise<OutletPlanDto> {
     await this.requireOutlet(user, outletId, 'manage');
@@ -100,12 +106,19 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
     if (input.startDate < today) throw new BadRequestException('Choose today or a later date');
     const start = toDbDate(input.startDate);
 
-    await this.stop(outletId, today);
+    await this.endSubscriptions(outletId, today);
+    // The first billing cycle starts with the plan; the price and cycle are the plan's as they are today.
+    const period = cyclePeriod(input.startDate, plan.billingCycle);
     await this.db.subscription.create({
       data: {
         outletId,
         planId: plan.id,
         startDate: start,
+        pricePaise: plan.pricePaise,
+        billingCycle: plan.billingCycle,
+        currentPeriodStart: toDbDate(period.start),
+        currentPeriodEnd: toDbDate(period.end),
+        nextBillingDate: toDbDate(period.nextStart),
         schedules: {
           create: plan.lines.map((line) => ({
             outletId,
@@ -124,7 +137,7 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
   /** ECCS takes an outlet off its plan. Plan visits that have not started are cancelled. */
   async stopOutletPlan(user: AuthUser, outletId: string): Promise<OutletPlanDto> {
     await this.requireOutlet(user, outletId, 'manage');
-    await this.notify.planEnded(user, await this.stop(outletId, indiaDate()));
+    await this.notify.planEnded(user, await this.endSubscriptions(outletId, indiaDate()));
     return this.describe(outletId);
   }
 
@@ -151,7 +164,9 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
         ...(outletId && { outletId }),
         OR: [{ subscriptionId: null }, { subscription: { status: 'ACTIVE' } }],
       },
-      include: { subscription: { select: { endDate: true } } },
+      include: {
+        subscription: { select: { endDate: true, currentPeriodEnd: true, cancelAtPeriodEnd: true, pendingPlanId: true } },
+      },
     });
 
     const createdIds: string[] = [];
@@ -167,7 +182,11 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
         select: { scheduledSlot: true, supervisor: { select: { id: true, isActive: true } } },
       });
       const supervisorId = last?.supervisor?.isActive ? last.supervisor.id : null;
-      const ends = schedule.subscription?.endDate ?? null;
+      // A subscription that is set to end, or to change plan, when its cycle ends gets no visits
+      // beyond that day from what it has now. (After a change of plan, the renewal carries on from there.)
+      const subscription = schedule.subscription;
+      const stopsAtCycleEnd = subscription?.cancelAtPeriodEnd || subscription?.pendingPlanId != null;
+      const ends = subscription?.endDate ?? (stopsAtCycleEnd ? (subscription?.currentPeriodEnd ?? null) : null);
 
       while (due <= until && (!ends || due <= ends)) {
         const exists = await this.db.job.findFirst({ where: { scheduleId: schedule.id, plannedFor: due }, select: { id: true } });
@@ -203,10 +222,15 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
 
   // ───────────────────────── Helpers ─────────────────────────
 
-  /** Stops the outlet's plan and returns the subscriptions that were stopped (none if it had no plan). */
-  private async stop(outletId: string, today: string): Promise<string[]> {
+  /**
+   * Ends the outlet's subscription, active or paused, and returns the ones
+   * that were ended (none if it had no plan). `endDate` is its last day; its
+   * plan visits from `cancelVisitsFrom` on that have not started are cancelled.
+   * Also used by the subscriptions module, so there is one way a plan ends.
+   */
+  async endSubscriptions(outletId: string, endDate: string, cancelVisitsFrom: string = endDate): Promise<string[]> {
     const active = await this.db.subscription.findMany({
-      where: { outletId, status: 'ACTIVE' },
+      where: { outletId, status: { in: ['ACTIVE', 'PAUSED'] } },
       select: { id: true, schedules: { select: { id: true } } },
     });
     if (active.length === 0) return [];
@@ -214,12 +238,25 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
     await this.db.$transaction([
       this.db.subscription.updateMany({
         where: { id: { in: active.map((subscription) => subscription.id) } },
-        data: { status: 'CANCELLED', endDate: toDbDate(today) },
+        data: {
+          status: 'CANCELLED',
+          endDate: toDbDate(endDate),
+          cancelledAt: new Date(),
+          // Nothing is left pending on a subscription that has ended, and no further invoice is due.
+          cancelAtPeriodEnd: false,
+          pendingPlanId: null,
+          pausedAt: null,
+          nextBillingDate: null,
+        },
       }),
       this.db.serviceSchedule.updateMany({ where: { id: { in: scheduleIds } }, data: { isActive: false } }),
       // Visits already under way or done are part of the record and stay.
       this.db.job.updateMany({
-        where: { scheduleId: { in: scheduleIds }, status: { in: ['SCHEDULED', 'ASSIGNED'] }, scheduledDate: { gte: toDbDate(today) } },
+        where: {
+          scheduleId: { in: scheduleIds },
+          status: { in: ['SCHEDULED', 'ASSIGNED'] },
+          scheduledDate: { gte: toDbDate(cancelVisitsFrom) },
+        },
         data: { status: 'CANCELLED' },
       }),
     ]);

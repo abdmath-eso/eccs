@@ -82,6 +82,8 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     foodLabels: "CRU", issues: "CRU", catalog: "R", bookings: "CRU", subscriptions: "R",
     schedule: "R", jobs: "RA", inspections: "R", reports: "R", publicPage: "R",
     licences: "CRU", documents: "CRU", scores: "R", staff: "CRU", attendance: "CRU",
+    // The Manager reads invoices. The grant on payments lets a Manager reach the payment
+    // routes, where the billing service turns away anyone but the client's Owner.
     salary: "CRU", invoices: "R", payments: "C",
   },
   HEAD_CHEF: {

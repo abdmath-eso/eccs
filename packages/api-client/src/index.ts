@@ -68,7 +68,29 @@ import type {
 // notifications-types: the notifications worker imports its types from "@eccs/shared" on the next line
 import type { NotificationPageDto, UnreadCountDto } from "@eccs/shared";
 // subscriptions-types: the subscriptions worker imports its types from "@eccs/shared" on the next line
+import type {
+  CancelSubscriptionInput,
+  CreatePlanInput,
+  OutletSubscriptionDto,
+  PlanOfferDto,
+  PlansAdminDto,
+  StartSubscriptionInput,
+  UpdatePlanInput,
+} from "@eccs/shared";
 // billing-types: the billing worker imports its types from "@eccs/shared" on the next line
+import type {
+  BillingTotalsDto,
+  ConfirmPaymentInput,
+  DuesDto,
+  InvoiceDto,
+  InvoiceStatus,
+  InvoiceSummaryDto,
+  PaymentResultDto,
+  PaymentSessionDto,
+  RecordPaymentInput,
+  StartPaymentInput,
+  VoidInvoiceInput,
+} from "@eccs/shared";
 // certificates-types: the certificates worker imports its types from "@eccs/shared" on the next line
 import type { CertificateDto } from "@eccs/shared";
 // offline-visits-types: the offline worker imports any new types from "@eccs/shared" on the next line
@@ -464,7 +486,82 @@ export function createApiClient(options: ApiClientOptions) {
       markAllRead: () => call<UnreadCountDto>("POST", "/notifications/read-all"),
     },
     // subscriptions-api: the subscriptions worker adds its calls on the next line
+    /** Plans as ECCS configures them: what is on offer, and (for the office) every plan with who is on it. */
+    subscriptionPlans: {
+      /** The plans a restaurant can choose, with what each includes and its price with GST. */
+      offered: () => call<PlanOfferDto[]>("GET", "/subscription-plans"),
+      /** ECCS admins only: every plan, offered or not, and the kinds of service a plan can include. */
+      all: () => call<PlansAdminDto>("GET", "/subscription-plans/all"),
+      create: (input: CreatePlanInput) => call<PlansAdminDto>("POST", "/subscription-plans", input),
+      /** Changes a plan, or stops or resumes offering it. Outlets already on it are affected only from their next cycle. */
+      update: (planId: string, input: UpdatePlanInput) => call<PlansAdminDto>("PATCH", `/subscription-plans/${id(planId)}`, input),
+    },
+    /** An outlet's subscription to a plan. Every call answers with the subscription as it now stands. */
+    subscriptions: {
+      forOutlet: (outletId: string) => call<OutletSubscriptionDto>("GET", `/outlets/${id(outletId)}/subscription`),
+      /** The Owner sends only the plan; ECCS may also choose the start date and the day of the first visits. */
+      start: (outletId: string, input: StartSubscriptionInput) =>
+        call<OutletSubscriptionDto>("POST", `/outlets/${id(outletId)}/subscription`, input),
+      /** The new plan takes over when the next cycle starts. */
+      changePlan: (outletId: string, planCode: string) =>
+        call<OutletSubscriptionDto>("POST", `/outlets/${id(outletId)}/subscription/change-plan`, { planCode }),
+      undoChangePlan: (outletId: string) =>
+        call<OutletSubscriptionDto>("POST", `/outlets/${id(outletId)}/subscription/undo-change-plan`),
+      /** ECCS only. */
+      pause: (outletId: string) => call<OutletSubscriptionDto>("POST", `/outlets/${id(outletId)}/subscription/pause`),
+      /** ECCS only. */
+      resume: (outletId: string) => call<OutletSubscriptionDto>("POST", `/outlets/${id(outletId)}/subscription/resume`),
+      /** "PERIOD_END" for the Owner or ECCS; "NOW" for ECCS only. */
+      cancel: (outletId: string, when: CancelSubscriptionInput["when"]) =>
+        call<OutletSubscriptionDto>("POST", `/outlets/${id(outletId)}/subscription/cancel`, { when }),
+      /** Undoes a cancellation that has not taken effect yet. */
+      keep: (outletId: string) => call<OutletSubscriptionDto>("POST", `/outlets/${id(outletId)}/subscription/keep`),
+    },
     // billing-api: the billing worker adds its calls on the next line
+    /** GST invoices, what is due, and payments. Owner and Manager read; the Owner pays; ECCS admins do everything. */
+    billing: {
+      /** Newest first. Narrowed by outlet, by client (`organizationId`) and by status. */
+      invoices: (filter: { outletId?: string; organizationId?: string; status?: InvoiceStatus } = {}) =>
+        call<InvoiceSummaryDto[]>(
+          "GET",
+          `/invoices${query({
+            ...(filter.outletId && { outletId: filter.outletId }),
+            ...(filter.organizationId && { organizationId: filter.organizationId }),
+            ...(filter.status && { status: filter.status }),
+          })}`,
+        ),
+      invoice: (invoiceId: string) => call<InvoiceDto>("GET", `/invoices/${id(invoiceId)}`),
+      /** What is owed and how overdue the oldest unpaid invoice is: in all, by client and by outlet. */
+      dues: (filter: { outletId?: string } = {}) =>
+        call<DuesDto>("GET", `/invoices/dues${query(filter.outletId ? { outletId: filter.outletId } : {})}`),
+      /** ECCS admins: due, overdue and collected this month. */
+      totals: () => call<BillingTotalsDto>("GET", "/invoices/totals"),
+      /**
+       * A link to the invoice as a PDF (relative to the API base URL, valid for a limited
+       * time). May take a few seconds while the PDF is made, or made again after a payment.
+       */
+      pdf: (invoiceId: string) => call<{ path: string }>("POST", `/invoices/${id(invoiceId)}/pdf`),
+      /** The Owner starts paying everything still owed on an invoice. Nothing is paid until `confirmPayment`. */
+      startPayment: (invoiceId: string, input: StartPaymentInput) =>
+        call<PaymentSessionDto>("POST", `/invoices/${id(invoiceId)}/payments`, input),
+      /**
+       * The payment screen reports how the payment ended. For the sample gateway:
+       * `{ outcome: "success" }` or `{ outcome: "fail" }`. Safe to send twice.
+       */
+      confirmPayment: (paymentId: string, proof: ConfirmPaymentInput) =>
+        call<PaymentResultDto>("POST", `/payments/${id(paymentId)}/confirm`, proof),
+      /** One payment and its invoice as it stands now: the receipt. */
+      receipt: (paymentId: string) => call<PaymentResultDto>("GET", `/payments/${id(paymentId)}`),
+      /** ECCS admins record a payment received outside the app. */
+      recordPayment: (invoiceId: string, input: RecordPaymentInput) =>
+        call<PaymentResultDto>("POST", `/invoices/${id(invoiceId)}/payments/manual`, input),
+      /** ECCS admins cancel an invoice. It stays on record as void. */
+      void: (invoiceId: string, input: VoidInvoiceInput) => call<InvoiceDto>("POST", `/invoices/${id(invoiceId)}/void`, input),
+      /** ECCS admins raise a new invoice for what a void one was for. */
+      raiseAgain: (invoiceId: string) => call<InvoiceDto>("POST", `/invoices/${id(invoiceId)}/raise-again`),
+      /** ECCS admins raise, now, the invoice of every plan whose cycle has begun and has none. */
+      raiseDue: () => call<{ raised: number }>("POST", "/invoices/raise-due"),
+    },
     // certificates-api: the certificates worker adds `certificates: { ... },` on the next line
     /** Service certificates: issued when ECCS approves the report of a visit whose kind of service carries one. */
     certificates: {

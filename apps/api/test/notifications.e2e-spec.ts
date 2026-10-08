@@ -75,6 +75,8 @@ describe('Notifications (e2e)', () => {
     await db.signOff.deleteMany({ where: { job: jobs } });
     await db.jobTaskResponse.deleteMany({ where: { job: jobs } });
     await db.job.deleteMany({ where: jobs });
+    // Approving a booked visit's report raises its invoice.
+    await db.invoice.deleteMany({ where: { booking: { notes: MARK } } });
     await db.booking.deleteMany({ where: { notes: MARK } });
     await db.issue.deleteMany({ where: { description: { contains: MARK } } });
     await db.licence.deleteMany({ where: { name: MARK } });

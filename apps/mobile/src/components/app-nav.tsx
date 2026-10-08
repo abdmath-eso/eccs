@@ -48,6 +48,8 @@ const MANAGER_MENU: MenuItem[] = [
   { label: 'tile.history', icon: 'calendar-outline', href: '/history' },
   { label: 'tile.documents', icon: 'document-text-outline', href: '/documents' },
   { label: 'tile.certificates', icon: 'ribbon-outline', href: '/certificates' },
+  { label: 'tile.plan', icon: 'repeat-outline', href: '/plan' },
+  { label: 'tile.invoices', icon: 'receipt-outline', href: '/invoices' },
   { label: 'tile.inspections', icon: 'clipboard-outline', href: '/inspections' },
   STAFF,
 ];

@@ -67,6 +67,8 @@ import type {
 
 // notifications-types: the notifications worker imports its types from "@eccs/shared" on the next line
 import type { NotificationPageDto, UnreadCountDto } from "@eccs/shared";
+// subscriptions-types: the subscriptions worker imports its types from "@eccs/shared" on the next line
+// billing-types: the billing worker imports its types from "@eccs/shared" on the next line
 // certificates-types: the certificates worker imports its types from "@eccs/shared" on the next line
 import type { CertificateDto } from "@eccs/shared";
 // offline-visits-types: the offline worker imports any new types from "@eccs/shared" on the next line
@@ -461,6 +463,8 @@ export function createApiClient(options: ApiClientOptions) {
       markRead: (notificationId: string) => call<UnreadCountDto>("POST", `/notifications/${id(notificationId)}/read`),
       markAllRead: () => call<UnreadCountDto>("POST", "/notifications/read-all"),
     },
+    // subscriptions-api: the subscriptions worker adds its calls on the next line
+    // billing-api: the billing worker adds its calls on the next line
     // certificates-api: the certificates worker adds `certificates: { ... },` on the next line
     /** Service certificates: issued when ECCS approves the report of a visit whose kind of service carries one. */
     certificates: {

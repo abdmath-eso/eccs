@@ -468,6 +468,8 @@ export const en = {
   "error.tooMany": "Too many tries. Wait a few minutes and try again.",
   "error.notAllowed": "You are not allowed to do this.",
   "error.server": "Our server has a problem. Try again shortly.",
+  // feature:subscriptions
+  // feature:billing
   // feature:certificates
   "tile.certificates": "Certificates",
   "cert.title": "Certificates",

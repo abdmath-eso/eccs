@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller.js';
 import { AuthModule } from './auth/auth.module.js';
+import { BillingModule } from './billing/billing.module.js';
 import { CalendarModule } from './calendar/calendar.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { CertificatesModule } from './certificates/certificates.module.js';
@@ -16,6 +17,7 @@ import { OutletsModule } from './outlets/outlets.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProfileModule } from './profile/profile.module.js';
 import { ScoresModule } from './scores/scores.module.js';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module.js';
 import { ServicesModule } from './services/services.module.js';
 import { RestaurantUsersModule } from './restaurant-users/restaurant-users.module.js';
 import { SopsModule } from './sops/sops.module.js';
@@ -43,6 +45,8 @@ import { StorageModule } from './storage/storage.module.js';
     MonitoringModule,
     CatalogModule,
     CertificatesModule,
+    SubscriptionsModule,
+    BillingModule,
   ],
   controllers: [AppController],
 })

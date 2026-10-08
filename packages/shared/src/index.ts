@@ -18,3 +18,5 @@ export * from "./scores.js";
 export * from "./monitoring.js";
 export * from "./catalog.js";
 export * from "./certificates.js";
+export * from "./subscriptions.js";
+export * from "./billing.js";

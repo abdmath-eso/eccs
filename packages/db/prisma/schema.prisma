@@ -545,6 +545,19 @@ model Subscription {
   startDate       DateTime           @db.Date
   endDate         DateTime?          @db.Date
   nextBillingDate DateTime?          @db.Date
+  /// The price agreed for this outlet, per billing cycle before GST. Copied from the plan when the
+  /// subscription starts, so a later change to the plan's price does not silently change what a client pays.
+  pricePaise         Int?
+  billingCycle       BillingCycle?
+  /// The cycle already invoiced (or being invoiced).
+  currentPeriodStart DateTime?     @db.Date
+  currentPeriodEnd   DateTime?     @db.Date
+  /// Asked to end: it stays active until currentPeriodEnd and is then cancelled, not renewed.
+  cancelAtPeriodEnd  Boolean       @default(false)
+  /// Asked to change plan: the new plan takes over at the next cycle.
+  pendingPlanId      String?
+  pausedAt           DateTime?
+  cancelledAt        DateTime?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
@@ -985,6 +998,17 @@ model Invoice {
   igstPaise      Int           @default(0)
   totalPaise     Int
   paidPaise      Int           @default(0)
+  /// For a subscription invoice: the cycle it covers.
+  periodStart    DateTime?     @db.Date
+  periodEnd      DateTime?     @db.Date
+  /// The buyer exactly as printed on the invoice (name, legal name, GSTIN, address, state code),
+  /// so a later change to the client's details never alters an invoice already issued.
+  billTo         Json?
+  /// GST state code of the place of supply.
+  placeOfSupply  String?
+  notes          String?
+  voidedAt       DateTime?
+  voidReason     String?
   pdfKey         String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -1024,6 +1048,10 @@ model Payment {
   reference         String?
   razorpayOrderId   String?
   razorpayPaymentId String?       @unique
+  /// Which way the money came: "sample" (the pretend online payment) or "manual" (ECCS recorded cash, a transfer or a UPI reference).
+  gateway           String?
+  failureReason     String?
+  recordedById      String?
   paidAt            DateTime?
   createdAt         DateTime      @default(now())
 

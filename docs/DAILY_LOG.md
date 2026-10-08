@@ -20,10 +20,11 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 - Founder decision: remove the "actions overdue" flag from the monitoring board, since without re-inspection nothing could clear it. Done: the board no longer marks an outlet for a corrective action past its date; it still shows how many the latest report carries. Monitoring tests updated.
 - Founder asked how to test working without signal; Claude gave the steps (also in `docs/TEST_LOGINS.md` section 12).
+- The founder finished testing on the phone: everything built on 7 October, including the work without signal. "Everything is good." No faults reported.
 
 **Carried over from yesterday**
 
-- Phone testing of everything built on the afternoon and evening of 7 October.
+- Phone testing of everything built on the afternoon and evening of 7 October: done, see above.
 - The choices awaiting the founder in `STATUS.md` section 4.
 
 ---

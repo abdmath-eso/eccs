@@ -20,13 +20,13 @@ The team is the founder plus Claude Code. There are no other developers, so this
 
 | | |
 |---|---|
-| **Phase** | Phases 1a (Restaurant loop) and 1b (Service loop) are built as first versions. 1a: checklists (working without signal), issues, licences and documents, dashboard with the hygiene score, calendar, SOPs, profile, twelve languages with Urdu mirrored, in-app notifications. 1b: booking, scheduling, the Supervisor's visit and the scored inspection (both working without signal), sign-off with rating, ECCS approval, report and inspection PDFs, service certificates, plan visits (parked until pricing), the monitoring board, and console screens to edit clients, outlets and the catalogue. Next: billing (1c), staff, labels and the QR page (1d), hardening (1e). Almost nothing built on the afternoon and evening of 7 Oct has been tried on a phone. |
+| **Phase** | Phases 1a (Restaurant loop) and 1b (Service loop) are built as first versions. 1a: checklists (working without signal), issues, licences and documents, dashboard with the hygiene score, calendar, SOPs, profile, twelve languages with Urdu mirrored, in-app notifications. 1b: booking, scheduling, the Supervisor's visit and the scored inspection (both working without signal), sign-off with rating, ECCS approval, report and inspection PDFs, service certificates, plan visits (parked until pricing), the monitoring board, and console screens to edit clients, outlets and the catalogue. Next: billing (1c), staff, labels and the QR page (1d), hardening (1e). The founder tested all of it on a phone on 8 Oct, including the work without signal: "everything is good". |
 | **Plan approval** | Approved by the founder on 5 Oct 2026. Installing and scaffolding are allowed. |
 | **Code** | `packages/db`: schema (about 48 tables), migrations, sample seed. `packages/shared`: roles, permission rules, request schemas. `packages/api-client`: the one typed client web and mobile use. `packages/i18n`: English, Telugu, Hindi text. `apps/api`: login, sessions, role and scope checks, staff logins, outlets, client onboarding, daily checklists, photo storage. `apps/mobile`: login screens, role-based home, staff logins, daily checklists (today, fill in with photos, add own items, history). `apps/web`: ECCS console with login, client list and restaurant onboarding. |
 | **Local services** | Running in Docker: PostgreSQL on 5432, Redis on 6379, SeaweedFS (S3 stand-in) on 8333. Database is migrated and seeded. |
 | **Blocked** | Nothing. |
-| **Next action (Claude)** | Phase 1b is complete as first versions. Waiting for the founder's testing of the 7 Oct afternoon and evening work and their answers in section 4; then phase 1c (billing) when the founder says so. |
-| **Next action (founder)** | Restart the three terminals (the API now also recalculates hygiene scores, sends reminders and fills the diary on timers). Test, following `docs/TEST_LOGINS.md` sections 6 to 12 (11 is certificates, 12 is a visit and an inspection with no signal): checklists with no signal; notifications; an inspection end to end and its PDF; the Urdu layout; the hygiene score on Home and its screen; in the console, Monitoring, Catalogue, and editing a client and outlet (use a client you onboard yourself for switching off and "Lost PIN", not the sample ones, so the sample logins keep working). Then answer section 4, starting with the monitoring thresholds. Still open from before: pricing and plans, ECCS's logo and GSTIN for the PDFs, real prices and task lists (which can now be entered in Catalogue), who can read the translations, a food-safety check of the 50 SOPs, the real holiday list. |
+| **Next action (Claude)** | Phases 1a and 1b are complete as first versions and phone-tested by the founder (8 Oct). Next is phase 1c (billing), to start when the founder says so. |
+| **Next action (founder)** | Say when to start phase 1c (billing). Answer the choices in section 4 when convenient (the monitoring thresholds, the certificate dates, trusting the phone's clock offline, and the rest). Still open from before: pricing and plans, ECCS's logo and GSTIN for the PDFs, real prices and task lists (which can be entered in Catalogue), who can read the translations, a food-safety check of the 50 SOPs, the real holiday list. |
 
 ## 3. Decisions made
 
@@ -453,6 +453,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 8 Oct 2026 | Founder tested everything from 7 Oct on a phone, including visits, inspections and checklists without signal: all good. |
 | 8 Oct 2026 | Monitoring: corrective actions past their date are no longer flagged (founder). |
 | 7 Oct 2026 | End of day: the 7 Oct entry written in `docs/DAILY_LOG.md`; pushed to GitHub. |
 | 7 Oct 2026 | Phase 1b completed: service certificates; the Supervisor's visit and the inspection work without signal. |

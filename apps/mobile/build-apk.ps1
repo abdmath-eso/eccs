@@ -20,7 +20,9 @@ param(
   [switch]$Install
 )
 
-$ErrorActionPreference = 'Stop'
+# Not 'Stop': the build tools write ordinary progress to the error stream, which Windows
+# PowerShell would then treat as a failure. Each step's exit code is checked instead.
+$ErrorActionPreference = 'Continue'
 $mobile = $PSScriptRoot
 $repo = Resolve-Path (Join-Path $mobile '..\..')
 

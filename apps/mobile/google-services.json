@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "690058906113",
+    "project_id": "eccs-3251b",
+    "storage_bucket": "eccs-3251b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:690058906113:android:b627803362fcc1c01ace00",
+        "android_client_info": {
+          "package_name": "com.eosfera.eccs"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBjmgG4Pst5lMd3OFxLUs4KSQegZauCuTw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

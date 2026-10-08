@@ -44,7 +44,10 @@ export function PushStatus() {
     });
   }, [state]);
 
-  if (state === 'checking') return null;
+  // Nothing to say while all is well: a line that always reads "notifications are on"
+  // only takes room (founder, 8 Oct 2026). It appears when there is something to do
+  // or to know: off, blocked, failed, the server not sending, or not available here.
+  if (state === 'checking' || state === 'on') return null;
   const line = LINES[state];
 
   function turnOn() {
@@ -58,8 +61,8 @@ export function PushStatus() {
   return (
     <View style={[styles.box, { borderColor: theme.outline }]}>
       <View style={styles.row}>
-        <Ionicons name={line.icon} size={22} color={state === 'on' ? theme.primary : theme.textSecondary} />
-        <ThemedText type="small" themeColor={state === 'on' ? 'text' : 'textSecondary'} style={styles.text}>
+        <Ionicons name={line.icon} size={22} color={theme.textSecondary} />
+        <ThemedText type="small" themeColor="textSecondary" style={styles.text}>
           {t(line.text)}
         </ThemedText>
       </View>

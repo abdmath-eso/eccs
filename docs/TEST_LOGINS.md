@@ -219,3 +219,35 @@ Restart the API and console terminals first. All prices and tax codes are sample
 4. **Console > Monitoring:** that outlet's Photos column shows the count, and opening the row lists the doubtful photos with reasons. Photos added in the browser preview are always listed as "picked from files".
 5. **A visit photo:** as the Supervisor add the same picture twice as proof photos on a visit; as an admin open the visit in the console: the reason is under the photo.
 6. **Far from the kitchen:** take a proof photo on the phone somewhere else; the console shows "Taken ... from the outlet". Nothing is blocked on the phone.
+
+## 17. Trying attendance and the salary tracker
+
+1. **App, as the Owner of Deccan Biryani** (`DECCA-KP6R3T`, PIN `3917`): More > Staff. Four sample people are listed. "App logins and PINs" opens the old Staff logins screen.
+2. Add a person paid by the day (for example Rs 600 a day, weekly off Sunday).
+3. **Attendance:** "Mark everyone present", then change one to Half day and one to Absent. Use the arrow to go to yesterday and mark it. Open "Month summary".
+4. Tap a person, tap a day on their calendar to change it, then **"Pay for this month"**: read the rule on screen, add an advance, record a payment, try "Use my own figure", Save, then "Share summary" (on a phone; the browser preview has no share sheet).
+5. **As a Head Chef** (PIN `8264`): More > Mark attendance. Today only, and no pay anywhere.
+6. Edit a person and mark them as left: they leave the list; "Show people who have left" brings them back into view.
+7. **Console:** nothing about restaurant staff appears. ECCS cannot see it.
+
+## 18. Trying food labels
+
+Printing and sharing need the newest APK or Expo Go; an older installed app shows a message instead.
+
+1. **App, as the Manager at Jubilee Hills** (`SPICE-JH2K7M`, PIN `4821`): More > Food labels > Items > "Add from the starter list". Add a few, then change one's shelf life.
+2. **Make a label:** tap an item; nudge the times with the buttons. As the Manager, push use-by past the shelf life: a reason is asked for. Tap Print, then try "Other ways to print or share" (A4 sheet, picture, PDF).
+3. **As a Head Chef** (PIN `7306`): the "later" buttons stop at the shelf life, and there is no Items button.
+4. On the list, mark one **Used up** and tap Put back; **throw one away** with a reason. Home shows how many to use today and how many are past use-by.
+5. **Without signal:** stop the API (or use aeroplane mode), make a label: it says it is kept on the phone. Start the API and open Food labels again.
+
+## 19. Trying the customer page
+
+The link works only on this PC or the office network until there is a hosted server.
+
+1. **App, as the Owner of Spice Route** (`SPICE-JH2K7M`, PIN `2580`): More > Customer page. It is off, and says the link only works inside the office network.
+2. Turn it on (it shows what will be published first). If the outlet has an approved inspection from the last 180 days it says "on"; if not, it says it is waiting for an inspection: approve one first (section 7).
+3. Open the page: "Open the page" in the app, or `http://localhost:3000/k/<token>` on the PC. "Open the poster to print" shows the QR code poster.
+4. **As the Manager** (PIN `4821`): the same screen with the switch disabled.
+5. **As the Supervisor** (`9000000003`): open a finished visit of yours > "Propose photos for the customer page", pick a caption, propose.
+6. **Console > Customer pages:** approve or reject (a rejection needs a reason). **Clients >** the client > the outlet's "Customer page" line: "Take the page down" (reason required) and "Restore the page".
+7. **As the Owner:** remove a photo; then "Make a new link" and check that the old address shows "Nothing current to show".

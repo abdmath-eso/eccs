@@ -19,6 +19,8 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 **So far**
 
 - Founder asked to start phase 1d: attendance and salary, food labels, the customer QR page. Claude prepared the shared files and started three workers, one for each.
+- All three came back built. Staff: people, a day sheet for attendance with month views, and a salary tracker with pay worked out from attendance and overridable, advances and payments, a carried balance and a text summary to share. Food labels: items with shelf lives and a starter list, a label in two taps drawn as a picture, printing through the phone's print screen, a shared picture or an A4 sheet (no label printer has been chosen), a fridge list and counts on Home. Customer page: a public page per outlet showing the ECCS inspection result with its date and report number and saying plainly that it is not a government rating, off by default and switched on only by the Owner, with photos approved by ECCS.
+- Checked together: build, type check, lint and unit tests pass; 461 end-to-end tests pass (67 new). One test file had a type error from its worker, fixed by Claude.
 
 ---
 

@@ -206,10 +206,12 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - **StaffMember**: a restaurant employee (name, role, phone, monthly salary, joining date). Separate from User, because most staff never log in.
 - **AttendanceRecord**: StaffMember, date, status (present, absent, half day, leave), marked by.
 - **SalaryRecord**: StaffMember, month, base pay, days worked, overtime (hours and amount), bonuses, advances, deductions, amount paid, paid on. A record-keeping tracker only: no statutory calculations and no payouts.
+- **As built on 9 Oct 2026:** a staff member is paid a monthly salary or a daily wage, may have a weekly day off, a date of leaving and a link to an app login; advances and payments are kept one by one in **StaffPayEntry**; the pay the app works out from attendance, and the carried balance, can each be overridden. The rules are in STATUS section 3.
 
 ### Food labels
 - **FoodItem**: per outlet. Name (translated), shelf life, storage type.
 - **FoodLabel**: FoodItem, prepared at, expires at (worked out from shelf life), prepared by, printed at.
+- **As built on 9 Oct 2026:** items also carry allergens and a note; a label keeps its own copy of the item's name, storage and allergens, a state (live, used, thrown away with a reason), the number of copies, and any override of the use-by with its reason. Printing is through the phone's print screen, a shared picture or an A4 sheet; direct Bluetooth printing waits for a printer to be chosen.
 
 ### Inspections and public page
 - **Inspection**: a scored ECCS audit of an outlet using an FSSAI Schedule 4 style template. Section scores, overall score, non-conformities with photos and corrective actions, PDF report. Scoring as built (7 Oct 2026), after FSSAI's hygiene rating: 2 marks a check and 4 for a critical one; a not-applicable check is left out; score = marks earned ÷ marks possible × 100; grade A+ from 88, A from 80, B from 68, otherwise none; failing any critical check means no grade.

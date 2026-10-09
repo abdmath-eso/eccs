@@ -79,8 +79,11 @@ Copy-Item (Join-Path $mobile 'android\app\build\outputs\apk\release\app-release.
 Write-Host ''
 Write-Host "Done. The APK is at $apk"
 
+# Leave the android folder before touching adb: adb starts a helper that stays running, and a
+# helper started from inside that folder keeps it locked, so the next build cannot regenerate it
+# ("EBUSY: resource busy or locked"). If that ever happens: adb kill-server, then build again.
+Set-Location $mobile
 if ($Install) {
   $adb = Join-Path $env:ANDROID_HOME 'platform-tools\adb.exe'
   & $adb install -r $apk
 }
-Set-Location $mobile

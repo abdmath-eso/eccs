@@ -212,9 +212,8 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 | T2 | A month's pay still owed after a set day of the next month | O | "{count} people are still owed pay for {month}." | In-app | not built |
 | T3 | The Manager records an advance or a payment | O | "{manager} recorded {amount} for {name}." | In-app | not built |
 | T4 | A person is marked as left, or a past day's attendance is corrected | O | "{name} was marked as left." | In-app | not built |
-| F1 | Each morning: labels to use today | HC, M | "{count} items must be used today." | Push + in-app | not built |
-| F2 | Food past its use-by is still listed | M, O | "{count} items are past use-by and still in the kitchen." | Push + in-app | not built |
-| F3 | A Manager sets a use-by later than the shelf life | O | "{manager} extended the use-by of {item}: {reason}." | In-app | not built |
+| F1 to F3 | Withdrawn 9 Oct 2026: "use today", "past use-by" and "use-by extended". The app no longer tracks a label after it is printed and nobody can extend a use-by, so there is nothing to send. | | | | withdrawn |
+| F5 | A saved label is added, changed or removed | O, M | "{name} added the label {item}." / "{name} changed {item}: keeps {length}." | In-app | not built |
 | F4 | Labels made offline could not be saved | the person | "Some labels could not be saved. Make them again." | In-app | not built |
 | Q1 | A photo is proposed for a customer page | Adm | "A photo for {outlet}'s customer page is waiting." | Console badge + in-app | not built (the console shows a count) |
 | Q2 | A photo is approved; a photo is rejected | O; Sup | "A new photo is on your customer page." / "Your photo was not approved: {reason}." | In-app | not built |
@@ -234,6 +233,7 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | Date | Change |
 |---|---|
+| 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |
 | 9 Oct 2026 | Added section 16 (staff, food labels, customer page), none built. |
 | 9 Oct 2026 | Added section 15 (new services and photo integrity), none built. |
 | 8 Oct 2026 | The console now announces every notification a logged-in ECCS person receives, while it is open in a browser tab: a desktop notification, a chime and an in-page message, opening the same page as the list. With the browser closed nothing is shown (web push is not built). |

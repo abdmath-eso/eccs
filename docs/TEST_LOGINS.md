@@ -232,17 +232,16 @@ Restart the API and console terminals first. All prices and tax codes are sample
 
 ## 18. Trying food labels
 
-Printing and sharing need the newest APK or Expo Go; an older installed app shows a message instead.
+Needs the APK built after 4:30 pm on 9 Oct (or Expo Go), and the API restarted since then.
 
-1. **App, as a Head Chef at Jubilee Hills** (`SPICE-JH2K7M`, PIN `7306`): More > Food labels > Make a label.
-2. Type "Paneer marination", tap "Make a new label", tap **8 hours**, tap **Print**. The label says prepared at the current minute and use by 8 hours later.
-3. Tap "Another label": Paneer marination is now on the list with "Keeps 8 hours". Tap it, then Print: two taps.
-4. Type "paneer MARINATION": the app offers the saved one instead of making a second.
-5. Try "Another length" for something that keeps, say, 36 hours.
-6. Under "More options": who prepared it, copies, a note.
-7. **As the Manager** (PIN `4821`): Food labels > Items: open a saved label, add storage and allergens, rename it or remove it. "Add from the starter list" is still there as a shortcut.
-8. On the list, mark one **Used up** and tap Put back; **throw one away** with a reason. Home shows how many to use today and how many are past use-by.
-9. **Without signal:** aeroplane mode, make a label (it says it is kept on the phone), switch the signal back on and open Food labels: the prepared time is when Print was pressed.
+1. **App, as a Head Chef at Jubilee Hills** (`SPICE-JH2K7M`, PIN `7306`): More > Food labels. The saved labels are listed with a search box at the top and − 0 + on each. If the list is empty, do step 6 first.
+2. Tap **+** on two or three labels. Tap a number and type 12. The bottom says how many items are chosen and the button says "Print 14 labels" (or whatever the total is).
+3. Tap **Chosen only** to see just those; tap **Clear** to start again.
+4. Press **Print**. The phone's print screen opens with every sticker: each says prepared at this minute, use by that plus how long it keeps, and "By" your name. Afterwards the numbers go back to 0 and each printed label says "Last printed".
+5. In the search box type a food that is not there, tap **Add "..."**, choose **8 hours**, **Save label**. It is on the list with its number at 1.
+6. **As the Manager** (PIN `4821`): tap a label's name to change how long it keeps, rename it or remove it; **Manage labels** at the top has the starter list. As the Head Chef neither is there.
+7. **Other ways to print** (under the Print button once something is chosen): an A4 sheet, a PDF or picture to share, and the label size.
+8. **Without signal:** open Food labels once with signal, then aeroplane mode, choose and print: it still prints and says the labels are kept on the phone; with signal back, opening Food labels sends them.
 
 ## 19. Trying the customer page
 

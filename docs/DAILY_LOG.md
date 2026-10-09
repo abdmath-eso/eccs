@@ -12,6 +12,16 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Friday 9 October 2026, after the day was closed
+
+*In progress. The founder called this a new day; the PC's clock still read Friday 9 October, so it is logged under that date. To be written up at the next end of day.*
+
+**So far**
+
+- Founder asked to start phase 1d: attendance and salary, food labels, the customer QR page. Claude prepared the shared files and started three workers, one for each.
+
+---
+
 ## Friday 9 October 2026
 
 A day of acting on research. The founder had asked on the 8th what else the startup should do; the answer came back this morning, the founder picked from it, and two things were built: checks that make proof photos trustworthy, and seven new kinds of service in the catalogue. 8 commits. Pushed to GitHub at the end of the day, together with everything from 8 October, which had not been pushed.

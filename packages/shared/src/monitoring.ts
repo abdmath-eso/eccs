@@ -2,6 +2,7 @@ import type { LocalizedText } from "./checklists.js";
 import type { InspectionGrade } from "./inspections.js";
 import type { IssueCategory, IssueStatus } from "./issues.js";
 import { LICENCE_WARNING_DAYS, type LicenceState, type LicenceType } from "./licences.js";
+import type { PhotoFlagDto, PhotoSubjectDto } from "./photo-integrity.js";
 
 // The ECCS monitoring board: every outlet at a glance, with what it is falling behind on.
 //
@@ -21,7 +22,7 @@ export const MONITORING_LEVELS = ["ATTENTION", "WATCH", "OK", "NONE"] as const;
 export type MonitoringLevel = (typeof MONITORING_LEVELS)[number];
 
 /** The areas an outlet is judged on: one column of the board each. */
-export const MONITORING_AREAS = ["checklists", "issues", "licences", "visits", "inspections", "score"] as const;
+export const MONITORING_AREAS = ["checklists", "issues", "licences", "visits", "inspections", "score", "photos"] as const;
 export type MonitoringArea = (typeof MONITORING_AREAS)[number];
 
 /** The board looks back this many days unless asked otherwise, and never further than the maximum. */
@@ -76,6 +77,14 @@ export const MONITORING_RULES = {
     watchDrop: 5,
     /** The earlier score to compare with is the latest one at least this many days before the current one. */
     compareDaysBack: 7,
+  },
+  photos: {
+    /** This many doubtful proof photos in the period, or more: needs attention. */
+    attentionCount: 3,
+    /** This share of the period's proof photos doubtful, or more: needs attention. */
+    attentionPercent: 10,
+    /** Fewer proof photos than this in the period and the share is not used (one doubtful photo of two is not "50%"). */
+    percentFromPhotos: 10,
   },
 } as const;
 
@@ -157,6 +166,22 @@ export interface MonitoringScoreFacts {
   score: number | null;
   /** The score from about a week before it, if there is one. */
   previous: number | null;
+}
+
+/**
+ * Proof photos received in the period (checklist checks, visit before and after photos,
+ * inspection findings) and how many of them are doubtful. An indicator of how far the
+ * self-reported part of the picture can be trusted; it does not change the hygiene score.
+ */
+export interface MonitoringPhotoFacts {
+  /** Proof photos received in the period. */
+  checked: number;
+  /** Of those, how many carry at least one reason for doubt. */
+  doubtful: number;
+  /** Of the doubtful, how many have a reason with no innocent explanation (the identical file again, a faked location). */
+  certain: number;
+  /** Of the doubtful, how many are the restaurant's own checklist photos; the rest were taken by ECCS's Supervisors. */
+  fromChecklists: number;
 }
 
 // ───────────────────────── The rules ─────────────────────────
@@ -271,6 +296,25 @@ export function scoreLevel(facts: MonitoringScoreFacts): MonitoringLevel {
 }
 
 /**
+ * Proof photos.
+ * ATTENTION: any photo is doubtful for a reason with no innocent explanation (the identical file used again,
+ * a location the phone reports as faked); or 3 or more are doubtful; or, once there are at least 10 photos,
+ * 10% or more of them are.
+ * WATCH: any photo is doubtful.
+ * NONE: no proof photo was received in the period.
+ */
+export function photoLevel(facts: MonitoringPhotoFacts): MonitoringLevel {
+  const rules = MONITORING_RULES.photos;
+  if (facts.checked === 0) return "NONE";
+  if (facts.doubtful === 0) return "OK";
+  if (facts.certain > 0 || facts.doubtful >= rules.attentionCount) return "ATTENTION";
+  if (facts.checked >= rules.percentFromPhotos && share(facts.doubtful, facts.checked) >= rules.attentionPercent) {
+    return "ATTENTION";
+  }
+  return "WATCH";
+}
+
+/**
  * An outlet as a whole is as bad as its worst area: ATTENTION if any area needs
  * attention, otherwise WATCH if any is worth watching, otherwise OK. Areas with
  * nothing to judge by are left out; an outlet with nothing at all is NONE.
@@ -378,6 +422,29 @@ export interface MonitoringScoreDto extends MonitoringScoreFacts {
   change: number | null;
 }
 
+/**
+ * One doubtful proof photo: when, what it was for and why it is doubtful. The picture itself is
+ * not here. A visit's or an inspection's photo is seen on that visit or inspection; a restaurant's
+ * checklist photo is not shown to ECCS in the console at all, so for those this is all there is.
+ */
+export interface MonitoringPhotoItemDto {
+  id: string;
+  /** YYYY-MM-DD (India) our server received it. */
+  receivedOn: string;
+  what: PhotoSubjectDto;
+  /** Set for a visit's photo, to link to the visit. */
+  visitId: string | null;
+  /** Set for an inspection's photo, to link to the inspection. */
+  inspectionId: string | null;
+  flags: PhotoFlagDto[];
+}
+
+export interface MonitoringPhotosDto extends MonitoringPhotoFacts {
+  level: MonitoringLevel;
+  /** The doubtful photos, newest first (at most 20). */
+  items: MonitoringPhotoItemDto[];
+}
+
 /** One outlet on the board. */
 export interface MonitoringOutletDto {
   outletId: string;
@@ -397,6 +464,7 @@ export interface MonitoringOutletDto {
   visits: MonitoringVisitsDto;
   inspections: MonitoringInspectionsDto;
   score: MonitoringScoreDto;
+  photos: MonitoringPhotosDto;
 }
 
 /** The counts for the strip above the table. */

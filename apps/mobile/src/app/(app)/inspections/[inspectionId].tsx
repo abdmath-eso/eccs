@@ -39,7 +39,7 @@ import { applyInspectionPending, type NewFieldOp } from '@/lib/offline/field-ops
 import { keepPhoto, keptPhotoUri, newId } from '@/lib/offline/files';
 import { isNoSignal, outbox, useOutbox } from '@/lib/offline/outbox';
 import { useReloadOnSignal } from '@/lib/offline/use-signal';
-import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
+import { CameraPermissionError, takeEvidencePhoto } from '@/lib/photo';
 import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
 
@@ -340,7 +340,7 @@ export default function InspectionScreen() {
     clearFailure(id);
     let photo;
     try {
-      photo = await takeProofPhoto();
+      photo = await takeEvidencePhoto();
     } catch (e) {
       setFailed((current) => ({ ...current, [id]: t(e instanceof CameraPermissionError ? 'error.camera' : 'error.generic') }));
       return;
@@ -353,7 +353,8 @@ export default function InspectionScreen() {
     setBusy(`photo-${id}`);
     try {
       // The camera saves into a folder the phone may clear; keep our own copy until it is sent.
-      await keepPhoto(photoId, photo);
+      // With it go the facts noted at that moment (where the phone was, if allowed), sent when the photo is.
+      await keepPhoto(photoId, photo, photo.facts);
       await save(id, { kind: 'inspPhoto', itemId: id, photoId, capturedAt });
     } catch {
       setFailed((current) => ({ ...current, [id]: t('offline.saveFailed') }));

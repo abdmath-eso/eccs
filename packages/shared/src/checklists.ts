@@ -31,6 +31,12 @@ export interface ChecklistResponseDto {
   takenByName: string | null;
   /** Path of the proof photo, relative to the API base URL. Valid for a limited time. */
   photoPath: string | null;
+  /**
+   * Set when this photo is the same as, or all but the same as, an earlier proof photo of the
+   * outlet: the day (YYYY-MM-DD) of the earlier one. Only the Owner and Manager, who review their
+   * own staff's checklists, are told; left out for everyone else. A note, not an accusation.
+   */
+  photoRepeatOf?: string;
 }
 
 export interface ChecklistItemDto {

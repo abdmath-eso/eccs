@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { LocalizedText } from "./checklists.js";
 import type { VisitCertificateDto } from "./certificates.js";
+import type { PhotoFlagDto } from "./photo-integrity.js";
+import { isValidReading, READING_MAX, READING_MIN } from "./readings.js";
 
 // The service loop: a restaurant books a service from the catalogue, ECCS
 // confirms a date and assigns a Supervisor, the Supervisor records the visit
@@ -66,6 +68,28 @@ export const BOOKING_MAX_DAYS_AHEAD = 90;
 export const PLAN_VISITS_DAYS_AHEAD = 30;
 export const VISIT_MAX_PHOTOS = 12;
 export const VISIT_MAX_TECHNICIANS = 8;
+/** Result documents (lab report, attendance sheet and so on) one visit can carry. */
+export const VISIT_MAX_DOCUMENTS = 6;
+export const VISIT_PARTNER_NAME_MAX = 80;
+
+/**
+ * The headings the app lists services under, in the order they are shown. Stored on
+ * each kind of service; add new ones, never rename (the labels can change).
+ */
+export const SERVICE_CATEGORIES = ["CLEANING", "PEST", "TESTING", "COMPLIANCE", "SUPPLIES"] as const;
+export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
+/** The category of a kind as stored, or CLEANING if it is one this version does not know. */
+export const toServiceCategory = (value: string | null | undefined): ServiceCategory =>
+  SERVICE_CATEGORIES.find((known) => known === value) ?? "CLEANING";
+
+/** The headings in English, for the console (the app words them through its own dictionary). */
+export const SERVICE_CATEGORY_ENGLISH: Record<ServiceCategory, string> = {
+  CLEANING: "Cleaning",
+  PEST: "Pest control",
+  TESTING: "Tests and inspections",
+  COMPLIANCE: "FSSAI compliance and training",
+  SUPPLIES: "Supplies",
+};
 
 const dateSchema = z
   .string()
@@ -116,6 +140,14 @@ export const answerVisitTaskSchema = z
   .object({
     done: z.boolean(),
     note: z.string().trim().max(300).optional(),
+    /**
+     * For a task that records a meter reading instead of a tick (the frying oil test):
+     * the number read, in percent. The server requires it when such a task is done.
+     */
+    value: z
+      .number({ error: "Enter the reading in figures" })
+      .refine(isValidReading, `Enter a reading from ${READING_MIN} to ${READING_MAX}, with at most one decimal place`)
+      .optional(),
   })
   .refine((value) => value.done || (value.note ?? "").length > 0, "Say why this was not done");
 export type AnswerVisitTaskInput = z.input<typeof answerVisitTaskSchema>;
@@ -124,8 +156,20 @@ export type AnswerVisitTaskInput = z.input<typeof answerVisitTaskSchema>;
 export const updateVisitRecordSchema = z.object({
   technicianNames: z.array(z.string().trim().min(1).max(60)).max(VISIT_MAX_TECHNICIANS).optional(),
   notes: z.string().trim().max(1000).optional(),
+  /** The outside partner that did its share of the work (the lab, clinic, training partner or audit agency). Empty clears it. */
+  partnerName: z.string().trim().max(VISIT_PARTNER_NAME_MAX).optional(),
 });
 export type UpdateVisitRecordInput = z.input<typeof updateVisitRecordSchema>;
+
+/**
+ * The words that go with a result document attached to a visit (the file itself is sent
+ * beside them): what it is, and optionally which partner it came from.
+ */
+export const addVisitDocumentSchema = z.object({
+  title: z.string().trim().min(2, "Say what the document is").max(80),
+  partnerName: z.string().trim().max(VISIT_PARTNER_NAME_MAX).optional(),
+});
+export type AddVisitDocumentInput = z.input<typeof addVisitDocumentSchema>;
 
 /** The restaurant signs off a finished visit: a rating out of five, and a comment if they wish. */
 export const signOffVisitSchema = z.object({
@@ -153,6 +197,10 @@ export interface ServiceCatalogItemDto {
   /** Before GST, in paise. */
   pricePaise: number;
   durationMinutes: number;
+  /** The heading it is listed under. Optional: a list saved on a phone before headings existed has none. */
+  category?: ServiceCategory;
+  /** True when an outside partner (a lab, a clinic, a training partner, an audit agency) delivers part of it. */
+  partnerDelivered?: boolean;
 }
 
 /** ECCS puts an outlet on a plan from a given day. */
@@ -256,6 +304,22 @@ export interface VisitTaskDto {
   /** `null` until the Supervisor has answered it. */
   done: boolean | null;
   note: string | null;
+  /**
+   * Set (not null) for a task that records a meter reading instead of a tick: the number
+   * read, null until it is taken, and the limit it is judged against (25 for frying oil).
+   * The verdict is worked out from the two by `readingVerdict`. Optional because a visit
+   * saved on a phone before readings existed does not have the field.
+   */
+  reading?: { value: number | null; limit: number | null } | null;
+}
+
+/** A result document attached to a visit: a lab report, a list of staff seen, an attendance sheet, an audit report. */
+export interface VisitDocumentDto {
+  /** The vault document's id. */
+  id: string;
+  title: string;
+  file: { path: string; mimeType: string };
+  createdAt: string;
 }
 
 export interface VisitPhotoDto {
@@ -263,6 +327,8 @@ export interface VisitPhotoDto {
   kind: VisitPhotoKind;
   /** Relative to the API base URL. Valid for a limited time. */
   path: string;
+  /** Why the photo is doubtful, if it is. Only ECCS admins are told; left out for everyone else. */
+  flags?: PhotoFlagDto[];
 }
 
 export interface VisitSignOffDto {
@@ -296,10 +362,23 @@ export interface VisitDto extends VisitSummaryDto {
   canReview: boolean;
   canManage: boolean;
   /**
+   * True while the person recording the visit is at an outlet whose location ECCS does not
+   * know yet: they can save where the kitchen is, from the kitchen. Left out when not so.
+   */
+  canSetOutletLocation?: boolean;
+  /**
    * The certificate issued for this visit, once ECCS has approved the report of a kind
    * of service that carries one. Null when there is none (or the person may not read
    * certificates). Optional because a visit saved on a phone before certificates
    * existed does not have the field at all.
    */
   certificate?: VisitCertificateDto | null;
+  /** True when an outside partner delivers part of this kind of service. (Optional like `certificate`, for visits saved on a phone earlier.) */
+  partnerDelivered?: boolean;
+  /** Which partner did its share of the work, as ECCS recorded it. */
+  partnerName?: string | null;
+  /** The result documents attached to the visit, oldest first. They are also in the outlet's documents. Empty for people who may not read documents. */
+  documents?: VisitDocumentDto[];
+  /** Whether the person asking may attach a result document now. */
+  canAttachDocument?: boolean;
 }

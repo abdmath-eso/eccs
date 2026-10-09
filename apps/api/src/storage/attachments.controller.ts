@@ -20,6 +20,7 @@ import { z } from 'zod';
 import { CurrentUser, Public } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { PhotoIntegrityService, readPhotoFacts } from './photo-integrity.service.js';
 import { StorageService } from './storage.service.js';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -62,6 +63,7 @@ export class AttachmentsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly integrity: PhotoIntegrityService,
   ) {}
 
   /**
@@ -123,6 +125,10 @@ export class AttachmentsController {
         sizeBytes: file.size,
         capturedAt: fields.data.capturedAt ? new Date(fields.data.capturedAt) : now,
         uploadedById: user.id,
+        // What is known about a proof photo, kept now and judged when it is attached to a checklist answer.
+        // A document needs none of it.
+        ...(!isDocument &&
+          this.integrity.captureColumns({ buffer: file.buffer, mimeType: image.mimeType }, fields.data.capturedAt, now, readPhotoFacts(body))),
       },
     });
     return { id, path: this.storage.signedPath(id) };

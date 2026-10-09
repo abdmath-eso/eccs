@@ -59,6 +59,8 @@ export interface VisitTaskOp extends FieldBase {
   itemId: string;
   done: boolean;
   note?: string;
+  /** For a task that records a meter reading (the frying oil test): the number read. */
+  value?: number;
 }
 
 /** Who did the work, and the notes for the restaurant. */
@@ -66,6 +68,8 @@ export interface VisitRecordOp extends FieldBase {
   kind: 'visitRecord';
   technicianNames: string[];
   notes: string;
+  /** The outside partner that did its share of the work; left out when the screen does not ask for it. */
+  partnerName?: string;
 }
 
 /** A before or after photo. Its file is kept on the phone under `photoId` until the server has it. */
@@ -227,12 +231,15 @@ export function applyVisitPending(
         if (!task) break;
         task.done = op.done;
         task.note = op.note || null;
+        // A reading task keeps its number while done; "not done" clears it, as on the server.
+        if (task.reading) task.reading = { ...task.reading, value: op.done ? (op.value ?? null) : null };
         unsentTasks.add(op.itemId);
         break;
       }
       case 'visitRecord':
         next.technicianNames = [...new Set(op.technicianNames)];
         next.notes = op.notes || null;
+        if (op.partnerName !== undefined) next.partnerName = op.partnerName || null;
         view.recordPending = true;
         break;
       case 'visitPhoto':

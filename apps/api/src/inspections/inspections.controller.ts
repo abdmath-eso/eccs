@@ -24,6 +24,7 @@ import { z } from 'zod';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { readPhotoFacts } from '../storage/photo-integrity.service.js';
 import { InspectionsService } from './inspections.service.js';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -109,7 +110,7 @@ export class InspectionsController {
     const fields = photoFieldsSchema.safeParse(body ?? {});
     if (!fields.success) throw new BadRequestException('Invalid upload');
     if (!file) throw new BadRequestException('A photo is required');
-    return this.inspections.addPhoto(user, id, itemId, file, fields.data);
+    return this.inspections.addPhoto(user, id, itemId, file, fields.data, readPhotoFacts(body));
   }
 
   @Delete(':id/photos/:photoId')

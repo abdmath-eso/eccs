@@ -19,6 +19,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
 import { MasterDetail } from "@/components/master-detail";
+import { PhotoFlags } from "@/components/photo-flags";
 import { useToast } from "@/components/toast";
 import { Button, Card, ErrorMessage, Field, Loading, PageHeader, SelectField, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -27,6 +28,8 @@ import { addDays, describe, english, rupees, shortDay, today, when } from "@/lib
 import { useNavCounts } from "@/lib/nav-counts";
 import { isPlainClick, useQuery, useQueryField } from "@/lib/query";
 import { useSession } from "@/lib/session";
+
+import { TaskReading, VisitResults } from "./visit-results";
 
 const clock = (hhmm: string) => {
   const [hours, minutes] = hhmm.split(":").map(Number) as [number, number];
@@ -944,6 +947,7 @@ function VisitDetail({
                   {task.done !== false && <span className="sr-only">{task.done ? "Done: " : "Not recorded: "}</span>}
                   {english(task.label)}
                   {task.done === false && <span className="text-danger"> · Not done{task.note ? `: ${task.note}` : ""}</span>}
+                  <TaskReading task={task} />
                 </span>
               </li>
             ))}
@@ -958,16 +962,22 @@ function VisitDetail({
               <h3 className="text-sm font-semibold text-muted">{kind === "BEFORE" ? "Before the work" : "After the work"}</h3>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {photos(kind).map((photo) => (
-                  <a key={photo.id} href={api.fileUrl(photo.path)} target="_blank" rel="noreferrer">
-                    {/* Photos come from the API through short-lived signed links, so the image optimiser is not used. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={api.fileUrl(photo.path)} alt={kind === "BEFORE" ? "Before the work" : "After the work"} className="h-40 w-full rounded-lg object-cover" />
-                  </a>
+                  <div key={photo.id} className="flex flex-col gap-1">
+                    <a href={api.fileUrl(photo.path)} target="_blank" rel="noreferrer">
+                      {/* Photos come from the API through short-lived signed links, so the image optimiser is not used. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={api.fileUrl(photo.path)} alt={kind === "BEFORE" ? "Before the work" : "After the work"} className="h-40 w-full rounded-lg object-cover" />
+                    </a>
+                    {/* Why the photo is doubtful, if it is. Sent to ECCS admins only. */}
+                    <PhotoFlags flags={photo.flags} />
+                  </div>
                 ))}
               </div>
             </div>
           ),
       )}
+
+      <VisitResults visit={visit} onChanged={onChanged} />
 
       {visit.notes && (
         <div className="flex flex-col gap-1">

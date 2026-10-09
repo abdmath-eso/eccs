@@ -422,6 +422,34 @@ model Attachment {
   uploadedById String?
   createdAt    DateTime       @default(now())
 
+  // Photo integrity (9 Oct 2026): what is known about a proof photo, so a doubtful one can be
+  // marked for ECCS. `createdAt` above is the server's own receipt time, the reference for time.
+  /// The time the phone said the photo was taken, exactly as sent (capturedAt may have been corrected).
+  phoneCapturedAt  DateTime?
+  /// Server receipt time minus the phone's capture time, in seconds. Large and positive for a photo sent later from the outbox; negative when the phone's clock is ahead.
+  captureGapSeconds Int?
+  /// "CAMERA" when the app's camera took it, "FILE" when it was picked from files (the browser preview). Empty when the sender did not say.
+  source           String?
+  /// SHA-256 of the file, to recognise the identical file used again.
+  contentHash      String?
+  /// A fingerprint of what the picture looks like (144 hex characters: its brightness in 72 cells), to recognise a near-copy. Empty when it could not be worked out.
+  perceptualHash   String?
+  /// Where the phone was when the photo was taken, if the person allowed it.
+  latitude         Float?
+  longitude        Float?
+  /// How sure the phone was of that place, as a radius in metres.
+  locationAccuracy Float?
+  /// True when the phone itself reported the place as coming from a "mock location" app (Android).
+  locationMocked   Boolean?
+  /// Metres between that place and the outlet's, when both are known.
+  distanceMetres   Int?
+  /// The reasons this photo is doubtful: a list of PhotoFlagDto (packages/shared/src/photo-integrity.ts). Empty list or null when none.
+  integrityFlags   Json?
+  /// True when integrityFlags is not empty; kept as its own column so the monitoring board can count quickly.
+  doubtful         Boolean   @default(false)
+  /// When the checks were run: the moment the photo became evidence for something.
+  integrityCheckedAt DateTime?
+
   checklistResponseId String?
   jobId               String?
   issueId             String?
@@ -440,6 +468,8 @@ model Attachment {
   @@index([checklistResponseId])
   @@index([jobId])
   @@index([issueId])
+  @@index([outletId, contentHash])
+  @@index([outletId, doubtful])
 }
 
 // ───────────────────────── Services, booking, scheduling ─────────────────────────
@@ -478,8 +508,14 @@ model ServiceType {
   id                   String   @id @default(uuid())
   code                 String   @unique
   name                 Json
-  sacCode              String /// GST service accounting code
+  sacCode              String /// GST code: an SAC for a service, an HSN for goods (the chemicals refill)
   gstRatePercent       Float    @default(18)
+  /// The heading the app lists it under: CLEANING, PEST, TESTING, COMPLIANCE or SUPPLIES
+  /// (SERVICE_CATEGORIES in packages/shared).
+  category             String   @default("CLEANING")
+  /// True when an outside partner (a lab, a clinic, a training partner, an audit agency)
+  /// delivers part of it. The visit then records which partner, and their result document.
+  partnerDelivered     Boolean  @default(false)
   checklistTemplateId  String?
   issuesCertificate    Boolean  @default(false)
   certificateValidDays Int?
@@ -639,6 +675,9 @@ model Job {
   approvedById     String?
   approvedAt       DateTime?
   notes            String?
+  /// The outside partner that did the partner's share of the work (the lab, clinic,
+  /// training partner or audit agency), as typed by ECCS. Empty for ECCS's own work.
+  partnerName      String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

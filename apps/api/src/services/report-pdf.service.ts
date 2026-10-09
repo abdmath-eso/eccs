@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { VISIT_SLOTS, visitSlotWindow, type LocalizedText } from '@eccs/shared';
+import {
+  formatReading,
+  READING_VERDICT_ENGLISH,
+  readingVerdict,
+  VISIT_SLOTS,
+  visitSlotWindow,
+  type LocalizedText,
+} from '@eccs/shared';
 import { PdfPrinterService } from '../pdf/pdf-printer.service.js';
 import { day, escapeHtml, factRow as row, moment, reportFooter, reportPage } from '../pdf/report-page.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -61,7 +68,11 @@ export class ReportPdfService {
             checklistTemplate: {
               select: {
                 // Retired tasks are read too: the report lists what this visit answered (see below).
-                items: { where: { outletId: null }, orderBy: { position: 'asc' }, select: { id: true, label: true } },
+                items: {
+                  where: { outletId: null },
+                  orderBy: { position: 'asc' },
+                  select: { id: true, label: true, type: true, maxValue: true },
+                },
               },
             },
           },
@@ -104,7 +115,16 @@ export class ReportPdfService {
       .map((item) => {
         const answer = answers.get(item.id);
         const done = answer?.valueBool === true;
-        return `<tr><td class="mark ${done ? 'done' : 'not'}">${done ? '✓' : '✗'}</td><td>${escapeHtml(english(item.label))}${
+        // A task that records a meter reading (the frying oil test) prints the number and, in
+        // words as well as colour, how it stands against its limit.
+        const verdict = item.type === 'NUMBER' && done ? readingVerdict(answer?.valueNumber, item.maxValue) : null;
+        const reading =
+          item.type === 'NUMBER' && done && answer?.valueNumber != null
+            ? `<div class="reading ${verdict ? verdict.toLowerCase() : ''}"><b>${formatReading(answer.valueNumber)}%</b>${
+                verdict ? ` · ${READING_VERDICT_ENGLISH[verdict]}` : ''
+              }${item.maxValue != null ? ` <span class="muted">(limit ${formatReading(item.maxValue)}%)</span>` : ''}</div>`
+            : '';
+        return `<tr><td class="mark ${done ? 'done' : 'not'}">${done ? '✓' : '✗'}</td><td>${escapeHtml(english(item.label))}${reading}${
           !done ? `<div class="reason">Not done${answer?.note ? `: ${escapeHtml(answer.note)}` : ''}</div>` : ''
         }</td></tr>`;
       })
@@ -116,6 +136,8 @@ export class ReportPdfService {
       .mark { width: 22px; font-weight: 700; }
       .done { color: #0b7a6e; } .not { color: #c62828; }
       .reason { color: #c62828; font-size: 10pt; }
+      .reading { font-size: 10.5pt; margin-top: 2px; }
+      .reading.within { color: #0b7a6e; } .reading.close { color: #b45309; } .reading.over { color: #c62828; font-weight: 700; }
       .stars { color: #b45309; font-size: 14pt; letter-spacing: 2px; }
       .tasks tr { break-after: avoid; break-inside: avoid; }
     `;
@@ -131,6 +153,7 @@ export class ReportPdfService {
         ${row('Finished', visit.completedAt ? moment(visit.completedAt) : null)}
         ${row('Supervisor', visit.supervisor?.name)}
         ${row('Team', visit.technicianNames.join(', '))}
+        ${row('Partner', visit.partnerName)}
       </table>
 
       ${tasks ? `<h2>Work done</h2><table class="tasks">${tasks}</table>` : ''}

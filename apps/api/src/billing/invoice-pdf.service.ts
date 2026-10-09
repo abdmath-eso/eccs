@@ -234,8 +234,8 @@ export class InvoicePdfService {
         <thead>
           <tr>
             <th>#</th>
-            <th style="text-align:left">Description of service</th>
-            <th>SAC</th>
+            <th style="text-align:left">Description</th>
+            <th>HSN/SAC</th>
             <th class="num">Qty</th>
             <th class="num">Rate (₹)</th>
             <th class="num">Taxable value (₹)</th>

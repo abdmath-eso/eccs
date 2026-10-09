@@ -1,4 +1,11 @@
-import { localize, VISIT_SLOT_PERIODS, type ServiceCatalogItemDto, type VisitSlot } from '@eccs/shared';
+import {
+  localize,
+  SERVICE_CATEGORIES,
+  toServiceCategory,
+  VISIT_SLOT_PERIODS,
+  type ServiceCatalogItemDto,
+  type VisitSlot,
+} from '@eccs/shared';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -30,6 +37,19 @@ import { useOutlet } from '@/lib/use-outlet';
 
 // The days offered, starting tomorrow. ECCS needs at least a day's notice.
 const DAYS_OFFERED = 14;
+
+/**
+ * The catalogue under its headings, in the order the headings are shown. The
+ * services arrive cheapest first and keep that order within a heading. A
+ * heading with nothing on offer is left out.
+ */
+function groupByCategory(catalog: ServiceCatalogItemDto[]) {
+  return SERVICE_CATEGORIES.map((category) => ({
+    category,
+    // A list saved before headings existed has none: those go under the first heading.
+    items: catalog.filter((item) => toServiceCategory(item.category) === category),
+  })).filter((group) => group.items.length > 0);
+}
 
 /** The choices a request needs, in the order they appear on the screen. */
 type Step = 'outlet' | 'service' | 'date' | 'slot';
@@ -200,35 +220,62 @@ export default function BookServiceScreen() {
           {heading(t('book.service'))}
           {catalog === null && !catalogError && <ActivityIndicator color={theme.primary} />}
           <ErrorText message={catalogError} onRetry={() => setAttempt((count) => count + 1)} />
-          {/* Each service shows its price and how long it takes, so it is a card rather than a one-line chip. */}
-          {catalog?.map((item) => {
-            const selected = item.id === itemId;
-            return (
-              <Pressable
-                key={item.id}
-                accessibilityRole="radio"
-                accessibilityState={{ selected, checked: selected }}
-                onPress={() => setItemId(item.id)}
-                style={[
-                  styles.service,
-                  { borderColor: selected ? theme.primary : theme.outline },
-                  selected && { backgroundColor: theme.backgroundElement },
-                ]}>
-                <View style={styles.serviceHeader}>
-                  {selected && <Ionicons name="checkmark" size={20} color={theme.primary} />}
-                  <ThemedText type="default" style={styles.serviceName} themeColor={selected ? 'primary' : 'text'}>
-                    {localize(item.name, language)}
-                  </ThemedText>
-                </View>
-                <ThemedText type="default">
-                  {t('book.price', { price: formatRupees(item.pricePaise, language) })}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t('book.duration', { time: formatDuration(item.durationMinutes, language) })}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+          {/*
+            With a dozen services the list is grouped under a few headings, as booking apps do
+            (cleaning, pest control, tests…), cheapest first within each. Each service is a card
+            with its price, how long it takes and a short description; the description is cut to
+            two lines until the card is chosen, so the list stays short to scroll.
+          */}
+          {groupByCategory(catalog ?? []).map(({ category, items }) => (
+            <View key={category} style={styles.category} accessibilityRole="radiogroup">
+              <ThemedText type="default" style={styles.categoryName} accessibilityRole="header">
+                {t(`services.category.${category}`)}
+              </ThemedText>
+              {items.map((item) => {
+                const selected = item.id === itemId;
+                const description = item.description ? localize(item.description, language) : '';
+                return (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected, checked: selected }}
+                    onPress={() => setItemId(item.id)}
+                    style={[
+                      styles.service,
+                      { borderColor: selected ? theme.primary : theme.outline },
+                      selected && { backgroundColor: theme.backgroundElement },
+                    ]}>
+                    <View style={styles.serviceHeader}>
+                      {selected && <Ionicons name="checkmark" size={20} color={theme.primary} />}
+                      <ThemedText type="default" style={styles.serviceName} themeColor={selected ? 'primary' : 'text'}>
+                        {localize(item.name, language)}
+                      </ThemedText>
+                    </View>
+                    <ThemedText type="default">
+                      {t('book.price', { price: formatRupees(item.pricePaise, language) })}
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {t('book.duration', { time: formatDuration(item.durationMinutes, language) })}
+                    </ThemedText>
+                    {/* Said in words with an icon: part of this is done by a lab, a clinic, a trainer or an audit agency, not by ECCS. */}
+                    {item.partnerDelivered && (
+                      <View style={styles.partner}>
+                        <Ionicons name="people-outline" size={16} color={theme.textSecondary} />
+                        <ThemedText type="small" themeColor="textSecondary" style={styles.partnerText}>
+                          {t('services.withPartner')}
+                        </ThemedText>
+                      </View>
+                    )}
+                    {description !== '' && (
+                      <ThemedText type="small" numberOfLines={selected ? undefined : 2}>
+                        {description}
+                      </ThemedText>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))}
           {need('service', t('book.needService'))}
         </>,
       )}
@@ -338,6 +385,10 @@ const styles = StyleSheet.create({
   service: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   serviceHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   serviceName: { flex: 1, fontWeight: 700, fontSize: 18 },
+  category: { gap: Spacing.two },
+  categoryName: { fontWeight: 700, marginTop: Spacing.one },
+  partner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  partnerText: { flex: 1 },
   sectionGap: { marginTop: Spacing.three },
   notes: { minHeight: 90, paddingVertical: Spacing.two, fontSize: 17, textAlignVertical: 'top' },
 });

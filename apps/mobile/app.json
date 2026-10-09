@@ -45,6 +45,17 @@
         }
       ],
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ECCS notes where the phone is when you take a proof photo, to show the photo was taken in the kitchen. Only at that moment.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": false,
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/notification-icon.png",

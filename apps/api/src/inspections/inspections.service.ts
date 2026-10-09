@@ -8,6 +8,7 @@ import {
   INSPECTION_TEMPLATE_NAME,
   isCriticalCheck,
   isEccsRole,
+  readPhotoFlags,
   scoreInspection,
   type InspectionAnswer,
   type InspectionAnswerResultDto,
@@ -25,6 +26,7 @@ import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { phoneTime, sameMoment } from '../services/services.service.js';
 import { sniffFile } from '../storage/attachments.controller.js';
+import { PhotoIntegrityService, type PhotoFacts } from '../storage/photo-integrity.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { InspectionPdfService } from './inspection-pdf.service.js';
 
@@ -81,6 +83,7 @@ export class InspectionsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly pdfs: InspectionPdfService,
+    private readonly integrity: PhotoIntegrityService,
   ) {}
 
   private get db() {
@@ -288,6 +291,8 @@ export class InspectionsService {
     file: { buffer: Buffer; size: number },
     /** Chosen by the phone: the photo's id, so sending it twice stores it once, and when it was taken. */
     phone: { id?: string | undefined; capturedAt?: string | undefined } = {},
+    /** What the phone said about the photo besides the picture: where it was, and whether the camera took it. */
+    facts?: PhotoFacts,
   ): Promise<InspectionAnswerResultDto> {
     if (phone.id) {
       const earlier = await this.db.attachment.findUnique({
@@ -327,8 +332,11 @@ export class InspectionsService {
         sizeBytes: file.size,
         capturedAt: phoneTime(phone.capturedAt, now),
         uploadedById: user.id,
+        ...this.integrity.captureColumns({ buffer: file.buffer, mimeType: image.mimeType }, phone.capturedAt, now, facts),
       },
     });
+    // Look at the photo once (time, place, used before). This only marks it for ECCS; it cannot refuse it.
+    await this.integrity.assess(id);
     return this.answerResult(inspection.id, itemId);
   }
 
@@ -543,11 +551,12 @@ export class InspectionsService {
     return inspection.template.items.filter((item) => answered.has(item.id));
   }
 
-  private checks(inspection: DetailRow): (InspectionCheckDto & { section: string })[] {
+  /** `withFlags`: also say why a photo is doubtful. Only for the ECCS office, never the restaurant or the Supervisor. */
+  private checks(inspection: DetailRow, withFlags = false): (InspectionCheckDto & { section: string })[] {
     const responses = new Map(inspection.responses.map((response) => [response.itemId, response]));
     return this.activeItems(inspection).map((item) => ({
       section: item.section ?? '',
-      ...this.toCheck(item, responses.get(item.id)),
+      ...this.toCheck(item, responses.get(item.id), withFlags),
     }));
   }
 
@@ -555,9 +564,13 @@ export class InspectionsService {
     return this.checks(inspection).map((check) => ({ section: check.section, marks: check.marks, answer: check.answer }));
   }
 
-  private toCheck(item: ItemRow, response: ResponseRow | undefined): InspectionCheckDto {
+  private toCheck(item: ItemRow, response: ResponseRow | undefined, withFlags = false): InspectionCheckDto {
     const finding = response?.answer === 'NON_COMPLIANT' ? response.finding : null;
-    const photos = (finding?.attachments ?? []).map((photo) => ({ id: photo.id, path: this.storage.signedPath(photo.id) }));
+    const photos = (finding?.attachments ?? []).map((photo) => ({
+      id: photo.id,
+      path: this.storage.signedPath(photo.id),
+      ...(withFlags && photo.doubtful && { flags: readPhotoFlags(photo.integrityFlags) }),
+    }));
     const complete =
       response !== undefined &&
       (response.answer !== 'NON_COMPLIANT' ||
@@ -593,7 +606,7 @@ export class InspectionsService {
   }
 
   private toDto(user: AuthUser, inspection: DetailRow): InspectionDto {
-    const checks = this.checks(inspection);
+    const checks = this.checks(inspection, this.isEccsAdmin(user));
     const score = scoreInspection(checks.map((check) => ({ section: check.section, marks: check.marks, answer: check.answer })));
     const forRestaurant = !user.memberships.some((m) => isEccsRole(m.role));
     const status = stage(inspection);

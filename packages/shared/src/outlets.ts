@@ -94,8 +94,43 @@ export const updateOutletSchema = z.object({
     .optional(),
   fssaiNumber: z.string().trim().max(20).optional(),
   isActive: z.boolean().optional(),
-});
+  /**
+   * Where the kitchen is, in decimal degrees, for comparing with where proof photos are taken.
+   * Both together, or both `null` to clear them.
+   */
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+})
+  .refine(
+    (input) =>
+      (input.latitude === undefined && input.longitude === undefined) ||
+      (input.latitude !== undefined && input.longitude !== undefined && (input.latitude === null) === (input.longitude === null)),
+    {
+      message: "Enter both the latitude and the longitude, or leave both empty",
+      path: ["latitude"],
+    },
+  );
 export type UpdateOutletInput = z.input<typeof updateOutletSchema>;
+
+/**
+ * Reads a place typed or pasted by a person: "17.4326, 78.4071", or the two numbers in a
+ * Google Maps link ("@17.4326,78.4071" or "q=17.4326,78.4071"). Returns `null` if it holds none.
+ */
+export function parseCoordinates(text: string): { latitude: number; longitude: number } | null {
+  const match = /(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)/.exec(text);
+  if (!match) return null;
+  const latitude = Number(match[1]);
+  const longitude = Number(match[2]);
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+  return { latitude, longitude };
+}
+
+/** A place a phone read for itself, sent to set an outlet's location from the kitchen. */
+export const outletLocationSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+export type OutletLocationInput = z.input<typeof outletLocationSchema>
 
 /** The Owner's contact details. The mobile number is where their one-time code goes. */
 export const updateOwnerSchema = z.object({
@@ -130,6 +165,9 @@ export interface OrganizationOutletDto {
   pincode: string | null;
   fssaiNumber: string | null;
   isActive: boolean;
+  /** Where the kitchen is; both `null` until ECCS sets it. */
+  latitude: number | null;
+  longitude: number | null;
 }
 
 /** One client in the ECCS console. */

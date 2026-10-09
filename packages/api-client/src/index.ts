@@ -3,6 +3,9 @@ import type {
   AnswerChecklistItemInput,
   AnswerVisitTaskInput,
   AttachmentDto,
+  OutletLocationInput,
+  PhotoPlace,
+  PhotoSource,
   BookingDto,
   ConfirmBookingInput,
   CreateBookingInput,
@@ -107,6 +110,8 @@ import type { HygieneScoreDto } from "@eccs/shared";
 // monitoring-types: the monitoring worker imports its types from "@eccs/shared" on the next line
 import type { MonitoringBoardDto } from "@eccs/shared";
 // catalog-types: the console-editing worker imports its types from "@eccs/shared" on the next line
+// new-services-types: result documents on a visit, and adding a kind of service
+import type { AddVisitDocumentInput, CreateServiceKindInput } from "@eccs/shared";
 import type {
   AddServiceTaskInput,
   CatalogAdminDto,
@@ -178,6 +183,25 @@ export interface ApiClientOptions {
  * Expo `File` (from expo-file-system), which behaves like one.
  */
 export type UploadFile = Blob;
+
+/**
+ * What the phone knows about a proof photo besides the picture: where the phone was
+ * (only if the person allowed it) and whether the app's camera took it. All optional.
+ */
+export interface PhotoFactsInput {
+  place?: PhotoPlace | null;
+  source?: PhotoSource;
+}
+
+/** Adds those facts to an upload form. The server ignores anything missing. */
+function appendPhotoFacts(form: FormData, facts: PhotoFactsInput | undefined) {
+  if (facts?.source) form.append("source", facts.source);
+  if (!facts?.place) return;
+  form.append("latitude", String(facts.place.latitude));
+  form.append("longitude", String(facts.place.longitude));
+  if (facts.place.accuracy !== null) form.append("accuracy", String(facts.place.accuracy));
+  if (facts.place.mocked !== null) form.append("mocked", String(facts.place.mocked));
+}
 
 export type ApiClient = ReturnType<typeof createApiClient>;
 
@@ -261,12 +285,15 @@ export function createApiClient(options: ApiClientOptions) {
         fileName?: string;
         id?: string;
         capturedAt?: string;
+        /** For a proof photo: where the phone was and how the picture was made. */
+        facts?: PhotoFactsInput;
       }) {
         const form = new FormData();
         form.append("outletId", input.outletId);
         if (input.kind) form.append("kind", input.kind);
         if (input.id) form.append("id", input.id);
         if (input.capturedAt) form.append("capturedAt", input.capturedAt);
+        appendPhotoFacts(form, input.facts);
         form.append("file", input.file, input.fileName ?? "photo.jpg");
         // The content type is left unset so the boundary is filled in automatically.
         return send<AttachmentDto>("POST", "/attachments", form, undefined, true);
@@ -452,17 +479,40 @@ export function createApiClient(options: ApiClientOptions) {
       updateRecord: (visitId: string, input: UpdateVisitRecordInput) =>
         call<VisitDto>("PATCH", `/visits/${id(visitId)}/record`, input),
       /** Pass an `id` generated on the phone so that sending the same photo twice stores it once. */
-      addPhoto(visitId: string, kind: VisitPhotoKind, file: UploadFile, phone: { id?: string; capturedAt?: string } = {}) {
+      addPhoto(
+        visitId: string,
+        kind: VisitPhotoKind,
+        file: UploadFile,
+        phone: { id?: string; capturedAt?: string; facts?: PhotoFactsInput } = {},
+      ) {
         const form = new FormData();
         form.append("kind", kind);
         if (phone.id) form.append("id", phone.id);
         if (phone.capturedAt) form.append("capturedAt", phone.capturedAt);
+        appendPhotoFacts(form, phone.facts);
         form.append("file", file, "photo.jpg");
         // The content type is left unset so the boundary is filled in automatically.
         return send<VisitDto>("POST", `/visits/${id(visitId)}/photos`, form, undefined, true);
       },
       removePhoto: (visitId: string, photoId: string) =>
         call<VisitDto>("DELETE", `/visits/${id(visitId)}/photos/${id(photoId)}`),
+      /** Saves where the kitchen is, read by the phone during a visit there. Only when ECCS has not set it yet. */
+      setOutletLocation: (visitId: string, input: OutletLocationInput) =>
+        call<VisitDto>("POST", `/visits/${id(visitId)}/outlet-location`, input),
+      /**
+       * Attaches a result document (a lab report, an attendance sheet…) to the visit: a PDF or a
+       * picture. It is also filed in the outlet's documents. `fileName` only helps the upload along.
+       */
+      addDocument(visitId: string, input: AddVisitDocumentInput, file: UploadFile, fileName = "document") {
+        const form = new FormData();
+        form.append("title", input.title);
+        if (input.partnerName) form.append("partnerName", input.partnerName);
+        form.append("file", file, fileName);
+        return send<VisitDto>("POST", `/visits/${id(visitId)}/documents`, form, undefined, true);
+      },
+      /** ECCS's office takes a wrongly attached document off the visit and out of the outlet's documents. */
+      removeDocument: (visitId: string, documentId: string) =>
+        call<VisitDto>("DELETE", `/visits/${id(visitId)}/documents/${id(documentId)}`),
       /** The Supervisor finishes; the visit then waits for the restaurant's sign-off. */
       /** `at` is when Finish was pressed on the phone; the same Finish sent twice is harmless. */
       complete: (visitId: string, input?: { at?: string }) =>
@@ -656,6 +706,8 @@ export function createApiClient(options: ApiClientOptions) {
       /** A booked service whose price changes is kept as it was and replaced by a new one; `replacedById` says so. */
       updateItem: (itemId: string, input: UpdateCatalogItemInput) =>
         call<CatalogItemChangeDto>("PATCH", `/catalog/items/${id(itemId)}`, input),
+      /** A brand-new kind of service, with its tax code. Its tasks and bookable services are added afterwards. */
+      addKind: (input: CreateServiceKindInput) => call<CatalogAdminDto>("POST", "/catalog/kinds", input),
       updateKind: (serviceCode: string, input: UpdateServiceKindInput) =>
         call<CatalogAdminDto>("PATCH", `/catalog/kinds/${id(serviceCode)}`, input),
       addTask: (serviceCode: string, input: AddServiceTaskInput) =>
@@ -684,11 +736,17 @@ export function createApiClient(options: ApiClientOptions) {
       answer: (inspectionId: string, itemId: string, input: AnswerInspectionCheckInput) =>
         call<InspectionAnswerResultDto>("PUT", `/inspections/${id(inspectionId)}/checks/${id(itemId)}`, input),
       /** Adds a photo to a check answered "not compliant". */
-      addPhoto(inspectionId: string, itemId: string, file: UploadFile, phone: { id?: string; capturedAt?: string } = {}) {
+      addPhoto(
+        inspectionId: string,
+        itemId: string,
+        file: UploadFile,
+        phone: { id?: string; capturedAt?: string; facts?: PhotoFactsInput } = {},
+      ) {
         const form = new FormData();
         // An id generated on the phone, so that sending the same photo twice stores it once.
         if (phone.id) form.append("id", phone.id);
         if (phone.capturedAt) form.append("capturedAt", phone.capturedAt);
+        appendPhotoFacts(form, phone.facts);
         form.append("file", file, "photo.jpg");
         // The content type is left unset so the boundary is filled in automatically.
         return send<InspectionAnswerResultDto>(

@@ -4,6 +4,10 @@ import {
   addServiceTaskSchema,
   can,
   createCatalogItemSchema,
+  createServiceKindSchema,
+  SERVICE_CATEGORIES,
+  SERVICE_CATEGORY_ENGLISH,
+  serviceCodeFromName,
   updateCatalogItemSchema,
   updateServiceKindSchema,
   updateServiceTaskSchema,
@@ -103,6 +107,7 @@ export default function CatalogueScreen() {
   const [catalogue, setCatalogue] = useState<CatalogAdminDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [addingKind, setAddingKind] = useState(false);
 
   const mayManage = user ? can(user.memberships, "catalog", "update") : false;
 
@@ -161,16 +166,24 @@ export default function CatalogueScreen() {
         <>
           <ServicesCard catalogue={catalogue} onChange={change} />
           <section className="flex flex-col gap-4" aria-labelledby="kinds-heading">
-            <div>
-              <h2 id="kinds-heading" className="text-xl font-bold">
-                Kinds of service and their tasks
-              </h2>
-              <p className="text-muted">
-                The Supervisor ticks these tasks during a visit, in this order. Retiring a task takes it off new visits; visits
-                already done keep it. Reword a task only to make it clearer, because the new wording also shows on past reports:
-                if the work itself has changed, retire the task and add a new one.
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0 flex-1 basis-96">
+                <h2 id="kinds-heading" className="text-xl font-bold">
+                  Kinds of service and their tasks
+                </h2>
+                <p className="text-muted">
+                  The Supervisor ticks these tasks during a visit, in this order. Retiring a task takes it off new visits; visits
+                  already done keep it. Reword a task only to make it clearer, because the new wording also shows on past reports:
+                  if the work itself has changed, retire the task and add a new one.
+                </p>
+              </div>
+              {!addingKind && (
+                <Button variant="secondary" onClick={() => setAddingKind(true)}>
+                  Add a kind of service
+                </Button>
+              )}
             </div>
+            {addingKind && <AddKindForm kinds={catalogue.kinds} onChange={change} onClose={() => setAddingKind(false)} />}
             {catalogue.kinds.map((kind) => (
               <KindCard key={kind.code} kind={kind} onChange={change} onLoaded={setCatalogue} />
             ))}
@@ -633,6 +646,7 @@ function KindCard({
       <ErrorMessage message={error} />
 
       <KindCertificate kind={kind} onChange={onChange} />
+      <KindTax kind={kind} onChange={onChange} />
 
       {inUse.length === 0 ? (
         <p className="text-muted">
@@ -672,6 +686,253 @@ function KindCard({
         </details>
       )}
     </Card>
+  );
+}
+
+// What to say beside the tax boxes, wherever they appear.
+const TAX_CODE_HINT =
+  "The GST code printed on its invoices: an SAC for a service (6 digits starting 99, for example 998533 for specialised cleaning) or an HSN for goods you sell (4, 6 or 8 digits, for example 3402 for cleaning chemicals). Ask your accountant if unsure.";
+const TAX_RATE_HINT = "In percent, figures only. Most services are 18. Enter 0 for a service that is exempt.";
+const PARTNER_HINT =
+  "Choose yes when a lab, clinic, training partner or audit agency does part of it. The app then says so, and the visit asks which partner did it and for their result document.";
+
+/** The heading, tax code, tax rate and partner boxes, shared by adding a kind and changing one. */
+function KindTaxFields({ kind, errors }: { kind?: ServiceKindAdminDto; errors: FieldErrors }) {
+  return (
+    <>
+      <SelectField
+        label="Listed under"
+        name="category"
+        defaultValue={kind?.category ?? ""}
+        hint="The heading restaurants see it under when booking in the app."
+        error={errors.category}
+      >
+        {!kind && <option value="">Choose a heading</option>}
+        {SERVICE_CATEGORIES.map((category) => (
+          <option key={category} value={category}>
+            {SERVICE_CATEGORY_ENGLISH[category]}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField
+        label="Does a partner deliver part of it?"
+        name="partnerDelivered"
+        defaultValue={kind?.partnerDelivered ? "yes" : "no"}
+        hint={PARTNER_HINT}
+      >
+        <option value="no">No, ECCS does all of it</option>
+        <option value="yes">Yes, with an outside partner</option>
+      </SelectField>
+      <Field
+        label="SAC or HSN code"
+        name="sacCode"
+        required
+        inputMode="numeric"
+        maxLength={8}
+        defaultValue={kind?.sacCode ?? ""}
+        hint={TAX_CODE_HINT}
+        error={errors.sacCode}
+      />
+      <Field
+        label="GST rate, in percent"
+        name="gstRatePercent"
+        required
+        inputMode="decimal"
+        maxLength={5}
+        defaultValue={kind ? String(kind.gstRatePercent) : "18"}
+        hint={TAX_RATE_HINT}
+        error={errors.gstRatePercent}
+      />
+    </>
+  );
+}
+
+/**
+ * Adds a brand-new kind of service. It needs its tax code and rate at once,
+ * because the first approved visit of it is invoiced with them. Its task list
+ * and its bookable services are added afterwards, in its own card below and in
+ * the table above, so nothing reaches restaurants until those exist.
+ */
+function AddKindForm({ kinds, onChange, onClose }: { kinds: ServiceKindAdminDto[]; onChange: Change; onClose: () => void }) {
+  const [issues, setIssues] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const typed = formValues(form);
+    const values = {
+      name: typed.name ?? "",
+      category: typed.category as (typeof SERVICE_CATEGORIES)[number],
+      sacCode: typed.sacCode ?? "",
+      gstRatePercent: typed.gstRatePercent,
+      partnerDelivered: typed.partnerDelivered === "yes",
+      issuesCertificate: issues,
+      ...(issues && { certificateValidDays: typed.certificateValidDays }),
+    };
+    const found = checkAgainst(createServiceKindSchema, values);
+    // Said here rather than after a round trip: the same name would give the same code.
+    const code = serviceCodeFromName(values.name);
+    const taken = kinds.some((kind) => kind.code === code || english(kind.name).toLowerCase() === values.name.trim().toLowerCase());
+    if (!found.name && taken) found.name = "There is already a kind of service with that name.";
+    setErrors(found);
+    if (hasErrors(found)) return focusFirstError(form, found);
+
+    setBusy(true);
+    const failed = await onChange(
+      () => api.catalogue.addKind(values),
+      `Added: ${values.name.trim()}. Now add its tasks, then a service restaurants can book.`,
+    );
+    setBusy(false);
+    setError(failed);
+    if (!failed) onClose();
+  }
+
+  return (
+    <Card>
+      <form onSubmit={submit} noValidate className="grid items-start gap-4 sm:grid-cols-2">
+        <h3 className="text-base font-bold sm:col-span-2">Add a kind of service</h3>
+        <Field
+          label="Name of this kind of service, in English"
+          name="name"
+          required
+          maxLength={120}
+          autoFocus
+          hint="For example: Water tank cleaning. It shows in English to everyone until it is translated."
+          error={errors.name}
+          wrapperClassName="sm:col-span-2"
+        />
+        <KindTaxFields errors={errors} />
+        <SelectField
+          label="Does a visit of this kind end with a certificate?"
+          name="issuesCertificate"
+          value={issues ? "yes" : "no"}
+          onChange={(e) => setIssues(e.target.value === "yes")}
+          hint="An ECCS certificate of service, for ECCS's own work. Choose no where an outside body certifies (a lab report, a medical or training certificate, an FSSAI rating): attach their document to the visit instead."
+        >
+          <option value="no">No certificate</option>
+          <option value="yes">Yes, issue a certificate</option>
+        </SelectField>
+        {issues && (
+          <Field
+            label="Valid for how many days?"
+            name="certificateValidDays"
+            required
+            inputMode="numeric"
+            maxLength={4}
+            hint="Counted from the day of the visit."
+            error={errors.certificateValidDays}
+          />
+        )}
+        <p className="text-sm text-muted sm:col-span-2">
+          Restaurants see nothing new yet. After adding the kind, give it its tasks in its card below, then add a service of this
+          kind, with its price and description, under Services restaurants can book. A kind cannot be deleted afterwards, only
+          switched off.
+        </p>
+        <div className="flex flex-col gap-3 sm:col-span-2">
+          <ErrorMessage message={error} />
+          <div className="flex gap-3">
+            <Button type="submit" loading={busy}>
+              Add the kind of service
+            </Button>
+            <Button type="button" variant="secondary" disabled={busy} onClick={onClose}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+/**
+ * The heading a kind is listed under, its GST code and rate, and whether a
+ * partner delivers part of it. Shown as one line; "Change" opens the boxes.
+ * A new code or rate applies to invoices raised from then on: an invoice
+ * already issued keeps the code and rate it was issued with.
+ */
+function KindTax({ kind, onChange }: { kind: ServiceKindAdminDto; onChange: Change }) {
+  const name = english(kind.name);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const typed = formValues(form);
+    const values = {
+      category: typed.category as (typeof SERVICE_CATEGORIES)[number],
+      sacCode: typed.sacCode ?? "",
+      gstRatePercent: typed.gstRatePercent ?? "",
+      partnerDelivered: typed.partnerDelivered === "yes",
+    };
+    const found = checkAgainst(updateServiceKindSchema, values);
+    if (!values.gstRatePercent.trim()) found.gstRatePercent = "Enter the GST rate in figures, for example 18.";
+    setErrors(found);
+    if (hasErrors(found)) return focusFirstError(form, found);
+
+    setBusy(true);
+    const failed = await onChange(
+      () => api.catalogue.updateKind(kind.code, values),
+      `Saved: ${name}. Invoices from now on use code ${values.sacCode} at ${Number(values.gstRatePercent)}%.`,
+    );
+    setBusy(false);
+    setError(failed);
+    if (!failed) setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-1 text-sm">
+        <span className="font-semibold">Listed under:</span>
+        <span>{SERVICE_CATEGORY_ENGLISH[kind.category]}</span>
+        <span className="font-semibold">· GST:</span>
+        <span>
+          code {kind.sacCode} at {kind.gstRatePercent}%
+        </span>
+        {kind.partnerDelivered && <span>· delivered with a partner</span>}
+        <Button
+          variant="link"
+          aria-label={`Change the heading and tax code of ${name}`}
+          onClick={() => {
+            setError(null);
+            setErrors({});
+            setEditing(true);
+          }}
+        >
+          Change
+        </Button>
+      </p>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={save}
+      noValidate
+      aria-label={`Heading and tax code of ${name}`}
+      className="grid items-start gap-3 rounded-lg border border-primary p-3 sm:grid-cols-2"
+    >
+      <KindTaxFields kind={kind} errors={errors} />
+      <p className="text-sm text-muted sm:col-span-2">
+        A new code or rate is used on invoices raised from now on. Invoices already issued keep theirs.
+      </p>
+      <div className="flex flex-col gap-3 sm:col-span-2">
+        <ErrorMessage message={error} />
+        <div className="flex gap-3">
+          <Button type="submit" loading={busy}>
+            Save
+          </Button>
+          <Button type="button" variant="secondary" disabled={busy} onClick={() => setEditing(false)}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </form>
   );
 }
 
@@ -869,6 +1130,12 @@ function TaskRow({
           <span>
             <span className="mr-2 text-muted">{number}.</span>
             {label}
+            {/* A task that records a meter reading instead of a tick (the frying oil test). */}
+            {task.readingLimit !== null && (
+              <span className="ml-2">
+                <Tag>{`Records a reading, limit ${task.readingLimit}`}</Tag>
+              </span>
+            )}
           </span>
           <div className="flex flex-wrap gap-x-1">
             <Button

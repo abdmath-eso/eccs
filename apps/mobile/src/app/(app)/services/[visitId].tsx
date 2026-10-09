@@ -3,6 +3,7 @@ import {
   localize,
   VISIT_MAX_PHOTOS,
   VISIT_MAX_TECHNICIANS,
+  VISIT_PARTNER_NAME_MAX,
   type VisitDto,
   type VisitPhotoDto,
   type VisitPhotoKind,
@@ -28,6 +29,7 @@ import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
 import { UnsentMark } from '@/components/unsent-mark';
 import { VisitStatusBadge } from '@/components/visit-card';
+import { ReadingInput, ReadingResult, VisitPartner } from '@/components/visit-results';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
@@ -38,7 +40,8 @@ import { applyVisitPending, type NewFieldOp } from '@/lib/offline/field-ops';
 import { keepPhoto, keptPhotoUri, newId } from '@/lib/offline/files';
 import { isNoSignal, outbox, useOutbox } from '@/lib/offline/outbox';
 import { useReloadOnSignal } from '@/lib/offline/use-signal';
-import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
+import { CameraPermissionError, takeEvidencePhoto } from '@/lib/photo';
+import { requestPlace } from '@/lib/photo-place';
 import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
 
@@ -93,6 +96,8 @@ export default function VisitScreen() {
   /** The team and notes as typed; null until the person changes them. */
   const [team, setTeam] = useState<string | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
+  /** For work done with an outside partner: the partner's name as typed; null until the person changes it. */
+  const [partner, setPartner] = useState<string | null>(null);
   /** True while the team or notes have been typed but not saved. */
   const [dirty, setDirty] = useState(false);
   const [confirming, setConfirming] = useState<'finish' | 'signOff' | null>(null);
@@ -204,7 +209,7 @@ export default function VisitScreen() {
     setFailed(null);
     let photo;
     try {
-      photo = await takeProofPhoto();
+      photo = await takeEvidencePhoto();
     } catch (e) {
       setFailed({
         at: `photo-${kind}`,
@@ -220,7 +225,8 @@ export default function VisitScreen() {
     setBusy(`photo-${kind}`);
     try {
       // The camera saves into a folder the phone may clear; keep our own copy until it is sent.
-      await keepPhoto(photoId, photo);
+      // With it go the facts noted at that moment (where the phone was, if allowed), sent when the photo is.
+      await keepPhoto(photoId, photo, photo.facts);
       await save(`photo-${kind}`, { kind: 'visitPhoto', photoId, photoKind: kind, capturedAt });
     } catch {
       setFailed({ at: `photo-${kind}`, message: t('offline.saveFailed') });
@@ -258,6 +264,29 @@ export default function VisitScreen() {
     } finally {
       setBusy(null);
     }
+  }
+
+  /**
+   * Saves where this kitchen is, read by this phone now, for an outlet whose location ECCS does not
+   * have yet. The person pressed the button, so the phone's own permission question may appear here.
+   * Needs signal; nothing about the visit depends on it.
+   */
+  async function saveOutletLocation() {
+    if (busy !== null) return;
+    setBusy('place');
+    setFailed(null);
+    const place = await requestPlace();
+    if (typeof place === 'string') {
+      setBusy(null);
+      setFailed({ at: 'place', message: t(`visit.place.${place}`) });
+      return;
+    }
+    await run(
+      'place',
+      'place',
+      () => api.visits.setOutletLocation(visitId, { latitude: place.latitude, longitude: place.longitude }),
+      t('visit.place.saved'),
+    );
   }
 
   if (!view) {
@@ -312,6 +341,8 @@ export default function VisitScreen() {
       .map((name) => name.slice(0, 60))
       .slice(0, VISIT_MAX_TECHNICIANS),
     notes: notesText.trim(),
+    // Only a kind of service a partner delivers asks for the partner, so only then is it sent.
+    ...(visit.partnerDelivered && { partnerName: (partner ?? visit.partnerName ?? '').trim().slice(0, VISIT_PARTNER_NAME_MAX) }),
   });
 
   async function saveDetails() {
@@ -378,6 +409,7 @@ export default function VisitScreen() {
               {task.done ? `✓ ${t('visit.done')}` : `✗ ${t('visit.notDone')}`}
             </ThemedText>
           )}
+          <ReadingResult task={task} />
           {task.note && (
             <ThemedText type="small" themeColor="textSecondary">
               {task.note}
@@ -438,10 +470,27 @@ export default function VisitScreen() {
         <ThemedText type="default" style={styles.taskLabel}>
           {label}
         </ThemedText>
-        <View style={styles.choices}>
-          {choice(true)}
-          {choice(false)}
-        </View>
+        {task.reading ? (
+          // A task that records a meter reading (the frying oil test): the number and its own
+          // Save take the place of "Done". "Not done" stays, for a fryer this kitchen does not have.
+          <>
+            <ReadingResult task={task} />
+            <ReadingInput
+              task={task}
+              disabled={busy !== null}
+              onSave={(value) => {
+                closeReason();
+                void save(key, { kind: 'visitTask', itemId: task.itemId, done: true, value });
+              }}
+            />
+            <View style={styles.choices}>{choice(false)}</View>
+          </>
+        ) : (
+          <View style={styles.choices}>
+            {choice(true)}
+            {choice(false)}
+          </View>
+        )}
         {/* Done here and on its way. The Supervisor can carry on; this mark goes once the server has it. */}
         {view.unsentTasks.has(task.itemId) && <UnsentMark sending={hasSignal} />}
         {open ? (
@@ -712,6 +761,24 @@ export default function VisitScreen() {
         </>
       )}
 
+      {/* ECCS does not know where this kitchen is yet: the person on the spot can save it, once. */}
+      {recording && visit.canSetOutletLocation && (
+        <View style={[styles.facts, { backgroundColor: theme.backgroundElement }]}>
+          <ThemedText type="smallBold">{t('visit.place.title')}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('visit.place.help')}
+          </ThemedText>
+          <Button
+            icon="location"
+            variant="secondary"
+            label={t('visit.place.save')}
+            onPress={() => void saveOutletLocation()}
+            loading={busy === 'place'}
+          />
+          <ErrorText message={errorAt('place')} />
+        </View>
+      )}
+
       {visit.correctionNote && (
         <View style={[styles.correction, { borderColor: theme.warning }]}>
           <ThemedText type="default" themeColor="warning" style={styles.signedText}>
@@ -727,6 +794,7 @@ export default function VisitScreen() {
       {isReport && photos('AFTER')}
       {tasks}
       {!isReport && photos('AFTER')}
+      {started && <VisitPartner visit={visit} showName={!recording} />}
 
       {recording ? (
         <>
@@ -741,6 +809,19 @@ export default function VisitScreen() {
             placeholder={t('visit.teamPlaceholder')}
             maxLength={300}
           />
+          {/* Work done with a lab, a clinic, a training partner or an audit agency: say which one. */}
+          {visit.partnerDelivered && (
+            <TextField
+              label={t('visit.partner.label')}
+              value={partner ?? visit.partnerName ?? ''}
+              onChangeText={(text) => {
+                setPartner(text);
+                setDirty(true);
+              }}
+              hint={t('visit.partner.hint')}
+              maxLength={VISIT_PARTNER_NAME_MAX}
+            />
+          )}
           <TextField
             label={t('visit.notes')}
             value={notesText}

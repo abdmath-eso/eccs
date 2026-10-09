@@ -11,6 +11,7 @@ import { resolve } from "node:path";
 import { createPrismaClient, pinLookup, type Prisma } from "../src/index.js";
 import { loadInspectionTemplate } from "./inspection-template.js";
 import { loadChecklistLibrary } from "./library.js";
+import { loadNewServices } from "./new-services.js";
 import { addSampleVisits } from "./sample-visits.js";
 import { loadSampleSops } from "./sops.js";
 import { loadSopLibrary } from "./sop-library.js";
@@ -310,7 +311,7 @@ async function seedServices(templates: Awaited<ReturnType<typeof seedSopsAndChec
   // SAC codes and prices are placeholders to be confirmed by the founder and their accountant.
   const pest = await prisma.serviceType.create({
     data: {
-      code: "PEST", sacCode: "998531", checklistTemplateId: templates.pestService.id,
+      code: "PEST", sacCode: "998531", category: "PEST", checklistTemplateId: templates.pestService.id,
       issuesCertificate: true, certificateValidDays: 15,
       name: t("Pest control", "పెస్ట్ కంట్రోల్", "पेस्ट कंट्रोल"),
     },
@@ -331,7 +332,7 @@ async function seedServices(templates: Awaited<ReturnType<typeof seedSopsAndChec
   });
   const safety = await prisma.serviceType.create({
     data: {
-      code: "SAFETY_INSPECTION", sacCode: "998349",
+      code: "SAFETY_INSPECTION", sacCode: "998349", category: "TESTING",
       name: t("Fire and equipment safety inspection", "అగ్ని మరియు పరికరాల భద్రతా తనిఖీ", "अग्नि और उपकरण सुरक्षा निरीक्षण"),
     },
   });
@@ -474,6 +475,8 @@ async function main() {
   const services = await seedServices(templates);
   await seedOutletData(outlets, templates, services, supervisor.id);
   await addSampleVisits(prisma);
+  // The services added on 9 Oct 2026. Not in the two sample plans, so they come after the plan visits.
+  await loadNewServices(prisma);
   await loadSampleSops(prisma);
   await loadSopLibrary(prisma);
   await loadInspectionTemplate(prisma);

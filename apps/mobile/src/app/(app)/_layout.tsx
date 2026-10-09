@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppNav } from '@/components/app-nav';
 import { OfflineSync } from '@/components/offline-sync';
+import { PlaceQuestion } from '@/components/place-question';
 import { PushSetup } from '@/components/push-setup';
 
 export default function AppLayout() {
@@ -16,6 +17,8 @@ export default function AppLayout() {
       <AppNav />
       {/* Registers this phone for the person's push notifications and opens the right screen when one is tapped. */}
       <PushSetup />
+      {/* Asks, the first time a proof photo is about to be taken, whether the place may be added to it. */}
+      <PlaceQuestion />
     </View>
   );
 }

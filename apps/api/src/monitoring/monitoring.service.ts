@@ -12,6 +12,8 @@ import {
   MONITORING_MAX_DAYS,
   MONITORING_RULES,
   overallLevel,
+  photoLevel,
+  readPhotoFlags,
   scoreLevel,
   visitLevel,
   type InspectionGrade,
@@ -26,6 +28,7 @@ import {
   type MonitoringLevel,
   type MonitoringLicencesDto,
   type MonitoringOutletDto,
+  type MonitoringPhotosDto,
   type MonitoringScoreDto,
   type MonitoringTotalsDto,
   type MonitoringVisitItemDto,
@@ -35,8 +38,11 @@ import {
 import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate, indiaTime } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EVIDENCE_WHERE } from '../storage/photo-integrity.service.js';
 
 const DAY_MS = 86_400_000;
+/** The board lists at most this many doubtful photos per outlet; the count is always the full one. */
+const MAX_PHOTO_ITEMS = 20;
 const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const fromDbDate = (date: Date) => date.toISOString().slice(0, 10);
 /** A YYYY-MM-DD date moved by a number of days. */
@@ -197,6 +203,57 @@ export class MonitoringService {
         orderBy: { date: 'desc' },
       }),
     ]);
+
+    // Proof photos received in the period (checklist checks, visit before and after photos, inspection
+    // findings): how many, and the doubtful ones with their reasons. For the ECCS office only; a
+    // Supervisor's board leaves this area empty. Only facts about a photo are read (when, what it was
+    // for, why it is doubtful), never the picture or what a checklist problem was.
+    const photosSince = { ...inOutlets, createdAt: { gte: new Date(`${from}T00:00:00.000+05:30`) }, ...EVIDENCE_WHERE };
+    const [photoCounts, doubtfulPhotos] = everything
+      ? await Promise.all([
+          this.db.attachment.groupBy({ by: ['outletId'], where: photosSince, _count: { _all: true } }),
+          this.db.attachment.findMany({
+            where: { ...photosSince, doubtful: true },
+            select: {
+              id: true,
+              outletId: true,
+              createdAt: true,
+              integrityFlags: true,
+              checklistResponse: { select: { run: { select: { outletChecklist: { select: { template: { select: { title: true } } } } } } } },
+              job: { select: { id: true, serviceType: { select: { name: true } } } },
+              inspectionFinding: { select: { inspectionId: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          }),
+        ])
+      : [[], []];
+    const photoCountBy = new Map(photoCounts.map((row) => [row.outletId, row._count._all]));
+    const doubtfulBy = new Map<string, typeof doubtfulPhotos>();
+    for (const photo of doubtfulPhotos) {
+      if (photo.outletId) doubtfulBy.set(photo.outletId, [...(doubtfulBy.get(photo.outletId) ?? []), photo]);
+    }
+
+    const photosFor = (outletId: string): MonitoringPhotosDto => {
+      const items = (doubtfulBy.get(outletId) ?? []).map((photo) => ({
+        id: photo.id,
+        receivedOn: indiaDate(photo.createdAt),
+        what: photo.checklistResponse
+          ? { kind: 'CHECKLIST' as const, name: photo.checklistResponse.run.outletChecklist.template.title as LocalizedText }
+          : photo.job
+            ? { kind: 'VISIT' as const, name: photo.job.serviceType.name as LocalizedText }
+            : { kind: 'INSPECTION' as const, name: null },
+        visitId: photo.checklistResponse ? null : (photo.job?.id ?? null),
+        inspectionId: photo.checklistResponse || photo.job ? null : (photo.inspectionFinding?.inspectionId ?? null),
+        flags: readPhotoFlags(photo.integrityFlags),
+      }));
+      const facts = {
+        checked: photoCountBy.get(outletId) ?? 0,
+        doubtful: items.length,
+        certain: items.filter((item) => item.flags.some((flag) => flag.certain)).length,
+        fromChecklists: items.filter((item) => item.what.kind === 'CHECKLIST').length,
+      };
+      return { ...facts, items: items.slice(0, MAX_PHOTO_ITEMS), level: photoLevel(facts) };
+    };
 
     // The latest approved inspection of each outlet, and its corrective actions not yet put right.
     const latestApproved = new Map<string, (typeof inspections)[number]>();
@@ -477,6 +534,7 @@ export class MonitoringService {
         visits: visitsFor(outlet.id),
         inspections: inspectionsFor(outlet.id),
         score: scoreFor(outlet.id),
+        photos: photosFor(outlet.id),
       };
       const at = (level: MonitoringLevel): MonitoringArea[] => MONITORING_AREAS.filter((area) => areas[area].level === level);
       const plan = outlet.subscriptions[0]?.plan;

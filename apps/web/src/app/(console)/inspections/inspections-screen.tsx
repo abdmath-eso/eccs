@@ -15,6 +15,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
 import { MasterDetail } from "@/components/master-detail";
+import { PhotoFlags } from "@/components/photo-flags";
 import { useToast } from "@/components/toast";
 import { Button, Card, ErrorMessage, Field, Loading, PageHeader, SelectField, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -723,15 +724,19 @@ function Finding({ check }: { check: InspectionCheckDto }) {
       {check.photos.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {check.photos.map((photo, index) => (
-            <a key={photo.id} href={api.fileUrl(photo.path)} target="_blank" rel="noreferrer">
-              {/* Photos come from the API through short-lived links, so the plain image tag is used. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={api.fileUrl(photo.path)}
-                alt={`Photo ${index + 1} of ${check.photos.length} for check ${check.number}`}
-                className="h-40 w-full rounded-lg object-cover"
-              />
-            </a>
+            <div key={photo.id} className="flex flex-col gap-1">
+              <a href={api.fileUrl(photo.path)} target="_blank" rel="noreferrer">
+                {/* Photos come from the API through short-lived links, so the plain image tag is used. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={api.fileUrl(photo.path)}
+                  alt={`Photo ${index + 1} of ${check.photos.length} for check ${check.number}`}
+                  className="h-40 w-full rounded-lg object-cover"
+                />
+              </a>
+              {/* Why the photo is doubtful, if it is. Sent to ECCS admins only. */}
+              <PhotoFlags flags={photo.flags} />
+            </div>
           ))}
         </div>
       )}

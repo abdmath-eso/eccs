@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, Patch, Post } from '@nestjs/com
 import {
   addServiceTaskSchema,
   createCatalogItemSchema,
+  createServiceKindSchema,
   moveServiceTaskSchema,
   updateCatalogItemSchema,
   updateServiceKindSchema,
@@ -39,6 +40,13 @@ export class CatalogController {
     @Body(new ZodValidationPipe(updateCatalogItemSchema)) body: z.output<typeof updateCatalogItemSchema>,
   ) {
     return this.catalog.updateItem(id, body);
+  }
+
+  /** A brand-new kind of service, with its tax code. Its tasks and bookable services are added afterwards. */
+  @Post('kinds')
+  @RequirePermission('catalog', 'create')
+  addKind(@Body(new ZodValidationPipe(createServiceKindSchema)) body: z.output<typeof createServiceKindSchema>) {
+    return this.catalog.addKind(body);
   }
 
   @Patch('kinds/:code')

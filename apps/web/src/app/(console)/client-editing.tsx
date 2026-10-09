@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  parseCoordinates,
   updateOrganizationSchema,
   updateOutletSchema,
   updateOwnerSchema,
@@ -459,6 +460,10 @@ export function OutletEditing({
     const form = event.currentTarget;
     const values = formValues(form);
     const found = checkAgainst(updateOutletSchema, values);
+    // The location is typed or pasted as one piece of text ("17.4326, 78.4071", or a maps link). Empty clears it.
+    const typed = (values.location ?? "").trim();
+    const place = typed ? parseCoordinates(typed) : null;
+    if (typed && !place) found.location = "Enter the two numbers, for example 17.4326, 78.4071";
     setErrors(found);
     if (hasErrors(found)) return focusFirstError(form, found);
 
@@ -472,6 +477,8 @@ export function OutletEditing({
           city: values.city,
           pincode: values.pincode,
           fssaiNumber: values.fssaiNumber,
+          latitude: place?.latitude ?? null,
+          longitude: place?.longitude ?? null,
         }),
       );
       setEditing(false);
@@ -556,6 +563,15 @@ export function OutletEditing({
           error={errors.pincode}
         />
         <Field label="FSSAI licence number" name="fssaiNumber" maxLength={20} defaultValue={outlet.fssaiNumber ?? ""} error={errors.fssaiNumber} />
+        <Field
+          label="Location of the kitchen"
+          name="location"
+          maxLength={200}
+          defaultValue={outlet.latitude !== null && outlet.longitude !== null ? `${outlet.latitude}, ${outlet.longitude}` : ""}
+          wrapperClassName="sm:col-span-3"
+          hint="Latitude and longitude, for example 17.4326, 78.4071. In Google Maps on a computer, right-click the kitchen and click the two numbers at the top of the menu to copy them, then paste here. A maps link containing the numbers also works. Used only to check where proof photos were taken; leave empty if not known."
+          error={errors.location}
+        />
         <p className="text-sm text-muted sm:col-span-3">
           The new details show on reports made from now on. Report PDFs already made keep the details they were made with. The
           restaurant code does not change with the name.
@@ -576,6 +592,23 @@ export function OutletEditing({
           plan visits. Everything on record is kept.
         </p>
       )}
+      <p className="text-muted">
+        {outlet.latitude !== null && outlet.longitude !== null ? (
+          <>
+            Location of the kitchen: {outlet.latitude.toFixed(5)}, {outlet.longitude.toFixed(5)} ·{" "}
+            <a
+              href={`https://www.google.com/maps?q=${outlet.latitude},${outlet.longitude}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-primary hover:underline"
+            >
+              See on a map
+            </a>
+          </>
+        ) : (
+          "Location of the kitchen: not set, so where proof photos were taken cannot be checked. Add it under Change details, or the Supervisor can save it from the kitchen during a visit."
+        )}
+      </p>
       <div className="flex flex-wrap items-center gap-x-1">
         <Button variant="link" className="-ml-2" disabled={busy !== null} aria-label={`Change the details of ${outlet.name}`} onClick={() => setEditing(true)}>
           Change details

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { LocalizedText } from "./checklists.js";
+import type { PhotoFlagDto } from "./photo-integrity.js";
 
 // Scored inspections: an ECCS Supervisor audits an outlet against an FSSAI-style
 // checklist and the outlet gets a scored report. ECCS approves the report before
@@ -228,6 +229,8 @@ export interface InspectionPhotoDto {
   id: string;
   /** Relative to the API base URL. Valid for a limited time. */
   path: string;
+  /** Why the photo is doubtful, if it is. Only ECCS admins are told; left out for everyone else. */
+  flags?: PhotoFlagDto[];
 }
 
 export interface InspectionCheckDto {

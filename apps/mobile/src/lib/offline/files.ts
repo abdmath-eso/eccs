@@ -1,4 +1,4 @@
-import type { UploadFile } from '@eccs/api-client';
+import type { PhotoFactsInput, UploadFile } from '@eccs/api-client';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
@@ -94,7 +94,14 @@ const photoFile = (id: string) => new File(folder(), `photo-${safe(id)}.jpg`);
  * Keeps a photo that was just taken until the server has it. `id` is the id
  * the photo will have on the server.
  */
-export async function keepPhoto(id: string, photo: { uri: string; file: UploadFile }): Promise<void> {
+export async function keepPhoto(
+  id: string,
+  photo: { uri: string; file: UploadFile },
+  /** For a proof photo: where the phone was and how the picture was made. Kept beside the photo and sent with it. */
+  facts?: PhotoFactsInput,
+): Promise<void> {
+  // Written first and never allowed to fail the save: the photo matters, the facts are extra.
+  if (facts) await writeJson(factsName(id), facts).catch(() => undefined);
   if (!isWeb) {
     const kept = photoFile(id);
     if (kept.exists) kept.delete();
@@ -139,8 +146,16 @@ export async function openKeptPhoto(id: string): Promise<UploadFile | null> {
   return dataUrl ? (await fetch(dataUrl)).blob() : null;
 }
 
+const factsName = (id: string) => `photo-facts-${id}`;
+
+/** What was noted about a kept photo when it was taken (see keepPhoto). Undefined if nothing was. */
+export async function keptPhotoFacts(id: string): Promise<PhotoFactsInput | undefined> {
+  return (await readJson<PhotoFactsInput>(factsName(id))) ?? undefined;
+}
+
 /** Removes a kept photo once the server has it, or it is no longer wanted. */
 export function discardPhoto(id: string) {
+  removeJson(factsName(id));
   try {
     if (!isWeb) {
       const kept = photoFile(id);

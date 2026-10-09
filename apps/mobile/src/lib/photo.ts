@@ -1,8 +1,10 @@
-import type { UploadFile } from '@eccs/api-client';
+import type { PhotoFactsInput, UploadFile } from '@eccs/api-client';
 import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
+
+import { preparePlace, readPlace, warmUpPlace } from './photo-place';
 
 /** Thrown when the person has not allowed the app to use the camera. */
 export class CameraPermissionError extends Error {}
@@ -58,6 +60,30 @@ export async function chooseProfilePhoto(source: 'camera' | 'gallery'): Promise<
   const file: UploadFile =
     Platform.OS === 'web' ? await (await fetch(saved.uri)).blob() : (new File(saved.uri) as unknown as Blob);
   return { file, uri: saved.uri };
+}
+
+/** A proof photo with what the phone knows about it: where it was taken (if allowed) and that the camera took it. */
+export interface EvidencePhoto extends ProofPhoto {
+  facts: PhotoFactsInput;
+}
+
+/**
+ * Takes a photo that is evidence of something: a checklist check, a visit's
+ * before or after photo, an inspection finding. Always the camera, at this
+ * moment; there is no way to pick an older picture on a phone. With the
+ * person's permission the phone's position is noted too (see lib/photo-place.ts).
+ *
+ * The browser preview cannot open a camera and picks a file instead; such a
+ * photo is marked as picked from files, and ECCS sees that mark.
+ */
+export async function takeEvidencePhoto(): Promise<EvidencePhoto | null> {
+  // The first time, asks whether the place may be added. Never blocks the photo.
+  await preparePlace();
+  // Start looking for the position now; the answer is collected after the photo is taken.
+  warmUpPlace();
+  const photo = await takeProofPhoto();
+  if (!photo) return null;
+  return { ...photo, facts: { place: await readPlace(), source: Platform.OS === 'web' ? 'FILE' : 'CAMERA' } };
 }
 
 export async function takeProofPhoto(options: { maxWidth?: number } = {}): Promise<ProofPhoto | null> {

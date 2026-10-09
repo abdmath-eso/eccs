@@ -18,12 +18,12 @@ import { UnsentMark } from '@/components/unsent-mark';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { formatDateTime, formatDayLong } from '@/lib/format';
+import { formatDateTime, formatDayLong, formatDayShort } from '@/lib/format';
 import { checklistCache } from '@/lib/offline/checklist-cache';
 import { keepPhoto, keptPhotoUri, newId } from '@/lib/offline/files';
 import { isNoSignal, outbox, useOutbox } from '@/lib/offline/outbox';
 import { applyPending, type NewOp, type RunView } from '@/lib/offline/outbox-core';
-import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
+import { CameraPermissionError, takeEvidencePhoto } from '@/lib/photo';
 import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
 
@@ -371,7 +371,7 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
     setError(null);
     let photo;
     try {
-      photo = await takeProofPhoto();
+      photo = await takeEvidencePhoto();
     } catch (e) {
       setError({ at: 'photo', message: t(e instanceof CameraPermissionError ? 'error.camera' : 'error.generic') });
       return;
@@ -384,7 +384,8 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
     setKeeping(true);
     try {
       // The camera saves into a folder the phone may clear; keep our own copy until it is sent.
-      await keepPhoto(id, photo);
+      // With it go the facts noted at that moment (where the phone was, if allowed), sent when the photo is.
+      await keepPhoto(id, photo, photo.facts);
       await save(
         {
           kind: 'answer',
@@ -503,6 +504,15 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
       {flagged && <ErrorText message={t('checklists.stillToDo')} />}
 
       {photoUri && <ProofPhoto uri={photoUri} label={localize(item.label, language)} stamp={stamp} />}
+      {/* Only the Owner and Manager are sent this: the photo matches one used before. A note to look, not a verdict. */}
+      {response?.photoRepeatOf && !localPhotoId && (
+        <View style={styles.repeat}>
+          <Ionicons name="copy-outline" size={18} color={theme.textSecondary} />
+          <ThemedText type="small" themeColor="textSecondary" style={styles.repeatText}>
+            {t('checklists.photoRepeat', { date: formatDayShort(response.photoRepeatOf, language) })}
+          </ThemedText>
+        </View>
+      )}
       {error?.at === 'photo' && <ErrorText message={error.message} />}
 
       {editable && !tickOnly && (
@@ -627,6 +637,8 @@ const styles = StyleSheet.create({
   mark: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   choices: { flexDirection: 'row', gap: Spacing.two },
   choice: { flex: 1 },
+  repeat: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one },
+  repeatText: { flex: 1 },
   tickRow: {
     flexDirection: 'row',
     alignItems: 'center',

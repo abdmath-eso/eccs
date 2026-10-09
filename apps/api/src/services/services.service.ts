@@ -6,6 +6,9 @@ import {
   BOOKING_MAX_DAYS_AHEAD,
   can,
   isEccsRole,
+  readPhotoFlags,
+  toServiceCategory,
+  VISIT_MAX_DOCUMENTS,
   VISIT_MAX_PHOTOS,
   VISIT_SLOTS,
   type BookingDto,
@@ -13,6 +16,7 @@ import {
   type ServiceCatalogItemDto,
   type ServiceTypeDto,
   type SupervisorDto,
+  type VisitDocumentDto,
   type VisitDto,
   type VisitPhotoKind,
   type VisitSlot,
@@ -26,6 +30,7 @@ import { indiaDate } from '../checklists/checklists.service.js';
 import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { sniffFile } from '../storage/attachments.controller.js';
+import { PhotoIntegrityService, type PhotoFacts } from '../storage/photo-integrity.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { ReportPdfService } from './report-pdf.service.js';
 
@@ -37,7 +42,16 @@ const fromDbDate = (date: Date) => date.toISOString().slice(0, 10);
 const toSlot = (slot: string | null) => VISIT_SLOTS.find((known) => known === slot) ?? null;
 
 const outletSelect = {
-  select: { id: true, name: true, address: true, city: true, organizationId: true, organization: { select: { name: true } } },
+  select: {
+    id: true,
+    name: true,
+    address: true,
+    city: true,
+    organizationId: true,
+    organization: { select: { name: true } },
+    // Only to know whether the kitchen's location has been set yet (see canSetOutletLocation).
+    latitude: true,
+  },
 } as const;
 
 const bookingInclude = {
@@ -48,7 +62,7 @@ const bookingInclude = {
 
 const visitInclude = {
   outlet: outletSelect,
-  serviceType: { select: { code: true, name: true } },
+  serviceType: { select: { code: true, name: true, partnerDelivered: true } },
   supervisor: { select: { id: true, name: true } },
   serviceReport: { select: { number: true } },
   signOff: { select: { signedAt: true } },
@@ -60,13 +74,15 @@ const visitDetailInclude = {
     select: {
       code: true,
       name: true,
+      partnerDelivered: true,
       checklistTemplate: {
         select: {
           // Retired tasks are read too: a visit that answered one keeps showing it (see visitTasks).
           items: {
             where: { outletId: null },
             orderBy: { position: 'asc' },
-            select: { id: true, label: true, isActive: true },
+            // `type` NUMBER marks a task that records a meter reading; `maxValue` is its limit.
+            select: { id: true, label: true, isActive: true, type: true, maxValue: true },
           },
         },
       },
@@ -114,6 +130,7 @@ export class ServicesService {
     private readonly notify: NotifyService,
     private readonly certificates: CertificatesService,
     private readonly billing: BillingService,
+    private readonly integrity: PhotoIntegrityService,
   ) {}
 
   private get db() {
@@ -125,12 +142,14 @@ export class ServicesService {
   async catalog(): Promise<ServiceCatalogItemDto[]> {
     const items = await this.db.serviceCatalogItem.findMany({
       where: { isActive: true, serviceType: { isActive: true } },
-      include: { serviceType: { select: { code: true } } },
+      include: { serviceType: { select: { code: true, category: true, partnerDelivered: true } } },
       orderBy: { pricePaise: 'asc' },
     });
     return items.map((item) => ({
       id: item.id,
       serviceCode: item.serviceType.code,
+      category: toServiceCategory(item.serviceType.category),
+      partnerDelivered: item.serviceType.partnerDelivered,
       name: item.name as LocalizedText,
       description: (item.description as LocalizedText | null) ?? null,
       pricePaise: item.pricePaise,
@@ -323,7 +342,8 @@ export class ServicesService {
   }
 
   async getVisit(user: AuthUser, visitId: string): Promise<VisitDto> {
-    return this.toDto(user, await this.requireVisit(user, visitId));
+    const visit = await this.requireVisit(user, visitId);
+    return this.toDto(user, visit, await this.visitDocuments(user, visit));
   }
 
   /** ECCS puts a visit in the diary without a request from the restaurant. */
@@ -449,13 +469,25 @@ export class ServicesService {
     user: AuthUser,
     visitId: string,
     itemId: string,
-    input: { done: boolean; note?: string | undefined },
+    input: { done: boolean; note?: string | undefined; value?: number | undefined },
   ): Promise<VisitDto> {
     const visit = await this.requireInProgress(user, visitId);
     const items = visitTasks(visit);
-    if (!items.some((item) => item.id === itemId)) throw new NotFoundException('That task is not part of this service');
+    const item = items.find((entry) => entry.id === itemId);
+    if (!item) throw new NotFoundException('That task is not part of this service');
 
-    const answer = { valueBool: input.done, note: input.note || null, capturedAt: new Date() };
+    // A task that records a meter reading (the frying oil test) is done only with its number.
+    // Not done, with a reason, is still allowed: a kitchen may have fewer fryers than the list.
+    const isReading = item.type === 'NUMBER';
+    if (isReading && input.done && input.value === undefined) throw new BadRequestException('Enter the reading');
+    if (!isReading && input.value !== undefined) throw new BadRequestException('This task does not take a reading');
+
+    const answer = {
+      valueBool: input.done,
+      valueNumber: isReading && input.done ? input.value! : null,
+      note: input.note || null,
+      capturedAt: new Date(),
+    };
     await this.db.jobTaskResponse.upsert({
       where: { jobId_itemId: { jobId: visit.id, itemId } },
       create: { jobId: visit.id, itemId, ...answer },
@@ -467,12 +499,13 @@ export class ServicesService {
   async updateRecord(
     user: AuthUser,
     visitId: string,
-    input: { technicianNames?: string[] | undefined; notes?: string | undefined },
+    input: { technicianNames?: string[] | undefined; notes?: string | undefined; partnerName?: string | undefined },
   ): Promise<VisitDto> {
     const visit = await this.requireInProgress(user, visitId);
     await this.db.job.update({
       where: { id: visit.id },
       data: {
+        ...(input.partnerName !== undefined && { partnerName: input.partnerName || null }),
         ...(input.technicianNames !== undefined && { technicianNames: [...new Set(input.technicianNames)] }),
         ...(input.notes !== undefined && { notes: input.notes || null }),
       },
@@ -487,6 +520,8 @@ export class ServicesService {
     file: { buffer: Buffer; size: number },
     /** Chosen by the phone: the photo's id, so sending it twice stores it once, and when it was taken. */
     phone: { id?: string | undefined; capturedAt?: string | undefined } = {},
+    /** What the phone said about the photo besides the picture: where it was, and whether the camera took it. */
+    facts?: PhotoFacts,
   ): Promise<VisitDto> {
     if (phone.id) {
       const earlier = await this.db.attachment.findUnique({ where: { id: phone.id }, select: { jobId: true } });
@@ -518,8 +553,24 @@ export class ServicesService {
         sizeBytes: file.size,
         capturedAt: phoneTime(phone.capturedAt, now),
         uploadedById: user.id,
+        ...this.integrity.captureColumns({ buffer: file.buffer, mimeType: image.mimeType }, phone.capturedAt, now, facts),
       },
     });
+    // Look at the photo once (time, place, used before). This only marks it for ECCS; it cannot refuse it.
+    await this.integrity.assess(id);
+    return this.getVisit(user, visit.id);
+  }
+
+  /**
+   * Saves where the kitchen is, read by the phone of the person recording a visit there.
+   * Only while the visit is under way, and only when ECCS has not set the outlet's location
+   * already: a location set in the office is changed in the office.
+   */
+  async setOutletLocation(user: AuthUser, visitId: string, place: { latitude: number; longitude: number }): Promise<VisitDto> {
+    const visit = await this.requireInProgress(user, visitId);
+    if (visit.outlet.latitude === null) {
+      await this.db.outlet.update({ where: { id: visit.outletId }, data: { latitude: place.latitude, longitude: place.longitude } });
+    }
     return this.getVisit(user, visit.id);
   }
 
@@ -531,6 +582,115 @@ export class ServicesService {
     await this.db.attachment.delete({ where: { id: photo.id } });
     await this.storage.remove(photo.storageKey).catch(() => undefined);
     return this.getVisit(user, visit.id);
+  }
+
+  // ───────────────────────── Result documents ─────────────────────────
+
+  /**
+   * Attaches a result document to a visit: the lab's report for a water test,
+   * the list of staff seen at a medical camp, a training attendance sheet, the
+   * agency's audit report. It is filed in the outlet's documents under
+   * "report", exactly where the service report PDF goes, so the restaurant
+   * finds it with its other papers.
+   *
+   * The Supervisor can attach one while recording the visit. ECCS's office can
+   * attach one from check-in onwards and at any time afterwards, because a
+   * lab's report or a certificate arrives days after the visit is finished.
+   */
+  async addDocument(
+    user: AuthUser,
+    visitId: string,
+    input: { title: string; partnerName?: string | undefined },
+    file: { buffer: Buffer; size: number },
+  ): Promise<VisitDto> {
+    const visit = await this.requireVisit(user, visitId);
+    if (!this.mayAttachDocument(user, visit)) {
+      if (!this.mayRecord(user, visit)) throw new ForbiddenException('This visit is not assigned to you');
+      throw new ConflictException(
+        visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED'
+          ? 'Check in at the outlet first'
+          : 'Only the ECCS office can add a document once the visit is finished',
+      );
+    }
+    const kind = sniffFile(file.buffer, true);
+    if (!kind) throw new BadRequestException('Only PDF, JPEG, PNG or WebP files are accepted');
+    const already = await this.db.document.count({ where: { attachment: { jobId: visit.id, kind: 'DOCUMENT' } } });
+    if (already >= VISIT_MAX_DOCUMENTS) {
+      throw new BadRequestException(`A visit can have up to ${VISIT_MAX_DOCUMENTS} documents`);
+    }
+
+    const id = randomUUID();
+    const storageKey = `outlets/${visit.outletId}/visit-documents/${id}.${kind.extension}`;
+    await this.storage.put(storageKey, file.buffer, kind.mimeType);
+    await this.db.$transaction([
+      this.db.attachment.create({
+        data: {
+          id,
+          outletId: visit.outletId,
+          jobId: visit.id,
+          kind: 'DOCUMENT',
+          storageKey,
+          mimeType: kind.mimeType,
+          sizeBytes: file.size,
+          capturedAt: new Date(),
+          uploadedById: user.id,
+        },
+      }),
+      this.db.document.create({
+        data: { outletId: visit.outletId, category: 'report', title: input.title, attachmentId: id, uploadedById: user.id },
+      }),
+      // Naming the partner with the document also records it on the visit.
+      ...(input.partnerName
+        ? [this.db.job.update({ where: { id: visit.id }, data: { partnerName: input.partnerName } })]
+        : []),
+    ]);
+    // The same notice the restaurant gets for any document ECCS files for it.
+    await this.notify.documentChanged(user, visit.outletId, input.title);
+    return this.getVisit(user, visit.id);
+  }
+
+  /** Takes a wrongly attached result document off the visit and out of the outlet's documents. ECCS's office only. */
+  async removeDocument(user: AuthUser, visitId: string, documentId: string): Promise<VisitDto> {
+    const visit = await this.requireVisit(user, visitId);
+    if (!this.isEccsAdmin(user)) throw new ForbiddenException('Only ECCS can remove a document from a visit');
+    const document = await this.db.document.findFirst({
+      where: { id: documentId, attachment: { jobId: visit.id, kind: 'DOCUMENT' } },
+      include: { attachment: { select: { id: true, storageKey: true } } },
+    });
+    // Already gone (the same removal sent twice): the visit is as the person wanted it.
+    if (!document) return this.getVisit(user, visit.id);
+    await this.db.$transaction([
+      this.db.document.delete({ where: { id: document.id } }),
+      this.db.attachment.delete({ where: { id: document.attachment.id } }),
+    ]);
+    await this.storage.remove(document.attachment.storageKey).catch(() => undefined);
+    return this.getVisit(user, visit.id);
+  }
+
+  /** ECCS's office from check-in onwards; the visit's own Supervisor while recording it. */
+  private mayAttachDocument(user: AuthUser, visit: VisitRow): boolean {
+    if (visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED' || visit.status === 'CANCELLED') return false;
+    if (!this.mayRecord(user, visit)) return false;
+    return this.isEccsAdmin(user) || visit.status === 'IN_PROGRESS';
+  }
+
+  /** The visit's result documents, for people who may read the outlet's documents (not the Head Chef). */
+  private async visitDocuments(user: AuthUser, visit: VisitRow): Promise<VisitDocumentDto[]> {
+    const mayRead =
+      this.mayRecord(user, visit) ||
+      can(user.memberships, 'documents', 'read', { organizationId: visit.outlet.organizationId, outletId: visit.outletId });
+    if (!mayRead) return [];
+    const documents = await this.db.document.findMany({
+      where: { attachment: { jobId: visit.id, kind: 'DOCUMENT' } },
+      include: { attachment: { select: { id: true, mimeType: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    return documents.map((document) => ({
+      id: document.id,
+      title: document.title,
+      file: { path: this.storage.signedPath(document.attachment.id), mimeType: document.attachment.mimeType },
+      createdAt: document.createdAt.toISOString(),
+    }));
   }
 
   /**
@@ -774,7 +934,7 @@ export class ServicesService {
     return new Map(people.map((person) => [person.id, person.name]));
   }
 
-  private toDto(user: AuthUser, visit: VisitDetailRow): VisitDto {
+  private toDto(user: AuthUser, visit: VisitDetailRow, documents: VisitDocumentDto[]): VisitDto {
     const answers = new Map(visit.taskResponses.map((response) => [response.itemId, response]));
     const ahead = visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED';
     const inReview = visit.status === 'APPROVED' && !visit.reviewedAt;
@@ -792,12 +952,15 @@ export class ServicesService {
           label: item.label as LocalizedText,
           done: answer?.valueBool ?? null,
           note: answer?.note ?? null,
+          reading: item.type === 'NUMBER' ? { value: answer?.valueNumber ?? null, limit: item.maxValue } : null,
         };
       }),
       photos: visit.attachments.map((photo) => ({
         id: photo.id,
         kind: photo.kind as VisitPhotoKind,
         path: this.storage.signedPath(photo.id),
+        // Reasons for doubt are for the ECCS office only: not the restaurant, and not the Supervisor who took the photo.
+        ...(this.isEccsAdmin(user) && photo.doubtful && { flags: readPhotoFlags(photo.integrityFlags) }),
       })),
       signOff: visit.signOff
         ? {
@@ -813,8 +976,13 @@ export class ServicesService {
       correctionNote: forRestaurant ? null : visit.reviewNote,
       canReview: inReview && this.isEccsAdmin(user),
       canManage: ahead && this.isEccsAdmin(user),
+      ...(visit.status === 'IN_PROGRESS' && visit.outlet.latitude === null && this.mayRecord(user, visit) && { canSetOutletLocation: true }),
       certificate:
         visit.certificates[0] && can(user.memberships, 'reports', 'read') ? toVisitCertificate(visit.certificates[0]) : null,
+      partnerDelivered: visit.serviceType.partnerDelivered,
+      partnerName: visit.partnerName,
+      documents,
+      canAttachDocument: this.mayAttachDocument(user, visit),
     };
   }
 }

@@ -1,5 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@eccs/db';
+import {
+  serviceCodeFromName,
+  toServiceCategory,
+  type ServiceCategory,
+} from '@eccs/shared';
 import type {
   CatalogAdminDto,
   CatalogAdminItemDto,
@@ -16,7 +21,7 @@ const kindInclude = {
         // ECCS's own tasks only, in the order the Supervisor sees them. Retired ones are included.
         where: { outletId: null },
         orderBy: [{ position: 'asc' }, { id: 'asc' }],
-        select: { id: true, label: true, isActive: true, _count: { select: { jobTaskResponses: true } } },
+        select: { id: true, label: true, isActive: true, type: true, maxValue: true, _count: { select: { jobTaskResponses: true } } },
       },
     },
   },
@@ -166,6 +171,51 @@ export class CatalogService {
   // ───────────────────────── Kinds of service ─────────────────────────
 
   /**
+   * Adds a brand-new kind of service. Its code is made from the English name
+   * and never changes afterwards, because plans, visits and invoices refer to
+   * it. It starts with an empty task list and nothing bookable: both are
+   * added on the Catalogue page once the kind exists, so until then
+   * restaurants see nothing new.
+   */
+  async addKind(input: {
+    name: string;
+    category: ServiceCategory;
+    sacCode: string;
+    gstRatePercent: number;
+    partnerDelivered?: boolean | undefined;
+    issuesCertificate?: boolean | undefined;
+    certificateValidDays?: number | undefined;
+  }): Promise<CatalogAdminDto> {
+    const code = serviceCodeFromName(input.name);
+    const clash = await this.db.serviceType.findFirst({
+      where: { OR: [{ code }, { name: { path: ['en'], equals: input.name } }] },
+      select: { id: true },
+    });
+    if (clash) throw new ConflictException('There is already a kind of service with that name');
+    try {
+      await this.db.serviceType.create({
+        data: {
+          code,
+          name: { en: input.name },
+          category: input.category,
+          sacCode: input.sacCode,
+          gstRatePercent: input.gstRatePercent,
+          partnerDelivered: input.partnerDelivered ?? false,
+          issuesCertificate: input.issuesCertificate ?? false,
+          certificateValidDays: input.certificateValidDays ?? null,
+        },
+      });
+    } catch (error) {
+      // Two people added the same kind at the same moment.
+      if ((error as { code?: string }).code === 'P2002') {
+        throw new ConflictException('There is already a kind of service with that name');
+      }
+      throw error;
+    }
+    return this.overview();
+  }
+
+  /**
    * Renames a kind of service or switches it off or on. While a kind is off,
    * its services are not offered, ECCS cannot add a visit of that kind, and
    * plans stop creating visits of it. Visits already in the diary stay.
@@ -177,6 +227,10 @@ export class CatalogService {
       isActive?: boolean | undefined;
       issuesCertificate?: boolean | undefined;
       certificateValidDays?: number | undefined;
+      category?: ServiceCategory | undefined;
+      sacCode?: string | undefined;
+      gstRatePercent?: number | undefined;
+      partnerDelivered?: boolean | undefined;
     },
   ): Promise<CatalogAdminDto> {
     const kind = await this.requireKind(code);
@@ -193,6 +247,12 @@ export class CatalogService {
         ...(input.isActive !== undefined && { isActive: input.isActive }),
         ...(input.issuesCertificate !== undefined && { issuesCertificate: input.issuesCertificate }),
         ...(input.certificateValidDays !== undefined && { certificateValidDays: input.certificateValidDays }),
+        ...(input.category !== undefined && { category: input.category }),
+        // The tax code and rate are copied onto each invoice when it is raised, so a
+        // change here applies from the next invoice and never alters one already issued.
+        ...(input.sacCode !== undefined && { sacCode: input.sacCode }),
+        ...(input.gstRatePercent !== undefined && { gstRatePercent: input.gstRatePercent }),
+        ...(input.partnerDelivered !== undefined && { partnerDelivered: input.partnerDelivered }),
       },
     });
     return this.overview();
@@ -308,6 +368,7 @@ function toKindDto(kind: KindRow): ServiceKindAdminDto {
     tasks: (kind.checklistTemplate?.items ?? []).map((task) => ({
       id: task.id,
       label: task.label as LocalizedText,
+      readingLimit: task.type === 'NUMBER' ? task.maxValue : null,
       isActive: task.isActive,
       answerCount: task._count.jobTaskResponses,
     })),
@@ -316,5 +377,9 @@ function toKindDto(kind: KindRow): ServiceKindAdminDto {
     issuesCertificate: kind.issuesCertificate,
     certificateValidDays: kind.certificateValidDays,
     certificateCount: kind._count.certificates,
+    category: toServiceCategory(kind.category),
+    sacCode: kind.sacCode,
+    gstRatePercent: kind.gstRatePercent,
+    partnerDelivered: kind.partnerDelivered,
   };
 }

@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { checklistCache } from './checklist-cache';
 import { fieldCache } from './field-cache';
 import type { FieldOp, FieldState } from './field-ops';
-import { discardPhoto, newId, openKeptPhoto, readJson, writeJson } from './files';
+import { discardPhoto, keptPhotoFacts, newId, openKeptPhoto, readJson, writeJson } from './files';
 import { Outbox, type Failure, type OutboxFile } from './outbox-core';
 
 // The app's one outbox: the rules in outbox-core.ts joined to this phone's
@@ -44,17 +44,29 @@ async function sendField(op: FieldOp): Promise<void> {
       return fieldCache.putVisit(await api.visits.checkIn(id, { at: op.at }));
     case 'visitTask':
       return fieldCache.putVisit(
-        await api.visits.answerTask(id, op.itemId, { done: op.done, ...(op.note && { note: op.note }) }),
+        await api.visits.answerTask(id, op.itemId, {
+          done: op.done,
+          ...(op.note && { note: op.note }),
+          ...(op.value !== undefined && { value: op.value }),
+        }),
       );
     case 'visitRecord':
       return fieldCache.putVisit(
-        await api.visits.updateRecord(id, { technicianNames: op.technicianNames, notes: op.notes }),
+        await api.visits.updateRecord(id, {
+          technicianNames: op.technicianNames,
+          notes: op.notes,
+          ...(op.partnerName !== undefined && { partnerName: op.partnerName }),
+        }),
       );
     case 'visitPhoto': {
       const file = await openKeptPhoto(op.photoId);
       if (!file) throw new MissingPhotoError();
       return fieldCache.putVisit(
-        await api.visits.addPhoto(id, op.photoKind, file, { id: op.photoId, capturedAt: op.capturedAt }),
+        await api.visits.addPhoto(id, op.photoKind, file, {
+          id: op.photoId,
+          capturedAt: op.capturedAt,
+          facts: await keptPhotoFacts(op.photoId),
+        }),
       );
     }
     case 'visitPhotoRemove':
@@ -86,7 +98,11 @@ async function sendField(op: FieldOp): Promise<void> {
   } else if (op.kind === 'inspPhoto') {
     const file = await openKeptPhoto(op.photoId);
     if (!file) throw new MissingPhotoError();
-    result = await api.inspections.addPhoto(id, op.itemId, file, { id: op.photoId, capturedAt: op.capturedAt });
+    result = await api.inspections.addPhoto(id, op.itemId, file, {
+      id: op.photoId,
+      capturedAt: op.capturedAt,
+      facts: await keptPhotoFacts(op.photoId),
+    });
   } else {
     result = await api.inspections.removePhoto(id, op.photoId, op.itemId);
   }
@@ -127,7 +143,14 @@ export const outbox = new Outbox({
       if (!file || !op.attachmentId) throw new MissingPhotoError();
       // The id was chosen on the phone, so sending the same photo again stores it once.
       // `capturedAt` is when the photo was taken, however much later it is sent.
-      await api.attachments.upload({ outletId: op.outletId, file, id: op.attachmentId, capturedAt: op.capturedAt });
+      // The facts noted when it was taken (where the phone was, that the camera took it) go with it.
+      await api.attachments.upload({
+        outletId: op.outletId,
+        file,
+        id: op.attachmentId,
+        capturedAt: op.capturedAt,
+        facts: await keptPhotoFacts(op.attachmentId),
+      });
     },
     answer: (op) =>
       api.checklists.answer(op.runId, op.itemId, {

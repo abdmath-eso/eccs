@@ -15,10 +15,13 @@ import {
   type ChecklistSuggestionDto,
   type LocalizedText,
   type OutletChecklistDto,
+  isEccsRole,
+  readPhotoFlags,
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
 import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { PhotoIntegrityService } from '../storage/photo-integrity.service.js';
 import { StorageService } from '../storage/storage.service.js';
 
 const MAX_HISTORY_DAYS = 31;
@@ -110,6 +113,7 @@ export class ChecklistsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly notify: NotifyService,
+    private readonly integrity: PhotoIntegrityService,
   ) {}
 
   private get db() {
@@ -138,13 +142,13 @@ export class ChecklistsService {
       where: { outletId, date: toDbDate(today), outletChecklistId: { in: usable.map((list) => list.id) } },
       include: runInclude,
     });
-    const dtos = await this.toDtos(runs, today);
+    const dtos = await this.toDtos(runs, today, user);
     return dtos.sort(byDueTime);
   }
 
   async getRun(user: AuthUser, runId: string): Promise<ChecklistRunDto> {
     const run = await this.requireRun(user, 'read', runId);
-    return (await this.toDtos([run], indiaDate()))[0]!;
+    return (await this.toDtos([run], indiaDate(), user))[0]!;
   }
 
   /**
@@ -203,6 +207,9 @@ export class ChecklistsService {
         await tx.checklistRun.update({ where: { id: runId }, data: { status: 'IN_PROGRESS' } });
       }
     });
+    // The photo has just become the proof for this check: look at it once (time, place, used before).
+    // This only ever marks the photo for ECCS; it cannot refuse the answer.
+    if (photo && photo.checklistResponseId === null) await this.integrity.assess(photo.id);
 
     return this.getRun(user, runId);
   }
@@ -576,7 +583,23 @@ export class ChecklistsService {
     }
   }
 
-  private async toDtos(runs: RunRow[], today: string): Promise<ChecklistRunDto[]> {
+  /**
+   * The day of the earlier photo, when this proof photo is the same as (or all but the same as) one
+   * used before. Told only to the restaurant's own Owner and Manager, the people who review their
+   * staff's checklists (the "approve" right), as a neutral note. Not to the Head Chef, and not to
+   * ECCS through this screen: ECCS sees counts and reasons on its monitoring board instead.
+   */
+  private photoRepeat(user: AuthUser, run: RunRow, flags: unknown): string | undefined {
+    const reviewer = user.memberships.some(
+      (membership) =>
+        !isEccsRole(membership.role) &&
+        can([membership], 'checklists', 'approve', { organizationId: run.outlet.organizationId, outletId: run.outletId }),
+    );
+    if (!reviewer) return undefined;
+    return readPhotoFlags(flags).find((flag) => flag.code === 'SAME_FILE' || flag.code === 'LOOKS_SAME')?.earlierOn;
+  }
+
+  private async toDtos(runs: RunRow[], today: string, user: AuthUser): Promise<ChecklistRunDto[]> {
     // Names of everyone who reviewed a run or took a proof photo, in one query.
     const personIds = new Set<string>();
     for (const run of runs) {
@@ -622,6 +645,7 @@ export class ChecklistsService {
           const response = responses.get(item.id);
           const photo = response?.attachments[0];
           const answeredBy = photo?.uploadedById ?? response?.answeredById;
+          const photoRepeatOf = photo ? this.photoRepeat(user, run, photo.integrityFlags) : undefined;
           return {
             id: item.id,
             label: item.label as LocalizedText,
@@ -634,6 +658,7 @@ export class ChecklistsService {
                   capturedAt: response.capturedAt.toISOString(),
                   takenByName: answeredBy ? (personName.get(answeredBy) ?? null) : null,
                   photoPath: photo ? this.storage.signedPath(photo.id) : null,
+                  ...(photoRepeatOf && { photoRepeatOf }),
                 }
               : null,
           };

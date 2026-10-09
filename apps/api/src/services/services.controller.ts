@@ -15,10 +15,12 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  addVisitDocumentSchema,
   answerVisitTaskSchema,
   confirmBookingSchema,
   createBookingSchema,
   createVisitSchema,
+  outletLocationSchema,
   setOutletPlanSchema,
   returnReportSchema,
   signOffVisitSchema,
@@ -30,6 +32,7 @@ import { z } from 'zod';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { readPhotoFacts } from '../storage/photo-integrity.service.js';
 import { PlansService } from './plans.service.js';
 import { ServicesService } from './services.service.js';
 
@@ -237,13 +240,48 @@ export class ServicesController {
     const fields = photoFieldsSchema.safeParse(body);
     if (!fields.success) throw new BadRequestException('Say whether the photo is from before or after the work');
     if (!file) throw new BadRequestException('A photo is required');
-    return this.services.addPhoto(user, id, fields.data.kind, file, fields.data);
+    return this.services.addPhoto(user, id, fields.data.kind, file, fields.data, readPhotoFacts(body));
+  }
+
+  /** The person recording the visit saves where the kitchen is, read by their phone on the spot. */
+  @Post('visits/:id/outlet-location')
+  @HttpCode(200)
+  @RequirePermission('jobs', 'update')
+  setOutletLocation(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(outletLocationSchema)) body: z.output<typeof outletLocationSchema>,
+  ) {
+    return this.services.setOutletLocation(user, id, body);
   }
 
   @Delete('visits/:id/photos/:photoId')
   @RequirePermission('jobs', 'update')
   removePhoto(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('photoId') photoId: string) {
     return this.services.removePhoto(user, id, photoId);
+  }
+
+  /** A result document for the visit (a lab report, an attendance sheet…): a PDF or a picture, with what it is. */
+  @Post('visits/:id/documents')
+  @HttpCode(200)
+  @RequirePermission('jobs', 'update')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }))
+  addDocument(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @UploadedFile() file: { buffer: Buffer; size: number } | undefined,
+    @Body() body: unknown,
+  ) {
+    const fields = addVisitDocumentSchema.safeParse(body);
+    if (!fields.success) throw new BadRequestException(fields.error.issues[0]?.message ?? 'Say what the document is');
+    if (!file) throw new BadRequestException('Choose a file');
+    return this.services.addDocument(user, id, fields.data, file);
+  }
+
+  @Delete('visits/:id/documents/:documentId')
+  @RequirePermission('jobs', 'create')
+  removeDocument(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('documentId') documentId: string) {
+    return this.services.removeDocument(user, id, documentId);
   }
 
   @Post('visits/:id/complete')

@@ -150,6 +150,9 @@ export class OrganizationsService {
       pincode?: string | undefined;
       fssaiNumber?: string | undefined;
       isActive?: boolean | undefined;
+      /** Where the kitchen is; both `null` clears it. Used to judge where proof photos were taken. */
+      latitude?: number | null | undefined;
+      longitude?: number | null | undefined;
     },
   ): Promise<OrganizationDto> {
     await this.requireOutlet(organizationId, outletId);
@@ -162,6 +165,7 @@ export class OrganizationsService {
         ...(input.pincode !== undefined && { pincode: input.pincode || null }),
         ...(input.fssaiNumber !== undefined && { fssaiNumber: input.fssaiNumber || null }),
         ...(input.isActive !== undefined && { isActive: input.isActive }),
+        ...(input.latitude !== undefined && input.longitude !== undefined && { latitude: input.latitude, longitude: input.longitude }),
       },
     });
     return this.get(organizationId);
@@ -320,6 +324,8 @@ function toOutletDto(outlet: OrganizationRow['outlets'][number]): OrganizationOu
     pincode: outlet.pincode,
     fssaiNumber: outlet.fssaiNumber,
     isActive: outlet.isActive,
+    latitude: outlet.latitude,
+    longitude: outlet.longitude,
   };
 }
 

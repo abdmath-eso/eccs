@@ -15,11 +15,13 @@ import {
   type MonitoringOutletDto,
   type MonitoringVisitItemDto,
   type MonitoringVisitProblem,
+  type PhotoSubjectDto,
 } from "@eccs/shared";
 import Link from "next/link";
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 
 import { MasterDetail } from "@/components/master-detail";
+import { PhotoFlags } from "@/components/photo-flags";
 import { Button, Card, ErrorMessage, Field, Loading, PageHeader, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
 import { describe, english, longDay, matchesSearch, shortDay } from "@/lib/format";
@@ -47,6 +49,7 @@ const AREA: Record<MonitoringArea, string> = {
   visits: "Visits",
   inspections: "Inspections",
   score: "Hygiene score",
+  photos: "Photos",
 };
 
 const GRADE: Record<InspectionGrade, string> = {
@@ -173,6 +176,14 @@ function cellText(outlet: MonitoringOutletDto, area: MonitoringArea): { main: st
       if (s.score === null) return { main: "Not yet scored", more: [] };
       return { main: `${s.score} out of 100`, more: s.change === null ? [] : [changeText(s.change)] };
     }
+    case "photos": {
+      const p = outlet.photos;
+      if (p.checked === 0) return { main: "No proof photos", more: [] };
+      return {
+        main: p.doubtful === 0 ? `None doubtful of ${p.checked}` : `${p.doubtful} doubtful of ${p.checked}`,
+        more: [p.certain > 0 && `${p.certain} certain`].filter(isText),
+      };
+    }
   }
 }
 
@@ -204,6 +215,7 @@ const SEVERITY: Record<MonitoringArea, (outlet: MonitoringOutletDto) => number> 
   visits: (o) => o.visits.overdue * 100 + o.visits.items.length,
   inspections: (o) => 100 - (o.inspections.latest?.score ?? 100),
   score: (o) => 100 - (o.score.score ?? 100),
+  photos: (o) => o.photos.certain * 100 + o.photos.doubtful,
 };
 
 const fullName = (outlet: MonitoringOutletDto) => `${outlet.organizationName} · ${outlet.outletName}`;
@@ -652,6 +664,14 @@ function Rules() {
           Needs attention when the score is below {r.score.attentionBelow}, or has fallen {r.score.attentionDrop} points or more in about a week.
           Watch when it is below {r.score.watchBelow}, or has fallen {r.score.watchDrop} points or more.
         </dd>
+        <dt className="font-semibold">Photos</dt>
+        <dd>
+          How far the proof photos of the period can be trusted. A photo is doubtful when it is the same as one used before, was taken far from
+          the outlet or with a faked location, or carries a time that cannot be right. Needs attention when a photo is doubtful for a reason
+          with no innocent explanation (the identical file again, a faked location), when {r.photos.attentionCount} or more are doubtful, or
+          when {r.photos.attentionPercent}% or more are (from {r.photos.percentFromPhotos} photos up). Watch when any is doubtful. A doubtful
+          photo is never refused and does not change the hygiene score; a missing location is not held against anyone.
+        </dd>
       </dl>
     </details>
   );
@@ -676,12 +696,20 @@ function AreaSection({ outlet, area, children }: { outlet: MonitoringOutletDto; 
 
 const LINK_STYLE = "font-semibold text-primary hover:underline";
 
+/** What a doubtful photo was proof for: "Opening checklist", "Pest control visit", "Inspection". */
+const photoSubject = (what: PhotoSubjectDto) =>
+  what.kind === "INSPECTION"
+    ? "Inspection"
+    : what.kind === "VISIT"
+      ? `${english(what.name ?? {}) || "Service"} visit`
+      : english(what.name ?? {}) || "Checklist";
+
 /**
  * What is behind an outlet's numbers. Every problem that can be dealt with in
  * the console links to the page where that is done; the rest say whom to call.
  */
 function OutletDetail({ outlet, admin, days }: { outlet: MonitoringOutletDto; admin: boolean; days: number }) {
-  const { checklists, issues, licences, visits, inspections, score } = outlet;
+  const { checklists, issues, licences, visits, inspections, score, photos } = outlet;
   return (
     <Card className="flex flex-col gap-4">
       <div>
@@ -798,6 +826,43 @@ function OutletDetail({ outlet, admin, days }: { outlet: MonitoringOutletDto; ad
                 score.previous !== null && score.previousDate ? ` It was ${score.previous} on ${longDay(score.previousDate)}.` : " There is no earlier score to compare with yet."
               }`}
         </p>
+      </AreaSection>
+
+      <AreaSection outlet={outlet} area="photos">
+        <p className="mt-1 text-sm text-muted">
+          Proof photos received over the last {count(days, "day")}: checklist checks, visit photos and inspection findings.
+          {photos.doubtful > 0 &&
+            ` Of the doubtful ones, ${photos.fromChecklists} ${photos.fromChecklists === 1 ? "is" : "are"} from the restaurant's own checklists and ${
+              photos.doubtful - photos.fromChecklists
+            } from ECCS's visits and inspections.`}{" "}
+          A mark means the photo deserves a look, not that anyone did wrong.
+        </p>
+        {photos.items.length > 0 && (
+          <ul className="mt-2 flex flex-col gap-2 text-sm">
+            {photos.items.map((item) => (
+              <li key={item.id}>
+                {item.visitId ? (
+                  <Link href={`/visits?visit=${item.visitId}`} className={LINK_STYLE}>
+                    {photoSubject(item.what)}, {shortDay(item.receivedOn)}
+                  </Link>
+                ) : item.inspectionId ? (
+                  <Link href={`/inspections?inspection=${item.inspectionId}`} className={LINK_STYLE}>
+                    {photoSubject(item.what)}, {shortDay(item.receivedOn)}
+                  </Link>
+                ) : (
+                  // A restaurant's checklist photo is not shown to ECCS in the console: when, which checklist and why are all there is.
+                  <span className="font-semibold">
+                    {photoSubject(item.what)}, {shortDay(item.receivedOn)}
+                  </span>
+                )}
+                <PhotoFlags flags={item.flags} className="mt-0.5" />
+              </li>
+            ))}
+          </ul>
+        )}
+        {photos.doubtful > photos.items.length && (
+          <p className="mt-2 text-sm text-muted">And {photos.doubtful - photos.items.length} more, older.</p>
+        )}
       </AreaSection>
     </Card>
   );

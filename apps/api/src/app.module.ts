@@ -17,7 +17,10 @@ import { OutletsModule } from './outlets/outlets.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProfileModule } from './profile/profile.module.js';
 import { ScoresModule } from './scores/scores.module.js';
+import { StaffModule } from './staff/staff.module.js';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module.js';
+import { FoodLabelsModule } from './food-labels/food-labels.module.js';
+import { PublicPageModule } from './public-page/public-page.module.js';
 import { ServicesModule } from './services/services.module.js';
 import { RestaurantUsersModule } from './restaurant-users/restaurant-users.module.js';
 import { SopsModule } from './sops/sops.module.js';
@@ -47,6 +50,9 @@ import { StorageModule } from './storage/storage.module.js';
     CertificatesModule,
     SubscriptionsModule,
     BillingModule,
+    StaffModule,
+    FoodLabelsModule,
+    PublicPageModule,
   ],
   controllers: [AppController],
 })

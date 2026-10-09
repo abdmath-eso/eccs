@@ -468,6 +468,9 @@ export const en = {
   "error.tooMany": "Too many tries. Wait a few minutes and try again.",
   "error.notAllowed": "You are not allowed to do this.",
   "error.server": "Our server has a problem. Try again shortly.",
+  // feature:staff
+  // feature:food-labels
+  // feature:public-page
   // feature:photo-integrity
   "place.ask.title": "Add the place to proof photos?",
   "place.ask.body": "When you take a proof photo, the app can note where this phone is. It shows the photo was taken in this kitchen.",

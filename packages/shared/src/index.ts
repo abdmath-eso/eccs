@@ -23,3 +23,6 @@ export * from "./catalog.js";
 export * from "./certificates.js";
 export * from "./subscriptions.js";
 export * from "./billing.js";
+export * from "./staff.js";
+export * from "./food-labels.js";
+export * from "./public-page.js";

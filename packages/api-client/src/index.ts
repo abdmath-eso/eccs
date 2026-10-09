@@ -78,6 +78,9 @@ import type {
   RegisterPushDeviceInput,
   SendTestPushInput,
 } from "@eccs/shared";
+// staff-types: the staff worker imports its types from "@eccs/shared" on the next line
+// food-labels-types: the labels worker imports its types from "@eccs/shared" on the next line
+// public-page-types: the public-page worker imports its types from "@eccs/shared" on the next line
 // subscriptions-types: the subscriptions worker imports its types from "@eccs/shared" on the next line
 import type {
   CancelSubscriptionInput,
@@ -564,6 +567,9 @@ export function createApiClient(options: ApiClientOptions) {
       /** ECCS admins: send a test push, to themselves unless a person is named. */
       sendTest: (input: SendTestPushInput = {}) => call<PushTestResultDto>("POST", "/push/test", input),
     },
+    // staff-api: the staff worker adds its calls on the next line
+    // food-labels-api: the labels worker adds its calls on the next line
+    // public-page-api: the public-page worker adds its calls on the next line
     // subscriptions-api: the subscriptions worker adds its calls on the next line
     /** Plans as ECCS configures them: what is on offer, and (for the office) every plan with who is on it. */
     subscriptionPlans: {

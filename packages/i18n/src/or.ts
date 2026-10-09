@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const or: Partial<Messages> = {
+export const or: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ସଫା ଜାଗା। ସୁରକ୍ଷିତ କାମ। ମଜବୁତ ବ୍ୟବସାୟ।",
 
@@ -1463,4 +1463,27 @@ export const or: Partial<Messages> = {
   "cpage.propose.status.REJECTED": "ମଞ୍ଜୁର ହୋଇନାହିଁ",
   "cpage.propose.reason": "କାରଣ: {reason}",
   "cpage.propose.removed": "ପେଜ୍‌ରୁ ହଟାଯାଇଛି",
+
+  "labels.name": "ଖାଦ୍ୟର ନାମ",
+  "labels.nameHint": "ସେଭ୍ ହୋଇଥିବା ଲେବଲ୍ ଖୋଜିବାକୁ କିମ୍ବା ନୂଆ ତିଆରି କରିବାକୁ ଟାଇପ୍ କରନ୍ତୁ। ଆପଣ ଯେମିତି ଟାଇପ୍ କରିବେ ଠିକ୍ ସେମିତି ପ୍ରିଣ୍ଟ ହେବ।",
+  "labels.createNew": "ନୂଆ ଲେବଲ୍ ତିଆରି କରନ୍ତୁ: {name}",
+  "labels.exists": "{name} ନାମର ଲେବଲ୍ ଆଗରୁ ଅଛି। ବ୍ୟବହାର କରିବାକୁ ତା' ଉପରେ ଟ୍ୟାପ୍ କରନ୍ତୁ।",
+  "labels.keeps": "{life} ଭଲ ରହେ",
+  "labels.noSaved": "ଏଯାଏଁ କୌଣସି ସେଭ୍ ହୋଇଥିବା ଲେବଲ୍ ନାହିଁ। ଆପଣଙ୍କ ପ୍ରଥମ ଲେବଲ୍ ତିଆରି କରିବାକୁ ଉପରେ ଖାଦ୍ୟର ନାମ ଟାଇପ୍ କରନ୍ତୁ।",
+  "labels.dayOne": "1 ଦିନ",
+  "labels.keepsQuestion": "କେତେ ସମୟ ଭଲ ରହେ?",
+  "labels.keepsHelp": "ଆପଣ ପ୍ରିଣ୍ଟ ଦବାଇବା ମୁହୂର୍ତ୍ତରୁ ଗଣାଯାଏ। ଏହା ଆପଣଙ୍କ କିଚେନ୍ ଠିକ୍ କରେ।",
+  "labels.otherLength": "ଅନ୍ୟ ସମୟ",
+  "labels.otherLengthNumber": "କେତେ ଘଣ୍ଟା କିମ୍ବା ଦିନ?",
+  "labels.chooseKeeps": "କେତେ ସମୟ ଭଲ ରହେ ତାହା ବାଛନ୍ତୁ।",
+  "labels.preview.prepared": "ଆପଣ ପ୍ରିଣ୍ଟ ଦବାଇଲେ",
+  "labels.preview.useBy": "ତା'ର {life} ପରେ",
+  "labels.preview.useByUnset": "କେତେ ସମୟ ଭଲ ରହେ ତାହା ବାଛନ୍ତୁ",
+  "labels.timesAtPrint": "ଆପଣ ପ୍ରିଣ୍ଟ ଦବାଇଲେ ସମୟ ଠିକ୍ ହୁଏ।",
+  "labels.printedTimes": "ତିଆରି {prepared}। {useBy} ସୁଦ୍ଧା ବ୍ୟବହାର କରନ୍ତୁ।",
+  "labels.savedNew": "ଲେବଲ୍ ସେଭ୍ ହୋଇଛି। {name} ପରବର୍ତ୍ତୀ ଥର ପାଇଁ ସେଭ୍ ହୋଇଥିବା ଲେବଲ୍ ଭାବେ ରଖାଯାଇଛି।",
+  "labels.moreOptions": "ଅଧିକ ବିକଳ୍ପ",
+  "labels.hideOptions": "କମ୍ ବିକଳ୍ପ",
+  "labels.storage.none": "ଠିକ୍ ହୋଇନାହିଁ",
+  "labels.pickHelp": "ସେଭ୍ ହୋଇଥିବା ଲେବଲ୍ ଉପରେ ଟ୍ୟାପ୍ କରନ୍ତୁ, କିମ୍ବା ନୂଆ ତିଆରି କରିବାକୁ ନାମ ଟାଇପ୍ କରନ୍ତୁ।",
 };

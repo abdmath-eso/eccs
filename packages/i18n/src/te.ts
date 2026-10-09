@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const te: Partial<Messages> = {
+export const te: Messages = {
   "app.name": "ECCS",
   "app.tagline": "శుభ్రమైన ప్రదేశాలు. సురక్షితమైన కార్యకలాపాలు. బలమైన వ్యాపారాలు.",
 
@@ -1463,4 +1463,27 @@ export const te: Partial<Messages> = {
   "cpage.propose.status.REJECTED": "ఆమోదించలేదు",
   "cpage.propose.reason": "కారణం: {reason}",
   "cpage.propose.removed": "పేజీ నుంచి తీసివేయబడింది",
+
+  "labels.name": "ఆహారం పేరు",
+  "labels.nameHint": "సేవ్ చేసిన లేబుల్ వెతకడానికి లేదా కొత్తది తయారు చేయడానికి టైప్ చేయండి. మీరు టైప్ చేసినట్లే ప్రింట్ అవుతుంది.",
+  "labels.createNew": "కొత్త లేబుల్ తయారు చేయండి: {name}",
+  "labels.exists": "{name} పేరుతో ఒక లేబుల్ ఇప్పటికే ఉంది. దాన్ని వాడటానికి దానిపై నొక్కండి.",
+  "labels.keeps": "{life} నిల్వ ఉంటుంది",
+  "labels.noSaved": "ఇంకా సేవ్ చేసిన లేబుల్స్ లేవు. మీ మొదటి లేబుల్ తయారు చేయడానికి పైన ఆహారం పేరు టైప్ చేయండి.",
+  "labels.dayOne": "1 రోజు",
+  "labels.keepsQuestion": "ఎంత కాలం నిల్వ ఉంటుంది?",
+  "labels.keepsHelp": "మీరు ప్రింట్ నొక్కిన క్షణం నుండి లెక్కిస్తారు. ఇది మీ వంటగది నిర్ణయిస్తుంది.",
+  "labels.otherLength": "వేరే సమయం",
+  "labels.otherLengthNumber": "ఎన్ని గంటలు లేదా రోజులు?",
+  "labels.chooseKeeps": "ఎంత కాలం నిల్వ ఉంటుందో ఎంచుకోండి.",
+  "labels.preview.prepared": "మీరు ప్రింట్ నొక్కినప్పుడు",
+  "labels.preview.useBy": "అప్పటి నుండి {life} తర్వాత",
+  "labels.preview.useByUnset": "ఎంత కాలం నిల్వ ఉంటుందో ఎంచుకోండి",
+  "labels.timesAtPrint": "మీరు ప్రింట్ నొక్కినప్పుడు సమయాలు నిర్ణయించబడతాయి.",
+  "labels.printedTimes": "తయారు చేసినది: {prepared}. {useBy} లోపు వాడాలి.",
+  "labels.savedNew": "లేబుల్ సేవ్ అయింది. {name} తర్వాతి సారి కోసం సేవ్ చేసిన లేబుల్‌గా ఉంచబడింది.",
+  "labels.moreOptions": "మరిన్ని ఎంపికలు",
+  "labels.hideOptions": "తక్కువ ఎంపికలు",
+  "labels.storage.none": "నిర్ణయించలేదు",
+  "labels.pickHelp": "సేవ్ చేసిన లేబుల్‌పై నొక్కండి, లేదా కొత్తది తయారు చేయడానికి పేరు టైప్ చేయండి.",
 };

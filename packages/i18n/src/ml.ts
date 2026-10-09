@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ml: Partial<Messages> = {
+export const ml: Messages = {
   "app.name": "ECCS",
   "app.tagline": "വൃത്തിയുള്ള ഇടങ്ങൾ. സുരക്ഷിതമായ പ്രവർത്തനം. കരുത്തുള്ള ബിസിനസ്.",
 
@@ -1463,4 +1463,27 @@ export const ml: Partial<Messages> = {
   "cpage.propose.status.REJECTED": "അംഗീകരിച്ചില്ല",
   "cpage.propose.reason": "കാരണം: {reason}",
   "cpage.propose.removed": "പേജിൽ നിന്ന് നീക്കി",
+
+  "labels.name": "ഭക്ഷണത്തിന്റെ പേര്",
+  "labels.nameHint": "സേവ് ചെയ്ത ലേബൽ കണ്ടെത്താനോ പുതിയത് ഉണ്ടാക്കാനോ ടൈപ്പ് ചെയ്യുക. നിങ്ങൾ ടൈപ്പ് ചെയ്യുന്നതുപോലെ തന്നെ പ്രിന്റ് ആകും.",
+  "labels.createNew": "പുതിയ ലേബൽ ഉണ്ടാക്കുക: {name}",
+  "labels.exists": "{name} എന്ന പേരിൽ ഒരു ലേബൽ നേരത്തെ ഉണ്ട്. അത് ഉപയോഗിക്കാൻ അതിൽ തൊടുക.",
+  "labels.keeps": "{life} കേടാകാതെ ഇരിക്കും",
+  "labels.noSaved": "സേവ് ചെയ്ത ലേബലുകൾ ഇതുവരെ ഇല്ല. നിങ്ങളുടെ ആദ്യത്തെ ലേബൽ ഉണ്ടാക്കാൻ മുകളിൽ ഭക്ഷണത്തിന്റെ പേര് ടൈപ്പ് ചെയ്യുക.",
+  "labels.dayOne": "1 ദിവസം",
+  "labels.keepsQuestion": "എത്ര സമയം കേടാകാതെ ഇരിക്കും?",
+  "labels.keepsHelp": "നിങ്ങൾ പ്രിന്റ് അമർത്തുന്ന നിമിഷം മുതൽ കണക്കാക്കുന്നു. ഇത് തീരുമാനിക്കുന്നത് നിങ്ങളുടെ കിച്ചണാണ്.",
+  "labels.otherLength": "മറ്റൊരു സമയം",
+  "labels.otherLengthNumber": "എത്ര മണിക്കൂർ അല്ലെങ്കിൽ ദിവസം?",
+  "labels.chooseKeeps": "എത്ര സമയം കേടാകാതെ ഇരിക്കും എന്ന് തിരഞ്ഞെടുക്കുക.",
+  "labels.preview.prepared": "നിങ്ങൾ പ്രിന്റ് അമർത്തുമ്പോൾ",
+  "labels.preview.useBy": "അതിന് {life} ശേഷം",
+  "labels.preview.useByUnset": "എത്ര സമയം കേടാകാതെ ഇരിക്കും എന്ന് തിരഞ്ഞെടുക്കുക",
+  "labels.timesAtPrint": "നിങ്ങൾ പ്രിന്റ് അമർത്തുമ്പോഴാണ് സമയങ്ങൾ നിശ്ചയിക്കുന്നത്.",
+  "labels.printedTimes": "തയ്യാറാക്കിയത്: {prepared}. {useBy}-ന് മുമ്പ് ഉപയോഗിക്കുക.",
+  "labels.savedNew": "ലേബൽ സേവ് ചെയ്തു. {name} അടുത്ത തവണത്തേക്ക് സേവ് ചെയ്ത ലേബലായി സൂക്ഷിച്ചിട്ടുണ്ട്.",
+  "labels.moreOptions": "കൂടുതൽ ഓപ്ഷനുകൾ",
+  "labels.hideOptions": "കുറച്ച് ഓപ്ഷനുകൾ",
+  "labels.storage.none": "നിശ്ചയിച്ചിട്ടില്ല",
+  "labels.pickHelp": "സേവ് ചെയ്ത ലേബലിൽ തൊടുക, അല്ലെങ്കിൽ പുതിയത് ഉണ്ടാക്കാൻ ഒരു പേര് ടൈപ്പ് ചെയ്യുക.",
 };

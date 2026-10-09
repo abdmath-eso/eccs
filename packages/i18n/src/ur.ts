@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ur: Partial<Messages> = {
+export const ur: Messages = {
   "app.name": "ECCS",
   "app.tagline": "صاف جگہیں۔ محفوظ کام۔ مضبوط کاروبار۔",
 
@@ -1463,4 +1463,27 @@ export const ur: Partial<Messages> = {
   "cpage.propose.status.REJECTED": "منظور نہیں ہوئی",
   "cpage.propose.reason": "وجہ: {reason}",
   "cpage.propose.removed": "صفحے سے ہٹا دی گئی",
+
+  "labels.name": "کھانے کا نام",
+  "labels.nameHint": "محفوظ لیبل ڈھونڈنے یا نیا بنانے کے لیے ٹائپ کریں۔ جیسے آپ ٹائپ کریں گے بالکل ویسے ہی پرنٹ ہوگا۔",
+  "labels.createNew": "نیا لیبل بنائیں: {name}",
+  "labels.exists": "{name} نام کا لیبل پہلے سے موجود ہے۔ استعمال کرنے کے لیے اس پر ٹیپ کریں۔",
+  "labels.keeps": "{life} ٹھیک رہتا ہے",
+  "labels.noSaved": "ابھی کوئی محفوظ لیبل نہیں ہے۔ اپنا پہلا لیبل بنانے کے لیے اوپر کھانے کا نام ٹائپ کریں۔",
+  "labels.dayOne": "1 دن",
+  "labels.keepsQuestion": "کتنی دیر ٹھیک رہتا ہے؟",
+  "labels.keepsHelp": "جس لمحے آپ پرنٹ دبائیں، وہاں سے گنا جاتا ہے۔ یہ آپ کا کچن طے کرتا ہے۔",
+  "labels.otherLength": "کوئی اور مدت",
+  "labels.otherLengthNumber": "کتنے گھنٹے یا دن؟",
+  "labels.chooseKeeps": "چنیں کہ یہ کتنی دیر ٹھیک رہتا ہے۔",
+  "labels.preview.prepared": "جب آپ پرنٹ دبائیں گے",
+  "labels.preview.useBy": "اس کے {life} بعد",
+  "labels.preview.useByUnset": "چنیں کہ کتنی دیر ٹھیک رہتا ہے",
+  "labels.timesAtPrint": "اوقات اس وقت طے ہوتے ہیں جب آپ پرنٹ دباتے ہیں۔",
+  "labels.printedTimes": "تیار کیا گیا {prepared}۔ {useBy} تک استعمال کریں۔",
+  "labels.savedNew": "لیبل محفوظ ہو گیا۔ {name} اگلی بار کے لیے محفوظ لیبل کے طور پر رکھ لیا گیا ہے۔",
+  "labels.moreOptions": "مزید اختیارات",
+  "labels.hideOptions": "کم اختیارات",
+  "labels.storage.none": "طے نہیں",
+  "labels.pickHelp": "کسی محفوظ لیبل پر ٹیپ کریں، یا نیا بنانے کے لیے نام ٹائپ کریں۔",
 };

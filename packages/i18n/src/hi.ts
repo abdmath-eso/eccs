@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const hi: Partial<Messages> = {
+export const hi: Messages = {
   "app.name": "ECCS",
   "app.tagline": "साफ़ जगहें। सुरक्षित संचालन। मज़बूत व्यवसाय।",
 
@@ -1463,4 +1463,27 @@ export const hi: Partial<Messages> = {
   "cpage.propose.status.REJECTED": "मंज़ूर नहीं",
   "cpage.propose.reason": "कारण: {reason}",
   "cpage.propose.removed": "पेज से हटा दी गई",
+
+  "labels.name": "खाने का नाम",
+  "labels.nameHint": "सेव किया हुआ लेबल ढूंढने या नया बनाने के लिए लिखें। जैसा आप लिखेंगे, ठीक वैसा ही प्रिंट होगा।",
+  "labels.createNew": "नया लेबल बनाएं: {name}",
+  "labels.exists": "{name} नाम का लेबल पहले से है। इस्तेमाल करने के लिए उस पर टैप करें।",
+  "labels.keeps": "{life} तक ठीक रहता है",
+  "labels.noSaved": "अभी कोई सेव किया हुआ लेबल नहीं है। अपना पहला लेबल बनाने के लिए ऊपर खाने का नाम लिखें।",
+  "labels.dayOne": "1 दिन",
+  "labels.keepsQuestion": "कितने समय तक ठीक रहता है?",
+  "labels.keepsHelp": "प्रिंट दबाने के समय से गिना जाता है। यह आपकी रसोई तय करती है।",
+  "labels.otherLength": "कोई और समय",
+  "labels.otherLengthNumber": "कितने घंटे या दिन?",
+  "labels.chooseKeeps": "चुनें कि यह कितने समय तक ठीक रहता है।",
+  "labels.preview.prepared": "जब आप प्रिंट दबाएंगे",
+  "labels.preview.useBy": "उसके {life} बाद",
+  "labels.preview.useByUnset": "चुनें कि कितने समय तक ठीक रहता है",
+  "labels.timesAtPrint": "समय तब तय होते हैं जब आप प्रिंट दबाते हैं।",
+  "labels.printedTimes": "बनाया: {prepared}। {useBy} तक इस्तेमाल करें।",
+  "labels.savedNew": "लेबल सेव हो गया। {name} अगली बार के लिए सेव किए हुए लेबल में रख लिया गया है।",
+  "labels.moreOptions": "और विकल्प",
+  "labels.hideOptions": "कम विकल्प",
+  "labels.storage.none": "तय नहीं",
+  "labels.pickHelp": "सेव किए हुए लेबल पर टैप करें, या नया बनाने के लिए नाम लिखें।",
 };

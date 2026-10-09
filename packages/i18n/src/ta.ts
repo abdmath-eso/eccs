@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ta: Partial<Messages> = {
+export const ta: Messages = {
   "app.name": "ECCS",
   "app.tagline": "சுத்தமான இடங்கள். பாதுகாப்பான செயல்பாடுகள். வலுவான தொழில்கள்.",
 
@@ -1463,4 +1463,27 @@ export const ta: Partial<Messages> = {
   "cpage.propose.status.REJECTED": "அங்கீகரிக்கப்படவில்லை",
   "cpage.propose.reason": "காரணம்: {reason}",
   "cpage.propose.removed": "பக்கத்திலிருந்து நீக்கப்பட்டது",
+
+  "labels.name": "உணவின் பெயர்",
+  "labels.nameHint": "சேமித்த லேபிளைத் தேட அல்லது புதியதை உருவாக்க டைப் செய்யவும். நீங்கள் டைப் செய்தபடியே பிரிண்ட் ஆகும்.",
+  "labels.createNew": "புதிய லேபிள் உருவாக்கு: {name}",
+  "labels.exists": "{name} என்ற பெயரில் ஏற்கனவே ஒரு லேபிள் உள்ளது. அதைப் பயன்படுத்த அதைத் தட்டவும்.",
+  "labels.keeps": "{life} கெடாமல் இருக்கும்",
+  "labels.noSaved": "சேமித்த லேபிள்கள் இன்னும் இல்லை. உங்கள் முதல் லேபிளை உருவாக்க மேலே உணவின் பெயரை டைப் செய்யவும்.",
+  "labels.dayOne": "1 நாள்",
+  "labels.keepsQuestion": "எவ்வளவு நேரம் கெடாமல் இருக்கும்?",
+  "labels.keepsHelp": "நீங்கள் பிரிண்ட் அழுத்தும் நேரத்திலிருந்து கணக்கிடப்படும். இதை உங்கள் கிச்சன்தான் முடிவு செய்கிறது.",
+  "labels.otherLength": "வேறு நேரம்",
+  "labels.otherLengthNumber": "எத்தனை மணி நேரம் அல்லது நாட்கள்?",
+  "labels.chooseKeeps": "எவ்வளவு நேரம் கெடாமல் இருக்கும் என்பதைத் தேர்ந்தெடுக்கவும்.",
+  "labels.preview.prepared": "நீங்கள் பிரிண்ட் அழுத்தும்போது",
+  "labels.preview.useBy": "அதிலிருந்து {life} கழித்து",
+  "labels.preview.useByUnset": "எவ்வளவு நேரம் கெடாமல் இருக்கும் என்பதைத் தேர்ந்தெடுக்கவும்",
+  "labels.timesAtPrint": "நீங்கள் பிரிண்ட் அழுத்தும்போது நேரங்கள் முடிவாகும்.",
+  "labels.printedTimes": "தயாரித்தது: {prepared}. {useBy}-க்குள் பயன்படுத்தவும்.",
+  "labels.savedNew": "லேபிள் சேமிக்கப்பட்டது. {name} அடுத்த முறைக்காகச் சேமித்த லேபிளாக வைக்கப்பட்டுள்ளது.",
+  "labels.moreOptions": "மேலும் விருப்பங்கள்",
+  "labels.hideOptions": "குறைவான விருப்பங்கள்",
+  "labels.storage.none": "அமைக்கவில்லை",
+  "labels.pickHelp": "சேமித்த லேபிளைத் தட்டவும், அல்லது புதியதை உருவாக்க ஒரு பெயரை டைப் செய்யவும்.",
 };

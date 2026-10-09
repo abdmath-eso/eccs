@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Partial<Messages> = {
+export const gu: Messages = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 
@@ -1463,4 +1463,27 @@ export const gu: Partial<Messages> = {
   "cpage.propose.status.REJECTED": "મંજૂર નથી",
   "cpage.propose.reason": "કારણ: {reason}",
   "cpage.propose.removed": "પેજ પરથી કાઢ્યો",
+
+  "labels.name": "ખોરાકનું નામ",
+  "labels.nameHint": "સાચવેલું લેબલ શોધવા કે નવું બનાવવા માટે લખો. તમે જેમ લખશો બરાબર તેમ જ પ્રિન્ટ થશે.",
+  "labels.createNew": "નવું લેબલ બનાવો: {name}",
+  "labels.exists": "{name} નામનું લેબલ પહેલેથી છે. તેને વાપરવા તેના પર ટૅપ કરો.",
+  "labels.keeps": "{life} સારો રહે છે",
+  "labels.noSaved": "હજી કોઈ સાચવેલું લેબલ નથી. તમારું પહેલું લેબલ બનાવવા ઉપર ખોરાકનું નામ લખો.",
+  "labels.dayOne": "1 દિવસ",
+  "labels.keepsQuestion": "કેટલો સમય સારો રહે છે?",
+  "labels.keepsHelp": "તમે પ્રિન્ટ દબાવો તે ક્ષણથી ગણાય છે. આ તમારું કિચન નક્કી કરે છે.",
+  "labels.otherLength": "બીજો સમય",
+  "labels.otherLengthNumber": "કેટલા કલાક કે દિવસ?",
+  "labels.chooseKeeps": "કેટલો સમય સારો રહે છે તે પસંદ કરો.",
+  "labels.preview.prepared": "તમે પ્રિન્ટ દબાવો ત્યારે",
+  "labels.preview.useBy": "તેના {life} પછી",
+  "labels.preview.useByUnset": "કેટલો સમય સારો રહે છે તે પસંદ કરો",
+  "labels.timesAtPrint": "તમે પ્રિન્ટ દબાવો ત્યારે સમય નક્કી થાય છે.",
+  "labels.printedTimes": "તૈયાર કર્યું {prepared}. {useBy} સુધીમાં વાપરો.",
+  "labels.savedNew": "લેબલ સચવાઈ ગયું. {name} આવતી વખત માટે સાચવેલા લેબલ તરીકે રાખ્યું છે.",
+  "labels.moreOptions": "વધુ વિકલ્પો",
+  "labels.hideOptions": "ઓછા વિકલ્પો",
+  "labels.storage.none": "નક્કી નથી",
+  "labels.pickHelp": "સાચવેલા લેબલ પર ટૅપ કરો, અથવા નવું બનાવવા નામ લખો.",
 };

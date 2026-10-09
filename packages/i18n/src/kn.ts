@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const kn: Partial<Messages> = {
+export const kn: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ಸ್ವಚ್ಛ ಜಾಗಗಳು. ಸುರಕ್ಷಿತ ಕೆಲಸ. ಬಲವಾದ ವ್ಯಾಪಾರ.",
 
@@ -1463,4 +1463,27 @@ export const kn: Partial<Messages> = {
   "cpage.propose.status.REJECTED": "ಅನುಮೋದನೆ ಆಗಿಲ್ಲ",
   "cpage.propose.reason": "ಕಾರಣ: {reason}",
   "cpage.propose.removed": "ಪೇಜ್‌ನಿಂದ ತೆಗೆದುಹಾಕಲಾಗಿದೆ",
+
+  "labels.name": "ಆಹಾರದ ಹೆಸರು",
+  "labels.nameHint": "ಸೇವ್ ಮಾಡಿದ ಲೇಬಲ್ ಹುಡುಕಲು ಅಥವಾ ಹೊಸದನ್ನು ಮಾಡಲು ಟೈಪ್ ಮಾಡಿ. ನೀವು ಟೈಪ್ ಮಾಡಿದ ಹಾಗೆಯೇ ಪ್ರಿಂಟ್ ಆಗುತ್ತದೆ.",
+  "labels.createNew": "ಹೊಸ ಲೇಬಲ್ ಮಾಡಿ: {name}",
+  "labels.exists": "{name} ಹೆಸರಿನ ಲೇಬಲ್ ಈಗಾಗಲೇ ಇದೆ. ಅದನ್ನು ಬಳಸಲು ಅದನ್ನು ಒತ್ತಿ.",
+  "labels.keeps": "{life} ಕೆಡದೆ ಇರುತ್ತದೆ",
+  "labels.noSaved": "ಇನ್ನೂ ಸೇವ್ ಮಾಡಿದ ಲೇಬಲ್‌ಗಳು ಇಲ್ಲ. ನಿಮ್ಮ ಮೊದಲ ಲೇಬಲ್ ಮಾಡಲು ಮೇಲೆ ಆಹಾರದ ಹೆಸರನ್ನು ಟೈಪ್ ಮಾಡಿ.",
+  "labels.dayOne": "1 ದಿನ",
+  "labels.keepsQuestion": "ಎಷ್ಟು ಸಮಯ ಕೆಡದೆ ಇರುತ್ತದೆ?",
+  "labels.keepsHelp": "ನೀವು ಪ್ರಿಂಟ್ ಒತ್ತಿದ ಕ್ಷಣದಿಂದ ಲೆಕ್ಕ ಹಾಕಲಾಗುತ್ತದೆ. ಇದನ್ನು ನಿಮ್ಮ ಅಡುಗೆಮನೆ ನಿರ್ಧರಿಸುತ್ತದೆ.",
+  "labels.otherLength": "ಬೇರೆ ಸಮಯ",
+  "labels.otherLengthNumber": "ಎಷ್ಟು ಗಂಟೆಗಳು ಅಥವಾ ದಿನಗಳು?",
+  "labels.chooseKeeps": "ಎಷ್ಟು ಸಮಯ ಕೆಡದೆ ಇರುತ್ತದೆ ಎಂದು ಆರಿಸಿ.",
+  "labels.preview.prepared": "ನೀವು ಪ್ರಿಂಟ್ ಒತ್ತಿದಾಗ",
+  "labels.preview.useBy": "ಅದಾದ {life} ನಂತರ",
+  "labels.preview.useByUnset": "ಎಷ್ಟು ಸಮಯ ಕೆಡದೆ ಇರುತ್ತದೆ ಎಂದು ಆರಿಸಿ",
+  "labels.timesAtPrint": "ನೀವು ಪ್ರಿಂಟ್ ಒತ್ತಿದಾಗ ಸಮಯಗಳು ನಿಗದಿಯಾಗುತ್ತವೆ.",
+  "labels.printedTimes": "ತಯಾರಿಸಿದ್ದು: {prepared}. {useBy} ಒಳಗೆ ಬಳಸಿ.",
+  "labels.savedNew": "ಲೇಬಲ್ ಸೇವ್ ಆಗಿದೆ. {name} ಮುಂದಿನ ಬಾರಿಗಾಗಿ ಸೇವ್ ಮಾಡಿದ ಲೇಬಲ್ ಆಗಿ ಇಡಲಾಗಿದೆ.",
+  "labels.moreOptions": "ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು",
+  "labels.hideOptions": "ಕಡಿಮೆ ಆಯ್ಕೆಗಳು",
+  "labels.storage.none": "ನಿಗದಿ ಮಾಡಿಲ್ಲ",
+  "labels.pickHelp": "ಸೇವ್ ಮಾಡಿದ ಲೇಬಲ್ ಒತ್ತಿ, ಅಥವಾ ಹೊಸದನ್ನು ಮಾಡಲು ಹೆಸರನ್ನು ಟೈಪ್ ಮಾಡಿ.",
 };

@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const pa: Partial<Messages> = {
+export const pa: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ਸਾਫ਼ ਥਾਵਾਂ। ਸੁਰੱਖਿਅਤ ਕੰਮਕਾਜ। ਮਜ਼ਬੂਤ ਕਾਰੋਬਾਰ।",
 
@@ -1463,4 +1463,27 @@ export const pa: Partial<Messages> = {
   "cpage.propose.status.REJECTED": "ਮਨਜ਼ੂਰ ਨਹੀਂ",
   "cpage.propose.reason": "ਕਾਰਨ: {reason}",
   "cpage.propose.removed": "ਪੇਜ ਤੋਂ ਹਟਾਈ ਗਈ",
+
+  "labels.name": "ਖਾਣੇ ਦਾ ਨਾਮ",
+  "labels.nameHint": "ਸੇਵ ਕੀਤਾ ਲੇਬਲ ਲੱਭਣ ਜਾਂ ਨਵਾਂ ਬਣਾਉਣ ਲਈ ਟਾਈਪ ਕਰੋ। ਜਿਵੇਂ ਤੁਸੀਂ ਟਾਈਪ ਕਰੋਗੇ, ਬਿਲਕੁਲ ਉਵੇਂ ਹੀ ਪ੍ਰਿੰਟ ਹੋਵੇਗਾ।",
+  "labels.createNew": "ਨਵਾਂ ਲੇਬਲ ਬਣਾਓ: {name}",
+  "labels.exists": "{name} ਨਾਮ ਦਾ ਲੇਬਲ ਪਹਿਲਾਂ ਹੀ ਹੈ। ਇਸਨੂੰ ਵਰਤਣ ਲਈ ਇਸ 'ਤੇ ਟੈਪ ਕਰੋ।",
+  "labels.keeps": "{life} ਠੀਕ ਰਹਿੰਦਾ ਹੈ",
+  "labels.noSaved": "ਅਜੇ ਕੋਈ ਸੇਵ ਕੀਤਾ ਲੇਬਲ ਨਹੀਂ ਹੈ। ਆਪਣਾ ਪਹਿਲਾ ਲੇਬਲ ਬਣਾਉਣ ਲਈ ਉੱਪਰ ਖਾਣੇ ਦਾ ਨਾਮ ਟਾਈਪ ਕਰੋ।",
+  "labels.dayOne": "1 ਦਿਨ",
+  "labels.keepsQuestion": "ਕਿੰਨਾ ਸਮਾਂ ਠੀਕ ਰਹਿੰਦਾ ਹੈ?",
+  "labels.keepsHelp": "ਜਦੋਂ ਤੁਸੀਂ ਪ੍ਰਿੰਟ ਦਬਾਉਂਦੇ ਹੋ, ਉਸ ਪਲ ਤੋਂ ਗਿਣਿਆ ਜਾਂਦਾ ਹੈ। ਇਹ ਤੁਹਾਡੀ ਕਿਚਨ ਤੈਅ ਕਰਦੀ ਹੈ।",
+  "labels.otherLength": "ਕੋਈ ਹੋਰ ਸਮਾਂ",
+  "labels.otherLengthNumber": "ਕਿੰਨੇ ਘੰਟੇ ਜਾਂ ਦਿਨ?",
+  "labels.chooseKeeps": "ਚੁਣੋ ਕਿ ਇਹ ਕਿੰਨਾ ਸਮਾਂ ਠੀਕ ਰਹਿੰਦਾ ਹੈ।",
+  "labels.preview.prepared": "ਜਦੋਂ ਤੁਸੀਂ ਪ੍ਰਿੰਟ ਦਬਾਓਗੇ",
+  "labels.preview.useBy": "ਉਸ ਤੋਂ {life} ਬਾਅਦ",
+  "labels.preview.useByUnset": "ਚੁਣੋ ਕਿ ਕਿੰਨਾ ਸਮਾਂ ਠੀਕ ਰਹਿੰਦਾ ਹੈ",
+  "labels.timesAtPrint": "ਸਮੇਂ ਉਦੋਂ ਤੈਅ ਹੁੰਦੇ ਹਨ ਜਦੋਂ ਤੁਸੀਂ ਪ੍ਰਿੰਟ ਦਬਾਉਂਦੇ ਹੋ।",
+  "labels.printedTimes": "ਤਿਆਰ ਕੀਤਾ {prepared}। {useBy} ਤੱਕ ਵਰਤੋ।",
+  "labels.savedNew": "ਲੇਬਲ ਸੇਵ ਹੋ ਗਿਆ। {name} ਅਗਲੀ ਵਾਰ ਲਈ ਸੇਵ ਕੀਤੇ ਲੇਬਲ ਵਜੋਂ ਰੱਖਿਆ ਗਿਆ ਹੈ।",
+  "labels.moreOptions": "ਹੋਰ ਵਿਕਲਪ",
+  "labels.hideOptions": "ਘੱਟ ਵਿਕਲਪ",
+  "labels.storage.none": "ਤੈਅ ਨਹੀਂ",
+  "labels.pickHelp": "ਸੇਵ ਕੀਤੇ ਲੇਬਲ 'ਤੇ ਟੈਪ ਕਰੋ, ਜਾਂ ਨਵਾਂ ਬਣਾਉਣ ਲਈ ਨਾਮ ਟਾਈਪ ਕਰੋ।",
 };

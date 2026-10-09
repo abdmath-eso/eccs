@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const bn: Partial<Messages> = {
+export const bn: Messages = {
   "app.name": "ECCS",
   "app.tagline": "পরিষ্কার জায়গা। নিরাপদ কাজ। মজবুত ব্যবসা।",
 
@@ -1463,4 +1463,27 @@ export const bn: Partial<Messages> = {
   "cpage.propose.status.REJECTED": "অনুমোদিত হয়নি",
   "cpage.propose.reason": "কারণ: {reason}",
   "cpage.propose.removed": "পেজ থেকে সরানো হয়েছে",
+
+  "labels.name": "খাবারের নাম",
+  "labels.nameHint": "সেভ করা লেবেল খুঁজতে বা নতুন বানাতে লিখুন। যেমন লিখবেন ঠিক তেমনই প্রিন্ট হবে।",
+  "labels.createNew": "নতুন লেবেল বানান: {name}",
+  "labels.exists": "{name} নামে একটা লেবেল আগে থেকেই আছে। ব্যবহার করতে সেটাতে ট্যাপ করুন।",
+  "labels.keeps": "{life} ভালো থাকে",
+  "labels.noSaved": "এখনও কোনো সেভ করা লেবেল নেই। প্রথম লেবেল বানাতে উপরে খাবারের নাম লিখুন।",
+  "labels.dayOne": "1 দিন",
+  "labels.keepsQuestion": "কতক্ষণ ভালো থাকে?",
+  "labels.keepsHelp": "আপনি প্রিন্ট চাপার মুহূর্ত থেকে গোনা হয়। এটা আপনার কিচেনই ঠিক করে।",
+  "labels.otherLength": "অন্য সময়",
+  "labels.otherLengthNumber": "কত ঘণ্টা বা দিন?",
+  "labels.chooseKeeps": "কতক্ষণ ভালো থাকে তা বেছে নিন।",
+  "labels.preview.prepared": "যখন আপনি প্রিন্ট চাপবেন",
+  "labels.preview.useBy": "তার {life} পরে",
+  "labels.preview.useByUnset": "কতক্ষণ ভালো থাকে তা বেছে নিন",
+  "labels.timesAtPrint": "আপনি প্রিন্ট চাপলে সময়গুলো ঠিক হয়।",
+  "labels.printedTimes": "তৈরি {prepared}। {useBy}-এর মধ্যে ব্যবহার করুন।",
+  "labels.savedNew": "লেবেল সেভ হয়েছে। {name} পরের বারের জন্য সেভ করা লেবেল হিসেবে রাখা হল।",
+  "labels.moreOptions": "আরও বিকল্প",
+  "labels.hideOptions": "কম বিকল্প",
+  "labels.storage.none": "ঠিক করা নেই",
+  "labels.pickHelp": "সেভ করা লেবেলে ট্যাপ করুন, অথবা নতুন বানাতে নাম লিখুন।",
 };

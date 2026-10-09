@@ -14,48 +14,138 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ## Friday 9 October 2026
 
-*In progress. To be written up at the end of the day.*
+A day of acting on research. The founder had asked on the 8th what else the startup should do; the answer came back this morning, the founder picked from it, and two things were built: checks that make proof photos trustworthy, and seven new kinds of service in the catalogue. 8 commits. Pushed to GitHub at the end of the day, together with everything from 8 October, which had not been pushed.
 
-**So far today**
+### The research
 
-- The research the founder asked for on 8 October ("what suggestions would you give to add in this, overall, research extensively") came back: five researchers (competitors; compliance obligations; the market and buyers; technology features; adjacent services) and a report, `reports/ECCS product growth ideas.md`. Main conclusion: sell inspection readiness, with the app bundled into service plans as proof of work. Its evidence is thin on local prices, which need phone quotes.
-- Founder decisions: of the app ideas, build only photo integrity and bench the rest; add all the recommended services. Recorded in STATUS, with the benched list. Two workers started: one on photo integrity, one on the new kinds of service.
-- Both workers finished. Photo integrity: time, duplicate and location checks on every proof photo, flags in words for ECCS in the console, a Photos column on the Monitoring board, a neutral note for the Owner and Manager, and nothing blocked; the hygiene score is unchanged. New services: seven new kinds with sample prices, tax codes and task lists in twelve languages, the oil reading with its verdict, partner names and result documents, a grouped booking list, and adding a kind from the Catalogue page.
-- Checked together: build, type check, lint and unit tests pass; 394 end-to-end tests pass (47 new). The worker for new services listed plainly which prices have no basis, which tax codes need an accountant, and which partners and permissions are not in place; these are in STATUS section 4 and must be settled before any of the services is sold.
+- Five researchers worked in parallel on competitors, the compliance obligations of an Indian restaurant in 2026, the market and what restaurants pay for, technology features, and adjacent services. A sixth pass wrote the report, `reports/ECCS product growth ideas.md`; the researchers' notes are kept on this PC in `research_notes/` and are not in git.
+- **Its conclusion:** sell inspection readiness, with the app bundled into service plans as proof of work, rather than widening the app or selling software by itself. The reasons given: in Hyderabad the real penalty is same-day closure and publicity rather than fines, and inspectors cite missing records as a violation; restaurants spend several times more on hygiene services than on software; and nobody found combines cleaning, pest control, inspections and a restaurant app.
+- **Its weak points, stated in the report:** almost no reliable Hyderabad prices were found; most compliance facts come from explainers and not the regulation text; sources conflict on a few rules; and nothing shows a private hygiene score moves diners the way government grades do.
 
-**Carried over from yesterday**
+### Photo integrity
 
-- 8 October was never closed: the founder did not say "eod", so that day has no write-up and nothing from it has been pushed to GitHub. Its bullets below are the record.
-- The founder has not yet looked at the new console or turned on desktop notifications.
+- Every proof photo (checklist, visit, inspection) now has its time checked against the server's, is compared with earlier photos from the same outlet, and, with the person's permission, has the phone's location compared with the outlet's.
+- Doubtful photos are flagged, in words, for ECCS admins under visit and inspection photos, and counted in a new Photos column on the Monitoring board. The Owner and Manager see a neutral "matches one already used" line on a checklist photo. Nothing is blocked and the hygiene score is unchanged.
+- An outlet's location can be set in the console or by the Supervisor during a visit.
+
+### New services
+
+- Seven new kinds of service with sample prices, tax codes and task lists in twelve languages: hygiene rating readiness, frying oil test, water test, staff medical camp, Food Safety Supervisor training, grease trap cleaning and a chemicals refill. Hood and duct cleaning with a certificate became one new bookable item under the existing chimney and hood kind.
+- The oil test records a reading for each fryer with a verdict against FSSAI's 25% limit. Services a partner delivers record the partner's name and take the partner's document (lab report, audit report), which is filed in the outlet's documents.
+- The app's booking list is grouped under five headings. The console's Catalogue page can now add a new kind of service, the gap noted when that page was built.
+
+### Decisions the founder made
+
+- Of the app ideas in the research, build only photo integrity.
+- Bench the rest: corrective actions, a compliance file, a temperature log, a used-oil log, checklist behaviour flags, an equipment register, WhatsApp messages and audio SOPs. They are listed in `STATUS.md` section 3.
+- Add all the services the research recommended.
+
+Decided by Claude's workers and not yet reviewed by the founder: the distances, times and thresholds for photo flags; every new service's price, tax code, duration, task list and certificate setting; treating hood and duct cleaning as the existing kind; "close to the limit" from 20% on the oil reading. All are in `STATUS.md` sections 3 and 4.
+
+### How it was tested
+
+- 394 automated end-to-end tests pass, up from 347, in 23 files; 47 are new (26 for photo integrity, 21 for the new services). Unit tests cover the photo rules, the picture fingerprint (on pictures made by program) and the reading verdict.
+- The full build, type check and lint pass on the final code with every language required to have every key.
+- Claude read the app's new booking list on a test copy: all services present, grouped as intended.
+- A new APK was built on this PC. It was not installed or run.
+- Nothing from today was seen on a phone, and the photo flags in the console, the oil reading screens and the Catalogue form were not looked at on screen.
+
+### Problems found
+
+- **The APK build failed twice** with the Android folder "busy or locked". Cause: the helper that talks to a phone over USB (`adb`) had been started from inside that folder during the previous day's testing and kept it locked. Stopping it fixed the build, and the build script now leaves the folder before using that helper.
+- **A plain picture fingerprint was not good enough.** The worker's first method called a re-saved copy of the same photo different; it was replaced with a comparison of a small grey thumbnail.
+- **The workers' research turned up things that affect selling, not software:** no agreement exists with a rating agency, a lab, a clinic or a training partner; ECCS does not appear to qualify as a FoSTaC training partner itself; the lawful disposal route for grease trap waste in Hyderabad was not established; and the licence position for the pest control ECCS already offers is unconfirmed.
+- **One finding touches what is built:** FSSAI licences reportedly became perpetual from 1 April 2026, which would weaken licence-expiry tracking and the 10 score points tied to licences. Not acted on; to be confirmed first.
+
+### Left open at the end of the day
+
+- **Testing by the founder** of everything from the afternoon of 8 October onwards: the new console and its desktop notifications with sound, the new services, and photo integrity (which needs the APK built today). Steps are in `docs/TEST_LOGINS.md` sections 15 and 16.
+- **Before any new service is sold:** phone quotes for the four prices with no basis (oil test, grease trap, chemicals refill, full duct run); an accountant's view of the tax codes; and the partners and permissions listed in `STATUS.md` section 4.
+- **The duplicate-photo check has only been proven on computer-made pictures.** The first weeks of real flags need watching before it is relied on.
+- Staff should be told that their location is noted with proof photos.
+- Phase 1d (attendance and salary, food labels, the customer QR page) has not been started. The research suggests testing two label printers first, keeping attendance and salary thin, and keeping the QR page clearly different from FSSAI's own rating.
+- Still open from before: the ECCS logo; a real server for the API; ECCS's real GSTIN and bank details; real prices and task lists; a review of the translations and of the 50 SOPs; the holiday list.
+
+### Carried over from 8 October
+
+- The day's write-up and push, not done on the 8th: done today, below and above.
+- Looking at the new console and turning on desktop notifications: still to do.
 
 ---
 
 ## Thursday 8 October 2026
 
-*Not written up: the day was not closed. The bullets below are the record of it.*
+*Written up on 9 October: the day was not closed on the 8th.*
 
-**So far today**
+The fourth day. It began with a small change to the monitoring board and ended with billing built, the app running as an installed Android app with push notifications arriving on the founder's phone, and the console reworked. 17 commits. Nothing was pushed on the day; it went to GitHub with 9 October's work.
 
-- Founder decision: remove the "actions overdue" flag from the monitoring board, since without re-inspection nothing could clear it. Done: the board no longer marks an outlet for a corrective action past its date; it still shows how many the latest report carries. Monitoring tests updated.
-- Founder asked how to test working without signal; Claude gave the steps (also in `docs/TEST_LOGINS.md` section 12).
-- The founder finished testing on the phone: everything built on 7 October, including the work without signal. "Everything is good." No faults reported.
-- Founder asked for phase 1c, billing, on sample prices: subscriptions and managing them, invoices, and sample payments. Claude added the database fields billing needed, wrote down how subscriptions and invoices fit together (billed in advance, one invoice per cycle; a one-time visit invoiced when ECCS approves its report), and started two workers in parallel.
-- The two billing workers finished. Plans and subscriptions: a Plans page in the console, a Plan screen in the app (subscribe, change from the next cycle, cancel at the end of the cycle), and pause, resume and cancel at once for ECCS. Invoices and payments: GST tax invoices numbered per financial year with a PDF, raised per cycle and per approved one-time visit, an Invoices page in the console and screen in the app, a sample payment screen where no money moves, and payments recorded by hand. Claude joined the two (a new subscription raises its first invoice at once) and hid Plans and Invoices from the Supervisor's console menu.
-- Tested: build, type check and lint pass; 71 shared and 31 offline unit tests pass; 323 end-to-end tests pass (50 new). A permission change Claude tried while joining the pieces broke 7 billing tests and was taken back.
-- The founder tested billing on the phone: "everything is good". Then asked to test the app as an installed Android app (an APK) with push notifications.
-- A worker wrote the push notification code (the app asks permission in its own words, registers the phone at login and unregisters on Lock, opens the right screen on a tap; the server sends each existing notification in the person's language when switched on; a test button in the console) and the build settings, with a guide, `docs/APK_BUILD.md`. 17 new end-to-end tests; 340 pass in all. The checklist test's clean-up, which tried to delete every file at a sample outlet and tripped over the new invoice PDFs, was narrowed to checklist photos.
-- The founder asked for Android Studio on the PC as well, ran the installer and its setup wizard (the licences were theirs to accept), and switched on the Windows feature the virtual phone needs. Claude pointed the PC at the SDK and built the app here. Three false starts: two were Claude's own (a locked log file; starting the build script the wrong way), and the real one was Android Studio's Java 25 failing the native compile step; Java 17, which the build system had already downloaded, fixed it. The build then took 10 minutes 33 seconds and produced a 66 MB APK.
-- Checked on the virtual phone by installing the APK and driving it: the welcome screen, linking with a sample restaurant code, PIN login as the sample Owner, and Home with the hygiene score, all against the API on this PC. Nothing else was exercised, and push delivery could not be tried without the founder's Expo and Firebase accounts.
-- The founder created the Expo account and the Firebase project and put the two files in place. Claude linked the app to the Expo project, switched push on for the API and rebuilt the APK; the founder uploaded the Firebase key to Expo from the command line (the website's own wizard asked for a signing keystore, which a build made on this PC does not have).
-- Push on the founder's phone failed at first: "Notifications could not be set up on this phone". The app hid the reason, so Claude made the screen show the phone's own error and rebuilt. It was Google refusing the phone a push address (SERVICE_NOT_AVAILABLE). To separate the app from the phone, Claude allowed push on the virtual phone, where the same build registered at once and a test push from the console's test endpoint arrived. With the founder's phone on USB, its log showed Google Play services connected and delivering to other apps, every Google address reachable, and the refusal still coming back after a clean install and a restart. The cause was not found. After one more fresh install by the founder it worked, and notifications now arrive on the phone.
-- Mistake: Claude deleted the founder's screenshot `docs/image.png` while clearing its own temporary files, and told the founder.
-- Founder asked, before phase 1d: tidy the console (it looks messy and cluttered; research standard practice for the navigation and the rest), and show notifications on the PC with sound. A worker was started on it.
-- The console worker finished: a left side menu in three groups replacing the twelve-entry top menu, one header pattern on every page with long openings folded behind "How this works", and desktop notifications with a chime while the console is open, fed by a new held request to the API. Its own two-tab check found the chime playing in both tabs and it fixed that. Checked together: build, type check, lint and unit tests pass; 347 end-to-end tests pass (7 new). The real Windows pop-up and the sound have not been seen or heard by anyone.
+### Morning
 
-**Carried over from yesterday**
+- **Monitoring.** The founder asked for the "actions overdue" flag to go, since without re-inspection nothing could clear it. The board now only counts the corrective actions on the latest report.
+- **Phone testing.** The founder finished testing everything built on 7 October on the phone, including checklists, visits and inspections without signal: "everything is good".
 
-- Phone testing of everything built on the afternoon and evening of 7 October: done, see above.
-- The choices awaiting the founder in `STATUS.md` section 4.
+### Billing (phase 1c)
+
+- **Plans.** A Plans page in the console where ECCS creates and edits plans: name, price per cycle, a monthly, quarterly or annual cycle, and which services are included every how many days. An edit reaches existing subscribers only at their next cycle.
+- **Subscriptions.** In the app the Owner subscribes, changes plan (from the next cycle) or cancels (at the end of the cycle), each undoable until it takes effect. ECCS can also pause, resume and cancel at once from the console.
+- **Invoices.** A GST tax invoice is raised for each subscription cycle in advance and for a booked one-time visit when ECCS approves its report, numbered per financial year, with CGST and SGST or IGST by the buyer's state, and a PDF filed in the outlet's documents. ECCS can record payments by hand, void an invoice and raise it again.
+- **Sample payments.** A payment screen in the app marked "Sample payment. No money moves.", which can be made to succeed or fail, behind an interface a real provider can replace.
+- The founder tested billing on the phone the same day: "everything is good".
+
+### The installed Android app and push notifications
+
+- **Push, in code.** The app asks permission in its own words first, registers the phone at login and unregisters on Lock, and opens the right screen when a notification is tapped. The server sends each existing notification to the person's phones in their language. The console can send a test.
+- **Android Studio** was installed by the founder, who accepted its licences; Claude pointed the PC at it and wrote `apps\mobile\build-apk.ps1`, which builds the APK here with no cloud service.
+- **Accounts.** The founder created a free Expo account and a free Firebase project. Claude linked the app to the Expo project; the founder uploaded the Firebase key to Expo from the command line.
+- **Delivery.** A test push arrived on the virtual phone on this PC, and, after some trouble, real notifications arrived on the founder's phone.
+
+### The console
+
+- A left side menu in three groups (Daily work, Client records, Set-up) replaced a top menu that had grown to twelve entries and wrapped. Every page got the same header, and long openings were folded behind "How this works".
+- While the console is open in a browser tab, each new notification shows as a desktop notification with a chime and an in-page message, once however many tabs are open.
+- The app's "Notifications are on for this phone" line was removed at the founder's request; the box now appears only when there is something to do.
+
+### Decisions the founder made
+
+- Remove the "actions overdue" flag from the monitoring board.
+- Build billing now on sample prices: subscriptions and managing them, invoices, sample payments. This took plans out of the parking they were put in on 7 October.
+- Test the app as an installed Android app with push notifications, and set up Android Studio on the PC.
+- Before phase 1d, tidy the console to standard practice and notify on the PC with sound.
+- No need for a line saying notifications are on.
+
+Decided by Claude or its workers and not yet reviewed: listed in `STATUS.md` section 4 under "Subscriptions", "Invoices and payments", "Push notifications" and "Console".
+
+### How it was tested
+
+- 347 automated end-to-end tests by the end of the day, up from 273: billing and subscriptions, push, and the console's new "wait for news" request.
+- Claude read the new billing pages on test copies, and looked at screenshots of the reworked Monitoring and Invoices pages.
+- The first APK was installed on the virtual phone and driven by Claude: welcome, linking with a sample code, PIN login and Home, against the API on this PC.
+- The founder tested billing and push on their own phone.
+- Not tested by anyone: the real Windows desktop notification and its sound.
+
+### Problems found
+
+- **Push would not register on the founder's phone.** Google answered "SERVICE_NOT_AVAILABLE" through several installs and a restart, while the same build worked on the virtual phone and the phone's other apps received push normally. With the phone on USB, its log showed nothing wrong that Claude could find. It began working after one more fresh install. **The cause was never found**, so it may recur on Xiaomi, Redmi and POCO phones. The app now shows the phone's own error on the Notifications screen.
+- **Android Studio's own Java (25) fails the Android build.** Java 17, which the build system had downloaded for itself, is used instead.
+- **Two of Claude's first three build attempts failed through its own mistakes** in how the build was started.
+- **The checklist tests tried to delete every file at a sample outlet**, which now includes filed invoice PDFs. Narrowed to checklist photos.
+- **Claude deleted the founder's screenshot `docs/image.png`** while clearing its own temporary files, and told the founder.
+- A permission change Claude tried while joining the two halves of billing broke seven tests and was taken back.
+- Expo's website wizard for the Firebase key asked for a signing keystore, which a build made on this PC does not have; the command line avoids it.
+
+### Left open at the end of the day
+
+- The day was not closed, so there was no write-up and no push.
+- The reworked console and its desktop notifications had not been looked at by the founder.
+- The founder asked what else the startup should do; that research was started and reported the next morning.
+- The phone must be on the same Wi-Fi as the PC, because the PC's address is built into the APK, until there is a real server.
+- The app icon is still the Expo template's.
+- No accountant has seen the GST treatment on invoices.
+
+### Carried over from 7 October
+
+- Phone testing of the afternoon and evening batches: done, all good.
+- Pricing and plans: built on sample prices by the founder's decision.
 
 ---
 

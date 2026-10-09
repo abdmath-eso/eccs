@@ -492,6 +492,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 9 Oct 2026 | End of day: the 8 and 9 Oct entries written in `docs/DAILY_LOG.md` (8 Oct had not been closed); pushed to GitHub. |
 | 9 Oct 2026 | Photo integrity built (time, duplicate and location checks; flags in the console and a Photos column on Monitoring). Seven new kinds of service added with sample prices and tax codes; Catalogue can add a kind; the app's booking list is grouped. |
 | 9 Oct 2026 | Research report on what else to do; founder chose photo integrity and all the recommended services, and benched the other app ideas. Both started. |
 | 8 Oct 2026 | Console reworked: side menu in three groups, one page-header pattern, long openings folded away; desktop notifications with sound while the console is open; new endpoint `GET /notifications/wait`. |

@@ -39,7 +39,7 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     <SnackbarContext value={notify}>
       {children}
       {shown && (
-        <View pointerEvents="none" style={[styles.layer, { bottom: insets.bottom + ABOVE_BOTTOM_BAR }]}>
+        <View style={[styles.layer, styles.untouchable, { bottom: insets.bottom + ABOVE_BOTTOM_BAR }]}>
           <View
             accessibilityRole="alert"
             accessibilityLiveRegion="polite"
@@ -56,6 +56,8 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
+  // Taps pass straight through to whatever is underneath.
+  untouchable: { pointerEvents: 'none' },
   layer: { position: 'absolute', left: 0, right: 0, alignItems: 'center', paddingHorizontal: Spacing.three },
   bar: {
     width: '100%',

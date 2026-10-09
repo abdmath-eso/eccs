@@ -268,7 +268,7 @@ export function ScoreTrend({ history, today }: { history: ScoreHistoryPointDto[]
             const value = byDate.get(day);
             return (
               // The bars take no touches themselves, so the finger's place is measured across the whole chart.
-              <View key={day} pointerEvents="none" style={styles.trendSlot}>
+              <View key={day} style={[styles.trendSlot, styles.untouchable]}>
                 {value !== undefined && (
                   <View
                     style={[
@@ -302,6 +302,8 @@ export function ScoreTrend({ history, today }: { history: ScoreHistoryPointDto[]
 }
 
 const styles = StyleSheet.create({
+  // Taps pass straight through to whatever is underneath.
+  untouchable: { pointerEvents: 'none' },
   card: {
     borderWidth: 1.5,
     borderRadius: Spacing.three,

@@ -193,7 +193,7 @@ export default function SopLibraryScreen() {
           returnKeyType="search"
           style={styles.searchInput}
         />
-        <View pointerEvents="none" style={styles.searchIcon}>
+        <View style={[styles.searchIcon, styles.untouchable]}>
           <Ionicons name="search" size={22} color={theme.textSecondary} />
         </View>
         {text.length > 0 && (
@@ -379,6 +379,8 @@ export default function SopLibraryScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Taps pass straight through to whatever is underneath.
+  untouchable: { pointerEvents: 'none' },
   // Room for the magnifying glass where the typing starts (the left; the right in Urdu)
   // and for the cross at the other end.
   searchInput: { paddingStart: Spacing.three + 22 + Spacing.two, paddingEnd: MinTouchSize },

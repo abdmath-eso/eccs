@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const or: Messages = {
+export const or: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ସଫା ଜାଗା। ସୁରକ୍ଷିତ କାମ। ମଜବୁତ ବ୍ୟବସାୟ।",
 
@@ -1241,25 +1241,11 @@ export const or: Messages = {
   "labels.home.expired": "ସମୟ ପାର ହୋଇଯାଇଛି, ଏବେ ବି କିଚେନ୍‌ରେ ଅଛି: {count}",
   "labels.home.open": "ଖାଦ୍ୟ ଲେବଲ୍ ଖୋଲନ୍ତୁ",
   "labels.home.quiet": "ଆଜି ସାରିବାକୁ କିଛି ନାହିଁ। ଲେବଲ୍ ତିଆରି କରନ୍ତୁ।",
-  "labels.pickHelp": "ଆପଣ ଯାହା ତିଆରି କଲେ କିମ୍ବା ଖୋଲିଲେ, ତା' ଉପରେ ଟ୍ୟାପ୍ କରନ୍ତୁ।",
   "labels.recent": "ନିକଟରେ ବ୍ୟବହୃତ",
   "labels.allItems": "ସବୁ ଆଇଟମ୍",
   "labels.noMatch": "ଲିଷ୍ଟରେ କିଛି ମେଳ ଖାଉନାହିଁ।",
-  "labels.noItemsManager": "ଏଯାଏଁ କୌଣସି ଆଇଟମ୍ ନାହିଁ। ଆପଣଙ୍କ କିଚେନ୍‌ରେ ଯାହା ତିଆରି ହୁଏ ତାହା ଯୋଡ଼ନ୍ତୁ, ପ୍ରତ୍ୟେକଟି କେତେ ସମୟ ଭଲ ରହେ ତାହା ସହ।",
-  "labels.noItemsChef": "ଏଯାଏଁ କୌଣସି ଆଇଟମ୍ ନାହିଁ। ମ୍ୟାନେଜର କିମ୍ବା ମାଲିକଙ୍କୁ ଯୋଡ଼ିବାକୁ କହନ୍ତୁ।",
   "labels.noSignalItems": "ସିଗନାଲ୍ ନାହିଁ। ଏହା ଗତଥର ଯେମିତି ଥିଲା ସେହି ଲିଷ୍ଟ।",
   "labels.changeItem": "ଆଇଟମ୍ ବଦଳାନ୍ତୁ",
-  "labels.preparedNow": "ଏଇମାତ୍ର ତିଆରି",
-  "labels.minus15": "15 ମିନିଟ୍ ଆଗରୁ",
-  "labels.minusHour": "1 ଘଣ୍ଟା ଆଗରୁ",
-  "labels.plusHour": "1 ଘଣ୍ଟା ପରେ",
-  "labels.minusDay": "1 ଦିନ ଆଗରୁ",
-  "labels.plusDay": "1 ଦିନ ପରେ",
-  "labels.fullLife": "ପୂରା ସମୟକୁ ଫେରନ୍ତୁ",
-  "labels.keepsChef": "ଏହି ଆଇଟମ୍ {life} ଭଲ ରହେ। କେବଳ ମ୍ୟାନେଜର କିମ୍ବା ମାଲିକ ଏହି ସମୟ ବଢ଼ାଇପାରିବେ।",
-  "labels.keepsManager": "ଏହି ଆଇଟମ୍ {life} ଭଲ ରହେ। କାରଣ ଲେଖି ଆପଣ ସମୟ ବଢ଼ାଇପାରିବେ।",
-  "labels.overrideWarning": "ଏହି ଆଇଟମ୍ ଯେତେ ସମୟ ଭଲ ରହେ ({life}), ଏହା ତା'ଠାରୁ ଅଧିକ। ଆପଣଙ୍କ ନାମ ଓ କାରଣ ରେକର୍ଡ ହେଉଛି।",
-  "labels.overrideReason": "କାହିଁକି ଅଧିକ ସମୟ ରଖାଯାଉଛି?",
   "labels.preparedBy": "ତିଆରି କରିଥିବା ଲୋକ",
   "labels.copies": "କେତୋଟି ଲେବଲ୍",
   "labels.fewer": "ଗୋଟିଏ କମ୍",

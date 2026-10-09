@@ -44,7 +44,9 @@ describe("can", () => {
 
   it("gives the head chef checklists, labels and attendance marking only", () => {
     expect(can(headChef, "checklists", "create", { outletId: "outlet-1" })).toBe(true);
+    // "create" covers making a label and saving a new one; changing a saved label is "update".
     expect(can(headChef, "foodLabels", "create", { outletId: "outlet-1" })).toBe(true);
+    expect(can(headChef, "foodLabels", "update", { outletId: "outlet-1" })).toBe(false);
     expect(can(headChef, "attendance", "create", { outletId: "outlet-1" })).toBe(true);
     expect(can(headChef, "salary", "read", { outletId: "outlet-1" })).toBe(false);
     expect(can(headChef, "invoices", "read", { outletId: "outlet-1" })).toBe(false);

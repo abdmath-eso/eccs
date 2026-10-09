@@ -3,10 +3,13 @@ import type { Language } from "./roles.js";
 
 // Food labels: what was prepared, when, and when it must be used by.
 //
-// A kitchen keeps a short list of the things it prepares or opens ("food
-// items"), each with where it is stored and how long it keeps there. Making a
-// label is then: pick the item, and the app works out the use-by time. Every
-// label that has been made stays on the "what is in the fridge" list until
+// Anyone in the kitchen who makes labels can make one for whatever they want:
+// they type its name and say how long it keeps ("8 hours", "1 day"), never a
+// clock time. That is saved for the outlet as a "food item" (a saved label),
+// so next time it is one tap. "Prepared" is the moment Print is pressed and
+// "use by" is that moment plus how long the food keeps (the founder's rule,
+// 9 Oct 2026). Where it is stored and its allergens are optional extras that
+// a Manager or the Owner can add. Every label that has been made stays on the "what is in the fridge" list until
 // someone marks it used up or thrown away, so the list shows what must be used
 // today and what has already gone past its time.
 //
@@ -60,6 +63,12 @@ export const FOOD_LABEL_RULES = {
   /** An item keeps for at least an hour and at most a year. */
   minShelfLifeHours: 1,
   maxShelfLifeHours: 365 * 24,
+  /**
+   * The lengths offered as big buttons when a new label is made, in hours:
+   * 4, 8 and 12 hours, then 1, 2, 3, 5 and 7 days. Anything else is typed
+   * under "another length". They are only the commonest choices, not advice.
+   */
+  shelfLifePresets: [4, 8, 12, 24, 48, 72, 120, 168],
   /** "Prepared" can be set back this far, for food made earlier in the shift or last night. */
   maxBackdateHours: 24,
   /** A phone clock this far ahead of the server's is still taken as "now". */
@@ -85,9 +94,31 @@ export function toShelfLifeHours(value: number, unit: ShelfLifeUnit): number {
   return unit === "DAYS" ? value * 24 : value;
 }
 
-/** How a stored shelf life is shown: whole days when it is two days or more and divides evenly, otherwise hours. */
+/** How a stored shelf life is shown: whole days when it divides evenly into days ("1 day", "3 days"), otherwise hours. */
 export function shelfLifeParts(hours: number): { value: number; unit: ShelfLifeUnit } {
-  return hours >= 48 && hours % 24 === 0 ? { value: hours / 24, unit: "DAYS" } : { value: hours, unit: "HOURS" };
+  return hours >= 24 && hours % 24 === 0 ? { value: hours / 24, unit: "DAYS" } : { value: hours, unit: "HOURS" };
+}
+
+/** Whether a number of hours is a whole number inside the limits (an hour to a year). */
+export function isShelfLifeAllowed(hours: number): boolean {
+  return Number.isInteger(hours) && hours >= FOOD_LABEL_RULES.minShelfLifeHours && hours <= FOOD_LABEL_RULES.maxShelfLifeHours;
+}
+
+// ───────────────────────── Names ─────────────────────────
+
+/**
+ * A label's name as it is compared with others: capitals, spaces at the ends
+ * and doubled spaces do not count, so "paneer  Marination " is the same label
+ * as "Paneer marination". Only for comparing; the name is kept as typed.
+ */
+export function looseLabelName(name: string): string {
+  return name.normalize("NFC").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/** The saved label that already has this name, compared loosely, if there is one. */
+export function findSameName<T extends { name: string }>(items: readonly T[], name: string): T | undefined {
+  const wanted = looseLabelName(name);
+  return wanted ? items.find((item) => looseLabelName(item.name) === wanted) : undefined;
 }
 
 // ───────────────────────── Use-by arithmetic and limits ─────────────────────────
@@ -288,7 +319,7 @@ export interface LabelPrintData {
   /** The use-by day as a word, and which day it is (0 Sunday to 6 Saturday) for its shape. */
   dayWord: string;
   dayIndex: number;
-  /** Smaller lines under the dates: who prepared it, where it is kept, allergens, the batch note. */
+  /** Smaller lines under the dates: who prepared it, then where it is kept, allergens and the batch note when there are any. */
   lines: string[];
   outletName: string;
   /** True when the app is in Urdu, so the label reads right to left. */
@@ -433,7 +464,8 @@ export const createFoodItemSchema = z.object({
   outletId: z.string().min(1),
   /** As the kitchen writes it, in any language. */
   name: z.string().trim().min(2, "Give the item a name").max(60),
-  storage: z.enum(STORAGE_TYPES),
+  /** Where it is kept. Optional: a label needs only a name and how long it keeps. */
+  storage: z.enum(STORAGE_TYPES).nullish(),
   shelfLifeHours,
   allergens: allergens.default([]),
   note: optionalText(120),
@@ -444,7 +476,8 @@ export type CreateFoodItemInput = z.input<typeof createFoodItemSchema>;
 
 export const updateFoodItemSchema = z.object({
   name: z.string().trim().min(2, "Give the item a name").max(60).optional(),
-  storage: z.enum(STORAGE_TYPES).optional(),
+  /** Null clears it: the label then prints no storage line. */
+  storage: z.enum(STORAGE_TYPES).nullable().optional(),
   shelfLifeHours: shelfLifeHours.optional(),
   allergens: allergens.optional(),
   /** An empty note clears it. */
@@ -454,10 +487,29 @@ export const updateFoodItemSchema = z.object({
 });
 export type UpdateFoodItemInput = z.input<typeof updateFoodItemSchema>;
 
-export const createFoodLabelSchema = z.object({
-  foodItemId: z.string().min(1),
-  /** Left out, "prepared" is now and "use by" is prepared plus the item's shelf life. */
+const foodLabelFields = z.object({
+  /** The saved label this one is made from. Give this, or `newItem`, not both. */
+  foodItemId: z.string().min(1).optional(),
+  /**
+   * A label for something new, made on the spot: its name and how long it
+   * keeps. The server saves it for the outlet, so it is a one-tap choice next
+   * time, and makes the label, in one go (so it also works from a phone that
+   * had no signal). If the outlet already has a saved label of that name
+   * (compared loosely), that one is used and no second one is made.
+   */
+  newItem: z
+    .object({
+      outletId: z.string().min(1),
+      name: z.string().trim().min(2, "Give the label a name").max(60),
+      shelfLifeHours,
+    })
+    .optional(),
+  /**
+   * The moment Print was pressed on the phone. "Use by" is this plus how long
+   * the food keeps. Left out, "prepared" is the moment the server is asked.
+   */
   preparedAt: moment.optional(),
+  /** The app no longer sends a use-by of its own choosing; the server still accepts one within the limits. */
   expiresAt: moment.optional(),
   /** Who prepared it, when that is not the person making the label. */
   preparedByName: optionalText(60),
@@ -474,6 +526,11 @@ export const createFoodLabelSchema = z.object({
   clientId: z.string().min(8).max(64).optional(),
   madeAt: moment.optional(),
 });
+
+export const createFoodLabelSchema = foodLabelFields.refine(
+  (input) => (input.foodItemId === undefined) !== (input.newItem === undefined),
+  { message: "Choose a saved label, or give a new one a name", path: ["foodItemId"] },
+);
 export type CreateFoodLabelInput = z.input<typeof createFoodLabelSchema>;
 
 export const closeFoodLabelSchema = z
@@ -496,7 +553,8 @@ export interface FoodItemDto {
   outletId: string;
   /** As the kitchen wrote it. */
   name: string;
-  storage: StorageType;
+  /** Where it is kept; null when nobody has said. */
+  storage: StorageType | null;
   shelfLifeHours: number;
   allergens: Allergen[];
   note: string | null;
@@ -522,7 +580,7 @@ export interface FoodLabelDto {
   foodItemId: string;
   /** The name, storage and allergens as they were when the label was made. */
   itemName: string;
-  storage: StorageType;
+  storage: StorageType | null;
   allergens: Allergen[];
   preparedAt: string;
   expiresAt: string;
@@ -590,7 +648,8 @@ const starter = (
 
 /**
  * Common items in an Indian restaurant kitchen, to add in one tap and then
- * change. SAMPLE DATA: the shelf lives are cautious suggestions, not rules
+ * change. An optional shortcut: a kitchen can equally type its own names
+ * when making a label. SAMPLE DATA: the shelf lives are cautious suggestions, not rules
  * and not FSSAI figures (FSSAI sets temperatures and first-in-first-out, not
  * a number of days for each dish). They follow the usual guidance for food
  * prepared in-house: about three days in a fridge at 5°C or below counting

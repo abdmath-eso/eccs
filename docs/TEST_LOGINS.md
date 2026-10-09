@@ -234,11 +234,15 @@ Restart the API and console terminals first. All prices and tax codes are sample
 
 Printing and sharing need the newest APK or Expo Go; an older installed app shows a message instead.
 
-1. **App, as the Manager at Jubilee Hills** (`SPICE-JH2K7M`, PIN `4821`): More > Food labels > Items > "Add from the starter list". Add a few, then change one's shelf life.
-2. **Make a label:** tap an item; nudge the times with the buttons. As the Manager, push use-by past the shelf life: a reason is asked for. Tap Print, then try "Other ways to print or share" (A4 sheet, picture, PDF).
-3. **As a Head Chef** (PIN `7306`): the "later" buttons stop at the shelf life, and there is no Items button.
-4. On the list, mark one **Used up** and tap Put back; **throw one away** with a reason. Home shows how many to use today and how many are past use-by.
-5. **Without signal:** stop the API (or use aeroplane mode), make a label: it says it is kept on the phone. Start the API and open Food labels again.
+1. **App, as a Head Chef at Jubilee Hills** (`SPICE-JH2K7M`, PIN `7306`): More > Food labels > Make a label.
+2. Type "Paneer marination", tap "Make a new label", tap **8 hours**, tap **Print**. The label says prepared at the current minute and use by 8 hours later.
+3. Tap "Another label": Paneer marination is now on the list with "Keeps 8 hours". Tap it, then Print: two taps.
+4. Type "paneer MARINATION": the app offers the saved one instead of making a second.
+5. Try "Another length" for something that keeps, say, 36 hours.
+6. Under "More options": who prepared it, copies, a note.
+7. **As the Manager** (PIN `4821`): Food labels > Items: open a saved label, add storage and allergens, rename it or remove it. "Add from the starter list" is still there as a shortcut.
+8. On the list, mark one **Used up** and tap Put back; **throw one away** with a reason. Home shows how many to use today and how many are past use-by.
+9. **Without signal:** aeroplane mode, make a label (it says it is kept on the phone), switch the signal back on and open Food labels: the prepared time is when Print was pressed.
 
 ## 19. Trying the customer page
 

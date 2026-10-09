@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const pa: Messages = {
+export const pa: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ਸਾਫ਼ ਥਾਵਾਂ। ਸੁਰੱਖਿਅਤ ਕੰਮਕਾਜ। ਮਜ਼ਬੂਤ ਕਾਰੋਬਾਰ।",
 
@@ -1241,25 +1241,11 @@ export const pa: Messages = {
   "labels.home.expired": "ਸਮਾਂ ਲੰਘ ਗਿਆ, ਅਜੇ ਕਿਚਨ ਵਿੱਚ ਹੈ: {count}",
   "labels.home.open": "ਫੂਡ ਲੇਬਲ ਖੋਲ੍ਹੋ",
   "labels.home.quiet": "ਅੱਜ ਵਰਤ ਕੇ ਮੁਕਾਉਣ ਲਈ ਕੁਝ ਨਹੀਂ ਹੈ। ਲੇਬਲ ਬਣਾਓ।",
-  "labels.pickHelp": "ਜੋ ਤੁਸੀਂ ਤਿਆਰ ਕੀਤਾ ਜਾਂ ਖੋਲ੍ਹਿਆ, ਉਸ 'ਤੇ ਟੈਪ ਕਰੋ।",
   "labels.recent": "ਹਾਲ ਹੀ ਵਿੱਚ ਵਰਤੀਆਂ",
   "labels.allItems": "ਸਾਰੀਆਂ ਆਈਟਮਾਂ",
   "labels.noMatch": "ਲਿਸਟ ਵਿੱਚ ਕੁਝ ਨਹੀਂ ਮਿਲਿਆ।",
-  "labels.noItemsManager": "ਅਜੇ ਕੋਈ ਆਈਟਮ ਨਹੀਂ ਹੈ। ਤੁਹਾਡੀ ਕਿਚਨ ਵਿੱਚ ਜੋ ਬਣਦਾ ਹੈ ਉਹ ਜੋੜੋ, ਨਾਲ ਇਹ ਵੀ ਕਿ ਹਰ ਇੱਕ ਕਿੰਨਾ ਸਮਾਂ ਠੀਕ ਰਹਿੰਦੀ ਹੈ।",
-  "labels.noItemsChef": "ਅਜੇ ਕੋਈ ਆਈਟਮ ਨਹੀਂ ਹੈ। ਆਪਣੇ ਮੈਨੇਜਰ ਜਾਂ ਮਾਲਕ ਨੂੰ ਜੋੜਨ ਲਈ ਕਹੋ।",
   "labels.noSignalItems": "ਸਿਗਨਲ ਨਹੀਂ ਹੈ। ਇਹ ਲਿਸਟ ਉਹੋ ਜਿਹੀ ਹੈ ਜਿਹੋ ਜਿਹੀ ਪਿਛਲੀ ਵਾਰ ਸੀ।",
   "labels.changeItem": "ਆਈਟਮ ਬਦਲੋ",
-  "labels.preparedNow": "ਹੁਣੇ ਤਿਆਰ ਕੀਤਾ",
-  "labels.minus15": "15 ਮਿੰਟ ਪਹਿਲਾਂ",
-  "labels.minusHour": "1 ਘੰਟਾ ਪਹਿਲਾਂ",
-  "labels.plusHour": "1 ਘੰਟਾ ਬਾਅਦ",
-  "labels.minusDay": "1 ਦਿਨ ਪਹਿਲਾਂ",
-  "labels.plusDay": "1 ਦਿਨ ਬਾਅਦ",
-  "labels.fullLife": "ਪੂਰੇ ਸਮੇਂ 'ਤੇ ਵਾਪਸ",
-  "labels.keepsChef": "ਇਹ ਆਈਟਮ {life} ਠੀਕ ਰਹਿੰਦੀ ਹੈ। ਸਿਰਫ਼ ਮੈਨੇਜਰ ਜਾਂ ਮਾਲਕ ਹੀ ਇਹ ਸਮਾਂ ਵਧਾ ਸਕਦੇ ਹਨ।",
-  "labels.keepsManager": "ਇਹ ਆਈਟਮ {life} ਠੀਕ ਰਹਿੰਦੀ ਹੈ। ਕਾਰਨ ਲਿਖ ਕੇ ਤੁਸੀਂ ਸਮਾਂ ਵਧਾ ਸਕਦੇ ਹੋ।",
-  "labels.overrideWarning": "ਇਹ ਆਈਟਮ ਜਿੰਨਾ ਸਮਾਂ ਠੀਕ ਰਹਿੰਦੀ ਹੈ ({life}), ਇਹ ਉਸ ਤੋਂ ਵੱਧ ਹੈ। ਤੁਹਾਡਾ ਨਾਮ ਅਤੇ ਕਾਰਨ ਰਿਕਾਰਡ ਹੁੰਦੇ ਹਨ।",
-  "labels.overrideReason": "ਵੱਧ ਸਮਾਂ ਕਿਉਂ ਰੱਖਿਆ ਜਾ ਰਿਹਾ ਹੈ?",
   "labels.preparedBy": "ਤਿਆਰ ਕਰਨ ਵਾਲਾ",
   "labels.copies": "ਕਿੰਨੇ ਲੇਬਲ",
   "labels.fewer": "ਇੱਕ ਘੱਟ",

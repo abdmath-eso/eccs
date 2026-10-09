@@ -15,10 +15,11 @@ import { FoodLabelsService } from './food-labels.service.js';
 // The decorators check that the role allows the action at all; the service
 // then checks it is allowed at the specific outlet.
 //
-// One permission, "foodLabels", covers both halves, as the proposal's table
-// has it: the Owner and Manager hold "update" and manage the list of items;
-// the Head Chef holds "create" and "read" only, so makes labels, reads the
-// items and keeps the fridge list true, but cannot change an item.
+// One permission, "foodLabels", covers both halves. "create" is making a label
+// and saving a new one (a name and how long it keeps), which the Owner, the
+// Manager and the Head Chef all hold, so anyone in the kitchen can make a label
+// for whatever they want (founder, 9 Oct 2026). "update" is changing or
+// removing a saved label, which only the Owner and the Manager hold.
 @Controller('food-labels')
 export class FoodLabelsController {
   constructor(private readonly labels: FoodLabelsService) {}
@@ -32,7 +33,7 @@ export class FoodLabelsController {
   }
 
   @Post('items')
-  @RequirePermission('foodLabels', 'update')
+  @RequirePermission('foodLabels', 'create')
   createItem(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createFoodItemSchema)) body: z.output<typeof createFoodItemSchema>,

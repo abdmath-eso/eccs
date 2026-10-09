@@ -31,9 +31,9 @@ import { useOutlet } from '@/lib/use-outlet';
 const UNITS: ShelfLifeUnit[] = ['HOURS', 'DAYS'];
 
 /**
- * Adds a food item, or changes one (when opened with an item's id): its name
- * as the kitchen says it, where it is kept, how long it keeps there, and its
- * allergens. For the Owner and the Manager.
+ * Adds a saved label, or changes one (when opened with an item's id): its
+ * name as the kitchen says it and how long it keeps, and optionally where it
+ * is kept, its allergens and a note. For the Owner and the Manager.
  */
 export default function FoodItemScreen() {
   const theme = useTheme();
@@ -45,7 +45,8 @@ export default function FoodItemScreen() {
   const [existing, setExisting] = useState<FoodItemDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [name, setName] = useState('');
-  const [storage, setStorage] = useState<StorageType>('CHILLED');
+  // Where it is kept is optional: nothing is assumed until someone says.
+  const [storage, setStorage] = useState<StorageType | null>(null);
   const [life, setLife] = useState('');
   const [unit, setUnit] = useState<ShelfLifeUnit>('DAYS');
   const [allergens, setAllergens] = useState<Allergen[]>([]);
@@ -162,6 +163,7 @@ export default function FoodItemScreen() {
         {STORAGE_TYPES.map((option) => (
           <OptionChip key={option} label={t(`labels.storageKeep.${option}`)} selected={storage === option} onPress={() => setStorage(option)} />
         ))}
+        <OptionChip label={t('labels.storage.none')} selected={storage === null} onPress={() => setStorage(null)} />
       </View>
 
       <TextField

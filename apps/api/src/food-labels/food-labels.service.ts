@@ -18,6 +18,7 @@ import {
   labelGroup,
   labelsHtml,
   localize,
+  looseLabelName,
   useByFor,
   type Action,
   type Allergen,
@@ -58,8 +59,10 @@ const TIME_PROBLEMS: Record<LabelTimeProblem, string> = {
 const allergensOf = (stored: string[]): Allergen[] => ALLERGENS.filter((allergen) => stored.includes(allergen));
 
 /**
- * Food items (what a kitchen prepares and how long each keeps), the labels
- * made for them, and the list of what is in the fridge now. Everything
+ * Food items (the outlet's saved labels: a name and how long the food keeps),
+ * the labels made from them, and the list of what is in the fridge now.
+ * Everyone who makes labels can save a new one; changing or removing a saved
+ * one is for the Owner and the Manager. Everything
  * belongs to one outlet. Nothing here touches the hygiene score.
  */
 @Injectable()
@@ -95,25 +98,32 @@ export class FoodLabelsService {
       );
   }
 
+  /**
+   * Saves a new label for the outlet: a name and how long it keeps; where it
+   * is stored, allergens and a note are optional. For everyone who makes
+   * labels, the Head Chef included. A name the outlet already has (compared
+   * loosely) is refused, and the answer says which saved label has it, so the
+   * app can offer that one instead.
+   */
   async createItem(
     user: AuthUser,
     input: {
       outletId: string;
       name: string;
-      storage: StorageType;
+      storage?: StorageType | null | undefined;
       shelfLifeHours: number;
       allergens: Allergen[];
       note?: string | undefined;
       starterKey?: string | undefined;
     },
   ): Promise<FoodItemDto> {
-    await this.requireOutlet(user, 'update', input.outletId);
+    await this.requireOutlet(user, 'create', input.outletId);
     await this.refuseSameName(user, input.outletId, input.name, null);
     const item = await this.db.foodItem.create({
       data: {
         outletId: input.outletId,
         name: this.nameAsTyped(user, input.name),
-        storage: input.storage,
+        storage: input.storage ?? null,
         shelfLifeHours: input.shelfLifeHours,
         allergens: input.allergens,
         note: input.note ?? null,
@@ -133,7 +143,7 @@ export class FoodLabelsService {
     itemId: string,
     input: {
       name?: string | undefined;
-      storage?: StorageType | undefined;
+      storage?: StorageType | null | undefined;
       shelfLifeHours?: number | undefined;
       allergens?: Allergen[] | undefined;
       note?: string | undefined;
@@ -210,15 +220,21 @@ export class FoodLabelsService {
   // ───────────────────────── Labels ─────────────────────────
 
   /**
-   * Makes a label. Left to itself, "prepared" is now and "use by" is prepared
-   * plus the item's shelf life; both can be given, within the limits in
-   * checkLabelTimes. A use-by later than the shelf life allows needs a
-   * Manager or the Owner and a reason.
+   * Makes a label, from a saved one (`foodItemId`) or for something new
+   * (`newItem`: a name and how long it keeps, which is saved for next time).
+   *
+   * "Prepared" is the moment Print was pressed on the phone, which the app
+   * sends, and "use by" is that moment plus how long the food keeps. The app
+   * no longer lets anyone choose either time; the checks in checkLabelTimes
+   * stay, so a phone with a wrong clock cannot date a label into the future,
+   * and a use-by sent from elsewhere that is later than the food keeps still
+   * needs a Manager or the Owner and a reason.
    */
   async createLabel(
     user: AuthUser,
     input: {
-      foodItemId: string;
+      foodItemId?: string | undefined;
+      newItem?: { outletId: string; name: string; shelfLifeHours: number } | undefined;
       preparedAt?: string | undefined;
       expiresAt?: string | undefined;
       preparedByName?: string | undefined;
@@ -229,27 +245,30 @@ export class FoodLabelsService {
       madeAt?: string | undefined;
     },
   ): Promise<FoodLabelDto> {
-    const item = await this.requireItem(user, 'create', input.foodItemId);
+    const saved = input.foodItemId ? await this.requireItem(user, 'create', input.foodItemId) : null;
+    if (!saved && !input.newItem) throw new BadRequestException('Choose a saved label, or give a new one a name');
+    const outlet = await this.requireOutlet(user, 'create', saved?.outletId ?? input.newItem!.outletId, saved !== null);
 
     // A label made without signal may be sent more than once: the second time, answer with the first.
     if (input.clientId) {
       const sent = await this.db.foodLabel.findUnique({ where: { clientId: input.clientId } });
-      if (sent && sent.outletId === item.outletId) return this.toLabelDto(sent);
+      if (sent && sent.outletId === outlet.id) return this.toLabelDto(sent);
     }
-    if (!item.isActive) throw new ConflictException('This item has been retired. Choose another');
+    if (saved && !saved.isActive) throw new ConflictException('This item has been retired. Choose another');
 
+    // How long this label's food keeps: the saved label's length, or the one just chosen for a new label.
+    const shelfLifeHours = saved?.shelfLifeHours ?? input.newItem!.shelfLifeHours;
     const now = this.momentMade(input);
     const preparedAt = input.preparedAt ? new Date(input.preparedAt) : now;
-    const expiresAt = input.expiresAt ? new Date(input.expiresAt) : useByFor(preparedAt, item.shelfLifeHours);
-    const outlet = await this.db.outlet.findUniqueOrThrow({ where: { id: item.outletId }, select: { organizationId: true } });
+    const expiresAt = input.expiresAt ? new Date(input.expiresAt) : useByFor(preparedAt, shelfLifeHours);
     const check = checkLabelTimes({
       preparedAt,
       expiresAt,
-      shelfLifeHours: item.shelfLifeHours,
+      shelfLifeHours,
       now,
       mayOverride: can(user.memberships, 'foodLabels', 'update', {
         organizationId: outlet.organizationId,
-        outletId: item.outletId,
+        outletId: outlet.id,
       }),
       overrideReason: input.overrideReason,
     });
@@ -260,24 +279,44 @@ export class FoodLabelsService {
 
     const byAnother = input.preparedByName !== undefined && input.preparedByName !== user.name;
     try {
-      const label = await this.db.foodLabel.create({
-        data: {
-          outletId: item.outletId,
-          foodItemId: item.id,
-          itemName: localize(item.name as LocalizedText, user.contentLanguage),
-          storage: item.storage,
-          allergens: item.allergens,
-          preparedAt,
-          expiresAt,
-          preparedById: byAnother ? null : user.id,
-          preparedByName: input.preparedByName ?? user.name,
-          quantityNote: input.quantityNote ?? null,
-          copies: input.copies,
-          overrideReason: check.overridden ? input.overrideReason!.trim() : null,
-          overrideById: check.overridden ? user.id : null,
-          createdById: user.id,
-          clientId: input.clientId ?? null,
-        },
+      // The new saved label and its first label are made together or not at all,
+      // so a label that fails (or arrives twice) never leaves a stray entry on the list.
+      const label = await this.db.$transaction(async (tx) => {
+        let item = saved;
+        if (!item) {
+          // One at a time for each outlet, so two people typing the same new name at once get one saved label.
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${outlet.id}))`;
+          const wanted = looseLabelName(input.newItem!.name);
+          const active = await tx.foodItem.findMany({ where: { outletId: outlet.id, isActive: true } });
+          item =
+            active.find((other) => looseLabelName(localize(other.name as LocalizedText, user.contentLanguage)) === wanted) ??
+            (await tx.foodItem.create({
+              data: {
+                outletId: outlet.id,
+                name: this.nameAsTyped(user, input.newItem!.name),
+                shelfLifeHours: input.newItem!.shelfLifeHours,
+              },
+            }));
+        }
+        return tx.foodLabel.create({
+          data: {
+            outletId: outlet.id,
+            foodItemId: item.id,
+            itemName: localize(item.name as LocalizedText, user.contentLanguage),
+            storage: item.storage,
+            allergens: item.allergens,
+            preparedAt,
+            expiresAt,
+            preparedById: byAnother ? null : user.id,
+            preparedByName: input.preparedByName ?? user.name,
+            quantityNote: input.quantityNote ?? null,
+            copies: input.copies,
+            overrideReason: check.overridden ? input.overrideReason!.trim() : null,
+            overrideById: check.overridden ? user.id : null,
+            createdById: user.id,
+            clientId: input.clientId ?? null,
+          },
+        });
       });
       return this.toLabelDto(label);
     } catch (error) {
@@ -400,15 +439,25 @@ export class FoodLabelsService {
     return { [user.contentLanguage.toLowerCase()]: name };
   }
 
-  /** Two items on the list with the same name would make the wrong one easy to pick. */
+  /**
+   * Two saved labels with the same name would make the wrong one easy to pick.
+   * Names are compared loosely (capitals and extra spaces do not count), and
+   * the refusal names the one that already has it, so it can be offered.
+   */
   private async refuseSameName(user: AuthUser, outletId: string, name: string, exceptId: string | null): Promise<void> {
     const others = await this.db.foodItem.findMany({
       where: { outletId, isActive: true, ...(exceptId && { id: { not: exceptId } }) },
-      select: { name: true },
+      select: { id: true, name: true },
     });
-    const wanted = name.trim().toLowerCase();
-    if (others.some((other) => localize(other.name as LocalizedText, user.contentLanguage).trim().toLowerCase() === wanted)) {
-      throw new ConflictException({ message: 'An item with this name is already on the list', code: 'ITEM_NAME_TAKEN' });
+    const wanted = looseLabelName(name);
+    const same = others.find((other) => looseLabelName(localize(other.name as LocalizedText, user.contentLanguage)) === wanted);
+    if (same) {
+      throw new ConflictException({
+        message: 'There is already a label with this name. Use that one',
+        code: 'ITEM_NAME_TAKEN',
+        existingId: same.id,
+        existingName: localize(same.name as LocalizedText, user.contentLanguage),
+      });
     }
   }
 

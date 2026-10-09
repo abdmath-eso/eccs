@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ml: Messages = {
+export const ml: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "വൃത്തിയുള്ള ഇടങ്ങൾ. സുരക്ഷിതമായ പ്രവർത്തനം. കരുത്തുള്ള ബിസിനസ്.",
 
@@ -1241,25 +1241,11 @@ export const ml: Messages = {
   "labels.home.expired": "ഉപയോഗിക്കാനുള്ള സമയം കഴിഞ്ഞിട്ടും കിച്ചണിൽ ഉള്ളവ: {count}",
   "labels.home.open": "ഫുഡ് ലേബലുകൾ തുറക്കുക",
   "labels.home.quiet": "ഇന്ന് ഉപയോഗിച്ചു തീർക്കേണ്ടതായി ഒന്നുമില്ല. ലേബൽ ഉണ്ടാക്കുക.",
-  "labels.pickHelp": "നിങ്ങൾ തയ്യാറാക്കിയതിലോ തുറന്നതിലോ തൊടുക.",
   "labels.recent": "അടുത്തിടെ ഉപയോഗിച്ചവ",
   "labels.allItems": "എല്ലാ ഇനങ്ങളും",
   "labels.noMatch": "ലിസ്റ്റിൽ ചേരുന്നതൊന്നും ഇല്ല.",
-  "labels.noItemsManager": "ഇതുവരെ ഇനങ്ങളൊന്നും ഇല്ല. നിങ്ങളുടെ കിച്ചണിൽ തയ്യാറാക്കുന്നവ, ഓരോന്നും എത്ര സമയം കേടാകാതെ ഇരിക്കും എന്നതിനൊപ്പം ചേർക്കുക.",
-  "labels.noItemsChef": "ഇതുവരെ ഇനങ്ങളൊന്നും ഇല്ല. അവ ചേർക്കാൻ നിങ്ങളുടെ മാനേജരോടോ ഉടമയോടോ പറയുക.",
   "labels.noSignalItems": "സിഗ്നൽ ഇല്ല. കഴിഞ്ഞ തവണ ഉണ്ടായിരുന്ന ലിസ്റ്റാണ് ഇത്.",
   "labels.changeItem": "ഇനം മാറ്റുക",
-  "labels.preparedNow": "ഇപ്പോൾ തയ്യാറാക്കിയത്",
-  "labels.minus15": "15 മിനിറ്റ് മുമ്പ്",
-  "labels.minusHour": "1 മണിക്കൂർ മുമ്പ്",
-  "labels.plusHour": "1 മണിക്കൂർ കഴിഞ്ഞ്",
-  "labels.minusDay": "1 ദിവസം മുമ്പ്",
-  "labels.plusDay": "1 ദിവസം കഴിഞ്ഞ്",
-  "labels.fullLife": "മുഴുവൻ സമയത്തിലേക്ക് തിരികെ",
-  "labels.keepsChef": "ഈ ഇനം കേടാകാതെ ഇരിക്കുന്ന സമയം: {life}. മാനേജർക്കോ ഉടമയ്ക്കോ മാത്രമേ ഇത് കൂട്ടാൻ കഴിയൂ.",
-  "labels.keepsManager": "ഈ ഇനം കേടാകാതെ ഇരിക്കുന്ന സമയം: {life}. കാരണം എഴുതി നിങ്ങൾക്ക് ഇത് കൂട്ടാം.",
-  "labels.overrideWarning": "ഇത് ഈ ഇനം കേടാകാതെ ഇരിക്കുന്ന സമയത്തേക്കാൾ ({life}) കൂടുതലാണ്. നിങ്ങളുടെ പേരും കാരണവും രേഖപ്പെടുത്തും.",
-  "labels.overrideReason": "ഇത് എന്തുകൊണ്ടാണ് കൂടുതൽ സമയം വയ്ക്കുന്നത്?",
   "labels.preparedBy": "തയ്യാറാക്കിയത്",
   "labels.copies": "എത്ര ലേബലുകൾ",
   "labels.fewer": "ഒന്ന് കുറയ്ക്കുക",

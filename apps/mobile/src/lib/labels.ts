@@ -16,7 +16,8 @@ import { isRightToLeft } from '@eccs/i18n';
 /** The facts a label is made of. A label from the server has them all; so does one still waiting to be sent. */
 export interface LabelFacts {
   itemName: string;
-  storage: StorageType;
+  /** Where it is kept; null when nobody has said, and then the label says nothing about it. */
+  storage: StorageType | null;
   allergens: readonly Allergen[];
   preparedAt: string;
   expiresAt: string;
@@ -24,10 +25,10 @@ export interface LabelFacts {
   quantityNote: string | null;
 }
 
-/** A shelf life as people say it: "36 hours", "3 days". */
+/** A shelf life as people say it: "8 hours", "1 day", "3 days". */
 export function shelfLifeText(hours: number, t: Translator): string {
   const { value, unit } = shelfLifeParts(hours);
-  if (unit === 'HOURS' && value === 1) return t('labels.hourOne');
+  if (value === 1) return t(unit === 'DAYS' ? 'labels.dayOne' : 'labels.hourOne');
   return t(unit === 'DAYS' ? 'labels.days' : 'labels.hours', { count: value });
 }
 
@@ -46,7 +47,9 @@ export function labelPrintData(
   t: Translator,
   language: LanguageCode,
 ): LabelPrintData {
-  const lines = [`${t('labels.print.by', { name: label.preparedByName })} · ${t(`labels.storageKeep.${label.storage}`)}`];
+  // Who prepared it, then where it is kept if anyone has said. Nothing is printed for storage that was never set.
+  const by = t('labels.print.by', { name: label.preparedByName });
+  const lines = [label.storage ? `${by} · ${t(`labels.storageKeep.${label.storage}`)}` : by];
   if (label.allergens.length > 0) lines.push(t('labels.print.allergens', { list: allergensText(label.allergens, t) }));
   if (label.quantityNote) lines.push(label.quantityNote);
   return {

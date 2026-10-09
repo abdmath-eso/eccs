@@ -18,9 +18,10 @@ import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
 /**
- * The outlet's food items, for the Owner and the Manager: what the kitchen
- * prepares or opens, where each is kept and how long it keeps. Labels are
- * made from this list. Retired items are kept underneath and can be brought
+ * The outlet's saved labels ("food items"), for the Owner and the Manager:
+ * each has a name and how long the food keeps, and optionally where it is
+ * kept and its allergens. Anyone making a label can add to this list by
+ * typing a new name there; changing and removing happen here. Retired items are kept underneath and can be brought
  * back; the outlet is the one chosen on the labels screen.
  */
 export default function FoodItemsScreen() {
@@ -66,7 +67,7 @@ export default function FoodItemsScreen() {
 
   const details = (item: FoodItemDto) =>
     [
-      t(`labels.storage.${item.storage}`),
+      item.storage && t(`labels.storage.${item.storage}`),
       shelfLifeText(item.shelfLifeHours, t),
       item.allergens.length > 0 ? allergensText(item.allergens, t) : null,
     ]

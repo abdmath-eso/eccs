@@ -137,7 +137,7 @@ export default function FoodLabelsScreen() {
         {[
           t('labels.preparedAt', { when: formatLabelMoment(label.preparedAt, language) }),
           t('labels.print.by', { name: label.preparedByName }),
-          t(`labels.storage.${label.storage}`),
+          label.storage && t(`labels.storage.${label.storage}`),
           label.quantityNote,
         ]
           .filter(Boolean)

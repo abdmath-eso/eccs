@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const te: Messages = {
+export const te: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "శుభ్రమైన ప్రదేశాలు. సురక్షితమైన కార్యకలాపాలు. బలమైన వ్యాపారాలు.",
 
@@ -1241,25 +1241,11 @@ export const te: Messages = {
   "labels.home.expired": "వాడే గడువు దాటింది, ఇంకా వంటగదిలో ఉన్నవి: {count}",
   "labels.home.open": "ఆహార లేబుల్స్ తెరవండి",
   "labels.home.quiet": "ఈ రోజు వాడేయాల్సినవి ఏమీ లేవు. లేబుల్ తయారు చేయండి.",
-  "labels.pickHelp": "మీరు తయారు చేసినదాన్ని లేదా తెరిచినదాన్ని నొక్కండి.",
   "labels.recent": "ఇటీవల వాడినవి",
   "labels.allItems": "అన్ని పదార్థాలు",
   "labels.noMatch": "జాబితాలో అలాంటిది ఏదీ దొరకలేదు.",
-  "labels.noItemsManager": "ఇంకా పదార్థాలు లేవు. మీ వంటగదిలో తయారయ్యే వాటిని, ప్రతిదీ ఎంత కాలం నిల్వ ఉంటుందో దానితో జోడించండి.",
-  "labels.noItemsChef": "ఇంకా పదార్థాలు లేవు. వాటిని జోడించమని మీ మేనేజర్‌ను లేదా యజమానిని అడగండి.",
   "labels.noSignalItems": "సిగ్నల్ లేదు. ఇది గతసారి ఉన్న జాబితా.",
   "labels.changeItem": "పదార్థాన్ని మార్చండి",
-  "labels.preparedNow": "ఇప్పుడే తయారు చేసినది",
-  "labels.minus15": "15 నిమిషాలు ముందు",
-  "labels.minusHour": "1 గంట ముందు",
-  "labels.plusHour": "1 గంట తర్వాత",
-  "labels.minusDay": "1 రోజు ముందు",
-  "labels.plusDay": "1 రోజు తర్వాత",
-  "labels.fullLife": "పూర్తి సమయానికి తిరిగి",
-  "labels.keepsChef": "ఈ పదార్థం నిల్వ ఉండే సమయం: {life}. మేనేజర్ లేదా యజమాని మాత్రమే దీన్ని పెంచగలరు.",
-  "labels.keepsManager": "ఈ పదార్థం నిల్వ ఉండే సమయం: {life}. కారణం రాసి మీరు దీన్ని పెంచవచ్చు.",
-  "labels.overrideWarning": "ఇది ఈ పదార్థం నిల్వ ఉండే సమయం ({life}) కంటే ఎక్కువ. మీ పేరు మరియు కారణం నమోదు అవుతాయి.",
-  "labels.overrideReason": "దీన్ని ఎక్కువ సమయం ఎందుకు ఉంచుతున్నారు?",
   "labels.preparedBy": "తయారు చేసినవారు",
   "labels.copies": "ఎన్ని లేబుల్స్",
   "labels.fewer": "ఒకటి తక్కువ",

@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const kn: Messages = {
+export const kn: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ಸ್ವಚ್ಛ ಜಾಗಗಳು. ಸುರಕ್ಷಿತ ಕೆಲಸ. ಬಲವಾದ ವ್ಯಾಪಾರ.",
 
@@ -1241,25 +1241,11 @@ export const kn: Messages = {
   "labels.home.expired": "ಬಳಸುವ ಗಡುವು ಮೀರಿದೆ, ಇನ್ನೂ ಅಡುಗೆಮನೆಯಲ್ಲಿದೆ: {count}",
   "labels.home.open": "ಫುಡ್ ಲೇಬಲ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ",
   "labels.home.quiet": "ಇಂದು ಬಳಸಿ ಮುಗಿಸಬೇಕಾದದ್ದು ಏನೂ ಇಲ್ಲ. ಲೇಬಲ್ ಮಾಡಿ.",
-  "labels.pickHelp": "ನೀವು ತಯಾರಿಸಿದ್ದನ್ನು ಅಥವಾ ತೆರೆದದ್ದನ್ನು ಒತ್ತಿ.",
   "labels.recent": "ಇತ್ತೀಚೆಗೆ ಬಳಸಿದ್ದು",
   "labels.allItems": "ಎಲ್ಲಾ ಐಟಂಗಳು",
   "labels.noMatch": "ಪಟ್ಟಿಯಲ್ಲಿ ಹೊಂದುವಂಥದ್ದು ಏನೂ ಇಲ್ಲ.",
-  "labels.noItemsManager": "ಇನ್ನೂ ಐಟಂಗಳಿಲ್ಲ. ನಿಮ್ಮ ಅಡುಗೆಮನೆಯಲ್ಲಿ ತಯಾರಿಸುವುದನ್ನು, ಪ್ರತಿಯೊಂದೂ ಎಷ್ಟು ಸಮಯ ಕೆಡದೆ ಇರುತ್ತದೆ ಎಂಬುದರ ಜೊತೆ ಸೇರಿಸಿ.",
-  "labels.noItemsChef": "ಇನ್ನೂ ಐಟಂಗಳಿಲ್ಲ. ಅವುಗಳನ್ನು ಸೇರಿಸಲು ನಿಮ್ಮ ಮ್ಯಾನೇಜರ್ ಅಥವಾ ಓನರ್ ಅವರನ್ನು ಕೇಳಿ.",
   "labels.noSignalItems": "ಸಿಗ್ನಲ್ ಇಲ್ಲ. ಇದು ಕಳೆದ ಬಾರಿ ಇದ್ದ ಪಟ್ಟಿ.",
   "labels.changeItem": "ಐಟಂ ಬದಲಾಯಿಸಿ",
-  "labels.preparedNow": "ಈಗಷ್ಟೇ ತಯಾರಿಸಿದ್ದು",
-  "labels.minus15": "15 ನಿಮಿಷ ಮೊದಲು",
-  "labels.minusHour": "1 ಗಂಟೆ ಮೊದಲು",
-  "labels.plusHour": "1 ಗಂಟೆ ನಂತರ",
-  "labels.minusDay": "1 ದಿನ ಮೊದಲು",
-  "labels.plusDay": "1 ದಿನ ನಂತರ",
-  "labels.fullLife": "ಪೂರ್ತಿ ಸಮಯಕ್ಕೆ ವಾಪಸ್",
-  "labels.keepsChef": "ಈ ಐಟಂ ಕೆಡದೆ ಇರುವ ಸಮಯ: {life}. ಮ್ಯಾನೇಜರ್ ಅಥವಾ ಓನರ್ ಮಾತ್ರ ಇದನ್ನು ಹೆಚ್ಚಿಸಬಹುದು.",
-  "labels.keepsManager": "ಈ ಐಟಂ ಕೆಡದೆ ಇರುವ ಸಮಯ: {life}. ಕಾರಣ ಬರೆದು ನೀವು ಇದನ್ನು ಹೆಚ್ಚಿಸಬಹುದು.",
-  "labels.overrideWarning": "ಇದು ಈ ಐಟಂ ಕೆಡದೆ ಇರುವ ಸಮಯಕ್ಕಿಂತ ({life}) ಹೆಚ್ಚು. ನಿಮ್ಮ ಹೆಸರು ಮತ್ತು ಕಾರಣ ದಾಖಲಾಗುತ್ತದೆ.",
-  "labels.overrideReason": "ಇದನ್ನು ಹೆಚ್ಚು ಸಮಯ ಏಕೆ ಇಡಲಾಗುತ್ತಿದೆ?",
   "labels.preparedBy": "ತಯಾರಿಸಿದವರು",
   "labels.copies": "ಎಷ್ಟು ಲೇಬಲ್‌ಗಳು",
   "labels.fewer": "ಒಂದು ಕಡಿಮೆ",

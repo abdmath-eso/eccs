@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Messages = {
+export const gu: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 
@@ -1241,25 +1241,11 @@ export const gu: Messages = {
   "labels.home.expired": "સમય વીતી ગયો, હજી કિચનમાં છે: {count}",
   "labels.home.open": "ફૂડ લેબલ ખોલો",
   "labels.home.quiet": "આજે વાપરી નાખવા જેવું કંઈ નથી. લેબલ બનાવો.",
-  "labels.pickHelp": "તમે જે તૈયાર કર્યું કે ખોલ્યું તેના પર ટૅપ કરો.",
   "labels.recent": "હમણાં વાપરેલી",
   "labels.allItems": "બધી આઇટમ",
   "labels.noMatch": "યાદીમાં કંઈ મળતું નથી.",
-  "labels.noItemsManager": "હજી કોઈ આઇટમ નથી. તમારા કિચનમાં જે બને છે તે ઉમેરો, અને દરેક કેટલો સમય સારી રહે છે તે પણ.",
-  "labels.noItemsChef": "હજી કોઈ આઇટમ નથી. તમારા મેનેજર કે માલિકને ઉમેરવા કહો.",
   "labels.noSignalItems": "સિગ્નલ નથી. આ યાદી છેલ્લી વાર જેવી હતી તેવી છે.",
   "labels.changeItem": "આઇટમ બદલો",
-  "labels.preparedNow": "હમણાં જ તૈયાર કર્યું",
-  "labels.minus15": "15 મિનિટ વહેલું",
-  "labels.minusHour": "1 કલાક વહેલું",
-  "labels.plusHour": "1 કલાક મોડું",
-  "labels.minusDay": "1 દિવસ વહેલું",
-  "labels.plusDay": "1 દિવસ મોડું",
-  "labels.fullLife": "પૂરા સમય પર પાછા",
-  "labels.keepsChef": "આ આઇટમ {life} સારી રહે છે. ફક્ત મેનેજર કે માલિક જ આ સમય વધારી શકે.",
-  "labels.keepsManager": "આ આઇટમ {life} સારી રહે છે. કારણ લખીને તમે સમય વધારી શકો છો.",
-  "labels.overrideWarning": "આ આઇટમ જેટલો સમય સારી રહે છે ({life}) તેના કરતાં આ વધારે છે. તમારું નામ અને કારણ નોંધાય છે.",
-  "labels.overrideReason": "કેમ વધુ સમય રાખવામાં આવે છે?",
   "labels.preparedBy": "તૈયાર કરનાર",
   "labels.copies": "કેટલાં લેબલ",
   "labels.fewer": "એક ઓછું",

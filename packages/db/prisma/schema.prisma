@@ -1227,7 +1227,8 @@ model FoodItem {
   outletId       String
   name           Json
   shelfLifeHours Int
-  storage        StorageType @default(CHILLED)
+  /// Where it is kept. Empty when nobody has said: a label needs only a name and how long it keeps.
+  storage        StorageType?
   /// Allergen codes from ALLERGENS in packages/shared/src/food-labels.ts.
   allergens      String[]    @default([])
   note           String?
@@ -1264,7 +1265,7 @@ model FoodLabel {
   outletId       String
   foodItemId     String
   itemName       String             @default("")
-  storage        StorageType        @default(CHILLED)
+  storage        StorageType?
   allergens      String[]           @default([])
   preparedAt     DateTime
   expiresAt      DateTime

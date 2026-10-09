@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const hi: Messages = {
+export const hi: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "साफ़ जगहें। सुरक्षित संचालन। मज़बूत व्यवसाय।",
 
@@ -1241,25 +1241,11 @@ export const hi: Messages = {
   "labels.home.expired": "इस्तेमाल का समय निकल गया, अभी भी रसोई में: {count}",
   "labels.home.open": "फ़ूड लेबल खोलें",
   "labels.home.quiet": "आज इस्तेमाल करने के लिए कुछ नहीं है। लेबल बनाएं।",
-  "labels.pickHelp": "जो आपने बनाया या खोला है, उस पर टैप करें।",
   "labels.recent": "हाल में इस्तेमाल किए गए",
   "labels.allItems": "सभी आइटम",
   "labels.noMatch": "सूची में ऐसा कुछ नहीं मिला।",
-  "labels.noItemsManager": "अभी कोई आइटम नहीं है। आपकी रसोई में जो बनता है उसे जोड़ें, और हर एक कितने समय तक ठीक रहता है यह भी।",
-  "labels.noItemsChef": "अभी कोई आइटम नहीं है। इन्हें जोड़ने के लिए अपने मैनेजर या मालिक से कहें।",
   "labels.noSignalItems": "सिग्नल नहीं है। यह सूची वैसी है जैसी पिछली बार थी।",
   "labels.changeItem": "आइटम बदलें",
-  "labels.preparedNow": "अभी-अभी बनाया",
-  "labels.minus15": "15 मिनट पहले",
-  "labels.minusHour": "1 घंटा पहले",
-  "labels.plusHour": "1 घंटा बाद",
-  "labels.minusDay": "1 दिन पहले",
-  "labels.plusDay": "1 दिन बाद",
-  "labels.fullLife": "पूरे समय पर वापस",
-  "labels.keepsChef": "यह आइटम {life} तक ठीक रहता है। इसे सिर्फ़ मैनेजर या मालिक बढ़ा सकते हैं।",
-  "labels.keepsManager": "यह आइटम {life} तक ठीक रहता है। कारण देकर आप इसे बढ़ा सकते हैं।",
-  "labels.overrideWarning": "यह आइटम के ठीक रहने के समय ({life}) से ज़्यादा है। आपका नाम और कारण दर्ज किया जाता है।",
-  "labels.overrideReason": "इसे ज़्यादा समय क्यों रखा जा रहा है?",
   "labels.preparedBy": "किसने बनाया",
   "labels.copies": "कितने लेबल",
   "labels.fewer": "एक कम",

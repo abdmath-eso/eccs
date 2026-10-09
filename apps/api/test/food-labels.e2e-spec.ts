@@ -1,7 +1,9 @@
-// Food labels: who may manage items and make labels, items retired rather than
-// deleted once they have labels, the limits on a label's times, a Manager's or
-// Owner's override, the list of what is in the fridge, and marking food used
-// up or thrown away. Runs against the local database with the sample seed
+// Food labels: anyone who makes labels (the Head Chef too) saving a new one
+// with only a name and how long it keeps, "prepared" being the moment Print was
+// pressed and "use by" that moment plus the length, names compared loosely,
+// who may change or remove a saved label, items retired rather than deleted
+// once they have labels, the limits on a label's times, the list of what is in
+// the fridge, and marking food used up or thrown away. Runs against the local database with the sample seed
 // loaded. Works on a throwaway outlet with a throwaway Manager and Head Chef
 // of its own and removes all of it.
 
@@ -26,6 +28,8 @@ const STAFF_NAME = 'E2E Label Cook';
 const HOUR = 3_600_000;
 const ago = (hours: number) => new Date(Date.now() - hours * HOUR).toISOString();
 const ahead = (hours: number) => new Date(Date.now() + hours * HOUR).toISOString();
+/** The moment Print is pressed, as the app sends it: now, to the minute. */
+const pressPrint = () => new Date(Math.floor(Date.now() / 60_000) * 60_000).toISOString();
 
 describe('Food labels (e2e)', () => {
   let app: INestApplication<App>;
@@ -41,6 +45,8 @@ describe('Food labels (e2e)', () => {
   /** A two-day chilled item, and a label made for it. */
   let gravy: FoodItemDto;
   let label: FoodLabelDto;
+  /** A label the Head Chef made from nothing but a name and "8 hours". */
+  let paneer: FoodLabelDto;
 
   const http = () => request(app.getHttpServer());
   const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
@@ -134,9 +140,9 @@ describe('Food labels (e2e)', () => {
       await http().post('/food-labels/labels').send({ foodItemId: 'x' }).expect(401);
     });
 
-    it('lets the Owner and the Manager add items, and not the Head Chef, another outlet or ECCS', async () => {
+    it('lets the Owner, the Manager and the Head Chef save a label, and not another outlet or ECCS', async () => {
       const body = { name: 'E2E gravy base', storage: 'CHILLED', shelfLifeHours: 48, allergens: ['TREE_NUT', 'MILK'], note: 'Blue tub' };
-      await addItem(chef, body).expect(403);
+      await addItem(otherChef, body).expect(403);
       await addItem(otherManager, body).expect(403);
       await addItem(admin, body).expect(403);
       await addItem(supervisor, body).expect(403);
@@ -155,6 +161,10 @@ describe('Food labels (e2e)', () => {
         lastUsedAt: null,
       });
       await addItem(owner, { name: 'E2E fried onions', storage: 'AMBIENT', shelfLifeHours: 168, starterKey: 'fried-onions' }).expect(201);
+
+      // The Head Chef saves one with a name and how long it keeps, and nothing else.
+      const stock = (await addItem(chef, { name: 'E2E chef stock', shelfLifeHours: 8 }).expect(201)).body as FoodItemDto;
+      expect(stock).toMatchObject({ name: 'E2E chef stock', shelfLifeHours: 8, storage: null, allergens: [], note: null, isActive: true });
     });
 
     it('checks what an item is given', async () => {
@@ -164,13 +174,20 @@ describe('Food labels (e2e)', () => {
       await addItem(manager, { ...body, shelfLifeHours: 0 }).expect(400);
       await addItem(manager, { ...body, shelfLifeHours: FOOD_LABEL_RULES.maxShelfLifeHours + 1 }).expect(400);
       await addItem(manager, { ...body, allergens: ['GLASS'] }).expect(400);
-      // The same name twice on one list would make the wrong one easy to pick.
-      await addItem(manager, { ...body, name: 'e2e GRAVY base' }).expect(409);
+    });
+
+    it('answers a name the outlet already has with the saved label that has it, comparing loosely', async () => {
+      // Capitals, spaces at the ends and doubled spaces do not make a new label.
+      for (const name of ['e2e GRAVY base', '  E2E gravy base ', 'E2E  gravy   BASE']) {
+        const taken = await addItem(chef, { name, shelfLifeHours: 24 }).expect(409);
+        expect(taken.body).toMatchObject({ code: 'ITEM_NAME_TAKEN', existingId: gravy.id, existingName: 'E2E gravy base' });
+      }
+      expect((await items(manager)).filter((item) => item.name.toLowerCase().includes('gravy'))).toHaveLength(1);
     });
 
     it('lets everyone at the outlet read the items, ECCS admins too, and nobody from elsewhere', async () => {
       for (const token of [owner, manager, chef, admin]) {
-        expect((await items(token)).map((item) => item.name).sort()).toEqual(['E2E fried onions', 'E2E gravy base']);
+        expect((await items(token)).map((item) => item.name).sort()).toEqual(['E2E chef stock', 'E2E fried onions', 'E2E gravy base']);
       }
       await http().get('/food-labels/items').query({ outletId }).set(bearer(otherChef)).expect(403);
       await http().get('/food-labels/items').query({ outletId }).set(bearer(otherManager)).expect(403);
@@ -186,6 +203,17 @@ describe('Food labels (e2e)', () => {
       ).body as FoodItemDto;
       expect(changed).toMatchObject({ note: null, allergens: ['MILK'], shelfLifeHours: 48, name: 'E2E gravy base' });
       gravy = changed;
+    });
+
+    it('lets the Manager add where a saved label is stored, and take it off again', async () => {
+      const stock = (await items(manager)).find((item) => item.name === 'E2E chef stock')!;
+      // The Head Chef saved it, but changing or removing a saved label stays with the Manager and the Owner.
+      await http().patch(`/food-labels/items/${stock.id}`).set(bearer(chef)).send({ name: 'E2E chef stock 2' }).expect(403);
+      await http().delete(`/food-labels/items/${stock.id}`).set(bearer(chef)).expect(403);
+      const stored = (await http().patch(`/food-labels/items/${stock.id}`).set(bearer(manager)).send({ storage: 'CHILLED' }).expect(200)).body;
+      expect(stored.storage).toBe('CHILLED');
+      const cleared = (await http().patch(`/food-labels/items/${stock.id}`).set(bearer(manager)).send({ storage: null }).expect(200)).body;
+      expect(cleared.storage).toBeNull();
     });
 
     it('deletes an item that never had a label', async () => {
@@ -246,6 +274,81 @@ describe('Food labels (e2e)', () => {
       await make(chef, { foodItemId: gravy.id, copies: FOOD_LABEL_RULES.maxCopies + 1 }).expect(400);
     });
 
+    it('lets a Head Chef make a label for something new with a name and a length, timed from the press of Print', async () => {
+      const before = (await items(chef)).length;
+      const pressed = pressPrint();
+      paneer = (
+        await make(chef, { newItem: { outletId, name: 'E2E paneer marination', shelfLifeHours: 8 }, preparedAt: pressed }).expect(201)
+      ).body;
+      // Prepared is the minute Print was pressed on the phone; use-by is exactly eight hours after it.
+      expect(paneer.preparedAt).toBe(pressed);
+      expect(Date.parse(paneer.expiresAt)).toBe(Date.parse(pressed) + 8 * HOUR);
+      expect(paneer).toMatchObject({
+        outletId,
+        itemName: 'E2E paneer marination',
+        // Nobody said where it is kept or what is in it, and nothing is assumed.
+        storage: null,
+        allergens: [],
+        preparedByName: PEOPLE.chef,
+        status: 'LIVE',
+        overrideReason: null,
+      });
+
+      // It was saved for the outlet, so next time it is a one-tap choice.
+      const list = await items(chef);
+      expect(list).toHaveLength(before + 1);
+      const saved = list.find((item) => item.id === paneer.foodItemId)!;
+      expect(saved).toMatchObject({ name: 'E2E paneer marination', shelfLifeHours: 8, storage: null, isActive: true, labelCount: 1 });
+
+      const again = pressPrint();
+      const second = (await make(chef, { foodItemId: saved.id, preparedAt: again }).expect(201)).body as FoodLabelDto;
+      expect(second.preparedAt).toBe(again);
+      expect(Date.parse(second.expiresAt)).toBe(Date.parse(again) + 8 * HOUR);
+    });
+
+    it('uses the saved label when a "new" name is one the outlet already has', async () => {
+      const before = (await items(chef)).length;
+      const pressed = pressPrint();
+      const made = (
+        await make(manager, { newItem: { outletId, name: '  e2e PANEER   marination ', shelfLifeHours: 24 }, preparedAt: pressed }).expect(201)
+      ).body as FoodLabelDto;
+      expect(made).toMatchObject({ foodItemId: paneer.foodItemId, itemName: 'E2E paneer marination' });
+      // The label keeps the length chosen when Print was pressed (it is what the sticker says); the saved label is unchanged.
+      expect(Date.parse(made.expiresAt)).toBe(Date.parse(pressed) + 24 * HOUR);
+      expect(made.overrideReason).toBeNull();
+      const list = await items(chef);
+      expect(list).toHaveLength(before);
+      expect(list.find((item) => item.id === paneer.foodItemId)!.shelfLifeHours).toBe(8);
+    });
+
+    it('lets a Head Chef choose any length inside the limits, with no override and no reason', async () => {
+      const pressed = pressPrint();
+      const pickle = (
+        await make(chef, { newItem: { outletId, name: 'E2E mango pickle', shelfLifeHours: 365 * 24 }, preparedAt: pressed }).expect(201)
+      ).body as FoodLabelDto;
+      expect(Date.parse(pickle.expiresAt)).toBe(Date.parse(pressed) + 365 * 24 * HOUR);
+      expect(pickle).toMatchObject({ overrideReason: null, overrideByName: null, group: 'LATER' });
+    });
+
+    it('checks a new label and who is asking', async () => {
+      const fresh = { outletId, name: 'E2E refused label', shelfLifeHours: 8 };
+      await make(chef, { newItem: { ...fresh, name: 'x' } }).expect(400);
+      await make(chef, { newItem: { ...fresh, shelfLifeHours: 0 } }).expect(400);
+      await make(chef, { newItem: { ...fresh, shelfLifeHours: FOOD_LABEL_RULES.maxShelfLifeHours + 1 } }).expect(400);
+      // A saved label or a new one: one of the two, not both and not neither.
+      await make(chef, {}).expect(400);
+      await make(chef, { foodItemId: gravy.id, newItem: fresh }).expect(400);
+      await make(otherChef, { newItem: fresh }).expect(403);
+      await make(admin, { newItem: fresh }).expect(403);
+      await make(supervisor, { newItem: fresh }).expect(403);
+      // A phone whose clock is far ahead cannot date a label into the future, and nothing is saved by a refused label.
+      const future = await make(chef, { newItem: fresh, preparedAt: ahead(1) }).expect(400);
+      expect(future.body.code).toBe('PREPARED_IN_FUTURE');
+      expect((await items(chef, true)).map((item) => item.name)).not.toContain('E2E refused label');
+    });
+
+    // The app no longer offers the next three (it sends only the moment Print was
+    // pressed); the server still accepts what it always did, within the same limits.
     it('lets prepared be set back up to a day, never into the future, with use-by counted from it', async () => {
       const earlier = ago(6);
       const made = (await make(chef, { foodItemId: gravy.id, preparedAt: earlier }).expect(201)).body as FoodLabelDto;
@@ -296,6 +399,31 @@ describe('Food labels (e2e)', () => {
       expect(plain.overrideReason).toBeNull();
     });
 
+    it('takes a label made without signal at the time Print was pressed on the phone, new name and all', async () => {
+      // Printed 30 hours ago in a kitchen with no signal; it reaches the server only now, three times over.
+      const pressed = ago(30);
+      const queued = {
+        newItem: { outletId, name: 'E2E offline chutney', shelfLifeHours: 48 },
+        clientId: 'e2e-label-queued-new-0001',
+        madeAt: pressed,
+        preparedAt: pressed,
+      };
+      const first = (await make(chef, queued).expect(201)).body as FoodLabelDto;
+      expect(first.preparedAt).toBe(pressed);
+      expect(Date.parse(first.expiresAt)).toBe(Date.parse(pressed) + 48 * HOUR);
+      const [again, both] = await Promise.all([make(chef, queued).expect(201), make(chef, queued).expect(201)]);
+      expect(again.body.id).toBe(first.id);
+      expect(both.body.id).toBe(first.id);
+      expect(await prisma.client.foodLabel.count({ where: { clientId: queued.clientId } })).toBe(1);
+      expect((await items(chef)).filter((item) => item.name === 'E2E offline chutney')).toHaveLength(1);
+    });
+
+    it('saves one label when two people make the same new one at the same moment', async () => {
+      const fresh = { newItem: { outletId, name: 'E2E twin label', shelfLifeHours: 4 } };
+      await Promise.all([make(chef, fresh).expect(201), make(manager, fresh).expect(201)]);
+      expect((await items(chef)).filter((item) => item.name === 'E2E twin label')).toMatchObject([{ labelCount: 2 }]);
+    });
+
     it('makes one label when the same one is sent twice from a phone that had no signal', async () => {
       const queued = { foodItemId: gravy.id, clientId: 'e2e-label-queued-0001', madeAt: ago(30), preparedAt: ago(40) };
       // Made 30 hours ago on the phone, prepared 10 hours before that: inside the limit as it stood then.
@@ -320,6 +448,14 @@ describe('Food labels (e2e)', () => {
       const printed = (await http().post(`/food-labels/labels/${label.id}/printed`).set(bearer(chef)).expect(200)).body as FoodLabelDto;
       expect(printed.printedAt).not.toBeNull();
       await http().post(`/food-labels/labels/${label.id}/printed`).set(bearer(otherChef)).expect(404);
+    });
+
+    it('keeps a label’s own times when it is printed again', async () => {
+      // "Print again" prints the label as it stands on the list and tells the server it was printed: same food, same times.
+      const reprinted = (await http().post(`/food-labels/labels/${paneer.id}/printed`).set(bearer(manager)).expect(200)).body as FoodLabelDto;
+      expect(reprinted).toMatchObject({ id: paneer.id, preparedAt: paneer.preparedAt, expiresAt: paneer.expiresAt });
+      const listed = [...(await board(chef)).today, ...(await board(chef)).later].find((entry) => entry.id === paneer.id)!;
+      expect(listed).toMatchObject({ preparedAt: paneer.preparedAt, expiresAt: paneer.expiresAt, storage: null });
     });
   });
 

@@ -3,10 +3,15 @@ import { ApiError } from '@eccs/api-client';
 import type { MessageKey } from '@eccs/i18n';
 import {
   DEFAULT_LABEL_SIZE,
+  findSameName,
   FOOD_LABEL_RULES,
   formatLabelMoment,
+  isShelfLifeAllowed,
+  toShelfLifeHours,
+  useByFor as addShelfLife,
   type CreateFoodLabelInput,
   type FoodItemDto,
+  type ShelfLifeUnit,
 } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -39,14 +44,15 @@ import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
 const MINUTE = 60_000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
 const SIZES: PrintJob['size'][] = ['L50X30', 'L50X25', 'ROLL58'];
+const UNITS: ShelfLifeUnit[] = ['HOURS', 'DAYS'];
 
 /** Now, to the minute: that is what the label prints. Only ever asked for when a button is pressed. */
 const thisMinute = () => Math.floor(Date.now() / MINUTE) * MINUTE;
 
 // What the server says when a label's times break a rule, in the app's words.
+// The app sets the times itself now, so in practice only a phone whose clock
+// is wrong can meet the first of these.
 const PROBLEM_KEYS: Record<string, MessageKey> = {
   PREPARED_IN_FUTURE: 'labels.error.PREPARED_IN_FUTURE',
   PREPARED_TOO_OLD: 'labels.error.PREPARED_TOO_OLD',
@@ -56,12 +62,21 @@ const PROBLEM_KEYS: Record<string, MessageKey> = {
   OVERRIDE_NEEDS_REASON: 'labels.error.OVERRIDE_NEEDS_REASON',
 };
 
+/** What the label is for: one of the outlet's saved labels, or a new name just typed. */
+type Choice = { kind: 'saved'; item: FoodItemDto } | { kind: 'new'; name: string };
+
 /**
- * Making a label. Two steps, built for wet hands and no typing: tap the item
- * (the ones used most recently are first), then tap Print. The app fills in
- * "prepared" as now and "use by" from the item's shelf life; both can be
- * nudged with buttons, within the limits in @eccs/shared. Without signal the
- * label still prints and its record is sent later.
+ * Making a label, for anyone in the kitchen and for anything (the founder's
+ * rule, 9 Oct 2026). One field finds a saved label or starts a new one:
+ *  - tap a saved label (the ones used most recently are first), then Print; or
+ *  - type a new name, tap how long it keeps ("8 hours", "1 day"), then Print.
+ *    The new label is saved for the outlet, so next time it is one tap.
+ *
+ * Nobody sets a time. "Prepared" is the minute Print is pressed and "use by"
+ * is that minute plus how long the food keeps; the screen says so before
+ * printing and shows the real times afterwards. Who prepared it, how many
+ * copies, a note and the label size are under "More options". Without signal
+ * the label still prints, with the phone's time, and its record is sent later.
  */
 export default function NewLabelScreen() {
   const theme = useTheme();
@@ -74,20 +89,25 @@ export default function NewLabelScreen() {
   const [outletName, setOutletName] = useState('');
   const [fromPhone, setFromPhone] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [typed, setTyped] = useState('');
   const [size, setSize] = useState<PrintJob['size']>(DEFAULT_LABEL_SIZE as PrintJob['size']);
 
   // The label being made.
-  const [item, setItem] = useState<FoodItemDto | null>(null);
-  const [preparedMs, setPreparedMs] = useState(0);
-  const [expiresMs, setExpiresMs] = useState(0);
+  const [choice, setChoice] = useState<Choice | null>(null);
+  // When this label was started. Only used to draw the day mark on the picture before printing.
+  const [openedMs, setOpenedMs] = useState(0);
+  // How long a new label keeps: one of the buttons, or "another length" typed as a number of hours or days.
+  const [presetHours, setPresetHours] = useState<number | null>(null);
+  const [other, setOther] = useState(false);
+  const [otherNumber, setOtherNumber] = useState('');
+  const [otherUnit, setOtherUnit] = useState<ShelfLifeUnit>('HOURS');
   const [byName, setByName] = useState('');
   const [copies, setCopies] = useState(1);
   const [note, setNote] = useState('');
-  const [reason, setReason] = useState('');
+  const [showMore, setShowMore] = useState(false);
 
   // Once saved, the label is fixed: `id` is the server's, or null while it waits on the phone for signal.
-  const [saved, setSaved] = useState<{ facts: LabelFacts; id: string | null } | null>(null);
+  const [saved, setSaved] = useState<{ facts: LabelFacts; id: string | null; isNew: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Said beside the tick when the label was kept on the phone; and what went wrong with printing, if anything.
@@ -116,12 +136,14 @@ export default function NewLabelScreen() {
       setLoadError(null);
       void keepLabelChoices(outletId, { items: list, names: people.names, outletName: knownOutletName });
     } catch (e) {
-      // No signal: the list as it was last time, kept on the phone.
-      const kept = isNoSignal(e) ? await keptLabelChoices(outletId) : null;
-      if (kept) {
-        setItems(kept.items);
-        setNames(kept.names);
-        setOutletName(kept.outletName);
+      // No signal: the list as it was last time, kept on the phone. With no list at all a
+      // new label can still be typed, so that is not an error to stop on.
+      const noSignal = isNoSignal(e);
+      const kept = noSignal ? await keptLabelChoices(outletId) : null;
+      if (kept || noSignal) {
+        setItems(kept?.items ?? []);
+        setNames(kept?.names ?? []);
+        setOutletName(kept?.outletName ?? knownOutletName);
         setFromPhone(true);
         setLoadError(null);
       } else {
@@ -131,22 +153,24 @@ export default function NewLabelScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, outletId, knownOutletName]);
 
-  // Reloads on coming back from adding an item, so it is there to pick.
+  // Reloads on coming back from the starter list or from changing a saved label.
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
   );
 
-  function pick(chosen: FoodItemDto) {
-    const now = thisMinute();
-    setItem(chosen);
-    setPreparedMs(now);
-    setExpiresMs(now + chosen.shelfLifeHours * HOUR);
+  function start(chosen: Choice) {
+    setChoice(chosen);
+    setOpenedMs(thisMinute());
+    setPresetHours(null);
+    setOther(false);
+    setOtherNumber('');
+    setOtherUnit('HOURS');
     setByName(myName);
     setCopies(1);
     setNote('');
-    setReason('');
+    setShowMore(false);
     setSaved(null);
     setError(null);
     setMessage(null);
@@ -154,9 +178,9 @@ export default function NewLabelScreen() {
   }
 
   function startAgain() {
-    setItem(null);
+    setChoice(null);
     setSaved(null);
-    setSearch('');
+    setTyped('');
     setError(null);
     setMessage(null);
     setPrintNote(null);
@@ -165,27 +189,38 @@ export default function NewLabelScreen() {
 
   if (!user || !membership) return null;
 
-  // ───────────────────────── Step 1: pick the item ─────────────────────────
+  // ───────────────────────── Step 1: find a saved label, or name a new one ─────────────────────────
 
-  if (!item) {
-    const words = search.toLowerCase().split(/\s+/).filter(Boolean);
-    const matching = (items ?? []).filter((entry) => words.every((word) => entry.name.toLowerCase().includes(word)));
+  if (!choice) {
+    const list = items ?? [];
+    const name = typed.trim().replace(/\s+/g, ' ');
+    const words = name.toLowerCase().split(' ').filter(Boolean);
+    const matching = list.filter((entry) => words.every((word) => entry.name.toLowerCase().includes(word)));
+    // A name the outlet already has (capitals and extra spaces aside) is offered, not made a second time.
+    const same = findSameName(list, name);
+    const canCreate = name.length >= 2 && !same;
     const recent = words.length === 0 ? matching.filter((entry) => entry.lastUsedAt).slice(0, FOOD_LABEL_RULES.recentItems) : [];
-    const rest = matching.filter((entry) => !recent.includes(entry));
+    const rest = matching.filter((entry) => !recent.includes(entry) && entry !== same);
 
-    const row = (entry: FoodItemDto) => (
+    const row = (entry: FoodItemDto, highlighted = false) => (
       <Pressable
         key={entry.id}
         accessibilityRole="button"
-        accessibilityLabel={entry.name}
-        onPress={() => pick(entry)}
-        style={({ pressed }) => [styles.item, { borderColor: theme.outline }, pressed && { backgroundColor: theme.backgroundElement }]}>
+        accessibilityLabel={`${entry.name}. ${t('labels.keeps', { life: shelfLifeText(entry.shelfLifeHours, t) })}`}
+        onPress={() => start({ kind: 'saved', item: entry })}
+        style={({ pressed }) => [
+          styles.item,
+          { borderColor: highlighted ? theme.primary : theme.outline },
+          pressed && { backgroundColor: theme.backgroundElement },
+        ]}>
         <View style={styles.itemWords}>
           <ThemedText type="default" style={styles.itemName}>
             {entry.name}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {t(`labels.storage.${entry.storage}`)} · {shelfLifeText(entry.shelfLifeHours, t)}
+            {[t('labels.keeps', { life: shelfLifeText(entry.shelfLifeHours, t) }), entry.storage && t(`labels.storage.${entry.storage}`)]
+              .filter(Boolean)
+              .join(' · ')}
           </ThemedText>
         </View>
         <Ionicons name={forwardIcon} size={24} color={theme.textSecondary} />
@@ -202,117 +237,144 @@ export default function NewLabelScreen() {
           </ThemedText>
         )}
 
-        {items !== null && items.length === 0 && (
-          <>
-            <ThemedText type="default" themeColor="textSecondary">
-              {t(manages ? 'labels.noItemsManager' : 'labels.noItemsChef')}
+        {/* One field both finds a saved label and starts a new one, so there is no separate "add" screen to go to. */}
+        <TextField
+          label={t('labels.name')}
+          hint={t('labels.nameHint')}
+          value={typed}
+          onChangeText={setTyped}
+          maxLength={60}
+          returnKeyType="next"
+          onSubmitEditing={() => {
+            if (same) start({ kind: 'saved', item: same });
+            else if (canCreate) start({ kind: 'new', name });
+          }}
+        />
+
+        {canCreate && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('labels.createNew', { name })}
+            onPress={() => start({ kind: 'new', name })}
+            style={({ pressed }) => [styles.item, { borderColor: theme.primary }, pressed && { backgroundColor: theme.backgroundElement }]}>
+            <Ionicons name="add-circle" size={28} color={theme.primary} />
+            <ThemedText type="default" themeColor="primary" style={[styles.itemWords, styles.itemName]}>
+              {t('labels.createNew', { name })}
             </ThemedText>
-            {manages && <Button icon="add" label={t('labels.items.add')} onPress={() => router.push('/labels/items')} />}
+          </Pressable>
+        )}
+
+        {same && (
+          <>
+            <ThemedText type="default">{t('labels.exists', { name: same.name })}</ThemedText>
+            {row(same, true)}
           </>
         )}
 
-        {items !== null && items.length > 0 && (
-          <>
-            {/* Typing is optional: with a short list the item is one tap away. */}
-            {items.length > FOOD_LABEL_RULES.recentItems && (
-              <TextField
-                label={t('common.search')}
-                value={search}
-                onChangeText={setSearch}
-                autoCorrect={false}
-                returnKeyType="search"
-              />
-            )}
-            {recent.length > 0 && (
-              <ThemedText type="smallBold" themeColor="textSecondary">
-                {t('labels.recent')}
-              </ThemedText>
-            )}
-            {recent.map(row)}
-            {recent.length > 0 && rest.length > 0 && (
-              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
-                {t('labels.allItems')}
-              </ThemedText>
-            )}
-            {rest.map(row)}
-            {matching.length === 0 && (
-              <ThemedText type="default" themeColor="textSecondary">
-                {t('labels.noMatch')}
-              </ThemedText>
-            )}
-          </>
+        {items !== null && list.length === 0 && name.length === 0 && (
+          <ThemedText type="default" themeColor="textSecondary">
+            {t('labels.noSaved')}
+          </ThemedText>
+        )}
+
+        {recent.length > 0 && (
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            {t('labels.recent')}
+          </ThemedText>
+        )}
+        {recent.map((entry) => row(entry))}
+        {recent.length > 0 && rest.length > 0 && (
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
+            {t('labels.allItems')}
+          </ThemedText>
+        )}
+        {rest.map((entry) => row(entry))}
+        {list.length > 0 && matching.length === 0 && !canCreate && (
+          <ThemedText type="default" themeColor="textSecondary">
+            {t('labels.noMatch')}
+          </ThemedText>
+        )}
+
+        {/* The starter list is a shortcut for filling the list quickly, never the way in. It needs signal. */}
+        {!fromPhone && items !== null && name.length === 0 && (
+          <Button icon="sparkles-outline" label={t('labels.items.fromStarter')} variant="link" onPress={() => router.push('/labels/starter')} />
         )}
       </Screen>
     );
   }
 
-  // ───────────────────────── Step 2: check and print ─────────────────────────
+  // ───────────────────────── Step 2: how long it keeps (new labels only), then Print ─────────────────────────
 
-  const maxExpiresMs = preparedMs + item.shelfLifeHours * HOUR;
-  const overridden = expiresMs > maxExpiresMs + MINUTE;
-  const draft: LabelFacts = {
-    itemName: item.name,
-    storage: item.storage,
-    allergens: item.allergens,
+  // A saved label as it is now: a Manager may have just changed it on the Items screen and come back.
+  const item = choice.kind === 'saved' ? (items?.find((entry) => entry.id === choice.item.id) ?? choice.item) : null;
+  const itemName = item?.name ?? (choice.kind === 'new' ? choice.name : '');
+  const otherHours = /^\d{1,4}$/.test(otherNumber.trim()) ? toShelfLifeHours(Number(otherNumber), otherUnit) : null;
+  const typedHours = other ? otherHours : presetHours;
+  // How long this label keeps, in hours; null while a new label's length is not yet chosen or is outside the limits.
+  const lifeHours = item ? item.shelfLifeHours : typedHours !== null && isShelfLifeAllowed(typedHours) ? typedHours : null;
+
+  const factsFor = (preparedMs: number, hours: number): LabelFacts => ({
+    itemName,
+    storage: item?.storage ?? null,
+    allergens: item?.allergens ?? [],
     preparedAt: new Date(preparedMs).toISOString(),
-    expiresAt: new Date(expiresMs).toISOString(),
+    expiresAt: addShelfLife(new Date(preparedMs), hours).toISOString(),
     preparedByName: byName || myName,
     quantityNote: note.trim() || null,
-  };
-  const facts = saved?.facts ?? draft;
-  const printData = labelPrintData(facts, outletName || knownOutletName, t, language);
-  const job = (): PrintJob => ({ labels: Array.from({ length: copies }, () => printData), size });
+  });
+  const printDataFor = (facts: LabelFacts) => labelPrintData(facts, outletName || knownOutletName, t, language);
+  const jobFor = (facts: LabelFacts): PrintJob => ({ labels: Array.from({ length: copies }, () => printDataFor(facts)), size });
 
-  function movePrepared(deltaMs: number | 'now') {
-    const now = thisMinute();
-    const wanted = deltaMs === 'now' ? now : preparedMs + deltaMs;
-    const next = Math.min(now, Math.max(now - FOOD_LABEL_RULES.maxBackdateHours * HOUR, wanted));
-    // The food keeps for as long as it did; only the starting moment moves.
-    setExpiresMs(next + (expiresMs - preparedMs));
-    setPreparedMs(next);
-    setError(null);
-  }
-
-  function moveUseBy(deltaMs: number | 'full') {
-    const ceiling = manages ? preparedMs + FOOD_LABEL_RULES.maxUseByDays * DAY : maxExpiresMs;
-    const wanted = deltaMs === 'full' ? maxExpiresMs : expiresMs + deltaMs;
-    setExpiresMs(Math.min(ceiling, Math.max(preparedMs + 30 * MINUTE, wanted)));
-    setError(null);
-  }
+  // The picture. Once printed it shows the label exactly as it went out. Before that the
+  // times are not known yet (they are the moment Print is pressed), so it says so in words;
+  // only the day mark is worked out, from when this screen was opened.
+  const provisional = printDataFor(factsFor(openedMs, lifeHours ?? 0));
+  const preview = saved
+    ? printDataFor(saved.facts)
+    : {
+        ...provisional,
+        preparedText: t('labels.preview.prepared'),
+        useByText: lifeHours ? t('labels.preview.useBy', { life: shelfLifeText(lifeHours, t) }) : t('labels.preview.useByUnset'),
+        dayWord: lifeHours ? provisional.dayWord : '',
+      };
 
   /**
-   * Saves the label once: on the server, or on the phone to send later when
-   * there is no signal. Answers with the label's id on the server (null while
-   * it waits on the phone), or false if it could not be saved.
+   * Saves the label once, at the press of Print: "prepared" is this minute
+   * and "use by" is this minute plus how long the food keeps. It goes to the
+   * server, or onto the phone to send later when there is no signal (still
+   * with this minute as its time). Answers with what the label says and its
+   * id on the server (null while it waits on the phone), or false if it
+   * could not be saved.
    */
-  async function save(): Promise<{ id: string | null } | false> {
+  async function save(): Promise<{ facts: LabelFacts; id: string | null } | false> {
     if (saved) return saved;
-    if (!item || !outletId || !user) return false;
-    if (overridden && !reason.trim()) {
-      setError(t('labels.error.OVERRIDE_NEEDS_REASON'));
+    if (!choice || !outletId || !user) return false;
+    if (lifeHours === null) {
+      setError(t(other ? 'labels.items.lifeNeeded' : 'labels.chooseKeeps'));
       return false;
     }
-    const input: CreateFoodLabelInput & { preparedAt: string; expiresAt: string } = {
-      foodItemId: item.id,
+    const pressed = Date.now();
+    const draft = factsFor(Math.floor(pressed / MINUTE) * MINUTE, lifeHours);
+    const isNew = choice.kind === 'new';
+    const input: CreateFoodLabelInput & { preparedAt: string } = {
+      ...(item ? { foodItemId: item.id } : { newItem: { outletId, name: itemName, shelfLifeHours: lifeHours } }),
       preparedAt: draft.preparedAt,
-      expiresAt: draft.expiresAt,
       ...(draft.preparedByName !== myName && { preparedByName: draft.preparedByName }),
       ...(draft.quantityNote && { quantityNote: draft.quantityNote }),
       copies,
-      ...(overridden && { overrideReason: reason.trim() }),
     };
     setSaving(true);
     setError(null);
     try {
       const label = await api.foodLabels.create(input);
-      setSaved({ facts: label, id: label.id });
-      return { id: label.id };
+      setSaved({ facts: label, id: label.id, isNew });
+      return { facts: label, id: label.id };
     } catch (e) {
       if (isNoSignal(e)) {
-        await queueLabel({ userId: user.id, outletId, input: { ...input, madeAt: new Date().toISOString() }, facts: draft });
-        setSaved({ facts: draft, id: null });
+        await queueLabel({ userId: user.id, outletId, input: { ...input, madeAt: new Date(pressed).toISOString() }, facts: draft });
+        setSaved({ facts: draft, id: null, isNew: false });
         setMessage(t('labels.savedOnPhone'));
-        return { id: null };
+        return { facts: draft, id: null };
       }
       const key = e instanceof ApiError && e.code ? PROBLEM_KEYS[e.code] : undefined;
       setError(key ? t(key) : errorMessage(e, t, { 409: 'labels.error.retired' }));
@@ -331,22 +393,23 @@ export default function NewLabelScreen() {
     setPrintNote(t(outcome === 'needsSignal' ? 'labels.print.needsSignal' : 'labels.print.unavailable'));
   }
 
-  /** The main button: save, then straight to the phone's print screen. */
+  /** The main button: save, then straight to the phone's print screen. Pressed again, it prints the same label with the same times. */
   async function print(route: PrintRoute) {
     const kept = await save();
     if (!kept) return;
     void rememberLabelSize(size);
     try {
-      report(await sendLabels(job(), route, api), kept.id);
+      report(await sendLabels(jobFor(kept.facts), route, api), kept.id);
     } catch {
       report('unavailable', null);
     }
   }
 
   async function otherWays() {
-    if (!(await save())) return;
+    const kept = await save();
+    if (!kept) return;
     void rememberLabelSize(size);
-    setSheet(job());
+    setSheet(jobFor(kept.facts));
   }
 
   const footer = saved ? (
@@ -376,17 +439,19 @@ export default function NewLabelScreen() {
   const names12 = [myName, ...names.filter((name) => name !== myName)].slice(0, 12);
 
   return (
-    <Screen back backLabel={t('labels.changeItem')} onBack={saved ? () => router.back() : () => setItem(null)} footer={footer}>
-      <FoodLabelPreview label={printData} size={size} />
+    <Screen back backLabel={t('labels.changeItem')} onBack={saved ? () => router.back() : () => setChoice(null)} footer={footer}>
+      <FoodLabelPreview label={preview} size={size} />
 
-      {item.allergens.length > 0 && (
-        <ThemedText type="small" themeColor="textSecondary">
-          {t('labels.print.allergens', { list: allergensText(item.allergens, t) })}
+      {saved ? (
+        <ThemedText type="default" style={styles.strong}>
+          {t('labels.printedTimes', {
+            prepared: formatLabelMoment(saved.facts.preparedAt, language),
+            useBy: formatLabelMoment(saved.facts.expiresAt, language),
+          })}
         </ThemedText>
-      )}
-      {item.note && (
+      ) : (
         <ThemedText type="small" themeColor="textSecondary">
-          {item.note}
+          {t('labels.timesAtPrint')}
         </ThemedText>
       )}
 
@@ -394,7 +459,7 @@ export default function NewLabelScreen() {
         <View style={styles.savedLine}>
           <Ionicons name="checkmark-circle" size={24} color={theme.primary} />
           <ThemedText type="default" style={styles.savedText}>
-            {message ?? t('labels.saved')}
+            {message ?? (saved.isNew ? t('labels.savedNew', { name: saved.facts.itemName }) : t('labels.saved'))}
           </ThemedText>
         </View>
       )}
@@ -407,119 +472,148 @@ export default function NewLabelScreen() {
 
       {!saved && (
         <>
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
-            {t('labels.preparedAt', { when: formatLabelMoment(draft.preparedAt, language) })}
-          </ThemedText>
-          <View style={styles.pair}>
-            <View style={styles.half}>
-              <Button fill label={t('labels.minus15')} variant="secondary" onPress={() => movePrepared(-15 * MINUTE)} />
-            </View>
-            <View style={styles.half}>
-              <Button fill label={t('labels.minusHour')} variant="secondary" onPress={() => movePrepared(-HOUR)} />
-            </View>
-          </View>
-          <Button label={t('labels.preparedNow')} variant="link" onPress={() => movePrepared('now')} />
-
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
-            {t('labels.useByAt', { when: formatLabelMoment(draft.expiresAt, language) })}
-          </ThemedText>
-          <View style={styles.pair}>
-            <View style={styles.half}>
-              <Button fill label={t('labels.minusHour')} variant="secondary" onPress={() => moveUseBy(-HOUR)} />
-            </View>
-            <View style={styles.half}>
-              <Button
-                fill
-                label={t('labels.plusHour')}
-                variant="secondary"
-                disabled={!manages && expiresMs >= maxExpiresMs}
-                onPress={() => moveUseBy(HOUR)}
-              />
-            </View>
-          </View>
-          <View style={styles.pair}>
-            <View style={styles.half}>
-              <Button fill label={t('labels.minusDay')} variant="secondary" onPress={() => moveUseBy(-DAY)} />
-            </View>
-            <View style={styles.half}>
-              <Button
-                fill
-                label={t('labels.plusDay')}
-                variant="secondary"
-                disabled={!manages && expiresMs >= maxExpiresMs}
-                onPress={() => moveUseBy(DAY)}
-              />
-            </View>
-          </View>
-          <ThemedText type="small" themeColor="textSecondary">
-            {t(manages ? 'labels.keepsManager' : 'labels.keepsChef', { life: shelfLifeText(item.shelfLifeHours, t) })}
-          </ThemedText>
-          {expiresMs !== maxExpiresMs && <Button label={t('labels.fullLife')} variant="link" onPress={() => moveUseBy('full')} />}
-
-          {/* Only a Manager or the Owner can get here: longer than the item keeps needs their reason. */}
-          {overridden && (
-            <View style={[styles.override, { borderColor: theme.warning }]}>
-              <View style={styles.overrideHeader}>
-                <Ionicons name="warning" size={22} color={theme.warning} />
-                <ThemedText type="default" style={styles.overrideText}>
-                  {t('labels.overrideWarning', { life: shelfLifeText(item.shelfLifeHours, t) })}
+          {item ? (
+            <>
+              <ThemedText type="default" style={styles.strong}>
+                {t('labels.keeps', { life: shelfLifeText(item.shelfLifeHours, t) })}
+              </ThemedText>
+              {item.allergens.length > 0 && (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {t('labels.print.allergens', { list: allergensText(item.allergens, t) })}
                 </ThemedText>
+              )}
+              {item.note && (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {item.note}
+                </ThemedText>
+              )}
+              {/* Changing how long a saved label keeps, or where it is stored, is for the Owner and the Manager. */}
+              {manages && !fromPhone && (
+                <Button
+                  label={t('labels.items.change')}
+                  variant="link"
+                  onPress={() => router.push({ pathname: '/labels/item', params: { itemId: item.id } })}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {/* A length, never a clock time: a few common ones to tap, and any other as a number of hours or days. */}
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
+                {t('labels.keepsQuestion')}
+              </ThemedText>
+              <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t('labels.keepsQuestion')}>
+                {FOOD_LABEL_RULES.shelfLifePresets.map((hours) => (
+                  <OptionChip
+                    key={hours}
+                    label={shelfLifeText(hours, t)}
+                    selected={!other && presetHours === hours}
+                    onPress={() => {
+                      setOther(false);
+                      setPresetHours(hours);
+                      setError(null);
+                    }}
+                  />
+                ))}
+                <OptionChip
+                  label={t('labels.otherLength')}
+                  selected={other}
+                  onPress={() => {
+                    setOther(true);
+                    setError(null);
+                  }}
+                />
               </View>
-              <TextField label={t('labels.overrideReason')} value={reason} onChangeText={setReason} maxLength={200} />
-            </View>
+              {other && (
+                <>
+                  <TextField
+                    label={t('labels.otherLengthNumber')}
+                    value={otherNumber}
+                    onChangeText={(value) => {
+                      setOtherNumber(value);
+                      setError(null);
+                    }}
+                    error={otherNumber.trim() !== '' && lifeHours === null ? t('labels.items.lifeNeeded') : null}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    autoFocus
+                  />
+                  <View style={styles.chips} accessibilityRole="radiogroup">
+                    {UNITS.map((option) => (
+                      <OptionChip key={option} label={t(`labels.unit.${option}`)} selected={otherUnit === option} onPress={() => setOtherUnit(option)} />
+                    ))}
+                  </View>
+                </>
+              )}
+              <ThemedText type="small" themeColor="textSecondary">
+                {t('labels.keepsHelp')}
+              </ThemedText>
+            </>
           )}
 
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
-            {t('labels.preparedBy')}
-          </ThemedText>
-          <View style={styles.chips} accessibilityRole="radiogroup">
-            {names12.map((name) => (
-              <OptionChip key={name} label={name} selected={(byName || myName) === name} onPress={() => setByName(name)} />
-            ))}
-          </View>
-
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
-            {t('labels.copies')}
-          </ThemedText>
-          <View style={styles.stepper}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('labels.fewer')}
-              disabled={copies <= 1}
-              onPress={() => setCopies(copies - 1)}
-              style={[styles.step, { borderColor: theme.outline, opacity: copies <= 1 ? 0.4 : 1 }]}>
-              <Ionicons name="remove" size={28} color={theme.text} />
-            </Pressable>
-            <ThemedText type="subtitle" style={styles.count} accessibilityLiveRegion="polite">
-              {copies}
-            </ThemedText>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('labels.more')}
-              disabled={copies >= FOOD_LABEL_RULES.maxCopies}
-              onPress={() => setCopies(copies + 1)}
-              style={[styles.step, { borderColor: theme.outline, opacity: copies >= FOOD_LABEL_RULES.maxCopies ? 0.4 : 1 }]}>
-              <Ionicons name="add" size={28} color={theme.text} />
-            </Pressable>
-          </View>
-
-          <TextField
-            label={t('labels.quantity')}
-            hint={t('labels.quantityHint')}
-            value={note}
-            onChangeText={setNote}
-            maxLength={60}
+          <Button
+            icon={showMore ? 'chevron-up' : 'chevron-down'}
+            label={t(showMore ? 'labels.hideOptions' : 'labels.moreOptions')}
+            variant="link"
+            onPress={() => setShowMore(!showMore)}
           />
 
-          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
-            {t('labels.size')}
-          </ThemedText>
-          <View style={styles.chips} accessibilityRole="radiogroup">
-            {SIZES.map((option) => (
-              <OptionChip key={option} label={t(`labels.size.${option}`)} selected={size === option} onPress={() => setSize(option)} />
-            ))}
-          </View>
+          {showMore && (
+            <>
+              <ThemedText type="smallBold" themeColor="textSecondary">
+                {t('labels.preparedBy')}
+              </ThemedText>
+              <View style={styles.chips} accessibilityRole="radiogroup">
+                {names12.map((name) => (
+                  <OptionChip key={name} label={name} selected={(byName || myName) === name} onPress={() => setByName(name)} />
+                ))}
+              </View>
 
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
+                {t('labels.copies')}
+              </ThemedText>
+              <View style={styles.stepper}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('labels.fewer')}
+                  disabled={copies <= 1}
+                  onPress={() => setCopies(copies - 1)}
+                  style={[styles.step, { borderColor: theme.outline, opacity: copies <= 1 ? 0.4 : 1 }]}>
+                  <Ionicons name="remove" size={28} color={theme.text} />
+                </Pressable>
+                <ThemedText type="subtitle" style={styles.count} accessibilityLiveRegion="polite">
+                  {copies}
+                </ThemedText>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('labels.more')}
+                  disabled={copies >= FOOD_LABEL_RULES.maxCopies}
+                  onPress={() => setCopies(copies + 1)}
+                  style={[styles.step, { borderColor: theme.outline, opacity: copies >= FOOD_LABEL_RULES.maxCopies ? 0.4 : 1 }]}>
+                  <Ionicons name="add" size={28} color={theme.text} />
+                </Pressable>
+              </View>
+
+              <TextField
+                label={t('labels.quantity')}
+                hint={t('labels.quantityHint')}
+                value={note}
+                onChangeText={setNote}
+                maxLength={60}
+              />
+
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
+                {t('labels.size')}
+              </ThemedText>
+              <View style={styles.chips} accessibilityRole="radiogroup">
+                {SIZES.map((option) => (
+                  <OptionChip key={option} label={t(`labels.size.${option}`)} selected={size === option} onPress={() => setSize(option)} />
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* For a kitchen with no label printer: an A4 sheet, or the label as a picture or PDF for another app. */}
           <Button icon="share-outline" label={t('labels.otherWays')} variant="link" onPress={() => void otherWays()} />
         </>
       )}
@@ -536,6 +630,7 @@ export default function NewLabelScreen() {
 
 const styles = StyleSheet.create({
   gap: { marginTop: Spacing.two },
+  strong: { fontWeight: 700 },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -563,7 +658,4 @@ const styles = StyleSheet.create({
   count: { minWidth: 48, textAlign: 'center' },
   savedLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   savedText: { flex: 1, fontWeight: 700 },
-  override: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  overrideHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  overrideText: { flex: 1 },
 });

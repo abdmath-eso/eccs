@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ur: Messages = {
+export const ur: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "صاف جگہیں۔ محفوظ کام۔ مضبوط کاروبار۔",
 
@@ -1241,25 +1241,11 @@ export const ur: Messages = {
   "labels.home.expired": "وقت گزر چکا، ابھی کچن میں ہے: {count}",
   "labels.home.open": "فوڈ لیبل کھولیں",
   "labels.home.quiet": "آج استعمال کر کے ختم کرنے کو کچھ نہیں ہے۔ لیبل بنائیں۔",
-  "labels.pickHelp": "جو آپ نے تیار کیا یا کھولا، اس پر ٹیپ کریں۔",
   "labels.recent": "حال ہی میں استعمال شدہ",
   "labels.allItems": "تمام آئٹمز",
   "labels.noMatch": "فہرست میں کچھ نہیں ملا۔",
-  "labels.noItemsManager": "ابھی کوئی آئٹم نہیں ہے۔ آپ کے کچن میں جو تیار ہوتا ہے وہ شامل کریں، اور یہ بھی کہ ہر ایک کتنی دیر ٹھیک رہتا ہے۔",
-  "labels.noItemsChef": "ابھی کوئی آئٹم نہیں ہے۔ اپنے مینیجر یا مالک سے شامل کرنے کو کہیں۔",
   "labels.noSignalItems": "سگنل نہیں ہے۔ یہ فہرست ویسی ہے جیسی پچھلی بار تھی۔",
   "labels.changeItem": "آئٹم بدلیں",
-  "labels.preparedNow": "ابھی تیار کیا",
-  "labels.minus15": "15 منٹ پہلے",
-  "labels.minusHour": "1 گھنٹہ پہلے",
-  "labels.plusHour": "1 گھنٹہ بعد",
-  "labels.minusDay": "1 دن پہلے",
-  "labels.plusDay": "1 دن بعد",
-  "labels.fullLife": "پورے وقت پر واپس",
-  "labels.keepsChef": "یہ آئٹم {life} ٹھیک رہتا ہے۔ صرف مینیجر یا مالک ہی یہ وقت بڑھا سکتے ہیں۔",
-  "labels.keepsManager": "یہ آئٹم {life} ٹھیک رہتا ہے۔ آپ وجہ لکھ کر وقت بڑھا سکتے ہیں۔",
-  "labels.overrideWarning": "یہ آئٹم جتنی دیر ٹھیک رہتا ہے ({life})، یہ اس سے زیادہ ہے۔ آپ کا نام اور وجہ ریکارڈ ہوتے ہیں۔",
-  "labels.overrideReason": "زیادہ دیر کیوں رکھا جا رہا ہے؟",
   "labels.preparedBy": "تیار کرنے والا",
   "labels.copies": "کتنے لیبل",
   "labels.fewer": "ایک کم",

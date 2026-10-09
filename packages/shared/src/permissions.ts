@@ -43,6 +43,10 @@ const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A:
 // with U move an issue through in progress and resolved.
 // For checklists: C = fill one in, U = add or remove the outlet's own items,
 // A = mark a submitted checklist as reviewed.
+// For foodLabels: C = make a label, and save a new one (a name and how long it
+// keeps) for the outlet, so the Head Chef can make a label for anything
+// (founder, 9 Oct 2026); U = change or remove a saved label, and add where it
+// is stored and its allergens, which stays with the Owner and the Manager.
 // For sopTemplates: restaurant roles with C and U write SOPs for their own
 // outlet only; ECCS's standard SOPs are read-only to them.
 // For jobs (service visits): ECCS roles with U record the visit on site; restaurant

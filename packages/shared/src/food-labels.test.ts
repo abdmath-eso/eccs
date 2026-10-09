@@ -6,7 +6,10 @@ import {
   createFoodItemSchema,
   createFoodLabelSchema,
   DAY_MARKS,
+  findSameName,
   FOOD_LABEL_RULES,
+  isShelfLifeAllowed,
+  looseLabelName,
   formatLabelMoment,
   formatLabelWeekday,
   groupLabels,
@@ -33,12 +36,51 @@ describe("shelf life", () => {
     expect(toShelfLifeHours(36, "HOURS")).toBe(36);
   });
 
-  it("is shown in whole days from two days up, otherwise in hours", () => {
+  it("is shown in whole days when it divides into days, otherwise in hours", () => {
     expect(shelfLifeParts(72)).toEqual({ value: 3, unit: "DAYS" });
     expect(shelfLifeParts(48)).toEqual({ value: 2, unit: "DAYS" });
-    expect(shelfLifeParts(24)).toEqual({ value: 24, unit: "HOURS" });
+    expect(shelfLifeParts(24)).toEqual({ value: 1, unit: "DAYS" });
+    expect(shelfLifeParts(8)).toEqual({ value: 8, unit: "HOURS" });
     expect(shelfLifeParts(36)).toEqual({ value: 36, unit: "HOURS" });
     expect(shelfLifeParts(720)).toEqual({ value: 30, unit: "DAYS" });
+  });
+
+  it("is between an hour and a year, in whole hours", () => {
+    expect(isShelfLifeAllowed(1)).toBe(true);
+    expect(isShelfLifeAllowed(toShelfLifeHours(365, "DAYS"))).toBe(true);
+    expect(isShelfLifeAllowed(0)).toBe(false);
+    expect(isShelfLifeAllowed(1.5)).toBe(false);
+    expect(isShelfLifeAllowed(toShelfLifeHours(366, "DAYS"))).toBe(false);
+    expect(isShelfLifeAllowed(Number.NaN)).toBe(false);
+  });
+
+  it("offers a few common lengths as buttons, shortest first, all inside the limits", () => {
+    const presets = FOOD_LABEL_RULES.shelfLifePresets;
+    expect(presets).toEqual([4, 8, 12, 24, 48, 72, 120, 168]);
+    expect([...presets].sort((a, b) => a - b)).toEqual([...presets]);
+    for (const hours of presets) expect(isShelfLifeAllowed(hours)).toBe(true);
+  });
+});
+
+describe("use-by from how long the food keeps", () => {
+  it("is the moment Print was pressed plus the length, to the minute", () => {
+    // The founder's example: made at 1:02 pm, keeps 8 hours, so use by 9:02 pm the same day.
+    expect(useByFor(india("2026-10-09", "13:02"), 8)).toEqual(india("2026-10-09", "21:02"));
+    expect(useByFor(india("2026-10-09", "13:02"), toShelfLifeHours(1, "DAYS"))).toEqual(india("2026-10-10", "13:02"));
+    // Late in the evening it runs into the next day.
+    expect(useByFor(india("2026-10-09", "22:47"), 4)).toEqual(india("2026-10-10", "02:47"));
+    expect(useByFor(india("2026-10-09", "13:02"), toShelfLifeHours(7, "DAYS"))).toEqual(india("2026-10-16", "13:02"));
+  });
+});
+
+describe("label names", () => {
+  it("are compared without capitals, spaces at the ends or doubled spaces", () => {
+    expect(looseLabelName("  Paneer   Marination ")).toBe("paneer marination");
+    const saved = [{ name: "Paneer marination" }, { name: "పనీర్ మేరినేషన్" }];
+    expect(findSameName(saved, "PANEER MARINATION  ")).toBe(saved[0]);
+    expect(findSameName(saved, " పనీర్  మేరినేషన్")).toBe(saved[1]);
+    expect(findSameName(saved, "Paneer")).toBeUndefined();
+    expect(findSameName(saved, "   ")).toBeUndefined();
   });
 });
 
@@ -266,6 +308,13 @@ describe("the printed label", () => {
     expect(sheet.match(/class="label"/g)).toHaveLength(30);
   });
 
+  it("prints no storage or allergen line when there is nothing to say", () => {
+    // The layout prints exactly the lines it is given: a label with only "who prepared it" has one.
+    const plain = labelsHtml([{ ...label, lines: ["By Ravi"] }], "L50X30");
+    expect(plain.match(/<div class="lines">(.*?)<div class="outlet">/s)?.[1]).toBe("<div>By Ravi</div>");
+    expect(plain).not.toContain("Chilled");
+  });
+
   it("reads right to left in Urdu", () => {
     expect(labelsHtml([{ ...label, rtl: true }], "L50X30")).toContain('dir="rtl"');
     expect(labelsHtml([label], "L50X30")).not.toContain('dir="rtl"');
@@ -276,6 +325,9 @@ describe("requests", () => {
   it("checks a food item's name, storage and shelf life", () => {
     const item = { outletId: "o", name: "Raita", storage: "CHILLED", shelfLifeHours: 24 };
     expect(createFoodItemSchema.safeParse(item).success).toBe(true);
+    // A name and how long it keeps are enough: where it is stored is optional.
+    expect(createFoodItemSchema.safeParse({ outletId: "o", name: "Raita", shelfLifeHours: 8 }).success).toBe(true);
+    expect(createFoodItemSchema.safeParse({ ...item, storage: null }).success).toBe(true);
     expect(createFoodItemSchema.safeParse({ ...item, name: " " }).success).toBe(false);
     expect(createFoodItemSchema.safeParse({ ...item, storage: "WARM" }).success).toBe(false);
     expect(createFoodItemSchema.safeParse({ ...item, shelfLifeHours: 0 }).success).toBe(false);
@@ -301,6 +353,19 @@ describe("requests", () => {
     expect(createFoodLabelSchema.safeParse({ foodItemId: "i", copies: FOOD_LABEL_RULES.maxCopies }).success).toBe(true);
     expect(createFoodLabelSchema.safeParse({ foodItemId: "i", copies: FOOD_LABEL_RULES.maxCopies + 1 }).success).toBe(false);
     expect(createFoodLabelSchema.safeParse({ foodItemId: "i", preparedAt: "yesterday" }).success).toBe(false);
+  });
+
+  it("makes a label from a saved one or from a new name and length, one or the other", () => {
+    const fresh = { outletId: "o", name: " Paneer marination ", shelfLifeHours: 8 };
+    const parsed = createFoodLabelSchema.parse({ newItem: fresh, preparedAt: "2026-10-09T07:32:00.000Z" });
+    expect(parsed.newItem?.name).toBe("Paneer marination");
+    expect(createFoodLabelSchema.safeParse({}).success).toBe(false);
+    expect(createFoodLabelSchema.safeParse({ foodItemId: "i", newItem: fresh }).success).toBe(false);
+    expect(createFoodLabelSchema.safeParse({ newItem: { ...fresh, name: "x" } }).success).toBe(false);
+    expect(createFoodLabelSchema.safeParse({ newItem: { ...fresh, shelfLifeHours: 0 } }).success).toBe(false);
+    expect(
+      createFoodLabelSchema.safeParse({ newItem: { ...fresh, shelfLifeHours: FOOD_LABEL_RULES.maxShelfLifeHours + 1 } }).success,
+    ).toBe(false);
   });
 
   it("needs a reason to throw food away, and none to mark it used up", () => {

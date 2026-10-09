@@ -23,8 +23,13 @@ import { newId, readJson, writeJson } from './offline/files';
 export interface QueuedLabel {
   userId: string;
   outletId: string;
-  /** Exactly what will be sent, with the phone's own id and the moment it was made. */
-  input: CreateFoodLabelInput & { clientId: string; madeAt: string; preparedAt: string; expiresAt: string };
+  /**
+   * Exactly what will be sent, with the phone's own id and the moment Print
+   * was pressed. That moment goes as both `madeAt` and `preparedAt`, so the
+   * label says when the food was really labelled, however late it is sent;
+   * the server adds how long the food keeps to it, as the phone did.
+   */
+  input: CreateFoodLabelInput & { clientId: string; madeAt: string; preparedAt: string };
   /** What the label says, to show it on the list while it waits. */
   facts: LabelFacts;
 }

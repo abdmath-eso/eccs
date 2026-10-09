@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const mr: Messages = {
+export const mr: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "स्वच्छ जागा. सुरक्षित कामकाज. मजबूत व्यवसाय.",
 
@@ -1241,25 +1241,11 @@ export const mr: Messages = {
   "labels.home.expired": "वापरण्याची मुदत संपली, अजून किचनमध्ये: {count}",
   "labels.home.open": "फूड लेबल उघडा",
   "labels.home.quiet": "आज वापरून संपवायचे काही नाही. लेबल बनवा.",
-  "labels.pickHelp": "तुम्ही जे तयार केले किंवा उघडले त्यावर टॅप करा.",
   "labels.recent": "अलीकडे वापरलेले",
   "labels.allItems": "सर्व पदार्थ",
   "labels.noMatch": "यादीत असे काही सापडले नाही.",
-  "labels.noItemsManager": "अजून एकही पदार्थ नाही. तुमच्या किचनमध्ये जे तयार होते ते जोडा, आणि प्रत्येक किती वेळ टिकतो तेही.",
-  "labels.noItemsChef": "अजून एकही पदार्थ नाही. ते जोडायला तुमच्या मॅनेजरला किंवा मालकाला सांगा.",
   "labels.noSignalItems": "सिग्नल नाही. ही यादी मागच्या वेळी जशी होती तशी आहे.",
   "labels.changeItem": "पदार्थ बदला",
-  "labels.preparedNow": "आत्ताच तयार केले",
-  "labels.minus15": "15 मिनिटे आधी",
-  "labels.minusHour": "1 तास आधी",
-  "labels.plusHour": "1 तास नंतर",
-  "labels.minusDay": "1 दिवस आधी",
-  "labels.plusDay": "1 दिवस नंतर",
-  "labels.fullLife": "पूर्ण वेळेवर परत",
-  "labels.keepsChef": "हा पदार्थ {life} टिकतो. ही वेळ फक्त मॅनेजर किंवा मालक वाढवू शकतात.",
-  "labels.keepsManager": "हा पदार्थ {life} टिकतो. कारण देऊन तुम्ही ही वेळ वाढवू शकता.",
-  "labels.overrideWarning": "ही वेळ पदार्थ टिकण्याच्या वेळेपेक्षा ({life}) जास्त आहे. तुमचे नाव आणि कारण नोंदवले जाते.",
-  "labels.overrideReason": "हे जास्त वेळ का ठेवले जात आहे?",
   "labels.preparedBy": "कोणी तयार केले",
   "labels.copies": "किती लेबल",
   "labels.fewer": "एक कमी",

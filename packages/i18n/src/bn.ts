@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const bn: Messages = {
+export const bn: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "পরিষ্কার জায়গা। নিরাপদ কাজ। মজবুত ব্যবসা।",
 
@@ -1241,25 +1241,11 @@ export const bn: Messages = {
   "labels.home.expired": "সময় পেরিয়ে গেছে, এখনও কিচেনে আছে: {count}",
   "labels.home.open": "খাবারের লেবেল খুলুন",
   "labels.home.quiet": "আজ শেষ করার মতো কিছু নেই। লেবেল বানান।",
-  "labels.pickHelp": "যা তৈরি করেছেন বা খুলেছেন, তাতে ট্যাপ করুন।",
   "labels.recent": "সম্প্রতি ব্যবহার করা",
   "labels.allItems": "সব আইটেম",
   "labels.noMatch": "তালিকায় মিল পাওয়া যায়নি।",
-  "labels.noItemsManager": "এখনও কোনো আইটেম নেই। আপনার কিচেনে যা তৈরি হয় তা যোগ করুন, কোনটা কতক্ষণ ভালো থাকে সেটাও দিন।",
-  "labels.noItemsChef": "এখনও কোনো আইটেম নেই। ম্যানেজার বা মালিককে যোগ করতে বলুন।",
   "labels.noSignalItems": "সিগন্যাল নেই। এটা শেষবার যেমন ছিল সেই তালিকা।",
   "labels.changeItem": "আইটেম বদলান",
-  "labels.preparedNow": "এইমাত্র তৈরি",
-  "labels.minus15": "15 মিনিট আগে",
-  "labels.minusHour": "1 ঘণ্টা আগে",
-  "labels.plusHour": "1 ঘণ্টা পরে",
-  "labels.minusDay": "1 দিন আগে",
-  "labels.plusDay": "1 দিন পরে",
-  "labels.fullLife": "পুরো সময়ে ফিরে যান",
-  "labels.keepsChef": "এই আইটেম {life} ভালো থাকে। শুধু ম্যানেজার বা মালিক এই সময় বাড়াতে পারেন।",
-  "labels.keepsManager": "এই আইটেম {life} ভালো থাকে। কারণ লিখে আপনি সময় বাড়াতে পারেন।",
-  "labels.overrideWarning": "এই আইটেম যতক্ষণ ভালো থাকে ({life}), এটা তার চেয়ে বেশি। আপনার নাম আর কারণ রেকর্ডে থাকবে।",
-  "labels.overrideReason": "কেন বেশি সময় রাখা হচ্ছে?",
   "labels.preparedBy": "তৈরি করেছেন",
   "labels.copies": "কয়টা লেবেল",
   "labels.fewer": "একটা কম",

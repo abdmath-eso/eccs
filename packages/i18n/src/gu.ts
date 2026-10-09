@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Partial<Messages> = {
+export const gu: Messages = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 

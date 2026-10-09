@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ml: Partial<Messages> = {
+export const ml: Messages = {
   "app.name": "ECCS",
   "app.tagline": "വൃത്തിയുള്ള ഇടങ്ങൾ. സുരക്ഷിതമായ പ്രവർത്തനം. കരുത്തുള്ള ബിസിനസ്.",
 

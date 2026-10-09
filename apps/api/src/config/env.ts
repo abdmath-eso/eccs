@@ -15,6 +15,10 @@ const schema = z
     DATABASE_URL: z.string().min(1),
     API_PORT: z.coerce.number().int().default(4000),
     WEB_URL: z.string().optional(),
+    // The address diners reach the customer QR page at, without the "/k/<token>" part.
+    // It is what every printed QR code holds, so it must be a real, lasting web address
+    // before any code is printed. Unset, it falls back to WEB_URL, which today is this PC.
+    PUBLIC_PAGE_BASE_URL: z.string().optional(),
     SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
     // Key for storing restaurant PINs. Changing it invalidates every PIN.
     PIN_SECRET: z.string().min(16),

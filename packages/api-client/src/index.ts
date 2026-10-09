@@ -79,8 +79,41 @@ import type {
   SendTestPushInput,
 } from "@eccs/shared";
 // staff-types: the staff worker imports its types from "@eccs/shared" on the next line
+import type {
+  AddPayEntryInput,
+  AttendanceDayDto,
+  AttendanceMonthDto,
+  CreateStaffMemberInput,
+  MarkAttendanceInput,
+  SalaryMonthDto,
+  SalaryOutletMonthDto,
+  SaveSalaryInput,
+  StaffMemberDto,
+  StaffMonthDto,
+  UpdateStaffMemberInput,
+} from "@eccs/shared";
 // food-labels-types: the labels worker imports its types from "@eccs/shared" on the next line
+import type {
+  CloseFoodLabelInput,
+  CreateFoodItemInput,
+  CreateFoodLabelInput,
+  FoodItemDto,
+  FoodItemRemovalDto,
+  FoodLabelBoardDto,
+  FoodLabelCountsDto,
+  FoodLabelDto,
+  FoodLabelPeopleDto,
+  LabelImageDto,
+  RenderLabelInput,
+  UpdateFoodItemInput,
+} from "@eccs/shared";
 // public-page-types: the public-page worker imports its types from "@eccs/shared" on the next line
+import type {
+  PublicPageSettingsDto,
+  PublicPhotoCaption,
+  PublicPhotoDto,
+  PublicPhotoStatus,
+} from "@eccs/shared";
 // subscriptions-types: the subscriptions worker imports its types from "@eccs/shared" on the next line
 import type {
   CancelSubscriptionInput,
@@ -568,8 +601,111 @@ export function createApiClient(options: ApiClientOptions) {
       sendTest: (input: SendTestPushInput = {}) => call<PushTestResultDto>("POST", "/push/test", input),
     },
     // staff-api: the staff worker adds its calls on the next line
+    /** The restaurant's own staff: the people, their attendance and the salary tracker. Not for ECCS roles. */
+    team: {
+      /** Everyone on the outlet's staff; with `left`, people who have left as well. Pay is hidden from the Head Chef. */
+      people: (outletId: string, left = false) =>
+        call<StaffMemberDto[]>("GET", `/staff/people${query({ outletId, ...(left && { left: 1 }) })}`),
+      addPerson: (input: CreateStaffMemberInput) => call<StaffMemberDto>("POST", "/staff/people", input),
+      /** Also how a person is marked as having left (`leftOn`) or brought back (`leftOn: null`). */
+      updatePerson: (staffId: string, input: UpdateStaffMemberInput) =>
+        call<StaffMemberDto>("PATCH", `/staff/people/${id(staffId)}`, input),
+      /** Only for someone with no records at all; otherwise the server refuses (409). */
+      removePerson: (staffId: string) => call<void>("DELETE", `/staff/people/${id(staffId)}`),
+      /** One day's attendance sheet; today when no date is given. */
+      day: (outletId: string, date?: string) =>
+        call<AttendanceDayDto>("GET", `/staff/attendance/day${query({ outletId, ...(date && { date }) })}`),
+      /** Marks, changes or (with a null status) clears attendance for a day. */
+      mark: (input: MarkAttendanceInput) => call<AttendanceDayDto>("PUT", "/staff/attendance/day", input),
+      /** Each person's totals for a month ("2026-10"). */
+      month: (outletId: string, month: string) =>
+        call<AttendanceMonthDto>("GET", `/staff/attendance/month${query({ outletId, month })}`),
+      /** One person's month, day by day. */
+      personMonth: (staffId: string, month: string) =>
+        call<StaffMonthDto>("GET", `/staff/people/${id(staffId)}/attendance${query({ month })}`),
+      /** The outlet's pay for a month, a row per person. */
+      salaryMonth: (outletId: string, month: string) =>
+        call<SalaryOutletMonthDto>("GET", `/staff/salary${query({ outletId, month })}`),
+      personSalary: (staffId: string, month: string) =>
+        call<SalaryMonthDto>("GET", `/staff/people/${id(staffId)}/salary${query({ month })}`),
+      /** Overtime, bonus, deductions, the Owner's own figures and a note for a person's month. */
+      saveSalary: (staffId: string, month: string, input: SaveSalaryInput) =>
+        call<SalaryMonthDto>("PUT", `/staff/people/${id(staffId)}/salary/${id(month)}`, input),
+      /** An advance given, or a payment of the month's pay. */
+      addPayEntry: (staffId: string, input: AddPayEntryInput) =>
+        call<SalaryMonthDto>("POST", `/staff/people/${id(staffId)}/pay-entries`, input),
+      removePayEntry: (entryId: string) => call<SalaryMonthDto>("DELETE", `/staff/pay-entries/${id(entryId)}`),
+    },
     // food-labels-api: the labels worker adds its calls on the next line
+    /** Food items, the labels made for them, and what is in the fridge now. */
+    foodLabels: {
+      /** The outlet's items, most recently used first. `all` includes retired ones. */
+      items: (outletId: string, options: { all?: boolean } = {}) =>
+        call<FoodItemDto[]>("GET", `/food-labels/items${query({ outletId, ...(options.all && { all: "1" }) })}`),
+      createItem: (input: CreateFoodItemInput) => call<FoodItemDto>("POST", "/food-labels/items", input),
+      /** Changes an item; `isActive: false` retires it and `true` brings it back. */
+      updateItem: (itemId: string, input: UpdateFoodItemInput) =>
+        call<FoodItemDto>("PATCH", `/food-labels/items/${id(itemId)}`, input),
+      /** Deletes an item with no labels; one with labels is retired instead. */
+      removeItem: (itemId: string) => call<FoodItemRemovalDto>("DELETE", `/food-labels/items/${id(itemId)}`),
+      /** Names to choose "prepared by" from. */
+      people: (outletId: string) => call<FoodLabelPeopleDto>("GET", `/food-labels/people${query({ outletId })}`),
+      /** Every live label at the outlet: expired, use today, later. */
+      board: (outletId: string) => call<FoodLabelBoardDto>("GET", `/food-labels/labels${query({ outletId })}`),
+      counts: (outletId: string) => call<FoodLabelCountsDto>("GET", `/food-labels/counts${query({ outletId })}`),
+      create: (input: CreateFoodLabelInput) => call<FoodLabelDto>("POST", "/food-labels/labels", input),
+      /** Marks the food used up, or thrown away with a reason. */
+      close: (labelId: string, input: CloseFoodLabelInput) =>
+        call<FoodLabelDto>("POST", `/food-labels/labels/${id(labelId)}/close`, input),
+      /** Puts back a label closed by mistake, within a few minutes. */
+      reopen: (labelId: string) => call<FoodLabelDto>("POST", `/food-labels/labels/${id(labelId)}/reopen`),
+      markPrinted: (labelId: string) => call<FoodLabelDto>("POST", `/food-labels/labels/${id(labelId)}/printed`),
+      /** Asks the server to draw a label as a PNG picture, for a label printer's own app. */
+      render: (input: RenderLabelInput) => call<LabelImageDto>("POST", "/food-labels/render", input),
+    },
     // public-page-api: the public-page worker adds its calls on the next line
+    /** The customer QR page: the restaurant's switch, ECCS's take-down, and the photos shown on it. */
+    publicPage: {
+      /** One outlet's page: whether it is on, its link, what a diner sees, its photos. */
+      get: (outletId: string) => call<PublicPageSettingsDto>("GET", `/public-page/outlets/${id(outletId)}`),
+      /** The restaurant's own switch. The Owner only. */
+      setEnabled: (outletId: string, enabled: boolean) =>
+        call<PublicPageSettingsDto>("PATCH", `/public-page/outlets/${id(outletId)}`, { enabled }),
+      /** Replaces the link: every QR code printed before stops working. The Owner only. */
+      newLink: (outletId: string) => call<PublicPageSettingsDto>("POST", `/public-page/outlets/${id(outletId)}/new-link`),
+      /** ECCS admins take a page down, whatever the restaurant's switch says. */
+      takeDown: (outletId: string, reason: string) =>
+        call<PublicPageSettingsDto>("POST", `/public-page/outlets/${id(outletId)}/take-down`, { reason }),
+      restore: (outletId: string) => call<PublicPageSettingsDto>("POST", `/public-page/outlets/${id(outletId)}/restore`),
+      /**
+       * Photos, by who asks: ECCS admins get the approval queue (waiting ones unless a
+       * status is given), a Supervisor their own proposals, the restaurant its page's photos.
+       */
+      photos: (filter: { status?: PublicPhotoStatus; outletId?: string } = {}) =>
+        call<PublicPhotoDto[]>(
+          "GET",
+          `/public-page/photos${query({ ...(filter.status && { status: filter.status }), ...(filter.outletId && { outletId: filter.outletId }) })}`,
+        ),
+      /** ECCS admins: how many photos wait for a decision. */
+      photosWaiting: () => call<{ waiting: number }>("GET", "/public-page/photos/waiting"),
+      /** A Supervisor proposes a photo of one of their own finished visits or inspections. */
+      propose: (attachmentId: string, caption: PublicPhotoCaption) =>
+        call<PublicPhotoDto>("POST", "/public-page/photos", { attachmentId, caption }),
+      /** A Supervisor takes a photo specially for the page. */
+      proposeNew(outletId: string, caption: PublicPhotoCaption, file: UploadFile, phone: { capturedAt?: string; facts?: PhotoFactsInput } = {}) {
+        const form = new FormData();
+        form.append("caption", caption);
+        if (phone.capturedAt) form.append("capturedAt", phone.capturedAt);
+        appendPhotoFacts(form, phone.facts);
+        form.append("file", file, "photo.jpg");
+        return send<PublicPhotoDto>("POST", `/public-page/outlets/${id(outletId)}/photos`, form, undefined, true);
+      },
+      approvePhoto: (photoId: string) => call<PublicPhotoDto>("POST", `/public-page/photos/${id(photoId)}/approve`),
+      rejectPhoto: (photoId: string, reason: string) =>
+        call<PublicPhotoDto>("POST", `/public-page/photos/${id(photoId)}/reject`, { reason }),
+      /** The Owner (or ECCS) takes an approved photo off the page. */
+      removePhoto: (photoId: string) => call<void>("DELETE", `/public-page/photos/${id(photoId)}`),
+    },
     // subscriptions-api: the subscriptions worker adds its calls on the next line
     /** Plans as ECCS configures them: what is on offer, and (for the office) every plan with who is on it. */
     subscriptionPlans: {

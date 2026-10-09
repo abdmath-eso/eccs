@@ -13,6 +13,7 @@ import {
   ClientsIcon,
   CloseIcon,
   CollapseIcon,
+  CustomerPagesIcon,
   InspectionsIcon,
   InvoicesIcon,
   IssuesIcon,
@@ -60,6 +61,7 @@ const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
       { href: "/invoices", label: "Invoices", icon: <InvoicesIcon />, count: "invoices", waiting: "overdue", needs: (m) => can(m, "invoices", "update") },
       { href: "/licences", label: "Licences", icon: <LicencesIcon />, count: "licences", waiting: "expired or expiring" },
       { href: "/certificates", label: "Certificates", icon: <CertificatesIcon /> },
+      { href: "/customer-pages", label: "Customer pages", icon: <CustomerPagesIcon />, count: "publicPhotos", waiting: "photos waiting for approval", needs: (m) => can(m, "publicPage", "approve") },
     ],
   },
   {

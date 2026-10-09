@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@eccs/api-client": "workspace:*",
+    "@eccs/i18n": "workspace:*",
     "@eccs/shared": "workspace:*",
     "next": "16.3.8",
+    "qrcode-generator": "^2.0.4",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },

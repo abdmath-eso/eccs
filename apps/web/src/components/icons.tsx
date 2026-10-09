@@ -132,3 +132,12 @@ export const CollapseIcon = ({ flipped }: { flipped: boolean }) => (
     <path d={flipped ? "M9 4v16M13 10l2 2-2 2" : "M9 4v16M16 10l-2 2 2 2"} />
   </Icon>
 );
+
+/** A framed picture on a stand: the customer pages and their photos. */
+export const CustomerPagesIcon = () => (
+  <Icon>
+    <rect x="3" y="4" width="18" height="14" rx="2" />
+    <path d="m3 15 4.5-4.5 3.5 3.5 2.5-2.5L18 15" />
+    <path d="M8 21h8" />
+  </Icon>
+);

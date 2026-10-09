@@ -14,7 +14,7 @@ import {
 } from '@eccs/shared';
 import { ApiError } from '@eccs/api-client';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ComponentProps } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -876,6 +876,20 @@ export default function InspectionScreen() {
               <ErrorText message={failed.pdf ?? null} />
             </>
           )}
+          {/* The Supervisor who inspected can put photos forward for the restaurant's customer page. */}
+          {(inspection.status === 'SUBMITTED' || inspection.status === 'APPROVED') &&
+            !finishWaiting &&
+            viewerRole === 'SUPERVISOR' &&
+            inspection.supervisorId === user?.id && (
+              <Button
+                icon="images-outline"
+                label={t('cpage.propose.entry')}
+                variant="secondary"
+                onPress={() =>
+                  router.push({ pathname: '/customer-page/propose', params: { outletId: inspection.outletId, inspectionId: inspection.id } })
+                }
+              />
+            )}
           {inspection.status !== 'PLANNED' && report}
         </>
       )}

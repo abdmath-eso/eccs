@@ -12,6 +12,7 @@ import { useQuery, useQueryField } from "@/lib/query";
 import { useSession } from "@/lib/session";
 
 import { ClientSummary, OutletEditing, OwnerSummary, Tag, useLinkedPhones } from "./client-editing";
+import { OutletPublicPage } from "./outlet-public-page";
 import { OutletSubscription } from "./outlet-subscription";
 
 type Outlet = OrganizationDto["outlets"][number];
@@ -443,7 +444,10 @@ function ClientDetail({
                   <div className="flex flex-col gap-2">
                     <OutletEditing client={client} outlet={outlet} linked={linked} onChanged={onChanged} />
                     {/* Shown for a switched-off outlet too: it gets no plan visits and is not renewed, but its plan can still be cancelled here. */}
-                    <OutletSubscription outlet={outlet} />                  </div>
+                    <OutletSubscription outlet={outlet} />
+                    {/* The outlet's public QR page: whether diners can see it, its link, and ECCS's take-down. */}
+                    <OutletPublicPage outlet={outlet} />
+                  </div>
                 </td>
               </tr>
             </Fragment>

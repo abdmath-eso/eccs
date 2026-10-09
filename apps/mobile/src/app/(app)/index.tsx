@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { isEccsUser } from '@/components/app-nav';
 import { DuesLine } from '@/components/dues-line';
+import { LabelsLine } from '@/components/labels-line';
 import { NotificationBell } from '@/components/notification-bell';
 import { OutletOverview } from '@/components/outlet-overview';
 import { PinReveal } from '@/components/pin-reveal';
@@ -143,6 +144,8 @@ export default function HomeScreen() {
               <ScoreCard outletId={outlet.outletId} stamp={loadedAt} />
               {/* For the Owner and Manager, and only when something is due: how much, leading to Invoices. */}
               <DuesLine outletId={outlet.outletId} stamp={loadedAt} />
+              {/* Labelled food to use today or already past its use-by, leading to Food labels. */}
+              <LabelsLine outletId={outlet.outletId} stamp={loadedAt} />
               <OutletOverview outlet={outlet} />
               {outlet.visits && (
                 <>

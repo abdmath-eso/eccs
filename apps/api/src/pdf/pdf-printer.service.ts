@@ -58,4 +58,30 @@ export class PdfPrinterService {
       await browser.close();
     }
   }
+
+  /**
+   * Draws a small web page as a PNG picture of exactly `width` by `height`
+   * dots (a food label, for a label printer's own app). `cssWidth` is how
+   * wide the page thinks it is; the picture is that page enlarged to `width`.
+   */
+  async image(html: string, size: { width: number; height: number; cssWidth: number }): Promise<Buffer> {
+    const executablePath = env.PDF_BROWSER_PATH ?? BROWSER_PATHS.find((path) => existsSync(path));
+    if (!executablePath) {
+      throw new ServiceUnavailableException('Pictures of labels are not set up on this server yet');
+    }
+    const scale = size.width / size.cssWidth;
+    const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox', '--disable-gpu'] });
+    try {
+      const page = await browser.newPage();
+      // The window is exactly the picture's size in dots, and the page is enlarged to fill it.
+      await page.setViewport({ width: size.width, height: size.height, deviceScaleFactor: 1 });
+      await page.setContent(html, { waitUntil: 'load' });
+      await page.addStyleTag({ content: `html { zoom: ${scale}; }` });
+      return Buffer.from(
+        await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: size.width, height: size.height } }),
+      );
+    } finally {
+      await browser.close();
+    }
+  }
 }

@@ -11,7 +11,7 @@ import {
 } from '@eccs/shared';
 import { ApiError } from '@eccs/api-client';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -792,6 +792,15 @@ export default function VisitScreen() {
           finished report the before and after photos sit together, above the tasks. */}
       {photos('BEFORE')}
       {isReport && photos('AFTER')}
+      {/* The Supervisor who did the visit can put its photos forward for the restaurant's customer page. */}
+      {isReport && !finishWaiting && viewerRole === 'SUPERVISOR' && visit.supervisorId === user?.id && (
+        <Button
+          icon="images-outline"
+          label={t('cpage.propose.entry')}
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/customer-page/propose', params: { outletId: visit.outletId, visitId: visit.id } })}
+        />
+      )}
       {tasks}
       {!isReport && photos('AFTER')}
       {started && <VisitPartner visit={visit} showName={!recording} />}

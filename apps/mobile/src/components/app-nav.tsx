@@ -33,12 +33,18 @@ const TAB: Record<TabHref, Tab> = {
   '/inspections': { label: 'tile.inspections', icon: 'clipboard-outline', iconSelected: 'clipboard' },
 };
 
-const STAFF: MenuItem = { label: 'tile.staff', icon: 'key-outline', href: '/staff' };
+// One "Staff" entry for the Owner and Manager: the people, their attendance and the salary
+// tracker. The older "Staff logins" screen (app accounts and PINs) is now reached from inside it,
+// so the menu does not offer two things called "Staff".
+const STAFF: MenuItem = { label: 'tile.team', icon: 'people-outline', href: '/team' };
+// The Head Chef's only part of it: today's attendance.
+const MARK_ATTENDANCE: MenuItem = { label: 'tile.markAttendance', icon: 'people-outline', href: '/team/attendance' };
 
 // Everything each role can open, for the "More" menu. Mirrors docs/PROPOSAL.md section 8.
 // Sections that are not built yet are left out until they are.
 const HEAD_CHEF_MENU: MenuItem[] = [
   { label: 'tile.checklists', icon: 'checkbox-outline', href: '/checklists' },
+  { label: 'tile.labels', icon: 'pricetag-outline', href: '/labels' },
   { label: 'tile.issues', icon: 'chatbubble-ellipses-outline', href: '/support' },
   { label: 'tile.sops', icon: 'book-outline', href: '/sops' },
 ];
@@ -48,6 +54,7 @@ const MANAGER_MENU: MenuItem[] = [
   { label: 'tile.history', icon: 'calendar-outline', href: '/history' },
   { label: 'tile.documents', icon: 'document-text-outline', href: '/documents' },
   { label: 'tile.certificates', icon: 'ribbon-outline', href: '/certificates' },
+  { label: 'tile.customerPage', icon: 'qr-code-outline', href: '/customer-page' },
   { label: 'tile.plan', icon: 'repeat-outline', href: '/plan' },
   { label: 'tile.invoices', icon: 'receipt-outline', href: '/invoices' },
   { label: 'tile.inspections', icon: 'clipboard-outline', href: '/inspections' },
@@ -58,7 +65,7 @@ const ECCS_MENU: MenuItem[] = [
   { label: 'tile.inspections', icon: 'clipboard-outline', href: '/inspections' },
 ];
 const MENU: Record<Role, MenuItem[]> = {
-  HEAD_CHEF: HEAD_CHEF_MENU,
+  HEAD_CHEF: [...HEAD_CHEF_MENU, MARK_ATTENDANCE],
   MANAGER: MANAGER_MENU,
   OWNER: MANAGER_MENU,
   SUPERVISOR: ECCS_MENU,

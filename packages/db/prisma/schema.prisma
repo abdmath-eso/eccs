@@ -1109,23 +1109,41 @@ enum AttendanceStatus {
   WEEKLY_OFF
 }
 
+/// How a restaurant employee is paid: a fixed amount a month, or by the day worked.
+enum StaffPayType {
+  MONTHLY
+  DAILY
+}
+
+/// Money handed to an employee: an advance against a month's pay, or a payment of it.
+enum StaffPayEntryKind {
+  ADVANCE
+  PAYMENT
+}
+
 /// A restaurant employee. Not a User: most staff never log in.
 model StaffMember {
-  id                 String    @id @default(uuid())
+  id                 String       @id @default(uuid())
   outletId           String
   name               String
   jobTitle           String?
   phone              String?
-  monthlySalaryPaise Int
+  payType            StaffPayType @default(MONTHLY)
+  monthlySalaryPaise Int          @default(0) /// used when payType is MONTHLY
+  dailyWagePaise     Int          @default(0) /// used when payType is DAILY
   overtimeRatePaise  Int? /// per hour
-  joinedOn           DateTime? @db.Date
-  isActive           Boolean   @default(true)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  weeklyOffDay       Int? /// 0 Sunday to 6 Saturday; empty when the person has no fixed day off
+  joinedOn           DateTime?    @db.Date
+  leftOn             DateTime?    @db.Date /// the last day they worked; set when they leave
+  userId             String? /// their app login, where the same person has one (not a relation, like markedById)
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   outlet     Outlet             @relation(fields: [outletId], references: [id])
   attendance AttendanceRecord[]
   salaries   SalaryRecord[]
+  payEntries StaffPayEntry[]
 
   @@index([outletId])
 }
@@ -1139,6 +1157,7 @@ model AttendanceRecord {
   note          String?
   markedById    String?
   createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @default(now()) @updatedAt
 
   staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
 
@@ -1146,27 +1165,53 @@ model AttendanceRecord {
 }
 
 /// One month's pay for one employee. A record, not a payroll calculation.
+/// payType and basePaise hold the rate of pay that applies to this month (the monthly
+/// salary or the daily wage), so a later raise does not change an earlier month.
+/// daysWorked, advancesPaise, netPaise, paidPaise and paidOn are copies of what the
+/// app worked out when the record was last saved; the app always works them out
+/// again from attendance and the pay entries when it shows a month.
 model SalaryRecord {
-  id              String    @id @default(uuid())
-  staffMemberId   String
-  month           DateTime  @db.Date /// first day of the month
-  basePaise       Int
-  daysWorked      Float
-  overtimeHours   Float     @default(0)
-  overtimePaise   Int       @default(0)
-  bonusPaise      Int       @default(0)
-  advancesPaise   Int       @default(0)
-  deductionsPaise Int       @default(0)
-  netPaise        Int
-  paidPaise       Int       @default(0)
-  paidOn          DateTime? @db.Date
-  note            String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  staffMemberId        String
+  month                DateTime  @db.Date /// first day of the month
+  payType              StaffPayType @default(MONTHLY)
+  basePaise            Int
+  daysWorked           Float
+  overtimeHours        Float     @default(0)
+  overtimePaise        Int       @default(0)
+  bonusPaise           Int       @default(0)
+  advancesPaise        Int       @default(0)
+  deductionsPaise      Int       @default(0)
+  netPaise             Int
+  paidPaise            Int       @default(0)
+  paidOn               DateTime? @db.Date
+  note                 String?
+  dueOverridePaise     Int? /// the Owner's own figure for the month's pay, replacing the one worked out from attendance
+  carriedOverridePaise Int? /// the Owner's own figure for what was carried in from earlier months (negative: overpaid)
+  updatedById          String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
 
   @@unique([staffMemberId, month])
+}
+
+/// An advance given to an employee, or a payment of their pay, each on its own date.
+model StaffPayEntry {
+  id            String            @id @default(uuid())
+  staffMemberId String
+  month         DateTime          @db.Date /// first day of the month whose pay it counts against
+  kind          StaffPayEntryKind
+  date          DateTime          @db.Date /// the day the money was handed over
+  amountPaise   Int
+  note          String?
+  createdById   String?
+  createdAt     DateTime          @default(now())
+
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+
+  @@index([staffMemberId, month])
 }
 
 // ───────────────────────── Food labels ─────────────────────────
@@ -1183,8 +1228,15 @@ model FoodItem {
   name           Json
   shelfLifeHours Int
   storage        StorageType @default(CHILLED)
+  /// Allergen codes from ALLERGENS in packages/shared/src/food-labels.ts.
+  allergens      String[]    @default([])
+  note           String?
+  /// Which entry of the starter list it was added from, if any.
+  starterKey     String?
+  /// False once retired: kept for the labels already made, not offered for new ones.
   isActive       Boolean     @default(true)
   createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @default(now()) @updatedAt
 
   outlet Outlet      @relation(fields: [outletId], references: [id])
   labels FoodLabel[]
@@ -1192,20 +1244,54 @@ model FoodItem {
   @@index([outletId])
 }
 
+/// A label stays LIVE (the food is in the kitchen) until someone marks it used up or thrown away.
+enum FoodLabelStatus {
+  LIVE
+  USED
+  DISCARDED
+}
+
+enum FoodDiscardReason {
+  EXPIRED
+  SPOILED
+  OTHER
+}
+
+/// One label made for a container of food. The item's name, storage and allergens are
+/// copied onto it, so a later change to the item never alters what an old label said.
 model FoodLabel {
-  id           String    @id @default(uuid())
-  outletId     String
-  foodItemId   String
-  preparedAt   DateTime
-  expiresAt    DateTime
-  preparedById String?
-  printedAt    DateTime?
-  createdAt    DateTime  @default(now())
+  id             String             @id @default(uuid())
+  outletId       String
+  foodItemId     String
+  itemName       String             @default("")
+  storage        StorageType        @default(CHILLED)
+  allergens      String[]           @default([])
+  preparedAt     DateTime
+  expiresAt      DateTime
+  /// The login that prepared it, when that is the person who made the label.
+  preparedById   String?
+  preparedByName String             @default("")
+  quantityNote   String?
+  copies         Int                @default(1)
+  status         FoodLabelStatus    @default(LIVE)
+  discardReason  FoodDiscardReason?
+  closeNote      String?
+  closedAt       DateTime?
+  closedById     String?
+  /// Set when a Manager or Owner put use-by later than the shelf life allows.
+  overrideReason String?
+  overrideById   String?
+  createdById    String?
+  /// An id chosen on the phone for a label made without signal, so sending it twice makes one label.
+  clientId       String?            @unique
+  printedAt      DateTime?
+  createdAt      DateTime           @default(now())
 
   outlet   Outlet   @relation(fields: [outletId], references: [id])
   foodItem FoodItem @relation(fields: [foodItemId], references: [id])
 
   @@index([outletId, expiresAt])
+  @@index([outletId, status, expiresAt])
 }
 
 // ───────────────────────── Customer QR page ─────────────────────────
@@ -1221,7 +1307,15 @@ model PublicProfile {
   id        String   @id @default(uuid())
   outletId  String   @unique
   token     String   @unique /// random, goes in the QR URL
-  isEnabled Boolean  @default(true) /// the restaurant can switch its page off
+  /// The restaurant's own switch (the Owner's). Off until the Owner turns it on.
+  isEnabled Boolean  @default(false)
+  /// When the link was last replaced ("make a new link"); codes printed before then stop working.
+  tokenChangedAt  DateTime?
+  /// Set while ECCS has taken the page down (a client leaving, a complaint). The
+  /// restaurant's switch cannot bring the page back while this is set.
+  takenDownAt     DateTime?
+  takenDownById   String?
+  takenDownReason String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1237,7 +1331,16 @@ model PublicPhoto {
   status       PublicPhotoStatus @default(PROPOSED)
   position     Int               @default(0)
   proposedById String?
+  /// The ECCS admin who approved or rejected it, and when.
   approvedById String?
+  decidedAt    DateTime?
+  /// What the photo shows, from a fixed list (PUBLIC_PHOTO_CAPTIONS in packages/shared): "GRILL", "HOOD" and so on.
+  captionCode  String?
+  /// Why ECCS rejected it, for the Supervisor who proposed it.
+  rejectReason String?
+  /// Set when the restaurant's Owner (or ECCS) took an approved photo off the page.
+  removedAt    DateTime?
+  removedById  String?
   createdAt    DateTime          @default(now())
 
   profile    PublicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)

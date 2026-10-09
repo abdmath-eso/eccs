@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const te: Partial<Messages> = {
+export const te: Messages = {
   "app.name": "ECCS",
   "app.tagline": "శుభ్రమైన ప్రదేశాలు. సురక్షితమైన కార్యకలాపాలు. బలమైన వ్యాపారాలు.",
 
@@ -1045,4 +1045,42 @@ export const te: Partial<Messages> = {
   "push.turnedOn": "నోటిఫికేషన్‌లు ఆన్ అయ్యాయి",
   "push.test.title": "టెస్ట్ నోటిఫికేషన్",
   "push.test.body": "ఈ ఫోన్‌లో ECCS నోటిఫికేషన్‌లు పనిచేస్తున్నాయి.",
+
+  "place.ask.title": "రుజువు ఫోటోలకు స్థలాన్ని జోడించాలా?",
+  "place.ask.body": "మీరు రుజువు ఫోటో తీసినప్పుడు, ఈ ఫోన్ ఎక్కడ ఉందో యాప్ నమోదు చేయగలదు. ఫోటో ఈ వంటగదిలోనే తీశారని అది చూపిస్తుంది.",
+  "place.ask.when": "మీరు రుజువు ఫోటో తీసే క్షణంలో మాత్రమే. మరే సమయంలోనూ కాదు.",
+  "place.ask.optional": "మీరు వద్దన్నా యాప్ అలాగే పనిచేస్తుంది.",
+  "place.ask.yes": "అనుమతించండి",
+  "place.ask.notNow": "ఇప్పుడు కాదు",
+  "checklists.photoRepeat": "ఈ ఫోటో {date} న ఇంతకుముందు వాడిన ఒక ఫోటోతో సరిపోలుతోంది. మరోసారి చూడటం మంచిది.",
+  "visit.place.title": "ఈ వంటగది లొకేషన్ ఇంకా సేవ్ కాలేదు",
+  "visit.place.help": "వంటగదిలో ఉన్నప్పుడు ఒకసారి సేవ్ చేయండి. రుజువు ఫోటోలు ఇక్కడే తీశారో లేదో చూడటానికి ఇది ఉపయోగపడుతుంది. సిగ్నల్ అవసరం.",
+  "visit.place.save": "లొకేషన్ ఇప్పుడే సేవ్ చేయండి",
+  "visit.place.saved": "లొకేషన్ సేవ్ అయింది",
+  "visit.place.denied": "ఈ ఫోన్ లొకేషన్ వాడటానికి యాప్‌కు అనుమతి లేదు. ఫోన్ సెట్టింగ్‌లలో అనుమతించి, మళ్లీ ప్రయత్నించండి.",
+  "visit.place.noFix": "ఫోన్ తాను ఎక్కడ ఉందో కనుక్కోలేకపోయింది. తలుపు లేదా కిటికీ దగ్గరకు వెళ్లి మళ్లీ ప్రయత్నించండి.",
+  "visit.place.unavailable": "ఈ యాప్ వెర్షన్ ఫోన్ లొకేషన్‌ను చదవలేదు.",
+  "services.category.CLEANING": "శుభ్రత",
+  "services.category.PEST": "పెస్ట్ కంట్రోల్",
+  "services.category.TESTING": "పరీక్షలు మరియు తనిఖీలు",
+  "services.category.COMPLIANCE": "FSSAI నిబంధనల పాటింపు మరియు శిక్షణ",
+  "services.category.SUPPLIES": "సామాగ్రి",
+  "services.withPartner": "ఇందులో కొంత భాగాన్ని ECCS భాగస్వామి చేస్తారు",
+  "visit.reading.label": "మీటర్ రీడింగ్, శాతంలో",
+  "visit.reading.hint": "అంకెలు మాత్రమే, ఉదా. 18.5. పరిమితి {limit}%.",
+  "visit.reading.save": "రీడింగ్ సేవ్ చేయండి",
+  "visit.reading.invalid": "0 నుంచి 100 మధ్య సంఖ్య రాయండి, పాయింట్ తర్వాత ఒక్క అంకె మాత్రమే.",
+  "visit.reading.value": "{value}%",
+  "visit.reading.limit": "పరిమితి {limit}%",
+  "visit.reading.WITHIN": "పరిమితి లోపల ఉంది",
+  "visit.reading.CLOSE": "పరిమితికి దగ్గరగా ఉంది",
+  "visit.reading.OVER": "పరిమితి దాటింది: నూనె మార్చండి",
+  "visit.partner.heading": "భాగస్వామి మరియు ఫలితాల పత్రాలు",
+  "visit.partner.label": "పని చేసిన భాగస్వామి",
+  "visit.partner.hint": "ల్యాబ్, క్లినిక్, శిక్షణ భాగస్వామి లేదా ఆడిట్ ఏజెన్సీ. ఇది నివేదికపై ముద్రించబడుతుంది.",
+  "visit.partner.doneWith": "{name} తో కలిసి చేశారు",
+  "visit.documents.none": "ఇంకా ఫలితాల పత్రం లేదు. భాగస్వామి నివేదిక వచ్చినప్పుడు ECCS దాన్ని ఇక్కడ జోడిస్తుంది.",
+  "visit.documents.open": "తెరవండి",
+  "visit.documents.inVault": "ఇవి లైసెన్సులు మరియు పత్రాలు విభాగంలో కూడా ఉంటాయి.",
+  "visit.documents.failed": "పత్రాన్ని తెరవలేకపోయాము. సిగ్నల్ చూసి మళ్లీ ప్రయత్నించండి.",
 };

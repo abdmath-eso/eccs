@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const kn: Partial<Messages> = {
+export const kn: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ಸ್ವಚ್ಛ ಜಾಗಗಳು. ಸುರಕ್ಷಿತ ಕೆಲಸ. ಬಲವಾದ ವ್ಯಾಪಾರ.",
 
@@ -1045,4 +1045,42 @@ export const kn: Partial<Messages> = {
   "push.turnedOn": "ನೋಟಿಫಿಕೇಶನ್‌ಗಳು ಆನ್ ಆಗಿವೆ",
   "push.test.title": "ಟೆಸ್ಟ್ ನೋಟಿಫಿಕೇಶನ್",
   "push.test.body": "ಈ ಫೋನ್‌ನಲ್ಲಿ ECCS ನೋಟಿಫಿಕೇಶನ್‌ಗಳು ಕೆಲಸ ಮಾಡುತ್ತಿವೆ.",
+
+  "place.ask.title": "ಪುರಾವೆ ಫೋಟೋಗಳಿಗೆ ಸ್ಥಳವನ್ನೂ ಸೇರಿಸಬೇಕೇ?",
+  "place.ask.body": "ನೀವು ಪುರಾವೆ ಫೋಟೋ ತೆಗೆದಾಗ, ಈ ಫೋನ್ ಎಲ್ಲಿದೆ ಎಂದು ಆ್ಯಪ್ ಗುರುತಿಸಿಕೊಳ್ಳಬಹುದು. ಫೋಟೋವನ್ನು ಇದೇ ಅಡುಗೆಮನೆಯಲ್ಲಿ ತೆಗೆಯಲಾಗಿದೆ ಎಂದು ಅದು ತೋರಿಸುತ್ತದೆ.",
+  "place.ask.when": "ನೀವು ಪುರಾವೆ ಫೋಟೋ ತೆಗೆಯುವ ಕ್ಷಣದಲ್ಲಿ ಮಾತ್ರ. ಬೇರೆ ಯಾವ ಸಮಯದಲ್ಲೂ ಇಲ್ಲ.",
+  "place.ask.optional": "ನೀವು ಬೇಡ ಎಂದರೂ ಆ್ಯಪ್ ಹಾಗೆಯೇ ಕೆಲಸ ಮಾಡುತ್ತದೆ.",
+  "place.ask.yes": "ಅನುಮತಿ ಕೊಡಿ",
+  "place.ask.notNow": "ಈಗ ಬೇಡ",
+  "checklists.photoRepeat": "ಈ ಫೋಟೋ {date} ರಂದು ಈಗಾಗಲೇ ಬಳಸಿದ ಒಂದು ಫೋಟೋಗೆ ಹೊಂದುತ್ತದೆ. ಇನ್ನೊಮ್ಮೆ ನೋಡುವುದು ಒಳ್ಳೆಯದು.",
+  "visit.place.title": "ಈ ಅಡುಗೆಮನೆಯ ಲೊಕೇಶನ್ ಇನ್ನೂ ಸೇವ್ ಆಗಿಲ್ಲ",
+  "visit.place.help": "ಅಡುಗೆಮನೆಯಲ್ಲಿ ಇರುವಾಗ ಒಮ್ಮೆ ಸೇವ್ ಮಾಡಿ. ಪುರಾವೆ ಫೋಟೋಗಳನ್ನು ಇಲ್ಲೇ ತೆಗೆಯಲಾಗಿದೆಯೇ ಎಂದು ನೋಡಲು ಇದನ್ನು ಬಳಸಲಾಗುತ್ತದೆ. ಸಿಗ್ನಲ್ ಬೇಕು.",
+  "visit.place.save": "ಲೊಕೇಶನ್ ಈಗ ಸೇವ್ ಮಾಡಿ",
+  "visit.place.saved": "ಲೊಕೇಶನ್ ಸೇವ್ ಆಗಿದೆ",
+  "visit.place.denied": "ಈ ಫೋನ್‌ನ ಲೊಕೇಶನ್ ಬಳಸಲು ಆ್ಯಪ್‌ಗೆ ಅನುಮತಿ ಇಲ್ಲ. ಫೋನ್ ಸೆಟ್ಟಿಂಗ್ಸ್‌ನಲ್ಲಿ ಅನುಮತಿ ಕೊಟ್ಟು, ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+  "visit.place.noFix": "ಫೋನ್‌ಗೆ ತಾನು ಎಲ್ಲಿದೆ ಎಂದು ಕಂಡುಹಿಡಿಯಲು ಆಗಲಿಲ್ಲ. ಬಾಗಿಲು ಅಥವಾ ಕಿಟಕಿಯ ಹತ್ತಿರ ಹೋಗಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+  "visit.place.unavailable": "ಆ್ಯಪ್‌ನ ಈ ಆವೃತ್ತಿಗೆ ಫೋನ್‌ನ ಲೊಕೇಶನ್ ಓದಲು ಆಗುವುದಿಲ್ಲ.",
+  "services.category.CLEANING": "ಸ್ವಚ್ಛತೆ",
+  "services.category.PEST": "ಪೆಸ್ಟ್ ಕಂಟ್ರೋಲ್",
+  "services.category.TESTING": "ಟೆಸ್ಟ್‌ಗಳು ಮತ್ತು ತಪಾಸಣೆಗಳು",
+  "services.category.COMPLIANCE": "FSSAI ನಿಯಮ ಪಾಲನೆ ಮತ್ತು ತರಬೇತಿ",
+  "services.category.SUPPLIES": "ಸಾಮಗ್ರಿಗಳು",
+  "services.withPartner": "ಇದರ ಒಂದು ಭಾಗವನ್ನು ECCS ಪಾರ್ಟ್‌ನರ್ ಮಾಡುತ್ತಾರೆ",
+  "visit.reading.label": "ಮೀಟರ್ ರೀಡಿಂಗ್, ಶೇಕಡಾದಲ್ಲಿ",
+  "visit.reading.hint": "ಅಂಕಿಗಳು ಮಾತ್ರ, ಉದಾ. 18.5. ಮಿತಿ {limit}%.",
+  "visit.reading.save": "ರೀಡಿಂಗ್ ಸೇವ್ ಮಾಡಿ",
+  "visit.reading.invalid": "0 ರಿಂದ 100 ರವರೆಗಿನ ಸಂಖ್ಯೆ ಬರೆಯಿರಿ, ಪಾಯಿಂಟ್ ನಂತರ ಹೆಚ್ಚೆಂದರೆ ಒಂದು ಅಂಕಿ.",
+  "visit.reading.value": "{value}%",
+  "visit.reading.limit": "ಮಿತಿ {limit}%",
+  "visit.reading.WITHIN": "ಮಿತಿಯ ಒಳಗಿದೆ",
+  "visit.reading.CLOSE": "ಮಿತಿಗೆ ಹತ್ತಿರವಿದೆ",
+  "visit.reading.OVER": "ಮಿತಿ ಮೀರಿದೆ: ಎಣ್ಣೆ ಬದಲಾಯಿಸಿ",
+  "visit.partner.heading": "ಪಾರ್ಟ್‌ನರ್ ಮತ್ತು ಫಲಿತಾಂಶದ ದಾಖಲೆಗಳು",
+  "visit.partner.label": "ಕೆಲಸ ಮಾಡಿದ ಪಾರ್ಟ್‌ನರ್",
+  "visit.partner.hint": "ಲ್ಯಾಬ್, ಕ್ಲಿನಿಕ್, ತರಬೇತಿ ಪಾರ್ಟ್‌ನರ್ ಅಥವಾ ಆಡಿಟ್ ಏಜೆನ್ಸಿ. ಇದು ರಿಪೋರ್ಟ್‌ನಲ್ಲಿ ಮುದ್ರಣವಾಗುತ್ತದೆ.",
+  "visit.partner.doneWith": "{name} ಜೊತೆ ಮಾಡಲಾಗಿದೆ",
+  "visit.documents.none": "ಫಲಿತಾಂಶದ ದಾಖಲೆ ಇನ್ನೂ ಇಲ್ಲ. ಪಾರ್ಟ್‌ನರ್ ರಿಪೋರ್ಟ್ ಬಂದಾಗ ECCS ಅದನ್ನು ಇಲ್ಲಿ ಸೇರಿಸುತ್ತದೆ.",
+  "visit.documents.open": "ತೆರೆಯಿರಿ",
+  "visit.documents.inVault": "ಇವು ಲೈಸೆನ್ಸ್ ಮತ್ತು ದಾಖಲೆಗಳು ವಿಭಾಗದಲ್ಲೂ ಇರುತ್ತವೆ.",
+  "visit.documents.failed": "ದಾಖಲೆ ತೆರೆಯಲು ಆಗಲಿಲ್ಲ. ಸಿಗ್ನಲ್ ನೋಡಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
 };

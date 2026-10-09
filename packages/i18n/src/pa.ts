@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const pa: Partial<Messages> = {
+export const pa: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ਸਾਫ਼ ਥਾਵਾਂ। ਸੁਰੱਖਿਅਤ ਕੰਮਕਾਜ। ਮਜ਼ਬੂਤ ਕਾਰੋਬਾਰ।",
 
@@ -1045,4 +1045,42 @@ export const pa: Partial<Messages> = {
   "push.turnedOn": "ਨੋਟੀਫਿਕੇਸ਼ਨ ਚਾਲੂ ਹੋ ਗਏ",
   "push.test.title": "ਟੈਸਟ ਨੋਟੀਫਿਕੇਸ਼ਨ",
   "push.test.body": "ਇਸ ਫੋਨ 'ਤੇ ECCS ਦੇ ਨੋਟੀਫਿਕੇਸ਼ਨ ਕੰਮ ਕਰ ਰਹੇ ਹਨ।",
+
+  "place.ask.title": "ਸਬੂਤ ਦੀਆਂ ਫੋਟੋਆਂ ਨਾਲ ਜਗ੍ਹਾ ਵੀ ਜੋੜੀਏ?",
+  "place.ask.body": "ਜਦੋਂ ਤੁਸੀਂ ਸਬੂਤ ਦੀ ਫੋਟੋ ਖਿੱਚਦੇ ਹੋ, ਐਪ ਨੋਟ ਕਰ ਸਕਦੀ ਹੈ ਕਿ ਇਹ ਫੋਨ ਕਿੱਥੇ ਹੈ। ਇਸ ਤੋਂ ਪਤਾ ਲੱਗਦਾ ਹੈ ਕਿ ਫੋਟੋ ਇਸੇ ਕਿਚਨ ਵਿੱਚ ਖਿੱਚੀ ਗਈ ਸੀ।",
+  "place.ask.when": "ਸਿਰਫ਼ ਉਸੇ ਪਲ, ਜਦੋਂ ਤੁਸੀਂ ਸਬੂਤ ਦੀ ਫੋਟੋ ਖਿੱਚਦੇ ਹੋ। ਹੋਰ ਕਿਸੇ ਵੇਲੇ ਨਹੀਂ।",
+  "place.ask.optional": "ਤੁਸੀਂ ਨਾਂਹ ਕਰੋ ਤਾਂ ਵੀ ਐਪ ਉਸੇ ਤਰ੍ਹਾਂ ਚੱਲਦੀ ਹੈ।",
+  "place.ask.yes": "ਇਜਾਜ਼ਤ ਦਿਓ",
+  "place.ask.notNow": "ਹੁਣੇ ਨਹੀਂ",
+  "checklists.photoRepeat": "ਇਹ ਫੋਟੋ {date} ਨੂੰ ਪਹਿਲਾਂ ਵਰਤੀ ਗਈ ਇੱਕ ਫੋਟੋ ਨਾਲ ਮਿਲਦੀ ਹੈ। ਇੱਕ ਵਾਰ ਫਿਰ ਦੇਖ ਲਓ।",
+  "visit.place.title": "ਇਸ ਕਿਚਨ ਦੀ ਲੋਕੇਸ਼ਨ ਅਜੇ ਸੇਵ ਨਹੀਂ ਹੈ",
+  "visit.place.help": "ਕਿਚਨ ਵਿੱਚ ਹੁੰਦਿਆਂ ਇਸਨੂੰ ਇੱਕ ਵਾਰ ਸੇਵ ਕਰੋ। ਇਸ ਨਾਲ ਚੈੱਕ ਕੀਤਾ ਜਾਂਦਾ ਹੈ ਕਿ ਸਬੂਤ ਦੀਆਂ ਫੋਟੋਆਂ ਇੱਥੇ ਹੀ ਖਿੱਚੀਆਂ ਗਈਆਂ। ਸਿਗਨਲ ਚਾਹੀਦਾ ਹੈ।",
+  "visit.place.save": "ਲੋਕੇਸ਼ਨ ਹੁਣੇ ਸੇਵ ਕਰੋ",
+  "visit.place.saved": "ਲੋਕੇਸ਼ਨ ਸੇਵ ਹੋ ਗਈ",
+  "visit.place.denied": "ਐਪ ਨੂੰ ਇਸ ਫੋਨ ਦੀ ਲੋਕੇਸ਼ਨ ਵਰਤਣ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਹੈ। ਫੋਨ ਦੀਆਂ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਇਜਾਜ਼ਤ ਦਿਓ, ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+  "visit.place.noFix": "ਫੋਨ ਪਤਾ ਨਹੀਂ ਲਗਾ ਸਕਿਆ ਕਿ ਉਹ ਕਿੱਥੇ ਹੈ। ਕਿਸੇ ਦਰਵਾਜ਼ੇ ਜਾਂ ਖਿੜਕੀ ਕੋਲ ਜਾ ਕੇ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+  "visit.place.unavailable": "ਐਪ ਦਾ ਇਹ ਵਰਜ਼ਨ ਫੋਨ ਦੀ ਲੋਕੇਸ਼ਨ ਨਹੀਂ ਪੜ੍ਹ ਸਕਦਾ।",
+  "services.category.CLEANING": "ਸਫ਼ਾਈ",
+  "services.category.PEST": "ਪੈਸਟ ਕੰਟਰੋਲ",
+  "services.category.TESTING": "ਟੈਸਟ ਅਤੇ ਇੰਸਪੈਕਸ਼ਨ",
+  "services.category.COMPLIANCE": "FSSAI ਨਿਯਮਾਂ ਦੀ ਪਾਲਣਾ ਅਤੇ ਟ੍ਰੇਨਿੰਗ",
+  "services.category.SUPPLIES": "ਸਮਾਨ",
+  "services.withPartner": "ਇਸਦਾ ਕੁਝ ਹਿੱਸਾ ECCS ਦਾ ਪਾਰਟਨਰ ਕਰਦਾ ਹੈ",
+  "visit.reading.label": "ਮੀਟਰ ਦੀ ਰੀਡਿੰਗ, ਪ੍ਰਤੀਸ਼ਤ ਵਿੱਚ",
+  "visit.reading.hint": "ਸਿਰਫ਼ ਅੰਕ, ਜਿਵੇਂ 18.5। ਹੱਦ {limit}% ਹੈ।",
+  "visit.reading.save": "ਰੀਡਿੰਗ ਸੇਵ ਕਰੋ",
+  "visit.reading.invalid": "0 ਤੋਂ 100 ਤੱਕ ਦਾ ਨੰਬਰ ਲਿਖੋ, ਪੁਆਇੰਟ ਤੋਂ ਬਾਅਦ ਵੱਧ ਤੋਂ ਵੱਧ ਇੱਕ ਅੰਕ।",
+  "visit.reading.value": "{value}%",
+  "visit.reading.limit": "ਹੱਦ {limit}%",
+  "visit.reading.WITHIN": "ਹੱਦ ਦੇ ਅੰਦਰ",
+  "visit.reading.CLOSE": "ਹੱਦ ਦੇ ਨੇੜੇ",
+  "visit.reading.OVER": "ਹੱਦ ਤੋਂ ਵੱਧ: ਤੇਲ ਬਦਲੋ",
+  "visit.partner.heading": "ਪਾਰਟਨਰ ਅਤੇ ਨਤੀਜੇ ਦੇ ਦਸਤਾਵੇਜ਼",
+  "visit.partner.label": "ਕੰਮ ਕਰਨ ਵਾਲਾ ਪਾਰਟਨਰ",
+  "visit.partner.hint": "ਲੈਬ, ਕਲੀਨਿਕ, ਟ੍ਰੇਨਿੰਗ ਪਾਰਟਨਰ ਜਾਂ ਆਡਿਟ ਏਜੰਸੀ। ਇਹ ਰਿਪੋਰਟ 'ਤੇ ਛਪਦਾ ਹੈ।",
+  "visit.partner.doneWith": "{name} ਨਾਲ ਮਿਲ ਕੇ ਕੀਤਾ",
+  "visit.documents.none": "ਅਜੇ ਨਤੀਜੇ ਦਾ ਕੋਈ ਦਸਤਾਵੇਜ਼ ਨਹੀਂ ਹੈ। ਪਾਰਟਨਰ ਦੀ ਰਿਪੋਰਟ ਆਉਣ 'ਤੇ ECCS ਉਸਨੂੰ ਇੱਥੇ ਜੋੜਦਾ ਹੈ।",
+  "visit.documents.open": "ਖੋਲ੍ਹੋ",
+  "visit.documents.inVault": "ਇਹ ਲਾਇਸੈਂਸ ਅਤੇ ਦਸਤਾਵੇਜ਼ ਵਿੱਚ ਵੀ ਰੱਖੇ ਹਨ।",
+  "visit.documents.failed": "ਦਸਤਾਵੇਜ਼ ਖੋਲ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ। ਸਿਗਨਲ ਦੇਖੋ ਅਤੇ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
 };

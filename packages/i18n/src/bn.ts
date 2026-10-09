@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const bn: Partial<Messages> = {
+export const bn: Messages = {
   "app.name": "ECCS",
   "app.tagline": "পরিষ্কার জায়গা। নিরাপদ কাজ। মজবুত ব্যবসা।",
 
@@ -1045,4 +1045,42 @@ export const bn: Partial<Messages> = {
   "push.turnedOn": "নোটিফিকেশন চালু হয়েছে",
   "push.test.title": "টেস্ট নোটিফিকেশন",
   "push.test.body": "এই ফোনে ECCS-এর নোটিফিকেশন কাজ করছে।",
+
+  "place.ask.title": "প্রমাণের ছবির সঙ্গে জায়গাও জুড়বেন?",
+  "place.ask.body": "আপনি প্রমাণের ছবি তুললে, এই ফোন কোথায় আছে সেটা অ্যাপ লিখে রাখতে পারে। তাতে বোঝা যায় ছবিটা এই কিচেনেই তোলা।",
+  "place.ask.when": "শুধু প্রমাণের ছবি তোলার মুহূর্তে। অন্য কোনো সময়ে নয়।",
+  "place.ask.optional": "আপনি না বললেও অ্যাপ একই রকম কাজ করবে।",
+  "place.ask.yes": "অনুমতি দিন",
+  "place.ask.notNow": "এখন নয়",
+  "checklists.photoRepeat": "এই ছবিটা {date}-এ আগে ব্যবহার করা একটা ছবির সঙ্গে মিলছে। আর একবার দেখে নিন।",
+  "visit.place.title": "এই কিচেনের লোকেশন এখনও সেভ হয়নি",
+  "visit.place.help": "কিচেনে থাকার সময় একবার সেভ করুন। প্রমাণের ছবি এখানেই তোলা কি না, তা দেখতে এটা কাজে লাগে। সিগন্যাল লাগবে।",
+  "visit.place.save": "লোকেশন এখনই সেভ করুন",
+  "visit.place.saved": "লোকেশন সেভ হয়েছে",
+  "visit.place.denied": "এই ফোনের লোকেশন ব্যবহারের অনুমতি অ্যাপের নেই। ফোনের সেটিংসে অনুমতি দিন, তারপর আবার চেষ্টা করুন।",
+  "visit.place.noFix": "ফোন কোথায় আছে তা খুঁজে পায়নি। দরজা বা জানলার কাছে গিয়ে আবার চেষ্টা করুন।",
+  "visit.place.unavailable": "অ্যাপের এই ভার্সন ফোনের লোকেশন পড়তে পারে না।",
+  "services.category.CLEANING": "পরিষ্কার",
+  "services.category.PEST": "পেস্ট কন্ট্রোল",
+  "services.category.TESTING": "টেস্ট ও ইন্সপেকশন",
+  "services.category.COMPLIANCE": "FSSAI নিয়ম মানা ও ট্রেনিং",
+  "services.category.SUPPLIES": "জিনিসপত্র",
+  "services.withPartner": "এর কিছুটা কাজ ECCS-এর পার্টনার করে",
+  "visit.reading.label": "মিটারের রিডিং, শতাংশে",
+  "visit.reading.hint": "শুধু সংখ্যা, যেমন 18.5। সীমা {limit}%।",
+  "visit.reading.save": "রিডিং সেভ করুন",
+  "visit.reading.invalid": "0 থেকে 100-র মধ্যে একটা সংখ্যা লিখুন, দশমিকের পরে বড়জোর একটা অঙ্ক।",
+  "visit.reading.value": "{value}%",
+  "visit.reading.limit": "সীমা {limit}%",
+  "visit.reading.WITHIN": "সীমার মধ্যে",
+  "visit.reading.CLOSE": "সীমার কাছাকাছি",
+  "visit.reading.OVER": "সীমার বেশি: তেল বদলান",
+  "visit.partner.heading": "পার্টনার ও ফলাফলের ডকুমেন্ট",
+  "visit.partner.label": "যে পার্টনার কাজটা করেছে",
+  "visit.partner.hint": "ল্যাব, ক্লিনিক, ট্রেনিং পার্টনার বা অডিট এজেন্সি। এটা রিপোর্টে ছাপা হয়।",
+  "visit.partner.doneWith": "{name}-এর সঙ্গে করা হয়েছে",
+  "visit.documents.none": "এখনও ফলাফলের কোনো ডকুমেন্ট নেই। পার্টনারের রিপোর্ট এলে ECCS সেটা এখানে যোগ করে।",
+  "visit.documents.open": "খুলুন",
+  "visit.documents.inVault": "এগুলো লাইসেন্স ও ডকুমেন্ট-এও রাখা থাকে।",
+  "visit.documents.failed": "ডকুমেন্ট খোলা যায়নি। সিগন্যাল দেখে আবার চেষ্টা করুন।",
 };

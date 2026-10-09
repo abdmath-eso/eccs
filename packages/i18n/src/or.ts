@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const or: Partial<Messages> = {
+export const or: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ସଫା ଜାଗା। ସୁରକ୍ଷିତ କାମ। ମଜବୁତ ବ୍ୟବସାୟ।",
 
@@ -1045,4 +1045,42 @@ export const or: Partial<Messages> = {
   "push.turnedOn": "ନୋଟିଫିକେସନ୍ ଚାଲୁ ହୋଇଛି",
   "push.test.title": "ଟେଷ୍ଟ ନୋଟିଫିକେସନ୍",
   "push.test.body": "ଏହି ଫୋନ୍‌ରେ ECCS ର ନୋଟିଫିକେସନ୍ କାମ କରୁଛି।",
+
+  "place.ask.title": "ପ୍ରମାଣ ଫଟୋ ସହ ଜାଗା ବି ଯୋଡ଼ିବେ?",
+  "place.ask.body": "ଆପଣ ପ୍ରମାଣ ଫଟୋ ଉଠାଇଲାବେଳେ, ଏହି ଫୋନ୍ କେଉଁଠି ଅଛି ଆପ୍ ଟିପି ରଖିପାରିବ। ଫଟୋ ଏହି କିଚେନ୍‌ରେ ହିଁ ଉଠାଯାଇଥିଲା ବୋଲି ଏଥିରୁ ଜଣାପଡ଼େ।",
+  "place.ask.when": "କେବଳ ଆପଣ ପ୍ରମାଣ ଫଟୋ ଉଠାଇବା ମୁହୂର୍ତ୍ତରେ। ଅନ୍ୟ କୌଣସି ସମୟରେ ନୁହେଁ।",
+  "place.ask.optional": "ଆପଣ ନା କହିଲେ ବି ଆପ୍ ସେମିତି କାମ କରିବ।",
+  "place.ask.yes": "ଅନୁମତି ଦିଅନ୍ତୁ",
+  "place.ask.notNow": "ଏବେ ନୁହେଁ",
+  "checklists.photoRepeat": "ଏହି ଫଟୋ {date} ରେ ଆଗରୁ ବ୍ୟବହାର ହୋଇଥିବା ଗୋଟିଏ ଫଟୋ ସହ ମିଶୁଛି। ଆଉ ଥରେ ଦେଖିନେବା ଭଲ।",
+  "visit.place.title": "ଏହି କିଚେନ୍‌ର ଲୋକେସନ୍ ଏଯାଏଁ ସେଭ୍ ହୋଇନାହିଁ",
+  "visit.place.help": "କିଚେନ୍‌ରେ ଥିବାବେଳେ ଏହାକୁ ଥରେ ସେଭ୍ କରନ୍ତୁ। ପ୍ରମାଣ ଫଟୋ ଏଠାରେ ଉଠାଯାଇଥିଲା କି ନାହିଁ ଯାଞ୍ଚ କରିବାକୁ ଏହା ବ୍ୟବହାର ହୁଏ। ସିଗନାଲ୍ ଦରକାର।",
+  "visit.place.save": "ଲୋକେସନ୍ ଏବେ ସେଭ୍ କରନ୍ତୁ",
+  "visit.place.saved": "ଲୋକେସନ୍ ସେଭ୍ ହୋଇଛି",
+  "visit.place.denied": "ଏହି ଫୋନ୍‌ର ଲୋକେସନ୍ ବ୍ୟବହାର କରିବାକୁ ଆପ୍‌କୁ ଅନୁମତି ନାହିଁ। ଫୋନ୍‌ର ସେଟିଂସ୍‌ରେ ଅନୁମତି ଦିଅନ୍ତୁ, ତା'ପରେ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
+  "visit.place.noFix": "ଫୋନ୍ କେଉଁଠି ଅଛି ଖୋଜି ପାରିଲା ନାହିଁ। କବାଟ କିମ୍ବା ଝରକା ପାଖକୁ ଯାଇ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
+  "visit.place.unavailable": "ଆପ୍‌ର ଏହି ଭର୍ସନ୍ ଫୋନ୍‌ର ଲୋକେସନ୍ ପଢ଼ିପାରିବ ନାହିଁ।",
+  "services.category.CLEANING": "ସଫେଇ",
+  "services.category.PEST": "ପେଷ୍ଟ କଣ୍ଟ୍ରୋଲ୍",
+  "services.category.TESTING": "ଟେଷ୍ଟ ଓ ଇନ୍ସପେକ୍ସନ୍",
+  "services.category.COMPLIANCE": "FSSAI ନିୟମ ପାଳନ ଓ ଟ୍ରେନିଂ",
+  "services.category.SUPPLIES": "ସାମଗ୍ରୀ",
+  "services.withPartner": "ଏହାର କିଛି ଅଂଶ ECCS ର ପାର୍ଟନର କରନ୍ତି",
+  "visit.reading.label": "ମିଟରର ରିଡିଂ, ଶତକଡ଼ାରେ",
+  "visit.reading.hint": "କେବଳ ସଂଖ୍ୟା, ଯେପରି 18.5। ସୀମା {limit}%।",
+  "visit.reading.save": "ରିଡିଂ ସେଭ୍ କରନ୍ତୁ",
+  "visit.reading.invalid": "0 ରୁ 100 ଭିତରେ ଗୋଟିଏ ସଂଖ୍ୟା ଲେଖନ୍ତୁ, ଦଶମିକ ପରେ ଅତି ବେଶିରେ ଗୋଟିଏ ଅଙ୍କ।",
+  "visit.reading.value": "{value}%",
+  "visit.reading.limit": "ସୀମା {limit}%",
+  "visit.reading.WITHIN": "ସୀମା ଭିତରେ ଅଛି",
+  "visit.reading.CLOSE": "ସୀମା ପାଖାପାଖି",
+  "visit.reading.OVER": "ସୀମାଠାରୁ ଅଧିକ: ତେଲ ବଦଳାନ୍ତୁ",
+  "visit.partner.heading": "ପାର୍ଟନର ଓ ଫଳାଫଳ ଡକ୍ୟୁମେଣ୍ଟ",
+  "visit.partner.label": "କାମ କରିଥିବା ପାର୍ଟନର",
+  "visit.partner.hint": "ଲ୍ୟାବ୍, କ୍ଲିନିକ୍, ଟ୍ରେନିଂ ପାର୍ଟନର କିମ୍ବା ଅଡିଟ୍ ଏଜେନ୍ସି। ଏହା ରିପୋର୍ଟରେ ଛପାଯାଏ।",
+  "visit.partner.doneWith": "{name} ସହ ମିଶି କରାଯାଇଛି",
+  "visit.documents.none": "ଏଯାଏଁ କୌଣସି ଫଳାଫଳ ଡକ୍ୟୁମେଣ୍ଟ ନାହିଁ। ପାର୍ଟନରର ରିପୋର୍ଟ ଆସିଲେ ECCS ତାହାକୁ ଏଠାରେ ଯୋଡ଼େ।",
+  "visit.documents.open": "ଖୋଲନ୍ତୁ",
+  "visit.documents.inVault": "ଏଗୁଡ଼ିକ ଲାଇସେନ୍ସ ଓ ଡକ୍ୟୁମେଣ୍ଟରେ ମଧ୍ୟ ରଖାଯାଇଛି।",
+  "visit.documents.failed": "ଡକ୍ୟୁମେଣ୍ଟ ଖୋଲି ହେଲା ନାହିଁ। ସିଗନାଲ୍ ଦେଖି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
 };

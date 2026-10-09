@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const mr: Partial<Messages> = {
+export const mr: Messages = {
   "app.name": "ECCS",
   "app.tagline": "स्वच्छ जागा. सुरक्षित कामकाज. मजबूत व्यवसाय.",
 
@@ -1045,4 +1045,42 @@ export const mr: Partial<Messages> = {
   "push.turnedOn": "सूचना चालू झाल्या",
   "push.test.title": "टेस्ट सूचना",
   "push.test.body": "या फोनवर ECCS च्या सूचना काम करत आहेत.",
+
+  "place.ask.title": "पुराव्याच्या फोटोंसोबत ठिकाणही जोडायचे?",
+  "place.ask.body": "तुम्ही पुराव्याचा फोटो काढता तेव्हा हा फोन कुठे आहे याची नोंद ॲप करू शकते. फोटो याच किचनमध्ये काढला हे त्यावरून दिसते.",
+  "place.ask.when": "फक्त पुराव्याचा फोटो काढता त्या क्षणी. इतर कोणत्याही वेळी नाही.",
+  "place.ask.optional": "तुम्ही नाही म्हटले तरी ॲप तसेच चालते.",
+  "place.ask.yes": "परवानगी द्या",
+  "place.ask.notNow": "आत्ता नको",
+  "checklists.photoRepeat": "हा फोटो {date} रोजी आधी वापरलेल्या एका फोटोशी जुळतो. एकदा पुन्हा पाहून घ्या.",
+  "visit.place.title": "या किचनचे लोकेशन अजून सेव्ह झालेले नाही",
+  "visit.place.help": "किचनमध्ये असताना ते एकदा सेव्ह करा. पुराव्याचे फोटो इथेच काढले की नाही हे तपासण्यासाठी ते वापरले जाते. सिग्नल लागतो.",
+  "visit.place.save": "लोकेशन आत्ता सेव्ह करा",
+  "visit.place.saved": "लोकेशन सेव्ह झाले",
+  "visit.place.denied": "ॲपला या फोनचे लोकेशन वापरण्याची परवानगी नाही. फोनच्या सेटिंग्जमध्ये परवानगी द्या, मग पुन्हा प्रयत्न करा.",
+  "visit.place.noFix": "फोनला तो कुठे आहे हे शोधता आले नाही. दार किंवा खिडकीजवळ जा आणि पुन्हा प्रयत्न करा.",
+  "visit.place.unavailable": "ॲपची ही आवृत्ती फोनचे लोकेशन वाचू शकत नाही.",
+  "services.category.CLEANING": "साफसफाई",
+  "services.category.PEST": "पेस्ट कंट्रोल",
+  "services.category.TESTING": "टेस्ट आणि तपासण्या",
+  "services.category.COMPLIANCE": "FSSAI नियमपालन आणि ट्रेनिंग",
+  "services.category.SUPPLIES": "साहित्य",
+  "services.withPartner": "यातील काही भाग ECCS चा पार्टनर करतो",
+  "visit.reading.label": "मीटरवरील रीडिंग, टक्क्यांमध्ये",
+  "visit.reading.hint": "फक्त आकडे, उदा. 18.5. मर्यादा {limit}% आहे.",
+  "visit.reading.save": "रीडिंग सेव्ह करा",
+  "visit.reading.invalid": "0 ते 100 मधील संख्या लिहा, पॉइंटनंतर जास्तीत जास्त एक आकडा.",
+  "visit.reading.value": "{value}%",
+  "visit.reading.limit": "मर्यादा {limit}%",
+  "visit.reading.WITHIN": "मर्यादेच्या आत",
+  "visit.reading.CLOSE": "मर्यादेच्या जवळ",
+  "visit.reading.OVER": "मर्यादेपेक्षा जास्त: तेल बदला",
+  "visit.partner.heading": "पार्टनर आणि निकालाची कागदपत्रे",
+  "visit.partner.label": "काम केलेला पार्टनर",
+  "visit.partner.hint": "लॅब, क्लिनिक, ट्रेनिंग पार्टनर किंवा ऑडिट एजन्सी. हे नाव रिपोर्टवर छापले जाते.",
+  "visit.partner.doneWith": "{name} यांच्यासोबत केले",
+  "visit.documents.none": "निकालाचे कागदपत्र अजून नाही. पार्टनरचा रिपोर्ट आल्यावर ECCS तो इथे जोडते.",
+  "visit.documents.open": "उघडा",
+  "visit.documents.inVault": "ही लायसन्स आणि कागदपत्रे यामध्येही ठेवली आहेत.",
+  "visit.documents.failed": "कागदपत्र उघडता आले नाही. सिग्नल तपासा आणि पुन्हा प्रयत्न करा.",
 };

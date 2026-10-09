@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const hi: Partial<Messages> = {
+export const hi: Messages = {
   "app.name": "ECCS",
   "app.tagline": "साफ़ जगहें। सुरक्षित संचालन। मज़बूत व्यवसाय।",
 
@@ -1045,4 +1045,42 @@ export const hi: Partial<Messages> = {
   "push.turnedOn": "सूचनाएं चालू हो गईं",
   "push.test.title": "टेस्ट सूचना",
   "push.test.body": "इस फ़ोन पर ECCS की सूचनाएं काम कर रही हैं।",
+
+  "place.ask.title": "सबूत की फ़ोटो के साथ जगह भी जोड़ें?",
+  "place.ask.body": "जब आप सबूत की फ़ोटो लेते हैं, तब ऐप यह दर्ज कर सकता है कि यह फ़ोन कहां है। इससे पता चलता है कि फ़ोटो इसी किचन में ली गई।",
+  "place.ask.when": "सिर्फ़ उसी पल, जब आप सबूत की फ़ोटो लेते हैं। और किसी समय नहीं।",
+  "place.ask.optional": "मना करने पर भी ऐप वैसे ही काम करता है।",
+  "place.ask.yes": "अनुमति दें",
+  "place.ask.notNow": "अभी नहीं",
+  "checklists.photoRepeat": "यह फ़ोटो {date} को इस्तेमाल हुई एक फ़ोटो से मिलती है। एक बार फिर देख लें।",
+  "visit.place.title": "इस किचन की लोकेशन अभी सेव नहीं है",
+  "visit.place.help": "किचन में रहते हुए इसे एक बार सेव करें। इससे जांचा जाता है कि सबूत की फ़ोटो यहीं ली गईं। सिग्नल ज़रूरी है।",
+  "visit.place.save": "लोकेशन अभी सेव करें",
+  "visit.place.saved": "लोकेशन सेव हो गई",
+  "visit.place.denied": "ऐप को इस फ़ोन की लोकेशन इस्तेमाल करने की अनुमति नहीं है। फ़ोन की सेटिंग में अनुमति दें, फिर कोशिश करें।",
+  "visit.place.noFix": "फ़ोन पता नहीं लगा सका कि वह कहां है। किसी दरवाज़े या खिड़की के पास जाकर फिर कोशिश करें।",
+  "visit.place.unavailable": "ऐप का यह वर्शन फ़ोन की लोकेशन नहीं पढ़ सकता।",
+  "services.category.CLEANING": "सफाई",
+  "services.category.PEST": "पेस्ट कंट्रोल",
+  "services.category.TESTING": "जांच और निरीक्षण",
+  "services.category.COMPLIANCE": "FSSAI नियमों का पालन और प्रशिक्षण",
+  "services.category.SUPPLIES": "सामान",
+  "services.withPartner": "इसका कुछ हिस्सा ECCS का पार्टनर करता है",
+  "visit.reading.label": "मीटर की रीडिंग, प्रतिशत में",
+  "visit.reading.hint": "सिर्फ़ अंक, जैसे 18.5। सीमा {limit}% है।",
+  "visit.reading.save": "रीडिंग सेव करें",
+  "visit.reading.invalid": "0 से 100 तक की संख्या लिखें, दशमलव के बाद ज़्यादा से ज़्यादा एक अंक।",
+  "visit.reading.value": "{value}%",
+  "visit.reading.limit": "सीमा {limit}%",
+  "visit.reading.WITHIN": "सीमा के अंदर",
+  "visit.reading.CLOSE": "सीमा के करीब",
+  "visit.reading.OVER": "सीमा से ज़्यादा: तेल बदलें",
+  "visit.partner.heading": "पार्टनर और नतीजों के दस्तावेज़",
+  "visit.partner.label": "काम करने वाला पार्टनर",
+  "visit.partner.hint": "लैब, क्लिनिक, ट्रेनिंग पार्टनर या ऑडिट एजेंसी। यह नाम रिपोर्ट पर छपता है।",
+  "visit.partner.doneWith": "{name} के साथ किया गया",
+  "visit.documents.none": "अभी नतीजे का कोई दस्तावेज़ नहीं है। पार्टनर की रिपोर्ट आने पर ECCS उसे यहां जोड़ता है।",
+  "visit.documents.open": "खोलें",
+  "visit.documents.inVault": "ये लाइसेंस और दस्तावेज़ में भी रखे हैं।",
+  "visit.documents.failed": "दस्तावेज़ खोला नहीं जा सका। सिग्नल जांचें और फिर कोशिश करें।",
 };

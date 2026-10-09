@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Partial<Messages> = {
+export const gu: Messages = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 
@@ -1045,4 +1045,42 @@ export const gu: Partial<Messages> = {
   "push.turnedOn": "નોટિફિકેશન ચાલુ થયાં",
   "push.test.title": "ટેસ્ટ નોટિફિકેશન",
   "push.test.body": "આ ફોનમાં ECCS નાં નોટિફિકેશન કામ કરે છે.",
+
+  "place.ask.title": "પુરાવાના ફોટા સાથે જગ્યા પણ ઉમેરવી?",
+  "place.ask.body": "તમે પુરાવાનો ફોટો લો ત્યારે, આ ફોન ક્યાં છે તે ઍપ નોંધી શકે છે. તેનાથી દેખાય છે કે ફોટો આ જ કિચનમાં લેવાયો હતો.",
+  "place.ask.when": "ફક્ત તમે પુરાવાનો ફોટો લો તે ક્ષણે. બીજા કોઈ સમયે નહીં.",
+  "place.ask.optional": "તમે ના કહો તો પણ ઍપ એ જ રીતે ચાલે છે.",
+  "place.ask.yes": "મંજૂરી આપો",
+  "place.ask.notNow": "હમણાં નહીં",
+  "checklists.photoRepeat": "આ ફોટો {date} ના રોજ પહેલાં વપરાયેલા એક ફોટા સાથે મળતો આવે છે. એક વાર ફરી જોઈ લેવા જેવું છે.",
+  "visit.place.title": "આ કિચનનું લોકેશન હજી સચવાયું નથી",
+  "visit.place.help": "કિચનમાં હો ત્યારે તેને એક વાર સાચવો. પુરાવાના ફોટા અહીં જ લેવાયા હતા કે નહીં તે તપાસવા તે વપરાય છે. સિગ્નલ જરૂરી છે.",
+  "visit.place.save": "લોકેશન હમણાં સાચવો",
+  "visit.place.saved": "લોકેશન સચવાઈ ગયું",
+  "visit.place.denied": "ઍપને આ ફોનનું લોકેશન વાપરવાની મંજૂરી નથી. ફોનના સેટિંગ્સમાં મંજૂરી આપો, પછી ફરી પ્રયાસ કરો.",
+  "visit.place.noFix": "ફોન પોતે ક્યાં છે તે શોધી ન શક્યો. દરવાજા કે બારી પાસે જાઓ અને ફરી પ્રયાસ કરો.",
+  "visit.place.unavailable": "ઍપનું આ વર્ઝન ફોનનું લોકેશન વાંચી શકતું નથી.",
+  "services.category.CLEANING": "સફાઈ",
+  "services.category.PEST": "પેસ્ટ કંટ્રોલ",
+  "services.category.TESTING": "ટેસ્ટ અને ઇન્સ્પેક્શન",
+  "services.category.COMPLIANCE": "FSSAI નિયમપાલન અને ટ્રેનિંગ",
+  "services.category.SUPPLIES": "સામાન",
+  "services.withPartner": "આનો થોડો ભાગ ECCS ના પાર્ટનર કરે છે",
+  "visit.reading.label": "મીટરનું રીડિંગ, ટકામાં",
+  "visit.reading.hint": "ફક્ત આંકડા, દા.ત. 18.5. મર્યાદા {limit}% છે.",
+  "visit.reading.save": "રીડિંગ સાચવો",
+  "visit.reading.invalid": "0 થી 100 સુધીનો આંકડો લખો, પૉઇન્ટ પછી વધુમાં વધુ એક આંકડો.",
+  "visit.reading.value": "{value}%",
+  "visit.reading.limit": "મર્યાદા {limit}%",
+  "visit.reading.WITHIN": "મર્યાદાની અંદર",
+  "visit.reading.CLOSE": "મર્યાદાની નજીક",
+  "visit.reading.OVER": "મર્યાદાથી વધારે: તેલ બદલો",
+  "visit.partner.heading": "પાર્ટનર અને પરિણામના દસ્તાવેજો",
+  "visit.partner.label": "કામ કરનાર પાર્ટનર",
+  "visit.partner.hint": "લૅબ, ક્લિનિક, ટ્રેનિંગ પાર્ટનર કે ઑડિટ એજન્સી. તે રિપોર્ટ પર છપાય છે.",
+  "visit.partner.doneWith": "{name} સાથે કર્યું",
+  "visit.documents.none": "હજી પરિણામનો કોઈ દસ્તાવેજ નથી. પાર્ટનરનો રિપોર્ટ આવે ત્યારે ECCS તેને અહીં ઉમેરે છે.",
+  "visit.documents.open": "ખોલો",
+  "visit.documents.inVault": "આ લાઇસન્સ અને દસ્તાવેજોમાં પણ રાખેલા છે.",
+  "visit.documents.failed": "દસ્તાવેજ ખોલી ન શકાયો. સિગ્નલ તપાસો અને ફરી પ્રયાસ કરો.",
 };

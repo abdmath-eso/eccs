@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ur: Partial<Messages> = {
+export const ur: Messages = {
   "app.name": "ECCS",
   "app.tagline": "صاف جگہیں۔ محفوظ کام۔ مضبوط کاروبار۔",
 
@@ -1045,4 +1045,42 @@ export const ur: Partial<Messages> = {
   "push.turnedOn": "نوٹیفکیشن آن ہو گئے",
   "push.test.title": "ٹیسٹ نوٹیفکیشن",
   "push.test.body": "اس فون پر ECCS کے نوٹیفکیشن کام کر رہے ہیں۔",
+
+  "place.ask.title": "ثبوت کی تصویروں کے ساتھ جگہ بھی شامل کریں؟",
+  "place.ask.body": "جب آپ ثبوت کی تصویر لیتے ہیں تو ایپ نوٹ کر سکتی ہے کہ یہ فون کہاں ہے۔ اس سے پتہ چلتا ہے کہ تصویر اسی کچن میں لی گئی تھی۔",
+  "place.ask.when": "صرف اسی لمحے جب آپ ثبوت کی تصویر لیتے ہیں۔ کسی اور وقت نہیں۔",
+  "place.ask.optional": "آپ منع کریں تب بھی ایپ ویسے ہی کام کرتی ہے۔",
+  "place.ask.yes": "اجازت دیں",
+  "place.ask.notNow": "ابھی نہیں",
+  "checklists.photoRepeat": "یہ تصویر {date} کو پہلے استعمال ہونے والی ایک تصویر سے ملتی ہے۔ ایک بار پھر دیکھ لیں۔",
+  "visit.place.title": "اس کچن کی لوکیشن ابھی محفوظ نہیں ہے",
+  "visit.place.help": "کچن میں رہتے ہوئے اسے ایک بار محفوظ کریں۔ اس سے چیک کیا جاتا ہے کہ ثبوت کی تصاویر یہیں لی گئی تھیں۔ سگنل ضروری ہے۔",
+  "visit.place.save": "لوکیشن ابھی محفوظ کریں",
+  "visit.place.saved": "لوکیشن محفوظ ہو گئی",
+  "visit.place.denied": "ایپ کو اس فون کی لوکیشن استعمال کرنے کی اجازت نہیں ہے۔ فون کی سیٹنگز میں اجازت دیں، پھر دوبارہ کوشش کریں۔",
+  "visit.place.noFix": "فون معلوم نہیں کر سکا کہ وہ کہاں ہے۔ کسی دروازے یا کھڑکی کے پاس جا کر دوبارہ کوشش کریں۔",
+  "visit.place.unavailable": "ایپ کا یہ ورژن فون کی لوکیشن نہیں پڑھ سکتا۔",
+  "services.category.CLEANING": "صفائی",
+  "services.category.PEST": "پیسٹ کنٹرول",
+  "services.category.TESTING": "ٹیسٹ اور معائنے",
+  "services.category.COMPLIANCE": "FSSAI قواعد کی پابندی اور ٹریننگ",
+  "services.category.SUPPLIES": "سامان",
+  "services.withPartner": "اس کا کچھ حصہ ECCS کا پارٹنر کرتا ہے",
+  "visit.reading.label": "میٹر کی ریڈنگ، فیصد میں",
+  "visit.reading.hint": "صرف ہندسے، مثلاً 18.5۔ حد {limit}% ہے۔",
+  "visit.reading.save": "ریڈنگ محفوظ کریں",
+  "visit.reading.invalid": "0 سے 100 تک کا نمبر لکھیں، اعشاریہ کے بعد زیادہ سے زیادہ ایک ہندسہ۔",
+  "visit.reading.value": "{value}%",
+  "visit.reading.limit": "حد {limit}%",
+  "visit.reading.WITHIN": "حد کے اندر",
+  "visit.reading.CLOSE": "حد کے قریب",
+  "visit.reading.OVER": "حد سے زیادہ: تیل بدلیں",
+  "visit.partner.heading": "پارٹنر اور نتائج کی دستاویزات",
+  "visit.partner.label": "کام کرنے والا پارٹنر",
+  "visit.partner.hint": "لیب، کلینک، ٹریننگ پارٹنر یا آڈٹ ایجنسی۔ یہ رپورٹ پر چھپتا ہے۔",
+  "visit.partner.doneWith": "{name} کے ساتھ کیا گیا",
+  "visit.documents.none": "ابھی نتیجے کی کوئی دستاویز نہیں ہے۔ پارٹنر کی رپورٹ آنے پر ECCS اسے یہاں شامل کرتا ہے۔",
+  "visit.documents.open": "کھولیں",
+  "visit.documents.inVault": "یہ لائسنس اور دستاویزات میں بھی رکھی گئی ہیں۔",
+  "visit.documents.failed": "دستاویز نہیں کھل سکی۔ سگنل دیکھیں اور دوبارہ کوشش کریں۔",
 };

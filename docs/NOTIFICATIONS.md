@@ -190,7 +190,21 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 | B7 | An invoice is made void, or raised again after a void | O, M | "Invoice {number} has been cancelled by ECCS." | In-app | not built |
 | B8 | An automatic invoice could not be raised | Adm | "An invoice for {outlet} could not be raised." | In-app | not built (only logged) |
 
-## 15. Features not built yet (to fill in when they are)
+## 15. New services and photo integrity
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| S20 | A water test result is due again (a year after the last; possibly half-yearly) | O, M; Adm | "Your water test is due again." | Push + in-app | not built |
+| S21 | Staff medical certificates are due again (12 months) | O, M | "Staff medical check-ups are due again." | Push + in-app | not built |
+| S22 | An oil reading on a finished visit is over the limit | O, M | "Frying oil at {outlet} is over the limit ({value}%). Change the oil." | Push + in-app | not built |
+| S23 | A result document is attached to a visit | O, M | Today the general "document added" notice is sent; a wording that names the visit could replace it | In-app | sent as the existing notice |
+| S24 | No lab report attached some days after a water-test visit | Adm | "The lab report for {visit} has not been attached." | In-app | not built |
+| S25 | The rating audit date is booked or near | O, M | "Your hygiene rating audit is on {date}." | Push + in-app | not built |
+| I1 | A proof photo gets a certain flag (same file re-used, or location faked) | Adm | "A proof photo at {outlet} needs a look: {reason}." | In-app | not built |
+| I2 | An outlet's Photos area newly needs attention (daily digest) | Adm | "{count} outlets have doubtful proof photos." | In-app | not built |
+| I3 | A checklist photo matches an earlier one | O, M | "A checklist photo matches one used on {date}." | In-app, optional | not built |
+
+## 16. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
 |---|---|
@@ -204,6 +218,7 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | Date | Change |
 |---|---|
+| 9 Oct 2026 | Added section 15 (new services and photo integrity), none built. |
 | 8 Oct 2026 | The console now announces every notification a logged-in ECCS person receives, while it is open in a browser tab: a desktop notification, a chime and an in-page message, opening the same page as the list. With the browser closed nothing is shown (web push is not built). |
 | 8 Oct 2026 | Added sections 13 (plans and subscriptions) and 14 (invoices and payments), not built. |
 | 7 Oct 2026 | Added sections 11 (certificates) and 12 (work done without signal), not built. A repeated check-in or finish from a phone does not notify twice. |

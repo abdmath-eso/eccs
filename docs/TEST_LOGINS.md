@@ -198,3 +198,24 @@ The APK is `apps\mobile\ECCS-test.apk` on the PC (how to build it: `docs/APK_BUI
 2. Copy the APK to the phone and open it to install. The app is called **ECCS**. It is separate from Expo Go and starts unlinked: enter a restaurant code and PIN from section 1 again.
 3. Everything in sections 6 to 13 works the same way. Checklists, visits and inspections without signal can now be tried by simply switching Wi-Fi off on the phone, with no Expo Go in the way.
 4. **Push notifications** arrive only after the Expo and Firebase accounts exist and the app has been rebuilt with them (`docs/APK_BUILD.md`, Part A). Until then More > Notifications says push is not available on this phone.
+
+## 15. Trying the new services
+
+Restart the API and console terminals first. All prices and tax codes are samples.
+
+1. **App, as the Owner** (`SPICE-JH2K7M`, PIN `2580`): Services > Book a service. The list is under five headings; some services say "Part of this is done by an ECCS partner". Book "Frying oil test" and "Water test".
+2. **Console > Visits:** confirm both for today and give them to the Sample Supervisor.
+3. **App, as the Supervisor** (`9000000003`): open the oil test and check in. Type a reading for each fryer (try 24.9, 25 and 25.1) and Save each; mark a fryer the kitchen does not have as Not done; add an after photo; Finish. On the water test, type the partner's name, tick the tasks, add a photo, Finish.
+4. **App, as the Owner:** sign off both.
+5. **Console > Visits:** open the water test and use "Attach a result document" with any PDF. Approve both reports. The oil report's PDF shows each reading with its verdict; Invoices shows the tax code and 18%.
+6. **App, as the Owner:** the water-test visit shows the document with Open; it is also under Licences and documents.
+7. **Console > Catalogue:** "Add a kind of service" (for example "Water tank cleaning", Cleaning, tax code 998534, 18%). Add a task and a bookable service; it then appears in the app's booking list.
+
+## 16. Trying photo integrity
+
+1. **Console > Clients >** an outlet > "Change details": paste the kitchen's coordinates (for example `17.4326, 78.4071`, or a maps link) into "Location of the kitchen".
+2. **Installed app on the phone** (rebuild the APK first: this adds the location question): take a proof photo on a checklist. The app asks once whether it may note where the phone is; choose Allow, then Allow on Android's own box.
+3. **A re-used photo**, easiest in the browser preview: as a Head Chef (`DECCA-KP6R3T`, PIN `8264`) answer two checks with the same picture file. As the Owner (PIN `3917`) open that checklist: the second photo carries a neutral "matches one already used" line. The Head Chef does not see it.
+4. **Console > Monitoring:** that outlet's Photos column shows the count, and opening the row lists the doubtful photos with reasons. Photos added in the browser preview are always listed as "picked from files".
+5. **A visit photo:** as the Supervisor add the same picture twice as proof photos on a visit; as an admin open the visit in the console: the reason is under the photo.
+6. **Far from the kitchen:** take a proof photo on the phone somewhere else; the console shows "Taken ... from the outlet". Nothing is blocked on the phone.

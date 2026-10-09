@@ -20,6 +20,8 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 - The research the founder asked for on 8 October ("what suggestions would you give to add in this, overall, research extensively") came back: five researchers (competitors; compliance obligations; the market and buyers; technology features; adjacent services) and a report, `reports/ECCS product growth ideas.md`. Main conclusion: sell inspection readiness, with the app bundled into service plans as proof of work. Its evidence is thin on local prices, which need phone quotes.
 - Founder decisions: of the app ideas, build only photo integrity and bench the rest; add all the recommended services. Recorded in STATUS, with the benched list. Two workers started: one on photo integrity, one on the new kinds of service.
+- Both workers finished. Photo integrity: time, duplicate and location checks on every proof photo, flags in words for ECCS in the console, a Photos column on the Monitoring board, a neutral note for the Owner and Manager, and nothing blocked; the hygiene score is unchanged. New services: seven new kinds with sample prices, tax codes and task lists in twelve languages, the oil reading with its verdict, partner names and result documents, a grouped booking list, and adding a kind from the Catalogue page.
+- Checked together: build, type check, lint and unit tests pass; 394 end-to-end tests pass (47 new). The worker for new services listed plainly which prices have no basis, which tax codes need an accountant, and which partners and permissions are not in place; these are in STATUS section 4 and must be settled before any of the services is sold.
 
 **Carried over from yesterday**
 

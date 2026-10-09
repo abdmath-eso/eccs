@@ -13,7 +13,7 @@ import { isRightToLeft } from '@eccs/i18n';
 // The wording of food labels, in one place, so the label on the screen, the
 // printed label and the lists all say the same thing.
 
-/** The facts a label is made of. A label from the server has them all; so does one still waiting to be sent. */
+/** The facts a label is made of. A label from the server has them all; so does one made on the phone with no signal. */
 export interface LabelFacts {
   itemName: string;
   /** Where it is kept; null when nobody has said, and then the label says nothing about it. */
@@ -21,8 +21,8 @@ export interface LabelFacts {
   allergens: readonly Allergen[];
   preparedAt: string;
   expiresAt: string;
+  /** Always the person who printed it. */
   preparedByName: string;
-  quantityNote: string | null;
 }
 
 /** A shelf life as people say it: "8 hours", "1 day", "3 days". */
@@ -51,7 +51,6 @@ export function labelPrintData(
   const by = t('labels.print.by', { name: label.preparedByName });
   const lines = [label.storage ? `${by} · ${t(`labels.storageKeep.${label.storage}`)}` : by];
   if (label.allergens.length > 0) lines.push(t('labels.print.allergens', { list: allergensText(label.allergens, t) }));
-  if (label.quantityNote) lines.push(label.quantityNote);
   return {
     itemName: label.itemName,
     preparedHeading: t('labels.print.prepared'),

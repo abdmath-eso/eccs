@@ -1,16 +1,17 @@
-// Food labels: anyone who makes labels (the Head Chef too) saving a new one
+// Food labels: anyone who prints labels (the Head Chef too) saving a new one
 // with only a name and how long it keeps, "prepared" being the moment Print was
-// pressed and "use by" that moment plus the length, names compared loosely,
-// who may change or remove a saved label, items retired rather than deleted
-// once they have labels, the limits on a label's times, the list of what is in
-// the fridge, and marking food used up or thrown away. Runs against the local database with the sample seed
-// loaded. Works on a throwaway outlet with a throwaway Manager and Head Chef
-// of its own and removes all of it.
+// pressed and "use by" always that moment plus the length, "prepared by" always
+// the person signed in, names compared loosely, who may change or remove a
+// saved label, items retired rather than deleted once they have labels, how
+// many stickers one printing may have, and a label sent twice being recorded
+// once. Runs against the local database with the sample seed loaded. Works on
+// a throwaway outlet with a throwaway Manager and Head Chef of its own and
+// removes all of it.
 
 import { writeFileSync } from 'node:fs';
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { FOOD_LABEL_RULES, type FoodItemDto, type FoodLabelBoardDto, type FoodLabelDto } from '@eccs/shared';
+import { FOOD_LABEL_RULES, type FoodItemDto, type FoodLabelDto } from '@eccs/shared';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
@@ -23,7 +24,6 @@ const PHONES = { admin: '+919000000002', supervisor: '+919000000003' };
 const DEVICE = 'e2e-food-labels';
 const OUTLET_CODE = 'E2EFL-LB0001';
 const PEOPLE = { manager: 'E2E Label Manager', chef: 'E2E Label Chef' };
-const STAFF_NAME = 'E2E Label Cook';
 
 const HOUR = 3_600_000;
 const ago = (hours: number) => new Date(Date.now() - hours * HOUR).toISOString();
@@ -55,11 +55,6 @@ describe('Food labels (e2e)', () => {
   const addItem = (token: string, body: Record<string, unknown>) =>
     http().post('/food-labels/items').set(bearer(token)).send({ outletId, ...body });
   const make = (token: string, body: Record<string, unknown>) => http().post('/food-labels/labels').set(bearer(token)).send(body);
-  const board = async (token: string): Promise<FoodLabelBoardDto> =>
-    (await http().get('/food-labels/labels').query({ outletId }).set(bearer(token)).expect(200)).body;
-  const close = (token: string, id: string, body: Record<string, unknown>) =>
-    http().post(`/food-labels/labels/${id}/close`).set(bearer(token)).send(body);
-  const ids = (labels: FoodLabelDto[]) => labels.map((entry) => entry.id);
 
   async function cleanUp() {
     const db = prisma.client;
@@ -116,7 +111,6 @@ describe('Food labels (e2e)', () => {
         data: { organizationId: seeded.organizationId, name: 'E2E label kitchen', code: OUTLET_CODE, address: 'Test Road' },
       })
     ).id;
-    await prisma.client.staffMember.create({ data: { outletId, name: STAFF_NAME, monthlySalaryPaise: 0 } });
 
     owner = await pinLogin(CODES.kukatpally, PINS.owner);
     manager = await newLogin(PEOPLE.manager, 'MANAGER');
@@ -223,14 +217,6 @@ describe('Food labels (e2e)', () => {
       expect(removed).toEqual({ deleted: true, item: null });
       expect(await prisma.client.foodItem.count({ where: { id: spare.id } })).toBe(0);
     });
-
-    it('offers the outlet’s logins and staff list as "prepared by"', async () => {
-      const people = (await http().get('/food-labels/people').query({ outletId }).set(bearer(chef)).expect(200)).body as { names: string[] };
-      expect(people.names).toEqual(expect.arrayContaining([PEOPLE.manager, PEOPLE.chef, STAFF_NAME]));
-      // The restaurant's Owner covers every outlet, so is offered too.
-      expect(people.names.length).toBeGreaterThanOrEqual(4);
-      await http().get('/food-labels/people').query({ outletId }).set(bearer(otherChef)).expect(403);
-    });
   });
 
   // ───────────────────────── Making a label ─────────────────────────
@@ -250,20 +236,18 @@ describe('Food labels (e2e)', () => {
         storage: 'CHILLED',
         allergens: ['MILK'],
         preparedByName: PEOPLE.chef,
-        quantityNote: null,
         copies: 1,
-        status: 'LIVE',
-        group: 'LATER',
-        overrideReason: null,
         printedAt: null,
       });
+      // What the list of what was in the fridge used to need is no longer sent.
+      for (const gone of ['status', 'group', 'quantityNote', 'overrideReason', 'discardReason', 'closedAt']) {
+        expect(label).not.toHaveProperty(gone);
+      }
     });
 
-    it('lets all three roles make labels, with another name, a batch note and copies', async () => {
-      const made = (
-        await make(manager, { foodItemId: gravy.id, preparedByName: STAFF_NAME, quantityNote: '2 kg', copies: 3 }).expect(201)
-      ).body as FoodLabelDto;
-      expect(made).toMatchObject({ preparedByName: STAFF_NAME, quantityNote: '2 kg', copies: 3 });
+    it('lets all three roles make labels, and nobody from another outlet or ECCS', async () => {
+      const made = (await make(manager, { foodItemId: gravy.id, copies: 3 }).expect(201)).body as FoodLabelDto;
+      expect(made).toMatchObject({ preparedByName: PEOPLE.manager, copies: 3 });
       await make(owner, { foodItemId: gravy.id }).expect(201);
 
       // Not from another outlet, and not ECCS (who may only read).
@@ -271,7 +255,45 @@ describe('Food labels (e2e)', () => {
       await make(admin, { foodItemId: gravy.id }).expect(403);
       await make(supervisor, { foodItemId: gravy.id }).expect(403);
       await make(chef, { foodItemId: 'no-such-item' }).expect(404);
-      await make(chef, { foodItemId: gravy.id, copies: FOOD_LABEL_RULES.maxCopies + 1 }).expect(400);
+    });
+
+    it('always names the person signed in as "prepared by", whatever name is sent', async () => {
+      const made = (await make(chef, { foodItemId: gravy.id, preparedByName: 'Somebody Else' }).expect(201)).body as FoodLabelDto;
+      expect(made.preparedByName).toBe(PEOPLE.chef);
+      const row = await prisma.client.foodLabel.findUniqueOrThrow({ where: { id: made.id } });
+      expect(row.preparedByName).toBe(PEOPLE.chef);
+      const signedIn = await prisma.client.user.findFirstOrThrow({ where: { name: PEOPLE.chef } });
+      expect(row.preparedById).toBe(signedIn.id);
+      // A batch note is no longer taken either.
+      const noted = (await make(manager, { foodItemId: gravy.id, quantityNote: '2 kg' }).expect(201)).body as FoodLabelDto;
+      expect((await prisma.client.foodLabel.findUniqueOrThrow({ where: { id: noted.id } })).quantityNote).toBeNull();
+    });
+
+    it('prints up to fifty stickers of one label in one go, and no more', async () => {
+      expect(FOOD_LABEL_RULES.maxCopies).toBe(50);
+      const fifty = (await make(chef, { foodItemId: gravy.id, copies: 50 }).expect(201)).body as FoodLabelDto;
+      expect(fifty.copies).toBe(50);
+      await make(chef, { foodItemId: gravy.id, copies: 51 }).expect(400);
+      await make(chef, { foodItemId: gravy.id, copies: 0 }).expect(400);
+    });
+
+    it('makes use-by exactly prepared plus how long the food keeps, and ignores a use-by that is sent', async () => {
+      const pressed = pressPrint();
+      // Later than the food keeps, earlier, and before "prepared": none of them is looked at, for anyone.
+      for (const [token, expiresAt] of [
+        [chef, ahead(60)],
+        [manager, ahead(60)],
+        [owner, ahead(5)],
+        [chef, ago(1)],
+      ] as const) {
+        const made = (
+          await make(token, { foodItemId: gravy.id, preparedAt: pressed, expiresAt, overrideReason: 'Vacuum packed' }).expect(201)
+        ).body as FoodLabelDto;
+        expect(made.preparedAt).toBe(pressed);
+        expect(Date.parse(made.expiresAt)).toBe(Date.parse(pressed) + 48 * HOUR);
+        const row = await prisma.client.foodLabel.findUniqueOrThrow({ where: { id: made.id } });
+        expect(row).toMatchObject({ overrideReason: null, overrideById: null });
+      }
     });
 
     it('lets a Head Chef make a label for something new with a name and a length, timed from the press of Print', async () => {
@@ -290,8 +312,6 @@ describe('Food labels (e2e)', () => {
         storage: null,
         allergens: [],
         preparedByName: PEOPLE.chef,
-        status: 'LIVE',
-        overrideReason: null,
       });
 
       // It was saved for the outlet, so next time it is a one-tap choice.
@@ -315,19 +335,17 @@ describe('Food labels (e2e)', () => {
       expect(made).toMatchObject({ foodItemId: paneer.foodItemId, itemName: 'E2E paneer marination' });
       // The label keeps the length chosen when Print was pressed (it is what the sticker says); the saved label is unchanged.
       expect(Date.parse(made.expiresAt)).toBe(Date.parse(pressed) + 24 * HOUR);
-      expect(made.overrideReason).toBeNull();
       const list = await items(chef);
       expect(list).toHaveLength(before);
       expect(list.find((item) => item.id === paneer.foodItemId)!.shelfLifeHours).toBe(8);
     });
 
-    it('lets a Head Chef choose any length inside the limits, with no override and no reason', async () => {
+    it('lets a Head Chef choose any length inside the limits', async () => {
       const pressed = pressPrint();
       const pickle = (
         await make(chef, { newItem: { outletId, name: 'E2E mango pickle', shelfLifeHours: 365 * 24 }, preparedAt: pressed }).expect(201)
       ).body as FoodLabelDto;
       expect(Date.parse(pickle.expiresAt)).toBe(Date.parse(pressed) + 365 * 24 * HOUR);
-      expect(pickle).toMatchObject({ overrideReason: null, overrideByName: null, group: 'LATER' });
     });
 
     it('checks a new label and who is asking', async () => {
@@ -347,9 +365,7 @@ describe('Food labels (e2e)', () => {
       expect((await items(chef, true)).map((item) => item.name)).not.toContain('E2E refused label');
     });
 
-    // The app no longer offers the next three (it sends only the moment Print was
-    // pressed); the server still accepts what it always did, within the same limits.
-    it('lets prepared be set back up to a day, never into the future, with use-by counted from it', async () => {
+    it('lets prepared be up to a day back, never into the future, with use-by counted from it', async () => {
       const earlier = ago(6);
       const made = (await make(chef, { foodItemId: gravy.id, preparedAt: earlier }).expect(201)).body as FoodLabelDto;
       expect(made.preparedAt).toBe(earlier);
@@ -361,42 +377,14 @@ describe('Food labels (e2e)', () => {
       expect(future.body.code).toBe('PREPARED_IN_FUTURE');
     });
 
-    it('accepts a shorter use-by and refuses one at or before the prepared time', async () => {
-      const made = (await make(chef, { foodItemId: gravy.id, expiresAt: ahead(5) }).expect(201)).body as FoodLabelDto;
-      expect(Date.parse(made.expiresAt) - Date.parse(made.preparedAt)).toBeLessThan(48 * HOUR);
-      const backwards = await make(chef, { foodItemId: gravy.id, expiresAt: ago(1) }).expect(400);
-      expect(backwards.body.code).toBe('USE_BY_BEFORE_PREPARED');
-    });
-
-    it('refuses a Head Chef a use-by later than the shelf life allows, with or without a reason', async () => {
-      const refused = await make(chef, { foodItemId: gravy.id, expiresAt: ahead(60) }).expect(403);
-      expect(refused.body.code).toBe('OVERRIDE_NOT_ALLOWED');
-      await make(chef, { foodItemId: gravy.id, expiresAt: ahead(60), overrideReason: 'Vacuum packed' }).expect(403);
-      // Prepared six hours ago, so 48 hours from now is already past the shelf life.
-      await make(chef, { foodItemId: gravy.id, preparedAt: ago(6), expiresAt: ahead(48) }).expect(403);
-    });
-
-    it('lets a Manager or the Owner go past the shelf life, but only with a reason', async () => {
-      const noReason = await make(manager, { foodItemId: gravy.id, expiresAt: ahead(60) }).expect(400);
-      expect(noReason.body.code).toBe('OVERRIDE_NEEDS_REASON');
-      await make(manager, { foodItemId: gravy.id, expiresAt: ahead(60), overrideReason: '   ' }).expect(400);
-
-      const made = (
-        await make(manager, { foodItemId: gravy.id, expiresAt: ahead(60), overrideReason: 'Vacuum packed' }).expect(201)
-      ).body as FoodLabelDto;
-      expect(made).toMatchObject({ overrideReason: 'Vacuum packed', overrideByName: PEOPLE.manager });
-      await make(owner, { foodItemId: gravy.id, expiresAt: ahead(60), overrideReason: 'Tested by the chef' }).expect(201);
-
-      // Even they cannot go beyond about a year.
-      const tooFar = await make(owner, {
-        foodItemId: gravy.id,
-        expiresAt: ahead((FOOD_LABEL_RULES.maxUseByDays + 2) * 24),
-        overrideReason: 'Pickle',
-      }).expect(400);
-      expect(tooFar.body.code).toBe('USE_BY_TOO_FAR');
-      // A reason given when none was needed is not kept.
-      const plain = (await make(manager, { foodItemId: gravy.id, overrideReason: 'Not needed' }).expect(201)).body as FoodLabelDto;
-      expect(plain.overrideReason).toBeNull();
+    it('records a batch once when Print is pressed again after a failure: the same id gets the first record', async () => {
+      // The app gives each row of a batch its own id at the press of Print and sends it again on a retry.
+      const pressed = pressPrint();
+      const row = { foodItemId: gravy.id, preparedAt: pressed, copies: 4, clientId: 'e2e-label-batch-row-0001' };
+      const first = (await make(chef, row).expect(201)).body as FoodLabelDto;
+      const again = (await make(chef, { ...row, copies: 9 }).expect(201)).body as FoodLabelDto;
+      expect(again).toMatchObject({ id: first.id, preparedAt: pressed, copies: 4 });
+      expect(await prisma.client.foodLabel.count({ where: { clientId: row.clientId } })).toBe(1);
     });
 
     it('takes a label made without signal at the time Print was pressed on the phone, new name and all', async () => {
@@ -449,14 +437,6 @@ describe('Food labels (e2e)', () => {
       expect(printed.printedAt).not.toBeNull();
       await http().post(`/food-labels/labels/${label.id}/printed`).set(bearer(otherChef)).expect(404);
     });
-
-    it('keeps a label’s own times when it is printed again', async () => {
-      // "Print again" prints the label as it stands on the list and tells the server it was printed: same food, same times.
-      const reprinted = (await http().post(`/food-labels/labels/${paneer.id}/printed`).set(bearer(manager)).expect(200)).body as FoodLabelDto;
-      expect(reprinted).toMatchObject({ id: paneer.id, preparedAt: paneer.preparedAt, expiresAt: paneer.expiresAt });
-      const listed = [...(await board(chef)).today, ...(await board(chef)).later].find((entry) => entry.id === paneer.id)!;
-      expect(listed).toMatchObject({ preparedAt: paneer.preparedAt, expiresAt: paneer.expiresAt, storage: null });
-    });
   });
 
   // ───────────────────────── Retiring ─────────────────────────
@@ -469,6 +449,8 @@ describe('Food labels (e2e)', () => {
       // Most recently used first.
       expect((await items(manager))[0]!.id).toBe(gravy.id);
 
+      // Removing a saved label is not for the Head Chef, whether it has labels or not.
+      await http().delete(`/food-labels/items/${gravy.id}`).set(bearer(chef)).expect(403);
       const removed = (await http().delete(`/food-labels/items/${gravy.id}`).set(bearer(manager)).expect(200)).body;
       expect(removed.deleted).toBe(false);
       expect(removed.item).toMatchObject({ id: gravy.id, isActive: false });
@@ -478,8 +460,6 @@ describe('Food labels (e2e)', () => {
       // Gone from the list people choose from, still there when retired ones are asked for.
       expect((await items(chef)).map((item) => item.id)).not.toContain(gravy.id);
       expect((await items(manager, true)).find((item) => item.id === gravy.id)).toMatchObject({ isActive: false });
-      // The label already on the shelf is still on the list.
-      expect(ids((await board(chef)).later)).toContain(label.id);
     });
 
     it('cannot be used for a new label while retired, and can be brought back', async () => {
@@ -492,105 +472,22 @@ describe('Food labels (e2e)', () => {
 
     it('keeps the name a label was printed with when the item is renamed', async () => {
       await http().patch(`/food-labels/items/${gravy.id}`).set(bearer(manager)).send({ name: 'E2E gravy base (new)', storage: 'FROZEN' }).expect(200);
-      const old = [...(await board(chef)).later].find((entry) => entry.id === label.id)!;
+      const old = await prisma.client.foodLabel.findUniqueOrThrow({ where: { id: label.id } });
       expect(old).toMatchObject({ itemName: 'E2E gravy base', storage: 'CHILLED' });
       const fresh = (await make(chef, { foodItemId: gravy.id }).expect(201)).body as FoodLabelDto;
       expect(fresh).toMatchObject({ itemName: 'E2E gravy base (new)', storage: 'FROZEN' });
     });
   });
 
-  // ───────────────────────── The fridge list ─────────────────────────
+  // ───────────────────────── What was taken out ─────────────────────────
 
-  describe('what is in the fridge now', () => {
-    let expired: string;
-    let today: string | null = null;
-
-    beforeAll(async () => {
-      // Labels cannot be made already expired, so their times are set straight in the database.
-      const base = { outletId, foodItemId: gravy.id, itemName: 'E2E old gravy', preparedByName: 'Test' };
-      expired = (
-        await prisma.client.foodLabel.create({ data: { ...base, preparedAt: new Date(ago(50)), expiresAt: new Date(ago(2)) } })
-      ).id;
-      // One that runs out a minute from now is "today", unless this very minute is the last before midnight in India.
-      const soon = new Date(Date.now() + 60_000);
-      const sameDay = (date: Date) => new Date(date.getTime() + 5.5 * HOUR).toISOString().slice(0, 10);
-      if (sameDay(soon) === sameDay(new Date())) {
-        today = (await prisma.client.foodLabel.create({ data: { ...base, preparedAt: new Date(ago(47)), expiresAt: soon } })).id;
-      }
-    });
-
-    it('groups live labels as expired, use today and later, soonest first', async () => {
-      const list = await board(chef);
-      expect(list.outletId).toBe(outletId);
-      expect(ids(list.expired)).toEqual([expired]);
-      expect(list.expired[0]).toMatchObject({ group: 'EXPIRED', status: 'LIVE' });
-      // Labels made earlier in this run with a few hours of life may also fall due today.
-      if (today) expect(ids(list.today)[0]).toBe(today);
-      for (const entry of list.today) expect(entry.group).toBe('TODAY');
-      expect(ids(list.later)).toContain(label.id);
-      for (const group of [list.expired, list.today, list.later]) {
-        const times = group.map((entry) => Date.parse(entry.expiresAt));
-        expect(times).toEqual([...times].sort((a, b) => a - b));
-      }
-      for (const entry of list.later) expect(Date.parse(entry.expiresAt)).toBeGreaterThan(Date.now());
-    });
-
-    it('counts the two numbers for Home', async () => {
-      const counts = (await http().get('/food-labels/counts').query({ outletId }).set(bearer(chef)).expect(200)).body;
-      const list = await board(chef);
-      expect(counts).toEqual({ outletId, expired: 1, today: list.today.length });
-      if (today) expect(counts.today).toBeGreaterThanOrEqual(1);
-    });
-
-    it('is read by everyone at the outlet and ECCS admins, and by nobody else', async () => {
-      for (const token of [owner, manager, admin]) expect(ids((await board(token)).expired)).toEqual([expired]);
-      await http().get('/food-labels/labels').query({ outletId }).set(bearer(otherChef)).expect(403);
-      await http().get('/food-labels/labels').query({ outletId }).set(bearer(supervisor)).expect(403);
-      await http().get('/food-labels/counts').query({ outletId }).set(bearer(otherManager)).expect(403);
-    });
-
-    it('needs a reason to throw food away', async () => {
-      await close(chef, expired, { outcome: 'DISCARDED' }).expect(400);
-      await close(chef, expired, { outcome: 'DISCARDED', reason: 'LOST' }).expect(400);
-      await close(chef, expired, { outcome: 'EATEN' }).expect(400);
-      await close(otherChef, expired, { outcome: 'USED' }).expect(404);
-      await close(admin, expired, { outcome: 'USED' }).expect(403);
-    });
-
-    it('takes a thrown-away label off the list, with who and why', async () => {
-      const closed = (await close(chef, expired, { outcome: 'DISCARDED', reason: 'EXPIRED', note: 'Smelt off' }).expect(200)).body as FoodLabelDto;
-      expect(closed).toMatchObject({
-        status: 'DISCARDED',
-        group: null,
-        discardReason: 'EXPIRED',
-        closeNote: 'Smelt off',
-        closedByName: PEOPLE.chef,
-      });
-      expect(closed.closedAt).not.toBeNull();
-      expect((await board(chef)).expired).toEqual([]);
-      expect((await http().get('/food-labels/counts').query({ outletId }).set(bearer(chef)).expect(200)).body.expired).toBe(0);
-      // Marked once only.
-      await close(manager, expired, { outcome: 'USED' }).expect(409);
-    });
-
-    it('takes a used-up label off the list, and puts it back if that was a mistake', async () => {
-      const used = (await close(manager, label.id, { outcome: 'USED' }).expect(200)).body as FoodLabelDto;
-      expect(used).toMatchObject({ status: 'USED', discardReason: null, closedByName: PEOPLE.manager });
-      expect(ids((await board(chef)).later)).not.toContain(label.id);
-
-      await http().post(`/food-labels/labels/${label.id}/reopen`).set(bearer(otherChef)).expect(404);
-      const back = (await http().post(`/food-labels/labels/${label.id}/reopen`).set(bearer(chef)).expect(200)).body as FoodLabelDto;
-      expect(back).toMatchObject({ status: 'LIVE', closedAt: null, closedByName: null });
-      expect(ids((await board(chef)).later)).toContain(label.id);
-    });
-
-    it('does not put a label back once the few minutes for undoing have passed', async () => {
-      await close(chef, label.id, { outcome: 'DISCARDED', reason: 'SPOILED' }).expect(200);
-      await prisma.client.foodLabel.update({
-        where: { id: label.id },
-        data: { closedAt: new Date(Date.now() - (FOOD_LABEL_RULES.undoMinutes + 1) * 60_000) },
-      });
-      await http().post(`/food-labels/labels/${label.id}/reopen`).set(bearer(chef)).expect(409);
+  describe('the list of what is in the fridge', () => {
+    it('is gone, with marking food used up or thrown away and the names to choose from', async () => {
+      await http().get('/food-labels/labels').query({ outletId }).set(bearer(chef)).expect(404);
+      await http().get('/food-labels/counts').query({ outletId }).set(bearer(chef)).expect(404);
+      await http().get('/food-labels/people').query({ outletId }).set(bearer(chef)).expect(404);
+      await http().post(`/food-labels/labels/${label.id}/close`).set(bearer(chef)).send({ outcome: 'USED' }).expect(404);
+      await http().post(`/food-labels/labels/${label.id}/reopen`).set(bearer(chef)).expect(404);
     });
   });
 

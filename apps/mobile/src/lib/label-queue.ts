@@ -1,8 +1,7 @@
 import { ApiError, type ApiClient } from '@eccs/api-client';
 import type { CreateFoodLabelInput, FoodItemDto } from '@eccs/shared';
 
-import type { LabelFacts } from './labels';
-import { newId, readJson, writeJson } from './offline/files';
+import { readJson, writeJson } from './offline/files';
 
 // Labels made without signal.
 //
@@ -10,15 +9,15 @@ import { newId, readJson, writeJson } from './offline/files';
 // no signal. The print itself needs no server, so when the server cannot be
 // reached the label is printed anyway and its record is kept in a small list
 // on the phone, then sent the next time a label screen is opened with signal.
-// Each carries an id chosen here, which the server remembers, so sending one
+// Each carries an id chosen on the phone, which the server remembers, so sending one
 // twice still makes one label.
 //
 // This is deliberately a small list of its own and not part of the app's main
 // outbox (lib/offline/outbox-core.ts): that one is built round checklists and
 // a Supervisor's visits, with rules about order and conflicts that labels do
 // not have. Each label stands alone, so "send each, keep what did not go" is
-// all that is needed. Also kept here: the outlet's items and names, so the
-// "make a label" screen opens without signal.
+// all that is needed. Also kept here: the outlet's saved labels, so the Food
+// labels screen opens, and prints, without signal.
 
 export interface QueuedLabel {
   userId: string;
@@ -30,8 +29,6 @@ export interface QueuedLabel {
    * the server adds how long the food keeps to it, as the phone did.
    */
   input: CreateFoodLabelInput & { clientId: string; madeAt: string; preparedAt: string };
-  /** What the label says, to show it on the list while it waits. */
-  facts: LabelFacts;
 }
 
 const FILE = 'label-queue';
@@ -41,11 +38,14 @@ const read = async () => (await readJson<QueuedLabel[]>(FILE).catch(() => null))
 export const queuedLabels = async (userId: string, outletId?: string) =>
   (await read()).filter((entry) => entry.userId === userId && (!outletId || entry.outletId === outletId));
 
-/** Keeps a label to send later. */
-export async function queueLabel(entry: Omit<QueuedLabel, 'input'> & { input: Omit<QueuedLabel['input'], 'clientId'> }) {
-  const queued: QueuedLabel = { ...entry, input: { ...entry.input, clientId: newId() } };
-  await writeJson(FILE, [...(await read()), queued]);
-  return queued;
+/**
+ * Keeps a label to send later. It keeps the id the screen already tried to
+ * send it with, so if that first try did reach the server after all, sending
+ * it again from here still makes one label.
+ */
+export async function queueLabel(entry: QueuedLabel) {
+  await writeJson(FILE, [...(await read()).filter((other) => other.input.clientId !== entry.input.clientId), entry]);
+  return entry;
 }
 
 let sending: Promise<{ sent: number; refused: number }> | null = null;
@@ -87,11 +87,10 @@ export function sendQueuedLabels(api: ApiClient, userId: string): Promise<{ sent
   return sending;
 }
 
-// ───────────────────────── What the "make a label" screen needs, kept for no signal ─────────────────────────
+// ───────────────────────── The outlet's saved labels, kept for no signal ─────────────────────────
 
 interface Kept {
   items: FoodItemDto[];
-  names: string[];
   outletName: string;
 }
 

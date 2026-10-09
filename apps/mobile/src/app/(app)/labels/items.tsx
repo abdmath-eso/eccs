@@ -20,9 +20,10 @@ import { useOutlet } from '@/lib/use-outlet';
 /**
  * The outlet's saved labels ("food items"), for the Owner and the Manager:
  * each has a name and how long the food keeps, and optionally where it is
- * kept and its allergens. Anyone making a label can add to this list by
- * typing a new name there; changing and removing happen here. Retired items are kept underneath and can be brought
- * back; the outlet is the one chosen on the labels screen.
+ * kept and its allergens. Anyone who prints labels can add to this list from
+ * the Food labels screen; changing and removing are for the Owner and the
+ * Manager, here or from that screen. Retired items are kept underneath and
+ * can be brought back; the outlet is the one chosen on the labels screen.
  */
 export default function FoodItemsScreen() {
   const theme = useTheme();

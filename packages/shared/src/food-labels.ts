@@ -9,13 +9,13 @@ import type { Language } from "./roles.js";
 // so next time it is one tap. "Prepared" is the moment Print is pressed and
 // "use by" is that moment plus how long the food keeps (the founder's rule,
 // 9 Oct 2026). Where it is stored and its allergens are optional extras that
-// a Manager or the Owner can add. Every label that has been made stays on the "what is in the fridge" list until
-// someone marks it used up or thrown away, so the list shows what must be used
-// today and what has already gone past its time.
+// a Manager or the Owner can add. The kitchen opens the list of saved labels,
+// taps how many of each it needs and prints the lot in one go; each printing is
+// recorded, with who printed it, and "prepared by" is always that person.
 //
-// This file holds the rules (the arithmetic, the limits, the grouping by day
-// in India) and the label's printed layout, so the app and the server always
-// agree. Nothing here changes the hygiene score.
+// This file holds the rules (the arithmetic, the limits, the day in India) and
+// the label's printed layout, so the app and the server always agree. Nothing
+// here changes the hygiene score.
 
 // ───────────────────────── Lists ─────────────────────────
 
@@ -48,16 +48,6 @@ export type Allergen = (typeof ALLERGENS)[number];
 export const SHELF_LIFE_UNITS = ["HOURS", "DAYS"] as const;
 export type ShelfLifeUnit = (typeof SHELF_LIFE_UNITS)[number];
 
-export const FOOD_LABEL_STATUSES = ["LIVE", "USED", "DISCARDED"] as const;
-export type FoodLabelStatus = (typeof FOOD_LABEL_STATUSES)[number];
-
-/** Why food was thrown away. */
-export const DISCARD_REASONS = ["EXPIRED", "SPOILED", "OTHER"] as const;
-export type DiscardReason = (typeof DISCARD_REASONS)[number];
-
-/** Where a live label sits on the "in the fridge now" list. */
-export type FoodLabelGroup = "EXPIRED" | "TODAY" | "LATER";
-
 /** The limits. Sample values chosen during the build; the founder can change them here. */
 export const FOOD_LABEL_RULES = {
   /** An item keeps for at least an hour and at most a year. */
@@ -69,25 +59,19 @@ export const FOOD_LABEL_RULES = {
    * under "another length". They are only the commonest choices, not advice.
    */
   shelfLifePresets: [4, 8, 12, 24, 48, 72, 120, 168],
-  /** "Prepared" can be set back this far, for food made earlier in the shift or last night. */
+  /** "Prepared" can be this far back: only a label sent again, or a phone whose clock is behind, ever is. */
   maxBackdateHours: 24,
   /** A phone clock this far ahead of the server's is still taken as "now". */
   clockToleranceMinutes: 5,
   /** A label made with no signal can arrive this late and still be accepted. */
   maxQueuedHours: 72,
-  /** Even a Manager's or Owner's override cannot put use-by further than this after "prepared". */
-  maxUseByDays: 366,
-  maxCopies: 20,
-  /** A label marked used up or thrown away by mistake can be put back for this long. */
-  undoMinutes: 10,
-  /** How many of the items used most recently are offered first when making a label. */
-  recentItems: 6,
+  /** How many stickers of one label can be printed in one go: enough for a big batch of tubs. */
+  maxCopies: 50,
 } as const;
 
 // ───────────────────────── Shelf life ─────────────────────────
 
 const HOUR_MS = 3_600_000;
-const DAY_MS = 24 * HOUR_MS;
 
 /** Shelf life is stored in hours. "3 days" on screen is 72 hours. */
 export function toShelfLifeHours(value: number, unit: ShelfLifeUnit): number {
@@ -130,55 +114,23 @@ export function useByFor(preparedAt: Date | string, shelfLifeHours: number): Dat
   return new Date(toDate(preparedAt).getTime() + shelfLifeHours * HOUR_MS);
 }
 
-/** What is wrong with a label's times. Each has its own sentence in the app. */
-export type LabelTimeProblem =
-  | "PREPARED_IN_FUTURE"
-  | "PREPARED_TOO_OLD"
-  | "USE_BY_BEFORE_PREPARED"
-  | "USE_BY_TOO_FAR"
-  | "OVERRIDE_NOT_ALLOWED"
-  | "OVERRIDE_NEEDS_REASON";
-
-export interface LabelTimesCheck {
-  problem: LabelTimeProblem | null;
-  /** True when use-by is later than the shelf life allows, which only a Manager or Owner may do, with a reason. */
-  overridden: boolean;
-}
+/** What is wrong with the moment a label says it was prepared. Each has its own sentence in the app. */
+export type LabelTimeProblem = "PREPARED_IN_FUTURE" | "PREPARED_TOO_OLD";
 
 /**
- * Checks a label's two times against the rules:
- *  - "prepared" is not in the future and not more than a day back;
- *  - "use by" is after "prepared";
- *  - "use by" is not later than the item's shelf life allows, unless a
- *    Manager or Owner says so and gives a reason;
- *  - and never more than about a year, whoever asks.
- * `now` is the moment the label is being made.
+ * Checks the moment a label says it was prepared: not in the future (beyond
+ * a few minutes of difference between the phone's clock and the server's)
+ * and not more than a day back. Use-by needs no check of its own: it is
+ * always "prepared" plus how long the food keeps, and that length has its
+ * own limits. `now` is the moment the label is being made. Answers with what
+ * is wrong, or null.
  */
-export function checkLabelTimes(input: {
-  preparedAt: Date | string;
-  expiresAt: Date | string;
-  shelfLifeHours: number;
-  now: Date | string;
-  /** Whether this person may go past the shelf life (Manager or Owner). */
-  mayOverride: boolean;
-  overrideReason?: string | null | undefined;
-}): LabelTimesCheck {
+export function checkLabelTimes(input: { preparedAt: Date | string; now: Date | string }): LabelTimeProblem | null {
   const prepared = toDate(input.preparedAt).getTime();
-  const expires = toDate(input.expiresAt).getTime();
   const now = toDate(input.now).getTime();
-  const fail = (problem: LabelTimeProblem, overridden = false): LabelTimesCheck => ({ problem, overridden });
-
-  if (prepared > now + FOOD_LABEL_RULES.clockToleranceMinutes * 60_000) return fail("PREPARED_IN_FUTURE");
-  if (prepared < now - FOOD_LABEL_RULES.maxBackdateHours * HOUR_MS) return fail("PREPARED_TOO_OLD");
-  if (expires <= prepared) return fail("USE_BY_BEFORE_PREPARED");
-
-  // A minute's leeway, so a time rounded to the minute on the phone is not taken for an override.
-  const overridden = expires > useByFor(new Date(prepared), input.shelfLifeHours).getTime() + 60_000;
-  if (!overridden) return { problem: null, overridden: false };
-  if (!input.mayOverride) return fail("OVERRIDE_NOT_ALLOWED", true);
-  if (expires > prepared + FOOD_LABEL_RULES.maxUseByDays * DAY_MS) return fail("USE_BY_TOO_FAR", true);
-  if (!input.overrideReason?.trim()) return fail("OVERRIDE_NEEDS_REASON", true);
-  return { problem: null, overridden: true };
+  if (prepared > now + FOOD_LABEL_RULES.clockToleranceMinutes * 60_000) return "PREPARED_IN_FUTURE";
+  if (prepared < now - FOOD_LABEL_RULES.maxBackdateHours * HOUR_MS) return "PREPARED_TOO_OLD";
+  return null;
 }
 
 // ───────────────────────── Days in India ─────────────────────────
@@ -195,29 +147,6 @@ export function indiaDay(at: Date | string): string {
 /** The day of the week in India: 0 is Sunday, 6 is Saturday. */
 export function indiaWeekday(at: Date | string): number {
   return new Date(toDate(at).getTime() + INDIA_OFFSET_MS).getUTCDay();
-}
-
-/**
- * Where a live label belongs on the list:
- *  EXPIRED once its use-by moment has passed;
- *  TODAY when it runs out later today (the Indian calendar day);
- *  LATER otherwise. A label that runs out at midnight exactly belongs to the
- *  day that is starting, so it is LATER until midnight and EXPIRED from then.
- */
-export function labelGroup(expiresAt: Date | string, now: Date | string): FoodLabelGroup {
-  const expires = toDate(expiresAt);
-  const at = toDate(now);
-  if (expires.getTime() <= at.getTime()) return "EXPIRED";
-  return indiaDay(expires) === indiaDay(at) ? "TODAY" : "LATER";
-}
-
-/** Splits live labels into the three groups, each with the soonest use-by first. */
-export function groupLabels<T extends { expiresAt: string }>(labels: readonly T[], now: Date | string): Record<FoodLabelGroup, T[]> {
-  const groups: Record<FoodLabelGroup, T[]> = { EXPIRED: [], TODAY: [], LATER: [] };
-  for (const label of [...labels].sort((a, b) => Date.parse(a.expiresAt) - Date.parse(b.expiresAt))) {
-    groups[labelGroup(label.expiresAt, now)].push(label);
-  }
-  return groups;
 }
 
 // ───────────────────────── The day mark ─────────────────────────
@@ -264,6 +193,25 @@ export function formatLabelMoment(at: Date | string, language: Language): string
       hour: "numeric",
       minute: "2-digit",
     }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 16).replace("T", " ");
+  }
+}
+
+/**
+ * When something last happened, said shortly for a list: only the time if it
+ * was today in India ("4:30 pm"), otherwise the day and the date ("Fri, 9 Oct").
+ */
+export function formatLabelWhen(at: Date | string, now: Date | string, language: Language): string {
+  const date = toDate(at);
+  const today = indiaDay(date) === indiaDay(now);
+  try {
+    return new Intl.DateTimeFormat(
+      localeFor(language),
+      today
+        ? { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" }
+        : { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short" },
+    ).format(date);
   } catch {
     return date.toISOString().slice(0, 16).replace("T", " ");
   }
@@ -319,7 +267,7 @@ export interface LabelPrintData {
   /** The use-by day as a word, and which day it is (0 Sunday to 6 Saturday) for its shape. */
   dayWord: string;
   dayIndex: number;
-  /** Smaller lines under the dates: who prepared it, then where it is kept, allergens and the batch note when there are any. */
+  /** Smaller lines under the dates: who prepared it, then where it is kept and allergens when there are any. */
   lines: string[];
   outletName: string;
   /** True when the app is in Urdu, so the label reads right to left. */
@@ -492,10 +440,11 @@ const foodLabelFields = z.object({
   foodItemId: z.string().min(1).optional(),
   /**
    * A label for something new, made on the spot: its name and how long it
-   * keeps. The server saves it for the outlet, so it is a one-tap choice next
-   * time, and makes the label, in one go (so it also works from a phone that
-   * had no signal). If the outlet already has a saved label of that name
-   * (compared loosely), that one is used and no second one is made.
+   * keeps. The server saves it for the outlet and makes the label, in one go.
+   * If the outlet already has a saved label of that name (compared loosely),
+   * that one is used and no second one is made. The app now saves a new label
+   * first and prints it from the list, so it no longer sends this; labels
+   * still waiting on a phone from before may.
    */
   newItem: z
     .object({
@@ -509,15 +458,8 @@ const foodLabelFields = z.object({
    * the food keeps. Left out, "prepared" is the moment the server is asked.
    */
   preparedAt: moment.optional(),
-  /** The app no longer sends a use-by of its own choosing; the server still accepts one within the limits. */
-  expiresAt: moment.optional(),
-  /** Who prepared it, when that is not the person making the label. */
-  preparedByName: optionalText(60),
-  /** Quantity or batch, for example "2 kg" or "Tray 3". */
-  quantityNote: optionalText(60),
+  /** How many stickers were printed. */
   copies: z.number().int().min(1).max(FOOD_LABEL_RULES.maxCopies).default(1),
-  /** Needed, from a Manager or Owner, when "use by" is later than the shelf life allows. */
-  overrideReason: optionalText(200),
   /**
    * For a label made with no signal: an id chosen on the phone, so sending it
    * twice makes one label, and the moment it was made, which the limits are
@@ -532,19 +474,6 @@ export const createFoodLabelSchema = foodLabelFields.refine(
   { message: "Choose a saved label, or give a new one a name", path: ["foodItemId"] },
 );
 export type CreateFoodLabelInput = z.input<typeof createFoodLabelSchema>;
-
-export const closeFoodLabelSchema = z
-  .object({
-    outcome: z.enum(["USED", "DISCARDED"]),
-    /** Why it was thrown away. Needed for DISCARDED only. */
-    reason: z.enum(DISCARD_REASONS).optional(),
-    note: optionalText(200),
-  })
-  .refine((input) => input.outcome !== "DISCARDED" || input.reason !== undefined, {
-    message: "Say why it was thrown away",
-    path: ["reason"],
-  });
-export type CloseFoodLabelInput = z.input<typeof closeFoodLabelSchema>;
 
 // ───────────────────────── Answers ─────────────────────────
 
@@ -563,7 +492,7 @@ export interface FoodItemDto {
   starterKey: string | null;
   /** How many labels have ever been made for it. An item with none can be deleted outright. */
   labelCount: number;
-  /** When a label was last made for it; the most recent come first when choosing. */
+  /** When a label was last printed for it. */
   lastUsedAt: string | null;
 }
 
@@ -584,47 +513,12 @@ export interface FoodLabelDto {
   allergens: Allergen[];
   preparedAt: string;
   expiresAt: string;
+  /** Always the person who printed it. */
   preparedByName: string;
-  quantityNote: string | null;
   copies: number;
-  status: FoodLabelStatus;
-  /** Where it sits on the list while live; null once used up or thrown away. */
-  group: FoodLabelGroup | null;
-  /** Set when a Manager or Owner put use-by later than the shelf life allows. */
-  overrideReason: string | null;
-  overrideByName: string | null;
-  discardReason: DiscardReason | null;
-  closeNote: string | null;
-  closedAt: string | null;
-  closedByName: string | null;
   /** When it was last sent to a printer or shared, if ever. */
   printedAt: string | null;
   createdAt: string;
-}
-
-/** What is in the fridge now: every live label at the outlet, in three groups, soonest use-by first. */
-export interface FoodLabelBoardDto {
-  outletId: string;
-  outletName: string;
-  /** The server's time when the list was made. */
-  now: string;
-  expired: FoodLabelDto[];
-  today: FoodLabelDto[];
-  later: FoodLabelDto[];
-}
-
-/** The two numbers shown on Home. */
-export interface FoodLabelCountsDto {
-  outletId: string;
-  /** Live labels that run out later today. */
-  today: number;
-  /** Live labels already past their use-by, not yet marked used up or thrown away. */
-  expired: number;
-}
-
-/** Names to choose "prepared by" from: the outlet's logins and its staff list. */
-export interface FoodLabelPeopleDto {
-  names: string[];
 }
 
 // ───────────────────────── Starter list ─────────────────────────

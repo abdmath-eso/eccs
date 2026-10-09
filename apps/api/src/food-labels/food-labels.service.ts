@@ -11,11 +11,8 @@ import {
   can,
   checkLabelTimes,
   FOOD_LABEL_RULES,
-  groupLabels,
-  indiaDay,
   LABEL_DOTS_PER_MM,
   LABEL_SIZES,
-  labelGroup,
   labelsHtml,
   localize,
   looseLabelName,
@@ -24,10 +21,7 @@ import {
   type Allergen,
   type FoodItemDto,
   type FoodItemRemovalDto,
-  type FoodLabelBoardDto,
-  type FoodLabelCountsDto,
   type FoodLabelDto,
-  type FoodLabelPeopleDto,
   type LabelImageDto,
   type LabelPrintData,
   type LabelTimeProblem,
@@ -46,24 +40,20 @@ const itemInclude = {
 type ItemRow = Prisma.FoodItemGetPayload<{ include: typeof itemInclude }>;
 type LabelRow = Prisma.FoodLabelGetPayload<object>;
 
-// What the person is told when a label's times break a rule (see checkLabelTimes in @eccs/shared).
+// What the person is told when a label's "prepared" time breaks a rule (see checkLabelTimes in @eccs/shared).
 const TIME_PROBLEMS: Record<LabelTimeProblem, string> = {
   PREPARED_IN_FUTURE: 'The prepared time cannot be in the future',
   PREPARED_TOO_OLD: `The prepared time cannot be more than ${FOOD_LABEL_RULES.maxBackdateHours} hours ago`,
-  USE_BY_BEFORE_PREPARED: 'Use by must be after the prepared time',
-  USE_BY_TOO_FAR: 'Use by is too far away',
-  OVERRIDE_NOT_ALLOWED: 'Use by is later than this item keeps. Only a Manager or the Owner can allow that',
-  OVERRIDE_NEEDS_REASON: 'Say why this is being kept longer than usual',
 };
 
 const allergensOf = (stored: string[]): Allergen[] => ALLERGENS.filter((allergen) => stored.includes(allergen));
 
 /**
- * Food items (the outlet's saved labels: a name and how long the food keeps),
- * the labels made from them, and the list of what is in the fridge now.
- * Everyone who makes labels can save a new one; changing or removing a saved
- * one is for the Owner and the Manager. Everything
- * belongs to one outlet. Nothing here touches the hygiene score.
+ * Food items (the outlet's saved labels: a name and how long the food keeps)
+ * and the record of each label printed from them. Everyone who prints labels
+ * can save a new one; changing or removing a saved one is for the Owner and
+ * the Manager. Everything belongs to one outlet. Nothing here touches the
+ * hygiene score.
  */
 @Injectable()
 export class FoodLabelsService {
@@ -80,7 +70,8 @@ export class FoodLabelsService {
 
   /**
    * The outlet's items: the ones a label was made for most recently first,
-   * then the rest by name. Retired items are left out unless `all` is set.
+   * then the rest by name (the app's list puts them in order of name itself).
+   * Retired items are left out unless `all` is set.
    */
   async listItems(user: AuthUser, outletId: string, all: boolean): Promise<FoodItemDto[]> {
     await this.requireOutlet(user, 'read', outletId);
@@ -187,36 +178,6 @@ export class FoodLabelsService {
     return { deleted: false, item: this.toItemDto(item, user) };
   }
 
-  /**
-   * Names to choose "prepared by" from: everyone with a login at the outlet
-   * (and the restaurant's Owner), then the outlet's staff list, which holds
-   * the cooks who have no login. Names only.
-   */
-  async people(user: AuthUser, outletId: string): Promise<FoodLabelPeopleDto> {
-    const outlet = await this.requireOutlet(user, 'create', outletId);
-    const [logins, staff] = await Promise.all([
-      this.db.user.findMany({
-        where: {
-          isActive: true,
-          memberships: {
-            some: {
-              role: { in: ['OWNER', 'MANAGER', 'HEAD_CHEF'] },
-              OR: [{ outletId }, { outletId: null, organizationId: outlet.organizationId }],
-            },
-          },
-        },
-        select: { name: true },
-        orderBy: { name: 'asc' },
-      }),
-      this.db.staffMember.findMany({ where: { outletId, isActive: true }, select: { name: true }, orderBy: { name: 'asc' } }),
-    ]);
-    const seen = new Set<string>();
-    const names = [...logins, ...staff]
-      .map((person) => person.name.trim())
-      .filter((name) => name && !seen.has(name.toLowerCase()) && seen.add(name.toLowerCase()));
-    return { names };
-  }
-
   // ───────────────────────── Labels ─────────────────────────
 
   /**
@@ -224,11 +185,10 @@ export class FoodLabelsService {
    * (`newItem`: a name and how long it keeps, which is saved for next time).
    *
    * "Prepared" is the moment Print was pressed on the phone, which the app
-   * sends, and "use by" is that moment plus how long the food keeps. The app
-   * no longer lets anyone choose either time; the checks in checkLabelTimes
-   * stay, so a phone with a wrong clock cannot date a label into the future,
-   * and a use-by sent from elsewhere that is later than the food keeps still
-   * needs a Manager or the Owner and a reason.
+   * sends, and "use by" is always that moment plus how long the food keeps:
+   * nobody chooses either, and a use-by sent by anything else is not looked
+   * at. "Prepared by" is always the person signed in. The check on "prepared"
+   * stays, so a phone with a wrong clock cannot date a label into the future.
    */
   async createLabel(
     user: AuthUser,
@@ -236,11 +196,7 @@ export class FoodLabelsService {
       foodItemId?: string | undefined;
       newItem?: { outletId: string; name: string; shelfLifeHours: number } | undefined;
       preparedAt?: string | undefined;
-      expiresAt?: string | undefined;
-      preparedByName?: string | undefined;
-      quantityNote?: string | undefined;
       copies: number;
-      overrideReason?: string | undefined;
       clientId?: string | undefined;
       madeAt?: string | undefined;
     },
@@ -260,24 +216,10 @@ export class FoodLabelsService {
     const shelfLifeHours = saved?.shelfLifeHours ?? input.newItem!.shelfLifeHours;
     const now = this.momentMade(input);
     const preparedAt = input.preparedAt ? new Date(input.preparedAt) : now;
-    const expiresAt = input.expiresAt ? new Date(input.expiresAt) : useByFor(preparedAt, shelfLifeHours);
-    const check = checkLabelTimes({
-      preparedAt,
-      expiresAt,
-      shelfLifeHours,
-      now,
-      mayOverride: can(user.memberships, 'foodLabels', 'update', {
-        organizationId: outlet.organizationId,
-        outletId: outlet.id,
-      }),
-      overrideReason: input.overrideReason,
-    });
-    if (check.problem) {
-      const body = { message: TIME_PROBLEMS[check.problem], code: check.problem };
-      throw check.problem === 'OVERRIDE_NOT_ALLOWED' ? new ForbiddenException(body) : new BadRequestException(body);
-    }
+    const expiresAt = useByFor(preparedAt, shelfLifeHours);
+    const problem = checkLabelTimes({ preparedAt, now });
+    if (problem) throw new BadRequestException({ message: TIME_PROBLEMS[problem], code: problem });
 
-    const byAnother = input.preparedByName !== undefined && input.preparedByName !== user.name;
     try {
       // The new saved label and its first label are made together or not at all,
       // so a label that fails (or arrives twice) never leaves a stray entry on the list.
@@ -307,12 +249,9 @@ export class FoodLabelsService {
             allergens: item.allergens,
             preparedAt,
             expiresAt,
-            preparedById: byAnother ? null : user.id,
-            preparedByName: input.preparedByName ?? user.name,
-            quantityNote: input.quantityNote ?? null,
+            preparedById: user.id,
+            preparedByName: user.name,
             copies: input.copies,
-            overrideReason: check.overridden ? input.overrideReason!.trim() : null,
-            overrideById: check.overridden ? user.id : null,
             createdById: user.id,
             clientId: input.clientId ?? null,
           },
@@ -325,71 +264,6 @@ export class FoodLabelsService {
       if (sent) return this.toLabelDto(sent);
       throw error;
     }
-  }
-
-  /** Every live label at the outlet, as "expired", "use today" and "later", soonest first. */
-  async board(user: AuthUser, outletId: string): Promise<FoodLabelBoardDto> {
-    const outlet = await this.requireOutlet(user, 'read', outletId);
-    const now = new Date();
-    const rows = await this.db.foodLabel.findMany({ where: { outletId, status: 'LIVE' }, orderBy: { expiresAt: 'asc' } });
-    const groups = groupLabels(await this.toLabelDtos(rows, now), now);
-    return {
-      outletId,
-      outletName: outlet.name,
-      now: now.toISOString(),
-      expired: groups.EXPIRED,
-      today: groups.TODAY,
-      later: groups.LATER,
-    };
-  }
-
-  async counts(user: AuthUser, outletId: string): Promise<FoodLabelCountsDto> {
-    await this.requireOutlet(user, 'read', outletId);
-    const now = new Date();
-    // Midnight tonight in India: the end of "today" for the kitchen.
-    const midnight = new Date(Date.parse(`${indiaDay(now)}T00:00:00+05:30`) + 86_400_000);
-    const [today, expired] = await Promise.all([
-      this.db.foodLabel.count({ where: { outletId, status: 'LIVE', expiresAt: { gt: now, lt: midnight } } }),
-      this.db.foodLabel.count({ where: { outletId, status: 'LIVE', expiresAt: { lte: now } } }),
-    ]);
-    return { outletId, today, expired };
-  }
-
-  /** Marks the food used up, or thrown away with its reason. Either takes the label off the list. */
-  async closeLabel(
-    user: AuthUser,
-    labelId: string,
-    input: { outcome: 'USED' | 'DISCARDED'; reason?: 'EXPIRED' | 'SPOILED' | 'OTHER' | undefined; note?: string | undefined },
-  ): Promise<FoodLabelDto> {
-    await this.requireLabel(user, labelId);
-    // Only a live label can be closed; two people tapping at once close it once.
-    const changed = await this.db.foodLabel.updateMany({
-      where: { id: labelId, status: 'LIVE' },
-      data: {
-        status: input.outcome,
-        discardReason: input.outcome === 'DISCARDED' ? (input.reason ?? null) : null,
-        closeNote: input.note ?? null,
-        closedAt: new Date(),
-        closedById: user.id,
-      },
-    });
-    if (changed.count === 0) throw new ConflictException('This label was already marked');
-    return this.toLabelDto(await this.db.foodLabel.findUniqueOrThrow({ where: { id: labelId } }));
-  }
-
-  /** Undoes a mistaken tap: puts a just-closed label back on the list. */
-  async reopenLabel(user: AuthUser, labelId: string): Promise<FoodLabelDto> {
-    const label = await this.requireLabel(user, labelId);
-    if (label.status === 'LIVE') return this.toLabelDto(label);
-    const since = label.closedAt ? Date.now() - label.closedAt.getTime() : Infinity;
-    if (since > FOOD_LABEL_RULES.undoMinutes * 60_000) {
-      throw new ConflictException('It is too late to put this label back. Make a new one');
-    }
-    const reopened = await this.db.foodLabel.update({
-      where: { id: labelId },
-      data: { status: 'LIVE', discardReason: null, closeNote: null, closedAt: null, closedById: null },
-    });
-    return this.toLabelDto(reopened);
   }
 
   async markPrinted(user: AuthUser, labelId: string): Promise<FoodLabelDto> {
@@ -503,16 +377,8 @@ export class FoodLabelsService {
     };
   }
 
-  private async toLabelDto(label: LabelRow): Promise<FoodLabelDto> {
-    return (await this.toLabelDtos([label], new Date()))[0]!;
-  }
-
-  private async toLabelDtos(labels: LabelRow[], now: Date): Promise<FoodLabelDto[]> {
-    const ids = [...new Set(labels.flatMap((label) => [label.closedById, label.overrideById]).filter((id): id is string => !!id))];
-    const people = ids.length ? await this.db.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }) : [];
-    const nameOf = (id: string | null) => (id ? (people.find((person) => person.id === id)?.name ?? null) : null);
-
-    return labels.map((label) => ({
+  private toLabelDto(label: LabelRow): FoodLabelDto {
+    return {
       id: label.id,
       outletId: label.outletId,
       foodItemId: label.foodItemId,
@@ -522,18 +388,9 @@ export class FoodLabelsService {
       preparedAt: label.preparedAt.toISOString(),
       expiresAt: label.expiresAt.toISOString(),
       preparedByName: label.preparedByName,
-      quantityNote: label.quantityNote,
       copies: label.copies,
-      status: label.status,
-      group: label.status === 'LIVE' ? labelGroup(label.expiresAt, now) : null,
-      overrideReason: label.overrideReason,
-      overrideByName: nameOf(label.overrideById),
-      discardReason: label.discardReason,
-      closeNote: label.closeNote,
-      closedAt: label.closedAt?.toISOString() ?? null,
-      closedByName: nameOf(label.closedById),
       printedAt: label.printedAt?.toISOString() ?? null,
       createdAt: label.createdAt.toISOString(),
-    }));
+    };
   }
 }

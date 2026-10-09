@@ -94,15 +94,11 @@ import type {
 } from "@eccs/shared";
 // food-labels-types: the labels worker imports its types from "@eccs/shared" on the next line
 import type {
-  CloseFoodLabelInput,
   CreateFoodItemInput,
   CreateFoodLabelInput,
   FoodItemDto,
   FoodItemRemovalDto,
-  FoodLabelBoardDto,
-  FoodLabelCountsDto,
   FoodLabelDto,
-  FoodLabelPeopleDto,
   LabelImageDto,
   RenderLabelInput,
   UpdateFoodItemInput,
@@ -648,17 +644,8 @@ export function createApiClient(options: ApiClientOptions) {
         call<FoodItemDto>("PATCH", `/food-labels/items/${id(itemId)}`, input),
       /** Deletes an item with no labels; one with labels is retired instead. */
       removeItem: (itemId: string) => call<FoodItemRemovalDto>("DELETE", `/food-labels/items/${id(itemId)}`),
-      /** Names to choose "prepared by" from. */
-      people: (outletId: string) => call<FoodLabelPeopleDto>("GET", `/food-labels/people${query({ outletId })}`),
-      /** Every live label at the outlet: expired, use today, later. */
-      board: (outletId: string) => call<FoodLabelBoardDto>("GET", `/food-labels/labels${query({ outletId })}`),
-      counts: (outletId: string) => call<FoodLabelCountsDto>("GET", `/food-labels/counts${query({ outletId })}`),
+      /** Records one printing of a saved label: how many stickers, and the moment Print was pressed. */
       create: (input: CreateFoodLabelInput) => call<FoodLabelDto>("POST", "/food-labels/labels", input),
-      /** Marks the food used up, or thrown away with a reason. */
-      close: (labelId: string, input: CloseFoodLabelInput) =>
-        call<FoodLabelDto>("POST", `/food-labels/labels/${id(labelId)}/close`, input),
-      /** Puts back a label closed by mistake, within a few minutes. */
-      reopen: (labelId: string) => call<FoodLabelDto>("POST", `/food-labels/labels/${id(labelId)}/reopen`),
       markPrinted: (labelId: string) => call<FoodLabelDto>("POST", `/food-labels/labels/${id(labelId)}/printed`),
       /** Asks the server to draw a label as a PNG picture, for a label printer's own app. */
       render: (input: RenderLabelInput) => call<LabelImageDto>("POST", "/food-labels/render", input),

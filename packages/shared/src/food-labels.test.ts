@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   ALLERGENS,
   checkLabelTimes,
-  closeFoodLabelSchema,
   createFoodItemSchema,
   createFoodLabelSchema,
   DAY_MARKS,
@@ -12,10 +11,9 @@ import {
   looseLabelName,
   formatLabelMoment,
   formatLabelWeekday,
-  groupLabels,
+  formatLabelWhen,
   indiaDay,
   indiaWeekday,
-  labelGroup,
   LABELS_PER_SHEET,
   labelsHtml,
   searchStarterItems,
@@ -100,70 +98,23 @@ describe("useByFor", () => {
 
 describe("checkLabelTimes", () => {
   const now = india("2026-10-09", "16:30");
-  const check = (overrides: Partial<Parameters<typeof checkLabelTimes>[0]> = {}) =>
-    checkLabelTimes({
-      preparedAt: now,
-      expiresAt: useByFor(now, 48),
-      shelfLifeHours: 48,
-      now,
-      mayOverride: false,
-      ...overrides,
-    });
+  const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000);
 
-  it("accepts prepared now with the full shelf life", () => {
-    expect(check()).toEqual({ problem: null, overridden: false });
-  });
-
-  it("accepts a use-by sooner than the shelf life allows", () => {
-    expect(check({ expiresAt: useByFor(now, 6) })).toEqual({ problem: null, overridden: false });
+  it("accepts prepared now", () => {
+    expect(checkLabelTimes({ preparedAt: now, now })).toBeNull();
+    expect(checkLabelTimes({ preparedAt: now.toISOString(), now: now.toISOString() })).toBeNull();
   });
 
   it("refuses a prepared time in the future, beyond a few minutes of clock difference", () => {
-    expect(check({ preparedAt: new Date(now.getTime() + 4 * 60_000), expiresAt: useByFor(now, 24) }).problem).toBeNull();
-    expect(check({ preparedAt: new Date(now.getTime() + 6 * 60_000), expiresAt: useByFor(now, 24) }).problem).toBe(
-      "PREPARED_IN_FUTURE",
-    );
+    expect(checkLabelTimes({ preparedAt: at(4), now })).toBeNull();
+    expect(checkLabelTimes({ preparedAt: at(FOOD_LABEL_RULES.clockToleranceMinutes), now })).toBeNull();
+    expect(checkLabelTimes({ preparedAt: at(6), now })).toBe("PREPARED_IN_FUTURE");
   });
 
-  it("lets prepared go back a day and no further", () => {
-    const back = (hours: number) => new Date(now.getTime() - hours * 3_600_000);
-    expect(check({ preparedAt: back(24), expiresAt: useByFor(back(24), 48) }).problem).toBeNull();
-    expect(check({ preparedAt: back(25), expiresAt: useByFor(back(25), 48) }).problem).toBe("PREPARED_TOO_OLD");
+  it("lets prepared be a day back and no further", () => {
     expect(FOOD_LABEL_RULES.maxBackdateHours).toBe(24);
-  });
-
-  it("measures use-by from the prepared time, not from now", () => {
-    const earlier = new Date(now.getTime() - 10 * 3_600_000);
-    // Prepared ten hours ago: 48 hours from now would be 58 hours of life.
-    expect(check({ preparedAt: earlier, expiresAt: useByFor(now, 48) }).problem).toBe("OVERRIDE_NOT_ALLOWED");
-    expect(check({ preparedAt: earlier, expiresAt: useByFor(earlier, 48) }).problem).toBeNull();
-  });
-
-  it("refuses a use-by at or before the prepared time", () => {
-    expect(check({ expiresAt: now }).problem).toBe("USE_BY_BEFORE_PREPARED");
-    expect(check({ expiresAt: new Date(now.getTime() - 60_000) }).problem).toBe("USE_BY_BEFORE_PREPARED");
-  });
-
-  it("gives a minute's leeway before calling a use-by an override", () => {
-    expect(check({ expiresAt: new Date(useByFor(now, 48).getTime() + 60_000) })).toEqual({ problem: null, overridden: false });
-    expect(check({ expiresAt: new Date(useByFor(now, 48).getTime() + 61_000) }).overridden).toBe(true);
-  });
-
-  it("lets only a Manager or Owner go past the shelf life, and only with a reason", () => {
-    const longer = useByFor(now, 72);
-    expect(check({ expiresAt: longer })).toEqual({ problem: "OVERRIDE_NOT_ALLOWED", overridden: true });
-    expect(check({ expiresAt: longer, overrideReason: "Vacuum packed" }).problem).toBe("OVERRIDE_NOT_ALLOWED");
-    expect(check({ expiresAt: longer, mayOverride: true }).problem).toBe("OVERRIDE_NEEDS_REASON");
-    expect(check({ expiresAt: longer, mayOverride: true, overrideReason: "   " }).problem).toBe("OVERRIDE_NEEDS_REASON");
-    expect(check({ expiresAt: longer, mayOverride: true, overrideReason: "Vacuum packed" })).toEqual({
-      problem: null,
-      overridden: true,
-    });
-  });
-
-  it("never allows more than about a year, even with an override", () => {
-    const tooFar = new Date(now.getTime() + (FOOD_LABEL_RULES.maxUseByDays + 1) * 86_400_000);
-    expect(check({ expiresAt: tooFar, mayOverride: true, overrideReason: "Pickle" }).problem).toBe("USE_BY_TOO_FAR");
+    expect(checkLabelTimes({ preparedAt: at(-24 * 60), now })).toBeNull();
+    expect(checkLabelTimes({ preparedAt: at(-25 * 60), now })).toBe("PREPARED_TOO_OLD");
   });
 });
 
@@ -192,65 +143,6 @@ describe("days in India", () => {
   });
 });
 
-describe("labelGroup", () => {
-  const now = india("2026-10-09", "16:30");
-
-  it("is EXPIRED from the use-by moment on", () => {
-    expect(labelGroup(india("2026-10-09", "16:29"), now)).toBe("EXPIRED");
-    expect(labelGroup(now, now)).toBe("EXPIRED");
-    expect(labelGroup(india("2026-10-08", "23:00"), now)).toBe("EXPIRED");
-  });
-
-  it("is TODAY when it runs out later the same day in India", () => {
-    expect(labelGroup(india("2026-10-09", "16:31"), now)).toBe("TODAY");
-    expect(labelGroup(india("2026-10-09", "23:59"), now)).toBe("TODAY");
-  });
-
-  it("is LATER from midnight in India onwards", () => {
-    expect(labelGroup(india("2026-10-10", "00:00"), now)).toBe("LATER");
-    expect(labelGroup(india("2026-10-10", "00:30"), now)).toBe("LATER");
-    expect(labelGroup(india("2026-10-12", "16:30"), now)).toBe("LATER");
-  });
-
-  it("follows the Indian day late at night, when UTC is still on the day before", () => {
-    // 1 am on the 10th in India is 7:30 pm on the 9th in UTC.
-    const lateNight = india("2026-10-10", "01:00");
-    expect(labelGroup(india("2026-10-10", "09:00"), lateNight)).toBe("TODAY");
-    expect(labelGroup(india("2026-10-11", "00:30"), lateNight)).toBe("LATER");
-    // And 11 pm on the 9th in India: something due at 00:30 belongs to tomorrow.
-    expect(labelGroup(india("2026-10-10", "00:30"), india("2026-10-09", "23:00"))).toBe("LATER");
-  });
-
-  it("moves a label from LATER to TODAY to EXPIRED as time passes", () => {
-    const expiresAt = india("2026-10-10", "14:00");
-    expect(labelGroup(expiresAt, india("2026-10-09", "23:59"))).toBe("LATER");
-    expect(labelGroup(expiresAt, india("2026-10-10", "00:00"))).toBe("TODAY");
-    expect(labelGroup(expiresAt, india("2026-10-10", "13:59"))).toBe("TODAY");
-    expect(labelGroup(expiresAt, india("2026-10-10", "14:00"))).toBe("EXPIRED");
-  });
-});
-
-describe("groupLabels", () => {
-  it("splits labels into the three groups, soonest use-by first in each", () => {
-    const now = india("2026-10-09", "16:30");
-    const label = (id: string, date: string, time: string) => ({ id, expiresAt: india(date, time).toISOString() });
-    const groups = groupLabels(
-      [
-        label("later-2", "2026-10-12", "10:00"),
-        label("today-2", "2026-10-09", "22:00"),
-        label("expired-2", "2026-10-09", "09:00"),
-        label("later-1", "2026-10-10", "00:00"),
-        label("today-1", "2026-10-09", "18:00"),
-        label("expired-1", "2026-10-07", "09:00"),
-      ],
-      now,
-    );
-    expect(groups.EXPIRED.map((entry) => entry.id)).toEqual(["expired-1", "expired-2"]);
-    expect(groups.TODAY.map((entry) => entry.id)).toEqual(["today-1", "today-2"]);
-    expect(groups.LATER.map((entry) => entry.id)).toEqual(["later-1", "later-2"]);
-  });
-});
-
 describe("words on the label", () => {
   it("writes the day name, the date, the month as a word and the time, in India", () => {
     const text = formatLabelMoment("2026-10-09T11:00:00.000Z", "EN");
@@ -263,9 +155,24 @@ describe("words on the label", () => {
     expect(formatLabelWeekday("2026-10-09T19:00:00.000Z", "EN")).toBe("Saturday");
   });
 
+  it("says when a label was last printed: the time if today in India, otherwise the day and date", () => {
+    const now = india("2026-10-09", "16:30");
+    const today = formatLabelWhen(india("2026-10-09", "09:05"), now, "EN");
+    expect(today).toMatch(/9:05/);
+    expect(today).not.toContain("Oct");
+    const yesterday = formatLabelWhen(india("2026-10-08", "23:55"), now, "EN");
+    expect(yesterday).toContain("Thu");
+    expect(yesterday).toContain("8");
+    expect(yesterday).toContain("Oct");
+    expect(yesterday).not.toMatch(/11:55/);
+    // Half past midnight in India is today there, though UTC is still on the day before.
+    expect(formatLabelWhen(india("2026-10-09", "00:30"), now, "EN")).not.toContain("Oct");
+  });
+
   it("keeps ordinary digits in every language", () => {
     for (const language of ["HI", "TE", "BN", "MR", "UR"] as const) {
       expect(formatLabelMoment("2026-10-09T11:00:00.000Z", language)).toMatch(/9/);
+      expect(formatLabelWhen("2026-10-08T11:00:00.000Z", "2026-10-09T11:00:00.000Z", language)).toMatch(/8/);
     }
   });
 });
@@ -348,11 +255,23 @@ describe("requests", () => {
   });
 
   it("limits the number of copies of a label", () => {
+    expect(FOOD_LABEL_RULES.maxCopies).toBe(50);
     expect(createFoodLabelSchema.parse({ foodItemId: "i" }).copies).toBe(1);
     expect(createFoodLabelSchema.safeParse({ foodItemId: "i", copies: 0 }).success).toBe(false);
     expect(createFoodLabelSchema.safeParse({ foodItemId: "i", copies: FOOD_LABEL_RULES.maxCopies }).success).toBe(true);
     expect(createFoodLabelSchema.safeParse({ foodItemId: "i", copies: FOOD_LABEL_RULES.maxCopies + 1 }).success).toBe(false);
     expect(createFoodLabelSchema.safeParse({ foodItemId: "i", preparedAt: "yesterday" }).success).toBe(false);
+  });
+
+  it("takes no use-by, no other name and no note for a label: what is sent of those is dropped", () => {
+    const parsed = createFoodLabelSchema.parse({
+      foodItemId: "i",
+      expiresAt: "2030-01-01T00:00:00.000Z",
+      preparedByName: "Someone else",
+      quantityNote: "2 kg",
+      overrideReason: "Vacuum packed",
+    });
+    expect(parsed).toEqual({ foodItemId: "i", copies: 1 });
   });
 
   it("makes a label from a saved one or from a new name and length, one or the other", () => {
@@ -366,13 +285,6 @@ describe("requests", () => {
     expect(
       createFoodLabelSchema.safeParse({ newItem: { ...fresh, shelfLifeHours: FOOD_LABEL_RULES.maxShelfLifeHours + 1 } }).success,
     ).toBe(false);
-  });
-
-  it("needs a reason to throw food away, and none to mark it used up", () => {
-    expect(closeFoodLabelSchema.safeParse({ outcome: "USED" }).success).toBe(true);
-    expect(closeFoodLabelSchema.safeParse({ outcome: "DISCARDED" }).success).toBe(false);
-    expect(closeFoodLabelSchema.safeParse({ outcome: "DISCARDED", reason: "SPOILED" }).success).toBe(true);
-    expect(closeFoodLabelSchema.safeParse({ outcome: "DISCARDED", reason: "LOST" }).success).toBe(false);
   });
 });
 

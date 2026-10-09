@@ -1,6 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import {
-  closeFoodLabelSchema,
   createFoodItemSchema,
   createFoodLabelSchema,
   renderLabelSchema,
@@ -15,7 +14,7 @@ import { FoodLabelsService } from './food-labels.service.js';
 // The decorators check that the role allows the action at all; the service
 // then checks it is allowed at the specific outlet.
 //
-// One permission, "foodLabels", covers both halves. "create" is making a label
+// One permission, "foodLabels", covers both halves. "create" is printing a label
 // and saving a new one (a name and how long it keeps), which the Owner, the
 // Manager and the Head Chef all hold, so anyone in the kitchen can make a label
 // for whatever they want (founder, 9 Oct 2026). "update" is changing or
@@ -58,29 +57,9 @@ export class FoodLabelsController {
     return this.labels.removeItem(user, id);
   }
 
-  /** Names to choose "prepared by" from. */
-  @Get('people')
-  @RequirePermission('foodLabels', 'create')
-  people(@CurrentUser() user: AuthUser, @Query('outletId') outletId?: string) {
-    return this.labels.people(user, required(outletId));
-  }
-
   // ───────────────────────── Labels ─────────────────────────
 
-  /** What is in the fridge now: every live label, in three groups. */
-  @Get('labels')
-  @RequirePermission('foodLabels', 'read')
-  board(@CurrentUser() user: AuthUser, @Query('outletId') outletId?: string) {
-    return this.labels.board(user, required(outletId));
-  }
-
-  /** The two numbers for Home: running out today, and already past use-by. */
-  @Get('counts')
-  @RequirePermission('foodLabels', 'read')
-  counts(@CurrentUser() user: AuthUser, @Query('outletId') outletId?: string) {
-    return this.labels.counts(user, required(outletId));
-  }
-
+  /** Records one printing: a saved label, how many stickers, and the moment Print was pressed. */
   @Post('labels')
   @RequirePermission('foodLabels', 'create')
   create(
@@ -88,26 +67,6 @@ export class FoodLabelsController {
     @Body(new ZodValidationPipe(createFoodLabelSchema)) body: z.output<typeof createFoodLabelSchema>,
   ) {
     return this.labels.createLabel(user, body);
-  }
-
-  /** Marks the food used up, or thrown away with a reason, which takes the label off the list. */
-  @Post('labels/:id/close')
-  @HttpCode(200)
-  @RequirePermission('foodLabels', 'create')
-  close(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(closeFoodLabelSchema)) body: z.output<typeof closeFoodLabelSchema>,
-  ) {
-    return this.labels.closeLabel(user, id, body);
-  }
-
-  /** Puts back a label marked used up or thrown away by mistake, for a few minutes afterwards. */
-  @Post('labels/:id/reopen')
-  @HttpCode(200)
-  @RequirePermission('foodLabels', 'create')
-  reopen(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.labels.reopenLabel(user, id);
   }
 
   /** Notes that the label was sent to a printer or shared. */

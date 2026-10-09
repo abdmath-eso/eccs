@@ -12,9 +12,25 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
-## Thursday 8 October 2026
+## Friday 9 October 2026
 
 *In progress. To be written up at the end of the day.*
+
+**So far today**
+
+- The research the founder asked for on 8 October ("what suggestions would you give to add in this, overall, research extensively") came back: five researchers (competitors; compliance obligations; the market and buyers; technology features; adjacent services) and a report, `reports/ECCS product growth ideas.md`. Main conclusion: sell inspection readiness, with the app bundled into service plans as proof of work. Its evidence is thin on local prices, which need phone quotes.
+- Founder decisions: of the app ideas, build only photo integrity and bench the rest; add all the recommended services. Recorded in STATUS, with the benched list. Two workers started: one on photo integrity, one on the new kinds of service.
+
+**Carried over from yesterday**
+
+- 8 October was never closed: the founder did not say "eod", so that day has no write-up and nothing from it has been pushed to GitHub. Its bullets below are the record.
+- The founder has not yet looked at the new console or turned on desktop notifications.
+
+---
+
+## Thursday 8 October 2026
+
+*Not written up: the day was not closed. The bullets below are the record of it.*
 
 **So far today**
 

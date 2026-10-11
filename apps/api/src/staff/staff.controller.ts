@@ -58,16 +58,23 @@ export class StaffController {
 
   // ───────────────────────── Attendance ─────────────────────────
 
-  /** The day's sheet. Open to whoever may mark, so the Head Chef can see today's list. */
+  /**
+   * The day's sheet: who is in, and each person's status. Open to everyone who can see
+   * the staff list, so the Head Chef can see today's; the service keeps them to today.
+   */
   @Get('attendance/day')
-  @RequirePermission('attendance', 'create')
+  @RequirePermission('staff', 'read')
   day(@CurrentUser() user: AuthUser, @Query('outletId') outletId?: string, @Query('date') date?: string) {
     if (!outletId) throw new BadRequestException('outletId is required');
     return this.staff.day(user, outletId, date || undefined);
   }
 
+  /**
+   * The Owner's correction of a day, with a reason. Nobody marks attendance by hand
+   * since face attendance: the Manager and the Head Chef are refused here (403).
+   */
   @Put('attendance/day')
-  @RequirePermission('attendance', 'create')
+  @RequirePermission('attendance', 'update')
   mark(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(markAttendanceSchema)) body: z.output<typeof markAttendanceSchema>,

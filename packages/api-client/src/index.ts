@@ -92,6 +92,23 @@ import type {
   StaffMonthDto,
   UpdateStaffMemberInput,
 } from "@eccs/shared";
+// Attendance by face: clocking in and out, the Owner's corrections, and face enrolment.
+import type {
+  AddPunchInput,
+  AttendanceReviewDto,
+  AttendanceSettingsDto,
+  AttendanceSettingsInput,
+  ClockAssistedInput,
+  ClockConfirmInput,
+  ClockIdentifyDto,
+  ClockPunchResultDto,
+  ClockRosterDto,
+  CorrectDayInput,
+  FaceConsentInput,
+  FaceStatusDto,
+  PunchDto,
+  StaffPunchesDto,
+} from "@eccs/shared";
 // food-labels-types: the labels worker imports its types from "@eccs/shared" on the next line
 import type {
   CreateFoodItemInput,
@@ -611,7 +628,11 @@ export function createApiClient(options: ApiClientOptions) {
       /** One day's attendance sheet; today when no date is given. */
       day: (outletId: string, date?: string) =>
         call<AttendanceDayDto>("GET", `/staff/attendance/day${query({ outletId, ...(date && { date }) })}`),
-      /** Marks, changes or (with a null status) clears attendance for a day. */
+      /**
+       * The Owner's correction of a day for several people at once; `reason` (at least five
+       * characters) is required. A null status takes the Owner's entry away. Since face
+       * attendance the Manager and the Head Chef are refused (403).
+       */
       mark: (input: MarkAttendanceInput) => call<AttendanceDayDto>("PUT", "/staff/attendance/day", input),
       /** Each person's totals for a month ("2026-10"). */
       month: (outletId: string, month: string) =>
@@ -631,6 +652,73 @@ export function createApiClient(options: ApiClientOptions) {
       addPayEntry: (staffId: string, input: AddPayEntryInput) =>
         call<SalaryMonthDto>("POST", `/staff/people/${id(staffId)}/pay-entries`, input),
       removePayEntry: (entryId: string) => call<SalaryMonthDto>("DELETE", `/staff/pay-entries/${id(entryId)}`),
+      /** Whether a person's face is enrolled, and on which consent. For the Owner and the Manager. */
+      faceStatus: (staffId: string) => call<FaceStatusDto>("GET", `/staff/${id(staffId)}/face`),
+      /**
+       * Enrols a person's face from 3 to 5 photos taken now, with the employee's own consent.
+       * Owner only. The photos are not kept. Errors carry a `code` (NO_FACE, FACES_DIFFER,
+       * FACE_ALREADY_ENROLLED, CONSENT_REQUIRED, FACE_ENGINE_UNAVAILABLE...).
+       */
+      faceEnrol(staffId: string, input: { photos: UploadFile[]; consent: FaceConsentInput }) {
+        const form = new FormData();
+        form.append("consent", JSON.stringify(input.consent));
+        input.photos.forEach((photo, index) => form.append("photos", photo, `face-${index + 1}.jpg`));
+        return send<FaceStatusDto>("POST", `/staff/${id(staffId)}/face`, form, undefined, true);
+      },
+      /** The employee withdraws consent: every template is deleted. Owner only. */
+      faceWithdraw: (staffId: string) => call<FaceStatusDto>("DELETE", `/staff/${id(staffId)}/face`),
+    },
+    /**
+     * Attendance by face. The `clock` calls are made from the PIN screen of a phone linked
+     * to an outlet, with nobody logged in: they carry the phone's device token, not a session.
+     * The rest need a login: reading for the Owner and the Manager, correcting for the Owner.
+     */
+    attendance: {
+      clock: {
+        /**
+         * Who is in this photo? Marks nothing; answers a ticket to hand to `confirm`.
+         * `secondPhoto`, taken after "turn your head a little", is the liveness check.
+         */
+        identify(input: { deviceToken: string; photo: UploadFile; secondPhoto?: UploadFile }) {
+          const form = new FormData();
+          form.append("deviceToken", input.deviceToken);
+          form.append("photo", input.photo, "face.jpg");
+          if (input.secondPhoto) form.append("photo2", input.secondPhoto, "face-turned.jpg");
+          return send<ClockIdentifyDto>("POST", "/attendance/clock/identify", form, undefined, false);
+        },
+        /** "Yes, that's me": records the clock-in or clock-out. */
+        confirm: (input: ClockConfirmInput) => call<ClockPunchResultDto>("POST", "/attendance/clock/confirm", input, false),
+        /** The Owner or a Manager vouches with their PIN, for someone the camera cannot recognise. */
+        assisted(input: ClockAssistedInput & { photo?: UploadFile }) {
+          const form = new FormData();
+          form.append("deviceToken", input.deviceToken);
+          form.append("approverPin", input.approverPin);
+          form.append("staffId", input.staffId);
+          if (input.photo) form.append("photo", input.photo, "person.jpg");
+          return send<ClockPunchResultDto>("POST", "/attendance/clock/assisted", form, undefined, false);
+        },
+        /** The outlet's staff by name, for the assisted route's picker, and whether faces can be recognised just now. */
+        roster: (deviceToken: string) =>
+          send<ClockRosterDto>("GET", `/attendance/clock/roster${query({ deviceToken })}`, undefined, undefined, false),
+      },
+      /** One person's punches for a month ("2026-10"; this month when left out), day by day. */
+      punches: (staffId: string, month?: string) =>
+        call<StaffPunchesDto>("GET", `/attendance/punches${query({ staffId, ...(month && { month }) })}`),
+      /** What is waiting for the Owner: marked punches and days whose status is a stand-in. */
+      review: (outletId: string) => call<AttendanceReviewDto>("GET", `/attendance/review${query({ outletId })}`),
+      settings: (outletId: string) => call<AttendanceSettingsDto>("GET", `/attendance/settings/${id(outletId)}`),
+      /** Owner only: what counts as a full day and a half day. */
+      saveSettings: (outletId: string, input: AttendanceSettingsInput) =>
+        call<AttendanceSettingsDto>("PUT", `/attendance/settings/${id(outletId)}`, input),
+      /** Owner only: sets one person's status for a day, with a reason; a null status takes the Owner's entry away. */
+      correctDay: (input: CorrectDayInput) => call<void>("PUT", "/attendance/day", input),
+      /** Owner only: adds a punch the camera never recorded, with a reason. */
+      addPunch: (input: AddPunchInput) => call<PunchDto>("POST", "/attendance/punches", input),
+      /** Owner only: strikes a wrong punch out, with a reason. */
+      voidPunch: (punchId: string, reason: string) =>
+        call<PunchDto>("POST", `/attendance/punches/${id(punchId)}/void`, { reason }),
+      /** Owner only: a marked punch has been looked at and stands. */
+      reviewPunch: (punchId: string) => call<PunchDto>("POST", `/attendance/punches/${id(punchId)}/review`),
     },
     // food-labels-api: the labels worker adds its calls on the next line
     /** Food items, the labels made for them, and what is in the fridge now. */

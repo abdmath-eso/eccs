@@ -46,6 +46,16 @@ const schema = z
     S3_BUCKET: z.string().min(1),
     S3_ACCESS_KEY: z.string().optional(),
     S3_SECRET_KEY: z.string().optional(),
+    // Face attendance. Which engine recognises faces: "onnx" runs the models in
+    // apps/api/models on this server (the default); "off" switches recognition off, leaving
+    // the assisted route; "fake" is for automated tests only and recognises nobody real.
+    // Left unset, tests use "fake" and everything else uses "onnx".
+    FACE_ENGINE: z.enum(['onnx', 'fake', 'off']).optional(),
+    // Where the model files are, if not in apps/api/models.
+    FACE_MODELS_DIR: z.string().optional(),
+    // Key the face templates are encrypted with in the database. Changing or losing it makes
+    // every stored template unreadable: all enrolled staff would have to enrol again.
+    FACE_TEMPLATE_KEY: z.string().min(32).optional(),
     // Sample mode: every login code is this value and no SMS is sent.
     DEV_FIXED_OTP: z
       .string()
@@ -59,7 +69,13 @@ const schema = z
     (env) =>
       !(env.NODE_ENV === 'production' && (env.PIN_SECRET.startsWith('dev-only') || env.FILE_URL_SECRET.startsWith('dev-only'))),
     { message: 'PIN_SECRET and FILE_URL_SECRET must be replaced with random secrets in production' },
-  );
+  )
+  .refine((env) => !(env.NODE_ENV === 'production' && (!env.FACE_TEMPLATE_KEY || env.FACE_TEMPLATE_KEY.startsWith('dev-only'))), {
+    message: 'FACE_TEMPLATE_KEY must be set to a long random secret in production',
+  })
+  .refine((env) => !(env.NODE_ENV === 'production' && env.FACE_ENGINE === 'fake'), {
+    message: 'FACE_ENGINE must not be "fake" in production',
+  });
 
 export type Env = z.infer<typeof schema>;
 

@@ -31,3 +31,7 @@ apps/mobile/ios/
 
 # OCR language data, downloaded on first use
 *.traineddata
+
+# The face models (about 39 MB): fetched by `pnpm --filter @eccs/api face:models`, see apps/api/models/README.md
+apps/api/models/*.onnx
+apps/api/models/*.part

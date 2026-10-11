@@ -42,12 +42,23 @@ describe("can", () => {
     expect(can(manager, "subscriptions", "update", { outletId: "outlet-1" })).toBe(false);
   });
 
-  it("gives the head chef checklists, labels and attendance marking only", () => {
+  it("lets only the owner correct attendance; the manager reads it; the head chef has no grant on it", () => {
+    const here = { organizationId: "org-1", outletId: "outlet-1" };
+    for (const action of ["create", "read", "update"] as const) expect(can(owner, "attendance", action, here)).toBe(true);
+    expect(can(manager, "attendance", "read", here)).toBe(true);
+    expect(can(manager, "attendance", "create", here)).toBe(false);
+    expect(can(manager, "attendance", "update", here)).toBe(false);
+    for (const action of ["create", "read", "update"] as const) expect(can(headChef, "attendance", action, here)).toBe(false);
+    // The Head Chef still sees who is on the staff (and so today's sheet of who is in).
+    expect(can(headChef, "staff", "read", here)).toBe(true);
+  });
+
+  it("gives the head chef checklists and labels only", () => {
     expect(can(headChef, "checklists", "create", { outletId: "outlet-1" })).toBe(true);
     // "create" covers making a label and saving a new one; changing a saved label is "update".
     expect(can(headChef, "foodLabels", "create", { outletId: "outlet-1" })).toBe(true);
     expect(can(headChef, "foodLabels", "update", { outletId: "outlet-1" })).toBe(false);
-    expect(can(headChef, "attendance", "create", { outletId: "outlet-1" })).toBe(true);
+    expect(can(headChef, "attendance", "create", { outletId: "outlet-1" })).toBe(false);
     expect(can(headChef, "salary", "read", { outletId: "outlet-1" })).toBe(false);
     expect(can(headChef, "invoices", "read", { outletId: "outlet-1" })).toBe(false);
     expect(can(headChef, "bookings", "create", { outletId: "outlet-1" })).toBe(false);

@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@eccs/db';
 import {
+  ATTENDANCE_ERROR,
+  CORRECTION_REASON_MIN,
   attendanceDateVerdict,
   attendanceTotals,
   can,
@@ -14,6 +16,7 @@ import {
   weekdayOf,
   worksOn,
   type Action,
+  type AttendanceDayCellDto,
   type AttendanceDayDto,
   type AttendanceMonthDto,
   type AttendanceStatus,
@@ -26,8 +29,12 @@ import {
   type StaffPayEntryKind,
   type StaffPayType,
 } from '@eccs/shared';
+import { AttendanceClock } from '../attendance/attendance-clock.js';
+import { attendanceError } from '../attendance/attendance.errors.js';
+import { AttendanceService } from '../attendance/attendance.service.js';
+import { AuditTrailService } from '../attendance/audit-trail.service.js';
+import { FaceService } from '../attendance/face.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
-import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
@@ -37,7 +44,7 @@ const fromDbDateOrNull = (date: Date | null) => (date ? fromDbDate(date) : null)
 const outletSelect = { id: true, name: true, organizationId: true, organization: { select: { name: true } } } as const;
 type OutletRow = Prisma.OutletGetPayload<{ select: typeof outletSelect }>;
 
-const staffInclude = { _count: { select: { attendance: true, salaries: true, payEntries: true } } } as const;
+const staffInclude = { _count: { select: { attendance: true, salaries: true, payEntries: true, punches: true } } } as const;
 type StaffRow = Prisma.StaffMemberGetPayload<{ include: typeof staffInclude }>;
 
 // Everything the salary arithmetic needs about a person: every mark, typed figure and pay entry.
@@ -68,11 +75,22 @@ interface StaffFields {
 /**
  * The restaurant's own staff: the people, their attendance and the salary
  * tracker. A record book for the Owner and Manager; ECCS has no access, and
- * the Head Chef may only mark today's attendance.
+ * the Head Chef sees only who is in today.
+ *
+ * Since face attendance nobody marks attendance by hand: a day's status is
+ * worked out from the clock-ins and clock-outs (see ../attendance), and only
+ * the Owner can set or correct one, with a reason. This service reads the
+ * result; the pay arithmetic is unchanged.
  */
 @Injectable()
 export class StaffService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly attendance: AttendanceService,
+    private readonly face: FaceService,
+    private readonly clock: AttendanceClock,
+    private readonly audit: AuditTrailService,
+  ) {}
 
   private get db() {
     return this.prisma.client;
@@ -119,7 +137,7 @@ export class StaffService {
    */
   async updatePerson(user: AuthUser, staffId: string, input: StaffFields): Promise<StaffMemberDto> {
     const { row, outlet } = await this.requireStaff(user, 'staff', 'update', staffId);
-    const today = indiaDate();
+    const today = this.clock.date();
 
     if (input.userId) await this.checkLogin(outlet.id, input.userId, row.id);
     const joinedOn = input.joinedOn !== undefined ? input.joinedOn : fromDbDateOrNull(row.joinedOn);
@@ -151,16 +169,31 @@ export class StaffService {
       },
       include: staffInclude,
     });
+    if (input.leftOn) {
+      // A person who has left is no longer recognised: their face templates are deleted at once
+      // and their consent record closed. Coming back means enrolling, and consenting, again.
+      const removed = await this.face.forget(row.id, 'LEFT', user.id);
+      if (removed > 0) {
+        await this.audit.write({
+          actorId: user.id,
+          action: 'face.delete.left',
+          entity: 'StaffMember',
+          entityId: row.id,
+          organizationId: outlet.organizationId,
+          details: { templatesDeleted: removed, leftOn: input.leftOn },
+        });
+      }
+    }
     return (await this.toDtos(user, outlet, [updated]))[0]!;
   }
 
   /**
-   * Removes a person added by mistake. Someone with any attendance, advance,
+   * Removes a person added by mistake. Someone with any attendance, punch, advance,
    * payment or pay figure is never deleted: they are marked as having left.
    */
   async removePerson(user: AuthUser, staffId: string): Promise<void> {
     const { row } = await this.requireStaff(user, 'staff', 'update', staffId);
-    if (row._count.attendance + row._count.salaries + row._count.payEntries > 0) {
+    if (row._count.attendance + row._count.salaries + row._count.payEntries + row._count.punches > 0) {
       throw new ConflictException('This person has records. Mark them as having left instead.');
     }
     await this.db.staffMember.delete({ where: { id: row.id } });
@@ -169,26 +202,31 @@ export class StaffService {
   // ───────────────────────── Attendance ─────────────────────────
 
   /**
-   * One day's sheet for the outlet: everyone who was on the staff that day and
-   * how they are marked. The Head Chef gets today's only.
+   * One day's sheet for the outlet: everyone who was on the staff that day, the
+   * day's status, and what the punches say (first in, last out, time worked).
+   * The Owner and the Manager can open any past day; the Head Chef sees today's
+   * only, to know who is in, and never a punch photo.
    */
   async day(user: AuthUser, outletId: string, date: string | undefined): Promise<AttendanceDayDto> {
-    const outlet = await this.requireOutlet(user, 'attendance', 'create', outletId);
-    const today = indiaDate();
+    const outlet = await this.requireOutlet(user, 'staff', 'read', outletId);
+    // "Today" is the attendance day: before 4 am it is still yesterday's, so a late shift stays on one sheet.
+    const today = this.clock.day();
+    const calendarToday = this.clock.date();
     const day = date ?? today;
     if (!isCalendarDate(day)) throw new BadRequestException('Give the date as YYYY-MM-DD');
-    const mayCorrect = this.mayCorrect(user, outlet);
-    const verdict = attendanceDateVerdict(day, today, mayCorrect);
-    if (verdict === 'FUTURE') throw new BadRequestException('Attendance cannot be marked for a day that has not come');
-    if (verdict === 'TODAY_ONLY') throw new ForbiddenException("You can mark today's attendance only");
+    if (day > calendarToday) throw new BadRequestException('There is no attendance yet for a day that has not come');
+    const readsPast = can(user.memberships, 'attendance', 'read', { organizationId: outlet.organizationId, outletId: outlet.id });
+    if (!readsPast && day !== today && day !== calendarToday) throw new ForbiddenException("You can see today's attendance only");
 
-    const rows = await this.db.staffMember.findMany({
-      where: { outletId },
-      include: { attendance: { where: { date: toDbDate(day) } } },
-      orderBy: { name: 'asc' },
-    });
+    await this.attendance.settle(outlet.id);
+    const rows = await this.db.staffMember.findMany({ where: { outletId }, orderBy: { name: 'asc' } });
     const people = rows.filter((row) => worksOn(datesOf(row), day));
-    const markerIds = [...new Set(people.map((row) => row.attendance[0]?.markedById).filter((id): id is string => !!id))];
+    const [cells, enrolled] = await Promise.all([
+      this.attendance.cells(outlet.id, people, day, day, readsPast),
+      this.face.enrolledAmong(people.map((row) => row.id)),
+    ]);
+    const cellOf = (staffId: string) => cells.get(staffId)?.[day] ?? AttendanceService.emptyCell();
+    const markerIds = [...new Set(people.map((row) => cellOf(row.id).markedById).filter((id): id is string => !!id))];
     const markers = markerIds.length
       ? await this.db.user.findMany({ where: { id: { in: markerIds } }, select: { id: true, name: true } })
       : [];
@@ -198,70 +236,68 @@ export class StaffService {
       outletId,
       date: day,
       today,
-      earliestDate: mayCorrect ? earliestCorrectableDate(today) : today,
-      editable: verdict === 'OK',
+      earliestDate: readsPast ? earliestCorrectableDate(calendarToday) : today,
+      editable: this.mayCorrect(user, outlet) && attendanceDateVerdict(day, calendarToday, true) === 'OK',
       people: people.map((row) => {
-        const mark = row.attendance[0];
+        const { markedById, ...cell } = cellOf(row.id);
         return {
           staffId: row.id,
           name: row.name,
           jobTitle: row.jobTitle,
-          status: mark?.status ?? null,
           usualDayOff: row.weeklyOffDay !== null && weekdayOf(day) === row.weeklyOffDay,
-          markedByName: mark?.markedById ? (nameOf.get(mark.markedById) ?? null) : null,
+          markedByName: markedById ? (nameOf.get(markedById) ?? null) : null,
+          enrolled: enrolled.has(row.id),
+          ...cell,
         };
       }),
     };
   }
 
   /**
-   * Marks, changes or clears attendance for a day. Today for anyone who may
-   * mark; back to the start of last month for the Owner and Manager; never a
-   * day that has not come.
+   * The Owner's correction of a day, for one or several people: leave, the
+   * weekly off, or a status put right, always with a reason. A null status
+   * takes the Owner's entry away and the day goes back to what the punches say.
+   * Nobody else can send this: hand-marking ended with face attendance.
+   * Back to the start of last month, and never a day that has not come.
    */
   async mark(
     user: AuthUser,
-    input: { outletId: string; date: string; marks: { staffId: string; status: AttendanceStatus | null }[] },
+    input: { outletId: string; date: string; marks: { staffId: string; status: AttendanceStatus | null }[]; reason?: string | undefined },
   ): Promise<AttendanceDayDto> {
-    const outlet = await this.requireOutlet(user, 'attendance', 'create', input.outletId);
-    const today = indiaDate();
-    const verdict = attendanceDateVerdict(input.date, today, this.mayCorrect(user, outlet));
-    if (verdict === 'FUTURE') throw new BadRequestException('Attendance cannot be marked for a day that has not come');
+    const outlet = await this.requireOutlet(user, 'attendance', 'update', input.outletId);
+    const reason = input.reason?.trim() ?? '';
+    if (reason.length < CORRECTION_REASON_MIN) {
+      throw attendanceError(400, ATTENDANCE_ERROR.reasonRequired, `Say why, in at least ${CORRECTION_REASON_MIN} characters`);
+    }
+    const verdict = attendanceDateVerdict(input.date, this.clock.date(), true);
+    if (verdict === 'FUTURE') throw new BadRequestException('Attendance cannot be changed for a day that has not come');
     if (verdict === 'TOO_OLD') throw new BadRequestException('That day is too long ago to change');
-    if (verdict === 'TODAY_ONLY') throw new ForbiddenException("You can mark today's attendance only");
 
+    // Everyone is checked before anyone is changed, so a wrong name in the list changes nothing.
     const ids = [...new Set(input.marks.map((mark) => mark.staffId))];
     const staff = await this.db.staffMember.findMany({ where: { id: { in: ids }, outletId: outlet.id } });
     if (staff.length !== ids.length || staff.some((row) => !worksOn(datesOf(row), input.date))) {
       throw new BadRequestException('Someone in the list was not on the staff of this outlet that day');
     }
-
-    const date = toDbDate(input.date);
-    await this.db.$transaction(
-      input.marks.map((mark) =>
-        mark.status === null
-          ? this.db.attendanceRecord.deleteMany({ where: { staffMemberId: mark.staffId, date } })
-          : this.db.attendanceRecord.upsert({
-              where: { staffMemberId_date: { staffMemberId: mark.staffId, date } },
-              create: { staffMemberId: mark.staffId, date, status: mark.status, markedById: user.id },
-              update: { status: mark.status, markedById: user.id },
-            }),
-      ),
-    );
+    for (const mark of input.marks) {
+      await this.attendance.correctDay(user, { outletId: outlet.id, staffId: mark.staffId, date: input.date, status: mark.status, reason });
+    }
     return this.day(user, outlet.id, input.date);
   }
 
   /** The outlet's month: each person's days present, half days, absences, leave and weekly offs. */
   async outletMonth(user: AuthUser, outletId: string, month: string | undefined): Promise<AttendanceMonthDto> {
     const outlet = await this.requireOutlet(user, 'attendance', 'read', outletId);
-    const today = indiaDate();
+    const today = this.clock.date();
     const wanted = this.monthOrThis(month, today);
     const { first, last } = monthBounds(wanted);
+    await this.attendance.settle(outlet.id);
     const rows = await this.db.staffMember.findMany({
       where: { outletId: outlet.id },
       include: { attendance: { where: { date: { gte: toDbDate(first), lte: toDbDate(last) } }, select: { date: true, status: true } } },
       orderBy: { name: 'asc' },
     });
+    const cells = await this.attendance.cells(outlet.id, rows, first, last, true);
     return {
       outletId: outlet.id,
       month: wanted,
@@ -272,6 +308,7 @@ export class StaffService {
           name: row.name,
           jobTitle: row.jobTitle,
           isActive: row.isActive,
+          days: this.daysOf(cells.get(row.id)),
           totals: attendanceTotals({
             ...datesOf(row),
             weeklyOffDay: row.weeklyOffDay,
@@ -288,12 +325,14 @@ export class StaffService {
   /** One person's month, day by day, with the checklists they handed in when they have an app login. */
   async personMonth(user: AuthUser, staffId: string, month: string | undefined): Promise<StaffMonthDto> {
     const { row, outlet } = await this.requireStaff(user, 'attendance', 'read', staffId);
-    const today = indiaDate();
+    const today = this.clock.date();
     const wanted = this.monthOrThis(month, today);
     const { first, last } = monthBounds(wanted);
     const range = { gte: toDbDate(first), lte: toDbDate(last) };
-    const [attendance, checklistsHandedIn] = await Promise.all([
+    await this.attendance.settle(outlet.id);
+    const [attendance, cells, checklistsHandedIn] = await Promise.all([
       this.db.attendanceRecord.findMany({ where: { staffMemberId: row.id, date: range }, select: { date: true, status: true } }),
+      this.attendance.cells(outlet.id, [row], first, last, true),
       // The light tie to hygiene: the daily checklists this person submitted under their own login.
       row.userId
         ? this.db.checklistRun.count({ where: { outletId: outlet.id, submittedById: row.userId, date: range } })
@@ -304,8 +343,9 @@ export class StaffService {
       staff: (await this.toDtos(user, outlet, [row]))[0]!,
       month: wanted,
       today,
-      earliestDate: this.mayCorrect(user, outlet) ? earliestCorrectableDate(today) : today,
+      earliestDate: earliestCorrectableDate(today),
       marks,
+      days: this.daysOf(cells.get(row.id)),
       totals: attendanceTotals({ ...datesOf(row), weeklyOffDay: row.weeklyOffDay, month: wanted, today, marks }),
       checklistsHandedIn,
     };
@@ -319,8 +359,9 @@ export class StaffService {
    */
   async salaryMonth(user: AuthUser, outletId: string, month: string | undefined): Promise<SalaryOutletMonthDto> {
     const outlet = await this.requireOutlet(user, 'salary', 'read', outletId);
-    const today = indiaDate();
+    const today = this.clock.date();
     const wanted = this.monthOrThis(month, today);
+    await this.attendance.settle(outlet.id);
     const rows = await this.db.staffMember.findMany({ where: { outletId: outlet.id }, include: salaryInclude, orderBy: { name: 'asc' } });
     return {
       outletId: outlet.id,
@@ -334,7 +375,7 @@ export class StaffService {
 
   async personSalary(user: AuthUser, staffId: string, month: string | undefined): Promise<SalaryMonthDto> {
     const { row, outlet } = await this.requireStaff(user, 'salary', 'read', staffId);
-    const today = indiaDate();
+    const today = this.clock.date();
     return this.salaryOf(row.id, outlet, this.monthOrThis(month, today), today);
   }
 
@@ -354,7 +395,7 @@ export class StaffService {
     },
   ): Promise<SalaryMonthDto> {
     const { row, outlet } = await this.requireStaff(user, 'salary', 'update', staffId);
-    const today = indiaDate();
+    const today = this.clock.date();
     const wanted = this.monthOrThis(month, today);
     const typed = {
       overtimeHours: input.overtimeHours,
@@ -382,7 +423,7 @@ export class StaffService {
     input: { kind: StaffPayEntryKind; month: string; date: string; amountPaise: number; note: string | null },
   ): Promise<SalaryMonthDto> {
     const { row, outlet } = await this.requireStaff(user, 'salary', 'create', staffId);
-    const today = indiaDate();
+    const today = this.clock.date();
     const wanted = this.monthOrThis(input.month, today);
     if (input.date > today) throw new BadRequestException('The date cannot be after today');
     await this.db.staffPayEntry.create({
@@ -405,7 +446,7 @@ export class StaffService {
     if (!entry) throw new NotFoundException('Not found');
     const { row, outlet } = await this.requireStaff(user, 'salary', 'update', entry.staffMemberId);
     await this.db.staffPayEntry.delete({ where: { id: entry.id } });
-    return this.refreshCopies(row.id, outlet, monthOfDate(fromDbDate(entry.month)), indiaDate());
+    return this.refreshCopies(row.id, outlet, monthOfDate(fromDbDate(entry.month)), this.clock.date());
   }
 
   // ───────────────────────── Helpers ─────────────────────────
@@ -421,12 +462,19 @@ export class StaffService {
     return Object.fromEntries(attendance.map((mark) => [fromDbDate(mark.date), mark.status]));
   }
 
-  /** The Owner and Manager may correct past days; the Head Chef may only mark. */
+  /** A month's cells without the "who set it" id, which is for this service only. */
+  private daysOf(cells: Record<string, AttendanceDayCellDto & { markedById: string | null }> | undefined): Record<string, AttendanceDayCellDto> {
+    return Object.fromEntries(Object.entries(cells ?? {}).map(([date, { markedById: _markedById, ...cell }]) => [date, cell]));
+  }
+
+  /** Only the Owner may correct attendance. */
   private mayCorrect(user: AuthUser, outlet: OutletRow): boolean {
     return can(user.memberships, 'attendance', 'update', { organizationId: outlet.organizationId, outletId: outlet.id });
   }
 
   private async salaryOf(staffId: string, outlet: OutletRow, month: string, today: string): Promise<SalaryMonthDto> {
+    // Days that ended since the last look are settled first, so the pay is worked out from final statuses.
+    await this.attendance.settle(outlet.id);
     const row = await this.db.staffMember.findUniqueOrThrow({ where: { id: staffId }, include: salaryInclude });
     return this.toSalaryDto(row, outlet, month, today);
   }
@@ -552,7 +600,7 @@ export class StaffService {
       userId: row.userId,
       userName: row.userId ? (nameOf.get(row.userId) ?? null) : null,
       pay: seesPay ? { payType: row.payType, payPaise: rateOf(row) } : null,
-      hasRecords: row._count.attendance + row._count.salaries + row._count.payEntries > 0,
+      hasRecords: row._count.attendance + row._count.salaries + row._count.payEntries + row._count.punches > 0,
     }));
   }
 

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller.js';
+import { AttendanceModule } from './attendance/attendance.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BillingModule } from './billing/billing.module.js';
 import { CalendarModule } from './calendar/calendar.module.js';
@@ -51,6 +52,7 @@ import { StorageModule } from './storage/storage.module.js';
     SubscriptionsModule,
     BillingModule,
     StaffModule,
+    AttendanceModule,
     FoodLabelsModule,
     PublicPageModule,
   ],

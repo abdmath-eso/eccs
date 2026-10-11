@@ -216,6 +216,16 @@ export class AuthService {
    * outlet; on an owner's phone it may be anyone in the organisation.
    */
   async pinLogin(deviceToken: string, pin: string): Promise<SessionDto> {
+    const device = await this.requireLinkedDevice(deviceToken);
+    const live = await this.checkPin(device, pin);
+    return this.startSession(live, device.name ?? undefined, device.id);
+  }
+
+  /**
+   * The linked phone a device token belongs to. A linked phone identifies its
+   * outlet without anyone being logged in; face attendance relies on this too.
+   */
+  async requireLinkedDevice(deviceToken: string) {
     const device = await this.db.linkedDevice.findUnique({ where: { tokenHash: sha256(deviceToken) } });
     if (!device || device.revokedAt) {
       throw new UnauthorizedException({
@@ -223,6 +233,16 @@ export class AuthService {
         message: 'This phone is not linked to a restaurant. Enter the restaurant code again.',
       });
     }
+    return device;
+  }
+
+  /**
+   * Checks a PIN typed on a linked phone and answers who it belongs to. Wrong
+   * PINs are counted on the phone and lock it after five, whatever the PIN was
+   * typed for: logging in, or approving an assisted clock-in. One counter, so
+   * the second use cannot be turned into extra guesses at the first.
+   */
+  async checkPin(device: { id: string; organizationId: string; outletId: string | null; failedPinAttempts: number; pinLockedUntil: Date | null }, pin: string) {
     if (device.pinLockedUntil && device.pinLockedUntil > new Date()) {
       throw pinLocked(device.pinLockedUntil);
     }
@@ -273,7 +293,7 @@ export class AuthService {
       where: { id: device.id },
       data: { failedPinAttempts: 0, pinLockedUntil: null, lastUsedAt: new Date() },
     });
-    return this.startSession(live, device.name ?? undefined, device.id);
+    return live;
   }
 
   /** Gives a restaurant user a new random PIN, unique within the organisation. Returns it once. */

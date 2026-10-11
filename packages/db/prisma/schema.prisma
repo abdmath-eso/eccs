@@ -100,6 +100,8 @@ model Outlet {
   scoreSnapshots           HygieneScoreSnapshot[]
   invoices                 Invoice[]
   staffMembers             StaffMember[]
+  attendancePunches        AttendancePunch[]
+  attendanceSettings       AttendanceSettings?
   foodItems                FoodItem[]
   foodLabels               FoodLabel[]
   attachments              Attachment[]
@@ -408,6 +410,7 @@ enum AttachmentKind {
   SIGNATURE
   REPORT
   PROFILE /// a person's own profile photo; belongs to no outlet
+  PUNCH /// the photo taken when someone clocks in or out; for the Owner and Manager only, deleted after 35 days
 }
 
 /// A photo or file in object storage. At most one of the owner links is set.
@@ -1144,17 +1147,39 @@ model StaffMember {
   attendance AttendanceRecord[]
   salaries   SalaryRecord[]
   payEntries StaffPayEntry[]
+  faceTemplates FaceTemplate[]
+  faceConsents  FaceConsent[]
+  punches       AttendancePunch[]
 
   @@index([outletId])
 }
 
+/// Where a day's status came from: worked out from the punches, or entered by the Owner.
+enum AttendanceSource {
+  PUNCHES
+  OWNER
+}
+
+/// One person's FINAL status for one attendance day; the salary arithmetic reads this table.
+/// Face attendance (11 Oct 2026): a row with source PUNCHES is worked out from the day's
+/// AttendancePunch rows and rewritten whenever they change. A row with source OWNER was
+/// entered by the Owner (leave, weekly off, or a correction, always with a reason in `note`)
+/// and is never overwritten by that working-out. Rows from before face attendance were all
+/// marked by hand, so they are OWNER.
 model AttendanceRecord {
   id            String           @id @default(uuid())
   staffMemberId String
   date          DateTime         @db.Date
   status        AttendanceStatus
+  source        AttendanceSource @default(OWNER)
+  /// Minutes between each clock-in and its clock-out, added up. Empty when not known (a punch is missing) or the Owner set the day.
+  workedMinutes Int?
+  /// What the Owner should look at: DayFlag values from packages/shared/src/attendance-rules.ts (NO_CLOCK_OUT, SHORT_DAY, ...).
+  flags         String[]         @default([])
   overtimeHours Float            @default(0)
+  /// For an Owner entry: the reason, which is required.
   note          String?
+  /// For an Owner entry: who made it. `updatedAt` is when.
   markedById    String?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @default(now()) @updatedAt
@@ -1162,6 +1187,122 @@ model AttendanceRecord {
   staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
 
   @@unique([staffMemberId, date])
+}
+
+/// One enrolled view of a person's face, as a template: the list of numbers the recognition
+/// model gives for it. No photo is kept. `vector` is encrypted (AES-256-GCM with the key in
+/// FACE_TEMPLATE_KEY): 12 bytes of nonce, 16 bytes of check tag, then the numbers.
+/// Deleted when the person withdraws consent or leaves.
+model FaceTemplate {
+  id            String   @id @default(uuid())
+  staffMemberId String
+  vector        Bytes
+  /// The model the template came from; templates of different models cannot be compared.
+  modelId       String
+  /// How sharp the enrolment photo was, on the model's own scale.
+  quality       Float
+  createdAt     DateTime @default(now())
+
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+
+  @@index([staffMemberId])
+}
+
+/// The employee's own consent to face enrolment, one row per enrolment, kept as history.
+/// `endedAt` is set when that consent stopped applying: withdrawn, the person left, or they
+/// enrolled again (which starts a new row). The row outlives the templates: it is the proof
+/// that consent was given and that the templates were deleted.
+model FaceConsent {
+  id            String    @id @default(uuid())
+  staffMemberId String
+  /// Which wording was shown (FACE_CONSENT_VERSION in packages/shared/src/attendance.ts).
+  version       String
+  /// The language it was shown in.
+  language      Language
+  /// When the employee tapped "I agree", from the phone.
+  acceptedAt    DateTime
+  acceptedBy    String    @default("EMPLOYEE")
+  /// The Owner login the enrolment was done under.
+  recordedById  String?
+  createdAt     DateTime  @default(now())
+  endedAt       DateTime?
+  /// WITHDRAWN, LEFT or REENROLLED.
+  endedReason   String?
+  endedById     String?
+
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+
+  @@index([staffMemberId, createdAt])
+}
+
+enum PunchKind {
+  IN
+  OUT
+}
+
+/// FACE: recognised by the camera. ASSISTED: the Owner or Manager vouched with their PIN.
+/// CORRECTION: added afterwards by the Owner, with a reason.
+enum PunchMethod {
+  FACE
+  ASSISTED
+  CORRECTION
+}
+
+enum PunchFlag {
+  UNSURE_MATCH
+  ASSISTED
+  NO_CLOCK_OUT
+  POSSIBLE_SPOOF
+  OFFLINE
+}
+
+/// One clock-in or clock-out. Never deleted: a wrong one is voided, with who, when and why.
+model AttendancePunch {
+  id            String      @id @default(uuid())
+  outletId      String
+  staffMemberId String
+  /// The SERVER's time, never the phone's.
+  at            DateTime    @db.Timestamptz(3)
+  kind          PunchKind
+  method        PunchMethod
+  /// How alike the face was to the person's template (cosine similarity), and to the next most alike person at the outlet.
+  score         Float?
+  secondScore   Float?
+  /// The linked phone it came from (LinkedDevice.id).
+  deviceId      String?
+  /// The photo taken at the punch (Attachment.id, kind PUNCH). Emptied when the photo is deleted after 35 days.
+  photoId       String?
+  flag          PunchFlag?
+  /// For a correction: the Owner's reason.
+  note          String?
+  /// The Owner or Manager login behind an assisted punch or a correction. Empty for a face punch.
+  createdById   String?
+  createdAt     DateTime    @default(now())
+  /// When the Owner looked at a flagged punch and let it stand.
+  reviewedAt    DateTime?
+  reviewedById  String?
+  voidedAt      DateTime?
+  voidedById    String?
+  voidReason    String?
+
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+  outlet      Outlet      @relation(fields: [outletId], references: [id])
+
+  @@index([staffMemberId, at])
+  @@index([outletId, at])
+  @@index([outletId, flag])
+}
+
+/// An outlet's own figures for what counts as a full day and a half day. No row means the
+/// standard figures (8 hours and 4 hours). Changed by the Owner only.
+model AttendanceSettings {
+  outletId       String   @id
+  fullDayMinutes Int      @default(480)
+  halfDayMinutes Int      @default(240)
+  updatedById    String?
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  outlet Outlet @relation(fields: [outletId], references: [id], onDelete: Cascade)
 }
 
 /// One month's pay for one employee. A record, not a payroll calculation.

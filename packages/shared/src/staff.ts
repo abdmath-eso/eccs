@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AttendanceDayCellDto, AttendanceDayFactsDto } from "./attendance.js";
 import { daysInMonth, shiftMonth } from "./calendar.js";
 import { isCalendarDate } from "./licences.js";
 
@@ -10,6 +11,11 @@ import { isCalendarDate } from "./licences.js";
 // knows nothing of PF, ESI, professional tax or minimum wages, and pays nobody.
 //
 // ECCS staff have no access to any of it (see permissions.ts).
+//
+// Since face attendance (11 Oct 2026) nobody marks attendance by hand. A day's
+// status is worked out from the clock-ins and clock-outs (attendance-rules.ts,
+// attendance.ts) and stored in the same place as before, so the pay arithmetic
+// below is unchanged. Only the Owner can set or correct a day, with a reason.
 
 // ───────────────────────── The rules, in one place ─────────────────────────
 
@@ -29,7 +35,7 @@ export type StaffJobSuggestion = (typeof STAFF_JOB_SUGGESTIONS)[number];
 
 export const STAFF_RULES = {
   /**
-   * How far back the Owner or Manager can mark or correct attendance: this month
+   * How far back the Owner can correct attendance (a day's status, or a punch): this month
    * and this many months before it. Last month's pay is usually settled in the
    * first days of this one, so last month stays open; anything older is closed so
    * that a month already settled does not quietly change.
@@ -55,16 +61,17 @@ export const monthBounds = (month: string) => ({ first: `${month}-01`, last: `${
 /** The day of the week of a date: 0 Sunday to 6 Saturday. */
 export const weekdayOf = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay();
 
-/** The earliest day whose attendance the Owner or Manager may still mark or correct. */
+/** The earliest day whose attendance the Owner may still correct. */
 export const earliestCorrectableDate = (today: string) =>
   `${shiftMonth(monthOfDate(today), -STAFF_RULES.correctionMonthsBack)}-01`;
 
 export type AttendanceDateVerdict = "OK" | "FUTURE" | "TOO_OLD" | "TODAY_ONLY";
 
 /**
- * Whether attendance for a day may be marked. Nobody marks a day that has not
- * come. Someone who may only mark (the Head Chef) does today; someone who may
- * also correct (the Owner or Manager) goes back as far as the rule above.
+ * Whether a day may be opened or corrected. Nobody touches a day that has not
+ * come. Someone who may correct (the Owner) goes back as far as the rule above;
+ * for someone who may not, `mayCorrect` false keeps them to today (the Head
+ * Chef's view of who is in).
  */
 export function attendanceDateVerdict(date: string, today: string, mayCorrect: boolean): AttendanceDateVerdict {
   if (date > today) return "FUTURE";
@@ -423,14 +430,23 @@ export const updateStaffMemberSchema = z.object({
 });
 export type UpdateStaffMemberInput = z.input<typeof updateStaffMemberSchema>;
 
+/**
+ * The Owner's correction of a day for several people at once (the older shape;
+ * `correctDaySchema` in attendance.ts does one person). Since face attendance
+ * only the Owner may send it, and `reason` is required: it is optional in this
+ * schema only so that apps built before the change still compile, and the
+ * server refuses the request without it.
+ */
 export const markAttendanceSchema = z.object({
   outletId: z.string().min(1),
   date: dateSchema,
-  /** One entry per person being marked. A null status takes the mark away again. */
+  /** One entry per person. A null status takes the Owner's entry away again, and the day goes back to what the punches say. */
   marks: z
     .array(z.object({ staffId: z.string().min(1), status: z.enum(ATTENDANCE_STATUSES).nullable() }))
     .min(1)
     .max(300),
+  /** Why. At least five characters. */
+  reason: z.string().trim().max(300).optional(),
 });
 export type MarkAttendanceInput = z.input<typeof markAttendanceSchema>;
 
@@ -481,14 +497,17 @@ export interface StaffMemberDto {
   hasRecords: boolean;
 }
 
-export interface AttendanceDayPersonDto {
+export interface AttendanceDayPersonDto extends AttendanceDayFactsDto {
   staffId: string;
   name: string;
   jobTitle: string | null;
   status: AttendanceStatus | null;
   /** True when this is the person's usual day off. */
   usualDayOff: boolean;
+  /** The Owner who set the status, when it was set by hand. */
   markedByName: string | null;
+  /** True when the person's face is enrolled, so the camera can recognise them. */
+  enrolled: boolean;
 }
 
 export interface AttendanceDayDto {
@@ -496,9 +515,9 @@ export interface AttendanceDayDto {
   /** YYYY-MM-DD */
   date: string;
   today: string;
-  /** The earliest day this reader may mark: today for the Head Chef. */
+  /** The earliest day this reader may open: today for the Head Chef. */
   earliestDate: string;
-  /** Whether this reader may mark this day. */
+  /** Whether this reader may correct this day: the Owner only, within the correction window. */
   editable: boolean;
   people: AttendanceDayPersonDto[];
 }
@@ -508,7 +527,15 @@ export interface AttendanceMonthDto {
   /** YYYY-MM */
   month: string;
   today: string;
-  people: { staffId: string; name: string; jobTitle: string | null; isActive: boolean; totals: AttendanceTotals }[];
+  people: {
+    staffId: string;
+    name: string;
+    jobTitle: string | null;
+    isActive: boolean;
+    totals: AttendanceTotals;
+    /** Each day of the month that has a status or a punch, by date: first in, last out, minutes worked, what to look at. */
+    days: Record<string, AttendanceDayCellDto>;
+  }[];
 }
 
 export interface StaffMonthDto {
@@ -517,8 +544,10 @@ export interface StaffMonthDto {
   today: string;
   /** The earliest day the reader may correct. */
   earliestDate: string;
-  /** The marks made this month, by date. */
+  /** The status of each day this month that has one, by date. */
   marks: Record<string, AttendanceStatus>;
+  /** The same days, and any other day with a punch, with first in, last out, minutes worked and what to look at. */
+  days: Record<string, AttendanceDayCellDto>;
   totals: AttendanceTotals;
   /**
    * How many daily checklists the person handed in this month under their own app

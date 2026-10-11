@@ -51,6 +51,16 @@ const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A:
 // outlet only; ECCS's standard SOPs are read-only to them.
 // For jobs (service visits): ECCS roles with U record the visit on site; restaurant
 // roles with A sign off the finished work.
+// For attendance (face attendance, 11 Oct 2026): nobody marks attendance by hand.
+// R = read the month, the punches and what is waiting for review, and open
+// punch photos; C = add a missing punch, set leave or the weekly off;
+// U = correct a day, void a punch, change the full-day and half-day hours.
+// Only the Owner has C and U. The Manager reads. The Head Chef has no grant on
+// attendance at all: today's sheet of who is in is read under staff "R", with
+// no photos. Clocking in and out needs no grant: it is done on the outlet's
+// linked phone with nobody logged in.
+// For staff: enrolling a person's face is the Owner's alone (checked in the
+// service), although the Manager also holds C and U on staff.
 // ECCS roles get nothing on staff, attendance and salary: that is the
 // restaurant's private employee data.
 const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
@@ -85,14 +95,14 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     clients: "R", restaurantUsers: "CRU", sopTemplates: "CRU", checklists: "CRUA",
     foodLabels: "CRU", issues: "CRU", catalog: "R", bookings: "CRU", subscriptions: "R",
     schedule: "R", jobs: "RA", inspections: "R", reports: "R", publicPage: "R",
-    licences: "CRU", documents: "CRU", scores: "R", staff: "CRU", attendance: "CRU",
+    licences: "CRU", documents: "CRU", scores: "R", staff: "CRU", attendance: "R",
     // The Manager reads invoices. The grant on payments lets a Manager reach the payment
     // routes, where the billing service turns away anyone but the client's Owner.
     salary: "CRU", invoices: "R", payments: "C",
   },
   HEAD_CHEF: {
     sopTemplates: "R", checklists: "CR", foodLabels: "CR", issues: "CR",
-    scores: "R", staff: "R", attendance: "C",
+    scores: "R", staff: "R",
   },
 };
 

@@ -1,13 +1,15 @@
 // The restaurant's own staff: people, attendance and the salary tracker. Who may
-// do what (ECCS nothing at all, the Head Chef only today's attendance, a Manager
-// only their own outlet), marking and correcting, and the month's pay worked out.
+// do what (ECCS nothing at all, the Head Chef only today's sheet, a Manager only
+// their own outlet), the Owner's corrections, and the month's pay worked out.
+// Since face attendance nobody marks attendance by hand: only the Owner can set
+// a day, with a reason. Clocking in and out is tested in attendance-face.e2e-spec.ts.
 // Runs against the local database with the sample seed loaded. Everything is
 // done at a throwaway outlet of the Deccan Biryani sample restaurant, with a
 // throwaway Manager and Head Chef, and removed afterwards.
 
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import { daysInMonth, shiftMonth } from '@eccs/shared';
+import { attendanceDayOf, daysInMonth, shiftMonth } from '@eccs/shared';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
@@ -115,8 +117,8 @@ describe('Staff, attendance and salary (e2e)', () => {
     http().patch(`/staff/people/${id}`).set(bearer(token)).send(body);
   const day = (token: string, date?: string, outlet = outletId) =>
     http().get('/staff/attendance/day').query({ outletId: outlet, ...(date && { date }) }).set(bearer(token));
-  const mark = (token: string, date: string, marks: { staffId: string; status: string | null }[]) =>
-    http().put('/staff/attendance/day').set(bearer(token)).send({ outletId, date, marks });
+  const mark = (token: string, date: string, marks: { staffId: string; status: string | null }[], reason: string | null = 'Entered from the register') =>
+    http().put('/staff/attendance/day').set(bearer(token)).send({ outletId, date, marks, ...(reason !== null && { reason }) });
   const outletMonth = (token: string, month?: string) =>
     http().get('/staff/attendance/month').query({ outletId, ...(month && { month }) }).set(bearer(token));
   const personMonth = (token: string, id: string, month?: string) =>
@@ -143,6 +145,9 @@ describe('Staff, attendance and salary (e2e)', () => {
     for (const code of [OUTLET_CODE, OTHER_OUTLET_CODE]) {
       const outlet = await db.outlet.findUnique({ where: { code }, select: { id: true } });
       if (!outlet) continue;
+      // The Owner's corrections are written to the audit log, which is not tied to the person's row.
+      const staff = await db.staffMember.findMany({ where: { outletId: outlet.id }, select: { id: true } });
+      await db.auditLog.deleteMany({ where: { entityId: { in: staff.map((row) => row.id) } } });
       // Attendance, pay records and pay entries go with their person.
       await db.staffMember.deleteMany({ where: { outletId: outlet.id } });
       // A server running alongside may have kept a score for the outlet.
@@ -289,38 +294,45 @@ describe('Staff, attendance and salary (e2e)', () => {
 
   // ───────────────────────── Attendance ─────────────────────────
 
-  it("lets the Head Chef mark today's attendance, and only today's", async () => {
+  it("shows the Head Chef today's sheet only, and lets nobody but the Owner set a day by hand", async () => {
+    // "Today" on the sheet is the attendance day, which runs from 4 am to 4 am.
+    const sheetDay = attendanceDayOf(new Date());
     const sheet = (await day(chef).expect(200)).body as Day;
-    expect(sheet).toMatchObject({ date: today, today, earliestDate: today, editable: true });
+    expect(sheet).toMatchObject({ date: sheetDay, today: sheetDay, earliestDate: sheetDay, editable: false });
     expect(sheet.people.map((person) => [person.name, person.status])).toEqual([
       ['E2E Cook', null],
       ['E2E Helper', null],
     ]);
+    await day(chef, addDays(sheetDay, -1)).expect(403);
 
-    const marked = (
-      await mark(chef, today, [
-        { staffId: cook.id, status: 'PRESENT' },
-        { staffId: helper.id, status: 'PRESENT' },
-      ]).expect(200)
-    ).body as Day;
-    expect(marked.people.every((person) => person.status === 'PRESENT' && person.markedByName === CHEF_NAME)).toBe(true);
+    // Hand-marking ended with face attendance: the Head Chef and the Manager are refused, today or any day.
+    const everyone = [
+      { staffId: cook.id, status: 'PRESENT' },
+      { staffId: helper.id, status: 'PRESENT' },
+    ];
+    for (const token of [chef, manager]) {
+      await mark(token, today, everyone).expect(403);
+      await mark(token, addDays(today, -1), [{ staffId: cook.id, status: 'ABSENT' }]).expect(403);
+    }
+    expect(((await day(manager, today).expect(200)).body as Day).editable).toBe(false);
 
-    // Changing an exception afterwards.
-    const changed = (await mark(chef, today, [{ staffId: helper.id, status: 'HALF_DAY' }]).expect(200)).body as Day;
+    // The Owner can set a day, and must say why.
+    expect((await mark(owner, today, everyone, null).expect(400)).body.code).toBe('REASON_REQUIRED');
+    expect((await mark(owner, today, everyone, 'ok').expect(400)).body.code).toBe('REASON_REQUIRED');
+    const marked = (await mark(owner, today, everyone).expect(200)).body as Day;
+    expect(marked.editable).toBe(true);
+    expect(marked.people.every((person) => person.status === 'PRESENT' && person.markedByName !== null)).toBe(true);
+
+    // Changing one afterwards.
+    const changed = (await mark(owner, today, [{ staffId: helper.id, status: 'HALF_DAY' }]).expect(200)).body as Day;
     expect(changed.people.find((person) => person.staffId === helper.id)!.status).toBe('HALF_DAY');
     expect(changed.people.find((person) => person.staffId === cook.id)!.status).toBe('PRESENT');
-
-    const yesterday = addDays(today, -1);
-    await day(chef, yesterday).expect(403);
-    await mark(chef, yesterday, [{ staffId: cook.id, status: 'ABSENT' }]).expect(403);
   });
 
   it('refuses a day that has not come, a day too long ago, and people not on this staff', async () => {
     const tomorrow = addDays(today, 1);
-    for (const token of [owner, manager, chef]) {
-      await day(token, tomorrow).expect(400);
-      await mark(token, tomorrow, [{ staffId: cook.id, status: 'PRESENT' }]).expect(400);
-    }
+    for (const token of [owner, manager, chef]) await day(token, tomorrow).expect(400);
+    await mark(owner, tomorrow, [{ staffId: cook.id, status: 'PRESENT' }]).expect(400);
     await day(owner, 'yesterday').expect(400);
 
     // Back to the first day of last month, and no further.
@@ -329,15 +341,15 @@ describe('Staff, attendance and salary (e2e)', () => {
     const old = (await day(manager, tooOld).expect(200)).body as Day;
     expect(old).toMatchObject({ editable: false, earliestDate: on(lastMonth, 1) });
 
-    await mark(manager, today, [{ staffId: 'no-such-person', status: 'PRESENT' }]).expect(400);
-    await mark(manager, today, [{ staffId: cook.id, status: 'ON_HOLIDAY' }]).expect(400);
-    await mark(manager, today, []).expect(400);
+    await mark(owner, today, [{ staffId: 'no-such-person', status: 'PRESENT' }]).expect(400);
+    await mark(owner, today, [{ staffId: cook.id, status: 'ON_HOLIDAY' }]).expect(400);
+    await mark(owner, today, []).expect(400);
 
     // Someone who joins today was not on the staff yesterday.
     const joiner = (await addPerson(manager, { name: 'E2E Joiner', payType: 'DAILY', payPaise: rupees(500), joinedOn: today }).expect(201)).body as Person;
     const yesterday = addDays(today, -1);
     if (yesterday >= on(lastMonth, 1)) {
-      await mark(manager, yesterday, [{ staffId: joiner.id, status: 'PRESENT' }]).expect(400);
+      await mark(owner, yesterday, [{ staffId: joiner.id, status: 'PRESENT' }]).expect(400);
       const sheet = (await day(manager, yesterday).expect(200)).body as Day;
       expect(sheet.people.some((person) => person.staffId === joiner.id)).toBe(false);
     }
@@ -347,24 +359,24 @@ describe('Staff, attendance and salary (e2e)', () => {
     expect(((await people(manager, outletId, true).expect(200)).body as Person[]).some((person) => person.id === joiner.id)).toBe(false);
   });
 
-  it('lets the Manager and the Owner mark and correct days of last month', async () => {
+  it('lets the Owner set and correct days of last month', async () => {
     // The cook: absent on the 2nd and 3rd, a half day on the 4th. The helper: present 1st to 10th,
     // a half day on the 11th, leave on the 12th, absent on the 13th.
-    await mark(manager, on(lastMonth, 2), [{ staffId: cook.id, status: 'ABSENT' }]).expect(200);
-    await mark(manager, on(lastMonth, 3), [{ staffId: cook.id, status: 'ABSENT' }]).expect(200);
+    await mark(owner, on(lastMonth, 2), [{ staffId: cook.id, status: 'ABSENT' }]).expect(200);
+    await mark(owner, on(lastMonth, 3), [{ staffId: cook.id, status: 'ABSENT' }]).expect(200);
     await mark(owner, on(lastMonth, 4), [{ staffId: cook.id, status: 'HALF_DAY' }]).expect(200);
     for (let dayNumber = 1; dayNumber <= 10; dayNumber += 1) {
-      await mark(manager, on(lastMonth, dayNumber), [{ staffId: helper.id, status: 'PRESENT' }]).expect(200);
+      await mark(owner, on(lastMonth, dayNumber), [{ staffId: helper.id, status: 'PRESENT' }]).expect(200);
     }
-    await mark(manager, on(lastMonth, 11), [{ staffId: helper.id, status: 'HALF_DAY' }]).expect(200);
-    await mark(manager, on(lastMonth, 12), [{ staffId: helper.id, status: 'LEAVE' }]).expect(200);
-    await mark(manager, on(lastMonth, 13), [{ staffId: helper.id, status: 'ABSENT' }]).expect(200);
+    await mark(owner, on(lastMonth, 11), [{ staffId: helper.id, status: 'HALF_DAY' }]).expect(200);
+    await mark(owner, on(lastMonth, 12), [{ staffId: helper.id, status: 'LEAVE' }]).expect(200);
+    await mark(owner, on(lastMonth, 13), [{ staffId: helper.id, status: 'ABSENT' }]).expect(200);
 
     // A correction: the cook was there on the 3rd after all. And a mark made by mistake is taken away.
     const corrected = (await mark(owner, on(lastMonth, 3), [{ staffId: cook.id, status: 'PRESENT' }]).expect(200)).body as Day;
     expect(corrected.people.find((person) => person.staffId === cook.id)).toMatchObject({ status: 'PRESENT' });
-    await mark(manager, on(lastMonth, 20), [{ staffId: cook.id, status: 'LEAVE' }]).expect(200);
-    const cleared = (await mark(manager, on(lastMonth, 20), [{ staffId: cook.id, status: null }]).expect(200)).body as Day;
+    await mark(owner, on(lastMonth, 20), [{ staffId: cook.id, status: 'LEAVE' }]).expect(200);
+    const cleared = (await mark(owner, on(lastMonth, 20), [{ staffId: cook.id, status: null }]).expect(200)).body as Day;
     expect(cleared.people.find((person) => person.staffId === cook.id)!.status).toBeNull();
   });
 
@@ -555,7 +567,7 @@ describe('Staff, attendance and salary (e2e)', () => {
     if (lastDay !== today) {
       // Not on today's sheet any more, and cannot be marked today; still on the sheet of a day they worked.
       expect(((await day(manager).expect(200)).body as Day).people.some((person) => person.staffId === cook.id)).toBe(false);
-      await mark(manager, today, [{ staffId: cook.id, status: 'PRESENT' }]).expect(400);
+      await mark(owner, today, [{ staffId: cook.id, status: 'PRESENT' }]).expect(400);
       expect(((await day(manager, lastDay).expect(200)).body as Day).people.some((person) => person.staffId === cook.id)).toBe(true);
     }
     // What they are owed is still on the books.

@@ -7,6 +7,8 @@ nodeLinker: hoisted
 
 allowBuilds:
   sharp: false
+  # Its install script only fetches graphics-card add-ons on Linux; the face models run on the processor.
+  onnxruntime-node: false
   unrs-resolver: false
   esbuild: true
   # Its install script only prints a funding message.

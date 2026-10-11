@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const or: Messages = {
+export const or: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ସଫା ଜାଗା। ସୁରକ୍ଷିତ କାମ। ମଜବୁତ ବ୍ୟବସାୟ।",
 
@@ -1085,7 +1085,6 @@ export const or: Messages = {
   "visit.documents.failed": "ଡକ୍ୟୁମେଣ୍ଟ ଖୋଲି ହେଲା ନାହିଁ। ସିଗନାଲ୍ ଦେଖି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
 
   "tile.team": "ଷ୍ଟାଫ୍",
-  "tile.markAttendance": "ହାଜିରା ପକାନ୍ତୁ",
   "team.title": "ଷ୍ଟାଫ୍",
   "team.save": "ସେଭ୍ କରନ୍ତୁ",
   "team.logins": "ଆପ୍ ଲଗଇନ୍ ଓ PIN",
@@ -1095,13 +1094,7 @@ export const or: Messages = {
   "team.status.ABSENT": "ଅନୁପସ୍ଥିତ",
   "team.status.LEAVE": "ଦରମା ସହ ଛୁଟି",
   "team.status.WEEKLY_OFF": "ସାପ୍ତାହିକ ଛୁଟି",
-  "team.status.NONE": "ହାଜିରା ପଡ଼ିନାହିଁ",
   "team.att.title": "ହାଜିରା",
-  "team.att.hint": "କିଛି ଟ୍ୟାପ୍ ରେ ଆଜିର ହାଜିରା ପକାନ୍ତୁ, କିମ୍ବା ଆଗର କୌଣସି ଦିନ ସୁଧାରନ୍ତୁ",
-  "team.att.markAll": "ସବୁଙ୍କୁ ଉପସ୍ଥିତ କରନ୍ତୁ",
-  "team.att.markRest": "ବାକି ସବୁଙ୍କୁ ଉପସ୍ଥିତ କରନ୍ତୁ",
-  "team.att.more": "ଅଧିକ",
-  "team.att.clear": "ହାଜିରା ଲିଭାନ୍ତୁ",
   "team.att.usualOff": "ନିୟମିତ ଛୁଟି ଦିନ",
   "team.att.locked": "ଏହି ଦିନ ବହୁତ ପୁରୁଣା, ଆଉ ବଦଳାଯାଇପାରିବ ନାହିଁ।",
   "team.att.prevDay": "ଆଗ ଦିନ",
@@ -1153,7 +1146,6 @@ export const or: Messages = {
   "team.job.waiter": "ୱେଟର",
   "team.job.cashier": "କ୍ୟାସିଅର",
   "team.job.delivery": "ଡେଲିଭରି",
-  "team.record.tapToChange": "କୌଣସି ଦିନ ବଦଳାଇବାକୁ ତାକୁ ଟ୍ୟାପ୍ କରନ୍ତୁ। {date} ଠାରୁ ପରର ଦିନଗୁଡ଼ିକ ଏବେ ବି ବଦଳାଯାଇପାରିବ।",
   "team.record.checklists": "ଏହି ମାସରେ ସବମିଟ୍ ହୋଇଥିବା ଦୈନିକ ଚେକଲିଷ୍ଟ: {count}",
   "team.record.pay": "ଏହି ମାସର ଦରମା",
   "team.pay.title": "ଦରମା ଖାତା",
@@ -1172,8 +1164,6 @@ export const or: Messages = {
   "team.pay.overpaid": "ଅଧିକ ଦିଆଯାଇଛି",
   "team.pay.beforeRecords": "ଏହି ମାସ ପାଇଁ କୌଣସି ରେକର୍ଡ ରଖାଯାଇ ନଥିଲା।",
   "team.pay.upTo": "{date} ଯାଏଁ",
-  "team.pay.ruleMonthly": "ମାସିକ ଦରମା {amount}, ଏହି ମାସର {days} ଦିନରେ ଭାଗ କରାଯାଏ। ପ୍ରତି ଅନୁପସ୍ଥିତ ପାଇଁ ଏକ ଦିନର ଦରମା ଓ ପ୍ରତି ଅଧା ଦିନ ପାଇଁ ଅଧା ଦିନର ଦରମା କଟାଯାଏ। ସାପ୍ତାହିକ ଛୁଟି, ଦରମା ସହ ଛୁଟି ଓ ହାଜିରା ପଡ଼ିନଥିବା ଦିନର ଟଙ୍କା ଦିଆଯାଏ।",
-  "team.pay.ruleDaily": "ଦୈନିକ ମଜୁରି {amount}। ପ୍ରତି ଉପସ୍ଥିତ ଦିନ ଓ ଦରମା ସହ ଛୁଟିର ପ୍ରତି ଦିନ ପାଇଁ ପୂରା, ଆଉ ଅଧା ଦିନ ପାଇଁ ଅଧା ଦିଆଯାଏ। ସାପ୍ତାହିକ ଛୁଟି, ଅନୁପସ୍ଥିତ ଓ ହାଜିରା ପଡ଼ିନଥିବା ଦିନ ପାଇଁ ଦିଆଯାଏ ନାହିଁ।",
   "team.pay.worked": "ଆପ୍ ର ହିସାବ (ଯେତେ ଦିନର ଟଙ୍କା: {days})",
   "team.pay.ownFigure": "ଆପଣଙ୍କ ନିଜ ଅଙ୍କ (₹)",
   "team.pay.ownFigureHint": "ଆପ୍ ର ଅଙ୍କ ବଦଳରେ ଏହା ବ୍ୟବହାର ହୁଏ। ଆପ୍ ର ଅଙ୍କ ବି ଦେଖାଯାଉଥାଏ।",

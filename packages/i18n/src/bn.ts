@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const bn: Messages = {
+export const bn: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "পরিষ্কার জায়গা। নিরাপদ কাজ। মজবুত ব্যবসা।",
 
@@ -1085,7 +1085,6 @@ export const bn: Messages = {
   "visit.documents.failed": "ডকুমেন্ট খোলা যায়নি। সিগন্যাল দেখে আবার চেষ্টা করুন।",
 
   "tile.team": "স্টাফ",
-  "tile.markAttendance": "হাজিরা নিন",
   "team.title": "স্টাফ",
   "team.save": "সেভ করুন",
   "team.logins": "অ্যাপ লগইন ও PIN",
@@ -1095,13 +1094,7 @@ export const bn: Messages = {
   "team.status.ABSENT": "অনুপস্থিত",
   "team.status.LEAVE": "সবেতন ছুটি",
   "team.status.WEEKLY_OFF": "সাপ্তাহিক ছুটি",
-  "team.status.NONE": "লেখা হয়নি",
   "team.att.title": "হাজিরা",
-  "team.att.hint": "কয়েকটা ট্যাপে আজকের হাজিরা নিন, বা আগের কোনো দিন ঠিক করুন",
-  "team.att.markAll": "সবাইকে উপস্থিত করুন",
-  "team.att.markRest": "বাকিদের উপস্থিত করুন",
-  "team.att.more": "আরও",
-  "team.att.clear": "হাজিরা মুছুন",
   "team.att.usualOff": "নিয়মিত ছুটির দিন",
   "team.att.locked": "এই দিনটা অনেক আগের, আর বদলানো যাবে না।",
   "team.att.prevDay": "আগের দিন",
@@ -1153,7 +1146,6 @@ export const bn: Messages = {
   "team.job.waiter": "ওয়েটার",
   "team.job.cashier": "ক্যাশিয়ার",
   "team.job.delivery": "ডেলিভারি",
-  "team.record.tapToChange": "কোনো দিন বদলাতে তাতে ট্যাপ করুন। {date} থেকে পরের দিনগুলো এখনও বদলানো যায়।",
   "team.record.checklists": "এই মাসে জমা দেওয়া রোজের চেকলিস্ট: {count}",
   "team.record.pay": "এই মাসের বেতন",
   "team.pay.title": "বেতনের খাতা",
@@ -1172,8 +1164,6 @@ export const bn: Messages = {
   "team.pay.overpaid": "বেশি দেওয়া হয়েছে",
   "team.pay.beforeRecords": "এই মাসের কোনো খাতা রাখা হয়নি।",
   "team.pay.upTo": "{date} পর্যন্ত",
-  "team.pay.ruleMonthly": "মাসিক বেতন {amount}, এই মাসের {days} দিনে ভাগ করা হয়। প্রতিটি অনুপস্থিত দিনের জন্য এক দিনের বেতন আর প্রতিটি আধা দিনের জন্য আধা দিনের বেতন কাটা হয়। সাপ্তাহিক ছুটি, সবেতন ছুটি আর হাজিরা লেখা হয়নি এমন দিনের টাকা দেওয়া হয়।",
-  "team.pay.ruleDaily": "দৈনিক মজুরি {amount}। প্রতিটি উপস্থিত দিন ও প্রতিটি সবেতন ছুটির দিনের টাকা দেওয়া হয়, আর আধা দিনের জন্য অর্ধেক। সাপ্তাহিক ছুটি, অনুপস্থিত আর হাজিরা লেখা হয়নি এমন দিনের টাকা দেওয়া হয় না।",
   "team.pay.worked": "অ্যাপের হিসেব (যত দিনের টাকা: {days})",
   "team.pay.ownFigure": "আপনার নিজের অঙ্ক (₹)",
   "team.pay.ownFigureHint": "অ্যাপের অঙ্কের বদলে এটা ধরা হবে। অ্যাপের অঙ্কটাও দেখা যাবে।",

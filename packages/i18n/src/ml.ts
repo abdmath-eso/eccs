@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ml: Messages = {
+export const ml: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "വൃത്തിയുള്ള ഇടങ്ങൾ. സുരക്ഷിതമായ പ്രവർത്തനം. കരുത്തുള്ള ബിസിനസ്.",
 
@@ -1085,7 +1085,6 @@ export const ml: Messages = {
   "visit.documents.failed": "രേഖ തുറക്കാനായില്ല. സിഗ്നൽ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.",
 
   "tile.team": "സ്റ്റാഫ്",
-  "tile.markAttendance": "ഹാജർ രേഖപ്പെടുത്തുക",
   "team.title": "സ്റ്റാഫ്",
   "team.save": "സേവ് ചെയ്യുക",
   "team.logins": "ആപ്പ് ലോഗിനുകളും PIN-കളും",
@@ -1095,13 +1094,7 @@ export const ml: Messages = {
   "team.status.ABSENT": "ഹാജരില്ല",
   "team.status.LEAVE": "ശമ്പളത്തോടെ അവധി",
   "team.status.WEEKLY_OFF": "ആഴ്ച അവധി",
-  "team.status.NONE": "രേഖപ്പെടുത്തിയിട്ടില്ല",
   "team.att.title": "ഹാജർ",
-  "team.att.hint": "കുറച്ച് ടാപ്പുകളിൽ ഇന്നത്തെ ഹാജർ രേഖപ്പെടുത്തുക, അല്ലെങ്കിൽ മുമ്പത്തെ ഒരു ദിവസം തിരുത്തുക",
-  "team.att.markAll": "എല്ലാവരെയും ഹാജർ ആക്കുക",
-  "team.att.markRest": "ബാക്കിയുള്ളവരെ ഹാജർ ആക്കുക",
-  "team.att.more": "കൂടുതൽ",
-  "team.att.clear": "രേഖപ്പെടുത്തിയത് മായ്ക്കുക",
   "team.att.usualOff": "പതിവ് അവധി ദിവസം",
   "team.att.locked": "ഈ ദിവസം വളരെ പഴയതാണ്, ഇനി മാറ്റാൻ കഴിയില്ല.",
   "team.att.prevDay": "മുമ്പത്തെ ദിവസം",
@@ -1153,7 +1146,6 @@ export const ml: Messages = {
   "team.job.waiter": "വെയ്റ്റർ",
   "team.job.cashier": "കാഷ്യർ",
   "team.job.delivery": "ഡെലിവറി",
-  "team.record.tapToChange": "മാറ്റാൻ ഒരു ദിവസത്തിൽ ടാപ്പ് ചെയ്യുക. {date} മുതലുള്ള ദിവസങ്ങൾ ഇപ്പോഴും മാറ്റാം.",
   "team.record.checklists": "ഈ മാസം സമർപ്പിച്ച ദിവസ ചെക്ക്‌ലിസ്റ്റുകൾ: {count}",
   "team.record.pay": "ഈ മാസത്തെ ശമ്പളം",
   "team.pay.title": "ശമ്പള കണക്ക്",
@@ -1172,8 +1164,6 @@ export const ml: Messages = {
   "team.pay.overpaid": "കൂടുതൽ നൽകി",
   "team.pay.beforeRecords": "ഈ മാസത്തേക്ക് രേഖകളൊന്നും സൂക്ഷിച്ചിട്ടില്ല.",
   "team.pay.upTo": "{date} വരെ",
-  "team.pay.ruleMonthly": "മാസ ശമ്പളം {amount}, ഈ മാസത്തിലെ {days} ദിവസങ്ങൾ കൊണ്ട് ഭാഗിക്കുന്നു. ഹാജരില്ലാത്ത ഓരോ ദിവസത്തിനും ഒരു ദിവസത്തെ ശമ്പളവും ഓരോ അര ദിവസത്തിനും അര ദിവസത്തെ ശമ്പളവും കുറയ്ക്കും. ആഴ്ച അവധി, ശമ്പളത്തോടെ അവധി, രേഖപ്പെടുത്താത്ത ദിവസങ്ങൾ എന്നിവയ്ക്ക് ശമ്പളമുണ്ട്.",
-  "team.pay.ruleDaily": "ദിവസക്കൂലി {amount}. ഹാജരായ ഓരോ ദിവസത്തിനും ശമ്പളത്തോടെ അവധിയുള്ള ഓരോ ദിവസത്തിനും മുഴുവൻ കൂലി, അര ദിവസത്തിന് പകുതി. ആഴ്ച അവധി, ഹാജരില്ലാത്ത ദിവസങ്ങൾ, രേഖപ്പെടുത്താത്ത ദിവസങ്ങൾ എന്നിവയ്ക്ക് കൂലിയില്ല.",
   "team.pay.worked": "ആപ്പ് കണക്കാക്കിയത് (ശമ്പളമുള്ള ദിവസങ്ങൾ: {days})",
   "team.pay.ownFigure": "നിങ്ങളുടെ സ്വന്തം തുക (₹)",
   "team.pay.ownFigureHint": "ആപ്പിന്റെ തുകയ്ക്ക് പകരം ഇത് ഉപയോഗിക്കും. ആപ്പിന്റെ തുകയും കാണിച്ചുകൊണ്ടിരിക്കും.",

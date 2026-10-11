@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const kn: Messages = {
+export const kn: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ಸ್ವಚ್ಛ ಜಾಗಗಳು. ಸುರಕ್ಷಿತ ಕೆಲಸ. ಬಲವಾದ ವ್ಯಾಪಾರ.",
 
@@ -1085,7 +1085,6 @@ export const kn: Messages = {
   "visit.documents.failed": "ದಾಖಲೆ ತೆರೆಯಲು ಆಗಲಿಲ್ಲ. ಸಿಗ್ನಲ್ ನೋಡಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
 
   "tile.team": "ಸ್ಟಾಫ್",
-  "tile.markAttendance": "ಹಾಜರಾತಿ ಹಾಕಿ",
   "team.title": "ಸ್ಟಾಫ್",
   "team.save": "ಸೇವ್ ಮಾಡಿ",
   "team.logins": "ಆ್ಯಪ್ ಲಾಗಿನ್‌ಗಳು ಮತ್ತು PIN ಗಳು",
@@ -1095,13 +1094,7 @@ export const kn: Messages = {
   "team.status.ABSENT": "ಗೈರು",
   "team.status.LEAVE": "ಸಂಬಳ ಸಹಿತ ರಜೆ",
   "team.status.WEEKLY_OFF": "ವಾರದ ರಜೆ",
-  "team.status.NONE": "ಗುರುತಿಸಿಲ್ಲ",
   "team.att.title": "ಹಾಜರಾತಿ",
-  "team.att.hint": "ಕೆಲವೇ ಟ್ಯಾಪ್‌ಗಳಲ್ಲಿ ಇಂದಿನ ಹಾಜರಾತಿ ಹಾಕಿ, ಅಥವಾ ಹಿಂದಿನ ದಿನವನ್ನು ಸರಿಪಡಿಸಿ",
-  "team.att.markAll": "ಎಲ್ಲರನ್ನೂ ಹಾಜರ್ ಎಂದು ಹಾಕಿ",
-  "team.att.markRest": "ಉಳಿದವರನ್ನು ಹಾಜರ್ ಎಂದು ಹಾಕಿ",
-  "team.att.more": "ಇನ್ನಷ್ಟು",
-  "team.att.clear": "ಹಾಕಿದ್ದನ್ನು ಅಳಿಸಿ",
   "team.att.usualOff": "ಮಾಮೂಲಿ ರಜೆ ದಿನ",
   "team.att.locked": "ಈ ದಿನ ತುಂಬಾ ಹಳೆಯದು, ಇನ್ನು ಬದಲಾಯಿಸಲು ಆಗುವುದಿಲ್ಲ.",
   "team.att.prevDay": "ಹಿಂದಿನ ದಿನ",
@@ -1153,7 +1146,6 @@ export const kn: Messages = {
   "team.job.waiter": "ವೇಟರ್",
   "team.job.cashier": "ಕ್ಯಾಷಿಯರ್",
   "team.job.delivery": "ಡೆಲಿವರಿ",
-  "team.record.tapToChange": "ಬದಲಾಯಿಸಲು ಒಂದು ದಿನವನ್ನು ಟ್ಯಾಪ್ ಮಾಡಿ. {date} ರಿಂದ ಇರುವ ದಿನಗಳನ್ನು ಇನ್ನೂ ಬದಲಾಯಿಸಬಹುದು.",
   "team.record.checklists": "ಈ ತಿಂಗಳು ಸಬ್ಮಿಟ್ ಮಾಡಿದ ದಿನದ ಚೆಕ್‌ಲಿಸ್ಟ್‌ಗಳು: {count}",
   "team.record.pay": "ಈ ತಿಂಗಳ ಸಂಬಳ",
   "team.pay.title": "ಸಂಬಳದ ಲೆಕ್ಕ",
@@ -1172,8 +1164,6 @@ export const kn: Messages = {
   "team.pay.overpaid": "ಹೆಚ್ಚು ಕೊಡಲಾಗಿದೆ",
   "team.pay.beforeRecords": "ಈ ತಿಂಗಳಿಗೆ ಯಾವುದೇ ದಾಖಲೆ ಇಟ್ಟಿಲ್ಲ.",
   "team.pay.upTo": "{date} ವರೆಗೆ",
-  "team.pay.ruleMonthly": "ತಿಂಗಳ ಸಂಬಳ {amount}, ಈ ತಿಂಗಳ {days} ದಿನಗಳಿಂದ ಭಾಗಿಸಲಾಗುತ್ತದೆ. ಪ್ರತಿ ಗೈರಿಗೆ ಒಂದು ದಿನದ ಸಂಬಳ ಮತ್ತು ಪ್ರತಿ ಅರ್ಧ ದಿನಕ್ಕೆ ಅರ್ಧ ದಿನದ ಸಂಬಳ ಕಡಿತವಾಗುತ್ತದೆ. ವಾರದ ರಜೆ, ಸಂಬಳ ಸಹಿತ ರಜೆ ಮತ್ತು ಗುರುತಿಸದ ದಿನಗಳಿಗೆ ಸಂಬಳ ಇರುತ್ತದೆ.",
-  "team.pay.ruleDaily": "ದಿನಗೂಲಿ {amount}. ಹಾಜರ್ ಇದ್ದ ಪ್ರತಿ ದಿನಕ್ಕೆ ಮತ್ತು ಸಂಬಳ ಸಹಿತ ರಜೆಯ ಪ್ರತಿ ದಿನಕ್ಕೆ ಪೂರ್ತಿ, ಅರ್ಧ ದಿನಕ್ಕೆ ಅರ್ಧ ಕೊಡಲಾಗುತ್ತದೆ. ವಾರದ ರಜೆ, ಗೈರು ಮತ್ತು ಗುರುತಿಸದ ದಿನಗಳಿಗೆ ಹಣ ಇಲ್ಲ.",
   "team.pay.worked": "ಆ್ಯಪ್ ಲೆಕ್ಕ ಹಾಕಿದ್ದು (ಸಂಬಳ ಇರುವ ದಿನಗಳು: {days})",
   "team.pay.ownFigure": "ನಿಮ್ಮ ಸ್ವಂತ ಮೊತ್ತ (₹)",
   "team.pay.ownFigureHint": "ಆ್ಯಪ್ ಮೊತ್ತದ ಬದಲು ಇದನ್ನು ಬಳಸಲಾಗುತ್ತದೆ. ಆ್ಯಪ್ ಮೊತ್ತವೂ ಕಾಣುತ್ತಿರುತ್ತದೆ.",

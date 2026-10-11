@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ta: Messages = {
+export const ta: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "சுத்தமான இடங்கள். பாதுகாப்பான செயல்பாடுகள். வலுவான தொழில்கள்.",
 
@@ -1085,7 +1085,6 @@ export const ta: Messages = {
   "visit.documents.failed": "ஆவணத்தைத் திறக்க முடியவில்லை. சிக்னலைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
 
   "tile.team": "ஸ்டாஃப்",
-  "tile.markAttendance": "அட்டெண்டன்ஸ் குறிக்கவும்",
   "team.title": "ஸ்டாஃப்",
   "team.save": "சேமி",
   "team.logins": "ஆப் லாகின்கள் மற்றும் PIN-கள்",
@@ -1095,13 +1094,7 @@ export const ta: Messages = {
   "team.status.ABSENT": "வரவில்லை",
   "team.status.LEAVE": "சம்பளத்துடன் விடுப்பு",
   "team.status.WEEKLY_OFF": "வார விடுமுறை",
-  "team.status.NONE": "குறிக்கப்படவில்லை",
   "team.att.title": "அட்டெண்டன்ஸ்",
-  "team.att.hint": "சில தட்டல்களில் இன்றைய அட்டெண்டன்ஸைக் குறிக்கவும், அல்லது முந்தைய நாளைத் திருத்தவும்",
-  "team.att.markAll": "எல்லோரையும் வந்தார் எனக் குறி",
-  "team.att.markRest": "மீதமுள்ளவர்களை வந்தார் எனக் குறி",
-  "team.att.more": "மேலும்",
-  "team.att.clear": "குறித்ததை அழி",
   "team.att.usualOff": "வழக்கமான விடுமுறை நாள்",
   "team.att.locked": "இந்த நாள் மிகவும் பழையது, இனி மாற்ற முடியாது.",
   "team.att.prevDay": "முந்தைய நாள்",
@@ -1153,7 +1146,6 @@ export const ta: Messages = {
   "team.job.waiter": "வெயிட்டர்",
   "team.job.cashier": "கேஷியர்",
   "team.job.delivery": "டெலிவரி",
-  "team.record.tapToChange": "மாற்ற ஒரு நாளைத் தட்டவும். {date} முதல் உள்ள நாட்களை இன்னும் மாற்றலாம்.",
   "team.record.checklists": "இந்த மாதம் சமர்ப்பித்த தினசரி செக்லிஸ்ட்கள்: {count}",
   "team.record.pay": "இந்த மாதச் சம்பளம்",
   "team.pay.title": "சம்பளக் கணக்கு",
@@ -1172,8 +1164,6 @@ export const ta: Messages = {
   "team.pay.overpaid": "அதிகமாகக் கொடுக்கப்பட்டது",
   "team.pay.beforeRecords": "இந்த மாதத்திற்குப் பதிவுகள் எதுவும் வைக்கப்படவில்லை.",
   "team.pay.upTo": "{date} வரை",
-  "team.pay.ruleMonthly": "மாதச் சம்பளம் {amount}, இந்த மாதத்தின் {days} நாட்களால் வகுக்கப்படும். வராத ஒவ்வொரு நாளுக்கும் ஒரு நாள் சம்பளமும், ஒவ்வொரு அரை நாளுக்கும் அரை நாள் சம்பளமும் கழிக்கப்படும். வார விடுமுறை, சம்பளத்துடன் விடுப்பு மற்றும் குறிக்கப்படாத நாட்களுக்குச் சம்பளம் உண்டு.",
-  "team.pay.ruleDaily": "தினக்கூலி {amount}. வந்த ஒவ்வொரு நாளுக்கும், சம்பளத்துடன் விடுப்பு உள்ள ஒவ்வொரு நாளுக்கும் முழுக் கூலி, அரை நாளுக்குப் பாதி. வார விடுமுறை, வராத நாட்கள் மற்றும் குறிக்கப்படாத நாட்களுக்குக் கூலி இல்லை.",
   "team.pay.worked": "ஆப் கணக்கிட்டது (சம்பளம் உள்ள நாட்கள்: {days})",
   "team.pay.ownFigure": "உங்கள் சொந்தத் தொகை (₹)",
   "team.pay.ownFigureHint": "ஆப்பின் தொகைக்குப் பதிலாக இது பயன்படுத்தப்படும். ஆப்பின் தொகையும் தொடர்ந்து காட்டப்படும்.",

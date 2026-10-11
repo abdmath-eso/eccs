@@ -97,8 +97,9 @@ interface PersonFormProps {
 }
 
 function PersonForm({ person, outletId, logins, outletChoice }: PersonFormProps) {
-  const { t, api, language } = useSession();
+  const { t, api, language, user } = useSession();
   const notify = useSnackbar();
+  const isOwner = (user?.memberships ?? []).some((membership) => membership.role === 'OWNER');
 
   const [name, setName] = useState(person?.name ?? '');
   const [jobTitle, setJobTitle] = useState(person?.jobTitle ?? '');
@@ -131,10 +132,18 @@ function PersonForm({ person, outletId, logins, outletChoice }: PersonFormProps)
     setSaveError(null);
     const fields = { name: name.trim(), jobTitle: jobTitle.trim() || null, phone: phone.trim() || null, joinedOn, payType, payPaise, weeklyOffDay, userId };
     try {
-      if (person) await api.team.updatePerson(person.id, fields);
-      else await api.team.addPerson({ outletId, ...fields });
+      if (person) {
+        await api.team.updatePerson(person.id, fields);
+        notify(t('common.saved'));
+        router.back();
+        return;
+      }
+      const added = await api.team.addPerson({ outletId, ...fields });
       notify(t('common.saved'));
-      router.back();
+      // A new person goes straight on to their face for attendance, while they are
+      // standing there. Only the Owner may enrol a face; it can be skipped ("Do this later").
+      if (isOwner) router.replace({ pathname: '/team/face', params: { staffId: added.id, fresh: '1' } });
+      else router.back();
     } catch (e) {
       setSaveError(errorMessage(e, t, { 400: 'team.person.refused' }));
     } finally {
@@ -181,7 +190,12 @@ function PersonForm({ person, outletId, logins, outletChoice }: PersonFormProps)
       footer={
         <>
           <ErrorText message={saveError} />
-          <Button label={t('team.save')} loading={busy === 'save'} disabled={busy !== null} onPress={() => void save()} />
+          <Button
+            label={t(!person && isOwner ? 'team.person.saveAndFace' : 'team.save')}
+            loading={busy === 'save'}
+            disabled={busy !== null}
+            onPress={() => void save()}
+          />
         </>
       }>
       {outletChoice}

@@ -5,46 +5,50 @@ import {
   shiftMonth,
   weekdayOf,
   worksOn,
-  type AttendanceStatus,
+  type FaceStatusDto,
   type StaffMonthDto,
 } from '@eccs/shared';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { EnrolledMark } from '@/components/attendance-parts';
 import { countsOf, DAY_MARK, DayCounts, MonthStepper, useLoaded, type DayMark } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionSheet } from '@/components/ui/option-sheet';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatMoney } from '@/lib/billing';
-import { errorMessage } from '@/lib/errors';
+import { useDirection } from '@/lib/direction';
 import { formatDate, formatDayLong, indiaToday, weekdayNames } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
 const MONTHS_BACK = 12;
-const STATUSES: AttendanceStatus[] = ['PRESENT', 'HALF_DAY', 'ABSENT', 'LEAVE', 'WEEKLY_OFF'];
 
 /**
  * One person's record: their month as a calendar with a picture on each day,
- * the totals, and the way into their pay. Tapping a day that can still be
- * corrected changes its mark.
+ * the totals, and the way into their pay. The pictures come from their
+ * clock-ins and clock-outs; tapping a day opens it, with each punch and, for
+ * the Owner, the corrections.
  */
 export default function PersonRecordScreen() {
   const theme = useTheme();
   const { t, api, user, language } = useSession();
   const params = useLocalSearchParams<{ staffId: string; month?: string }>();
   const [month, setMonth] = useState(() => params.month ?? indiaToday().slice(0, 7));
-  const [editing, setEditing] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const { forwardIcon } = useDirection();
 
   const memberships = user?.memberships ?? [];
   const allowed = can(memberships, 'attendance', 'read');
   const { data, error, reload } = useLoaded<StaffMonthDto>(allowed ? `${params.staffId}|${month}` : null, () =>
     api.team.personMonth(params.staffId, month),
+  );
+  // Whether their face is enrolled, for the Owner and Manager. If it cannot be read the row still opens.
+  const seesFace = can(memberships, 'staff', 'update');
+  const { data: face } = useLoaded<FaceStatusDto | null>(seesFace ? `face|${params.staffId}` : null, () =>
+    api.team.faceStatus(params.staffId).catch(() => null),
   );
 
   if (!allowed) return <Redirect href="/" />;
@@ -60,19 +64,11 @@ export default function PersonRecordScreen() {
     if (status) return { mark: status, assumed: false };
     return weekdayOf(date) === data.staff.weeklyOffDay ? { mark: 'WEEKLY_OFF', assumed: true } : { mark: 'NONE', assumed: false };
   };
-  const canCorrect = (date: string) => data !== null && date >= data.earliestDate && markOn(date) !== null;
-
-  async function setMark(date: string, status: AttendanceStatus | null) {
-    setEditing(null);
-    if (!data) return;
-    setSaveError(null);
-    try {
-      await api.team.mark({ outletId: data.staff.outletId, date, marks: [{ staffId: data.staff.id, status }] });
-    } catch (e) {
-      setSaveError(errorMessage(e, t));
-    }
-    await reload();
-  }
+  /** True when the day has something for the Owner to look at: a mark on a punch, or a status still to be settled. */
+  const needsLook = (date: string) => {
+    const day = data?.days[date];
+    return day !== undefined && (day.flags.length > 0 || (day.provisional && date < today));
+  };
 
   // The month laid out in weeks starting on Sunday, as on the service calendar.
   const cells: (number | null)[] = [
@@ -99,7 +95,6 @@ export default function PersonRecordScreen() {
 
       <MonthStepper month={month} thisMonth={thisMonth} earliest={shiftMonth(thisMonth, -MONTHS_BACK)} onChange={setMonth} />
       <ErrorText message={error} onRetry={() => void reload()} />
-      <ErrorText message={saveError} />
       {!data && !error && <ActivityIndicator color={theme.primary} />}
 
       {/* ── The month ── */}
@@ -117,14 +112,17 @@ export default function PersonRecordScreen() {
               if (dayNumber === null) return <View key={column} style={styles.cell} />;
               const date = `${month}-${String(dayNumber).padStart(2, '0')}`;
               const shown = markOn(date);
-              const open = canCorrect(date);
+              const open = shown !== null;
+              const look = needsLook(date);
               return (
                 <Pressable
                   key={column}
                   accessibilityRole={open ? 'button' : 'text'}
-                  accessibilityLabel={[formatDayLong(date, language), shown ? t(DAY_MARK[shown.mark].label) : null].filter(Boolean).join('. ')}
+                  accessibilityLabel={[formatDayLong(date, language), shown ? t(DAY_MARK[shown.mark].label) : null, look ? t('att.needsLook') : null]
+                    .filter(Boolean)
+                    .join('. ')}
                   disabled={!open}
-                  onPress={() => setEditing(date)}
+                  onPress={() => router.push({ pathname: '/team/day', params: { staffId: params.staffId, date } })}
                   style={({ pressed }) => [styles.cell, pressed && { backgroundColor: theme.backgroundElement }]}>
                   <ThemedText
                     type="small"
@@ -140,6 +138,8 @@ export default function PersonRecordScreen() {
                       style={shown.assumed && styles.assumed}
                     />
                   )}
+                  {/* A small warning sign in the corner: something on this day is waiting to be looked at. */}
+                  {look && <Ionicons name="alert-circle" size={14} color={theme.warning} style={styles.look} />}
                 </Pressable>
               );
             })}
@@ -151,10 +151,25 @@ export default function PersonRecordScreen() {
         <>
           {/* The totals double as the key to the pictures: each has its picture, word and count. */}
           <DayCounts counts={countsOf(data.totals)} all />
-          {data.earliestDate <= today && month >= data.earliestDate.slice(0, 7) && (
-            <ThemedText type="small" themeColor="textSecondary">
-              {t('team.record.tapToChange', { date: formatDate(data.earliestDate, language) })}
-            </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('att.month.tapDay')}
+          </ThemedText>
+
+          {/* Their face for attendance: where it stands, and for the Owner the way to add or remove it. */}
+          {seesFace && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: '/team/face', params: { staffId: data.staff.id } })}
+              style={({ pressed }) => [styles.faceRow, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
+              <Ionicons name="scan-circle-outline" size={28} color={theme.primary} />
+              <View style={styles.noteText}>
+                <ThemedText type="default" style={styles.bold}>
+                  {t('face.title')}
+                </ThemedText>
+                {face && <EnrolledMark enrolled={face.enrolled} />}
+              </View>
+              <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
+            </Pressable>
           )}
 
           {/* The light tie to hygiene: only for someone who has their own app login. */}
@@ -185,25 +200,6 @@ export default function PersonRecordScreen() {
         </>
       )}
 
-      <OptionSheet
-        visible={editing !== null}
-        title={editing ? formatDayLong(editing, language) : undefined}
-        onClose={() => setEditing(null)}
-        options={
-          editing
-            ? [
-                ...STATUSES.map((status) => ({
-                  label: t(DAY_MARK[status].label),
-                  icon: DAY_MARK[status].icon,
-                  onPress: () => void setMark(editing, status),
-                })),
-                ...(data?.marks[editing]
-                  ? [{ label: t('team.att.clear'), icon: 'backspace-outline' as const, onPress: () => void setMark(editing, null) }]
-                  : []),
-              ]
-            : []
-        }
-      />
     </Screen>
   );
 }
@@ -219,4 +215,14 @@ const styles = StyleSheet.create({
   assumed: { opacity: 0.45 },
   note: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: Spacing.three, padding: Spacing.three },
   noteText: { flex: 1 },
+  bold: { fontWeight: 700 },
+  look: { position: 'absolute', top: Spacing.one, end: Spacing.one },
+  faceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderWidth: 1,
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+  },
 });

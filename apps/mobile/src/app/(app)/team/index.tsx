@@ -4,6 +4,7 @@ import { Redirect, router, type Href } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { EnrolledMark } from '@/components/attendance-parts';
 import { OutletChips, useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -39,10 +40,26 @@ export default function TeamScreen() {
     () => api.team.people(outletId!, showLeft),
   );
 
-  // The Head Chef has one thing to do here: mark today's attendance.
-  if (!manages) return <Redirect href={can(memberships, 'attendance', 'create') ? '/team/attendance' : '/'} />;
+  // Beside the list: whose face is enrolled (from today's sheet) and how much is waiting for the
+  // Owner to look at. Either may fail without spoiling the list; it then just shows less.
+  const { data: extra } = useLoaded<{ enrolled: Record<string, boolean>; waiting: number | null }>(
+    manages && outletId ? outletId : null,
+    async () => {
+      const [sheet, review] = await Promise.all([
+        api.team.day(outletId!).catch(() => null),
+        api.attendance.review(outletId!).catch(() => null),
+      ]);
+      return {
+        enrolled: Object.fromEntries((sheet?.people ?? []).map((person) => [person.staffId, person.enrolled])),
+        waiting: review ? review.punches.length + review.days.length : null,
+      };
+    },
+  );
 
-  const section = (icon: IconName, title: string, hint: string, href: Href) => (
+  // The Head Chef has one thing to see here: who is in today.
+  if (!manages) return <Redirect href={can(memberships, 'staff', 'read') ? '/team/attendance' : '/'} />;
+
+  const section = (icon: IconName, title: string, hint: string, href: Href, count = 0) => (
     <Pressable
       accessibilityRole="button"
       onPress={() => router.push(href)}
@@ -56,6 +73,14 @@ export default function TeamScreen() {
           {hint}
         </ThemedText>
       </View>
+      {/* How many are waiting: a number in a filled circle, read out with the row. */}
+      {count > 0 && (
+        <View style={[styles.badge, { backgroundColor: theme.danger }]} accessibilityLabel={t('att.review.waiting', { count })}>
+          <ThemedText type="smallBold" style={{ color: theme.background }}>
+            {count > 99 ? '99+' : count}
+          </ThemedText>
+        </View>
+      )}
       <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
     </Pressable>
   );
@@ -65,7 +90,16 @@ export default function TeamScreen() {
       <OutletChips outlets={outlets} outletId={outletId} onChoose={choose} />
 
       {section('checkmark-done-circle-outline', t('team.att.title'), t('team.att.hint'), '/team/attendance')}
+      {can(memberships, 'attendance', 'read') &&
+        section(
+          'flag-outline',
+          t('att.review.title'),
+          extra?.waiting ? t('att.review.waiting', { count: extra.waiting }) : t('att.review.hint'),
+          '/team/review',
+          extra?.waiting ?? 0,
+        )}
       {can(memberships, 'salary', 'read') && section('wallet-outline', t('team.pay.title'), t('team.pay.hint'), '/team/salary')}
+      {can(memberships, 'attendance', 'read') && section('time-outline', t('att.settings.title'), t('att.settings.hint'), '/team/settings')}
       {can(memberships, 'restaurantUsers', 'create') && section('key-outline', t('team.logins'), t('team.loginsHint'), '/staff')}
 
       {/* ── The people ── */}
@@ -110,6 +144,8 @@ export default function TeamScreen() {
                 {t('team.people.leftOn', { date: formatDate(person.leftOn, language) })}
               </ThemedText>
             )}
+            {/* Whether the camera can recognise them; shown once known, and only for people still working here. */}
+            {person.isActive && extra && person.id in extra.enrolled && <EnrolledMark enrolled={extra.enrolled[person.id] === true} />}
           </View>
           <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
         </Pressable>
@@ -129,6 +165,7 @@ const styles = StyleSheet.create({
   bold: { fontWeight: 700 },
   left: { opacity: 0.6 },
   heading: { marginTop: Spacing.two },
+  badge: { minWidth: 28, height: 28, borderRadius: 14, paddingHorizontal: Spacing.two, alignItems: 'center', justifyContent: 'center' },
   section: {
     flexDirection: 'row',
     alignItems: 'center',

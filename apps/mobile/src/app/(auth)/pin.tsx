@@ -10,11 +10,13 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { PinPad } from '@/components/ui/pin-pad';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { useSession } from '@/lib/session';
 
 /** The everyday login: whoever's PIN is entered is who gets logged in. */
 export default function PinScreen() {
+  const theme = useTheme();
   const { t, api, linkedDevice, unlinkDevice, signIn } = useSession();
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
@@ -88,6 +90,20 @@ export default function PinScreen() {
         </ThemedText>
       </View>
 
+      {/* Attendance, for every employee, needs no login. It is kept apart from the PIN pad
+          (its own box, picture and words) so nobody takes it for a way to log in. Not shown on
+          a phone linked to the restaurant as a whole: there is no outlet to clock in at. */}
+      {linkedDevice.outletName !== null && (
+        <View style={[styles.clock, { borderColor: theme.border }]}>
+          <Button
+            icon="scan-circle-outline"
+            label={t('clock.title')}
+            hint={t('clock.pinHint')}
+            onPress={() => router.push('/clock')}
+          />
+        </View>
+      )}
+
       <PinPad
         value={pin}
         onChange={change}
@@ -128,4 +144,6 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', gap: Spacing.two, paddingTop: Spacing.four },
   title: { fontSize: 28, lineHeight: 36 },
   center: { textAlign: 'center' },
+  // A line under the attendance button sets it apart from the login below it.
+  clock: { borderBottomWidth: 1, paddingBottom: Spacing.four },
 });

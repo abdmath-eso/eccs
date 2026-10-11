@@ -223,3 +223,14 @@ export function maskTypedDate(next: string, previous: string): string {
   if (digits.length > 4 || (digits.length === 4 && typing)) masked += '/';
   return masked + digits.slice(4);
 }
+
+/** The time of day of a moment as people in India read it, e.g. "10:02 am". Always Indian time. */
+export function formatTimeOfDay(iso: string, language: LanguageCode): string {
+  try {
+    return new Intl.DateTimeFormat(LOCALES[language], { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' }).format(
+      new Date(iso),
+    );
+  } catch {
+    return new Date(iso).toLocaleTimeString();
+  }
+}

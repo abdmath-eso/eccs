@@ -76,7 +76,7 @@ export const ATTENDANCE_ERROR = {
  * the wording changes in substance, so each person's record says which text
  * they agreed to.
  */
-export const FACE_CONSENT_VERSION = "2026-10";
+export const FACE_CONSENT_VERSION = "2026-10-11";
 
 /**
  * The employee's own agreement to have a face template kept, recorded with the

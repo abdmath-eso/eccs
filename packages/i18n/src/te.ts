@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const te: Messages = {
+export const te: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "శుభ్రమైన ప్రదేశాలు. సురక్షితమైన కార్యకలాపాలు. బలమైన వ్యాపారాలు.",
 
@@ -1085,7 +1085,6 @@ export const te: Messages = {
   "visit.documents.failed": "పత్రాన్ని తెరవలేకపోయాము. సిగ్నల్ చూసి మళ్లీ ప్రయత్నించండి.",
 
   "tile.team": "సిబ్బంది",
-  "tile.markAttendance": "హాజరు వేయండి",
   "team.title": "సిబ్బంది",
   "team.save": "సేవ్ చేయండి",
   "team.logins": "యాప్ లాగిన్‌లు మరియు PINలు",
@@ -1095,13 +1094,7 @@ export const te: Messages = {
   "team.status.ABSENT": "గైర్హాజరు",
   "team.status.LEAVE": "జీతంతో సెలవు",
   "team.status.WEEKLY_OFF": "వారపు సెలవు",
-  "team.status.NONE": "నమోదు చేయలేదు",
   "team.att.title": "హాజరు",
-  "team.att.hint": "కొన్ని ట్యాప్‌లలో ఈ రోజు హాజరు వేయండి, లేదా మునుపటి రోజును సరిచేయండి",
-  "team.att.markAll": "అందరినీ హాజరుగా వేయండి",
-  "team.att.markRest": "మిగిలిన వారిని హాజరుగా వేయండి",
-  "team.att.more": "మరిన్ని",
-  "team.att.clear": "నమోదు తీసివేయండి",
   "team.att.usualOff": "మామూలు సెలవు రోజు",
   "team.att.locked": "ఈ రోజు చాలా పాతది, ఇక మార్చలేరు.",
   "team.att.prevDay": "ముందు రోజు",
@@ -1153,7 +1146,6 @@ export const te: Messages = {
   "team.job.waiter": "వెయిటర్",
   "team.job.cashier": "క్యాషియర్",
   "team.job.delivery": "డెలివరీ",
-  "team.record.tapToChange": "మార్చడానికి ఒక రోజుపై ట్యాప్ చేయండి. {date} నుండి ఉన్న రోజులను ఇంకా మార్చవచ్చు.",
   "team.record.checklists": "ఈ నెల సమర్పించిన రోజువారీ చెక్‌లిస్ట్‌లు: {count}",
   "team.record.pay": "ఈ నెల జీతం",
   "team.pay.title": "జీతాల లెక్క",
@@ -1172,8 +1164,6 @@ export const te: Messages = {
   "team.pay.overpaid": "ఎక్కువ చెల్లించారు",
   "team.pay.beforeRecords": "ఈ నెలకు రికార్డులు ఏవీ ఉంచలేదు.",
   "team.pay.upTo": "{date} వరకు",
-  "team.pay.ruleMonthly": "నెల జీతం {amount}, ఈ నెలలోని {days} రోజులతో భాగించబడుతుంది. ప్రతి గైర్హాజరుకు ఒక రోజు జీతం, ప్రతి సగం రోజుకు సగం రోజు జీతం తగ్గుతుంది. వారపు సెలవు, జీతంతో సెలవు మరియు నమోదు చేయని రోజులకు జీతం ఉంటుంది.",
-  "team.pay.ruleDaily": "రోజు కూలి {amount}. హాజరైన ప్రతి రోజుకు, జీతంతో సెలవు ఉన్న ప్రతి రోజుకు పూర్తిగా, సగం రోజుకు సగం ఇస్తారు. వారపు సెలవు, గైర్హాజరు మరియు నమోదు చేయని రోజులకు డబ్బు ఉండదు.",
   "team.pay.worked": "యాప్ లెక్కించినది (జీతం ఉన్న రోజులు: {days})",
   "team.pay.ownFigure": "మీ సొంత మొత్తం (₹)",
   "team.pay.ownFigureHint": "యాప్ మొత్తానికి బదులుగా ఇది వాడబడుతుంది. యాప్ మొత్తం కూడా కనిపిస్తూనే ఉంటుంది.",

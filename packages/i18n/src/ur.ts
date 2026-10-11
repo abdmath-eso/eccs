@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ur: Messages = {
+export const ur: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "صاف جگہیں۔ محفوظ کام۔ مضبوط کاروبار۔",
 
@@ -1085,7 +1085,6 @@ export const ur: Messages = {
   "visit.documents.failed": "دستاویز نہیں کھل سکی۔ سگنل دیکھیں اور دوبارہ کوشش کریں۔",
 
   "tile.team": "اسٹاف",
-  "tile.markAttendance": "حاضری لگائیں",
   "team.title": "اسٹاف",
   "team.save": "محفوظ کریں",
   "team.logins": "ایپ لاگ ان اور PIN",
@@ -1095,13 +1094,7 @@ export const ur: Messages = {
   "team.status.ABSENT": "غیر حاضر",
   "team.status.LEAVE": "تنخواہ کے ساتھ چھٹی",
   "team.status.WEEKLY_OFF": "ہفتہ وار چھٹی",
-  "team.status.NONE": "حاضری نہیں لگی",
   "team.att.title": "حاضری",
-  "team.att.hint": "چند ٹیپ میں آج کی حاضری لگائیں، یا کوئی پچھلا دن درست کریں",
-  "team.att.markAll": "سب کو حاضر لگائیں",
-  "team.att.markRest": "باقی سب کو حاضر لگائیں",
-  "team.att.more": "مزید",
-  "team.att.clear": "حاضری مٹائیں",
   "team.att.usualOff": "چھٹی کا مقررہ دن",
   "team.att.locked": "یہ دن بہت پرانا ہے، اب بدلا نہیں جا سکتا۔",
   "team.att.prevDay": "پچھلا دن",
@@ -1153,7 +1146,6 @@ export const ur: Messages = {
   "team.job.waiter": "ویٹر",
   "team.job.cashier": "کیشیئر",
   "team.job.delivery": "ڈیلیوری",
-  "team.record.tapToChange": "کوئی دن بدلنے کے لیے اس پر ٹیپ کریں۔ {date} سے آگے کے دن ابھی بدلے جا سکتے ہیں۔",
   "team.record.checklists": "اس مہینے جمع کی گئی روزانہ چیک لسٹیں: {count}",
   "team.record.pay": "اس مہینے کی تنخواہ",
   "team.pay.title": "تنخواہ کا حساب",
@@ -1172,8 +1164,6 @@ export const ur: Messages = {
   "team.pay.overpaid": "زیادہ ادا ہوا",
   "team.pay.beforeRecords": "اس مہینے کا کوئی ریکارڈ نہیں رکھا گیا تھا۔",
   "team.pay.upTo": "{date} تک",
-  "team.pay.ruleMonthly": "ماہانہ تنخواہ {amount}، اس مہینے کے {days} دنوں پر تقسیم۔ ہر غیر حاضر پر ایک دن کی اور ہر آدھے دن پر آدھے دن کی تنخواہ کٹتی ہے۔ ہفتہ وار چھٹی، تنخواہ کے ساتھ چھٹی اور جن دنوں کی حاضری نہیں لگی، ان کے پیسے ملتے ہیں۔",
-  "team.pay.ruleDaily": "یومیہ اجرت {amount}۔ ہر حاضر دن اور تنخواہ کے ساتھ چھٹی کے ہر دن کی پوری، اور آدھے دن کی آدھی ملتی ہے۔ ہفتہ وار چھٹی، غیر حاضر اور جن دنوں کی حاضری نہیں لگی، ان کی نہیں ملتی۔",
   "team.pay.worked": "ایپ کا حساب (جتنے دنوں کے پیسے: {days})",
   "team.pay.ownFigure": "آپ کی اپنی رقم (₹)",
   "team.pay.ownFigureHint": "ایپ کی رقم کی جگہ یہ استعمال ہوتی ہے۔ ایپ کی رقم بھی نظر آتی رہتی ہے۔",

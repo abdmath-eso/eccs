@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const hi: Messages = {
+export const hi: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "साफ़ जगहें। सुरक्षित संचालन। मज़बूत व्यवसाय।",
 
@@ -1085,7 +1085,6 @@ export const hi: Messages = {
   "visit.documents.failed": "दस्तावेज़ खोला नहीं जा सका। सिग्नल जांचें और फिर कोशिश करें।",
 
   "tile.team": "स्टाफ",
-  "tile.markAttendance": "हाज़िरी लगाएं",
   "team.title": "स्टाफ",
   "team.save": "सेव करें",
   "team.logins": "ऐप लॉगिन और PIN",
@@ -1095,13 +1094,7 @@ export const hi: Messages = {
   "team.status.ABSENT": "गैरहाज़िर",
   "team.status.LEAVE": "वेतन सहित छुट्टी",
   "team.status.WEEKLY_OFF": "साप्ताहिक छुट्टी",
-  "team.status.NONE": "दर्ज नहीं",
   "team.att.title": "हाज़िरी",
-  "team.att.hint": "कुछ ही टैप में आज की हाज़िरी लगाएं, या किसी पिछले दिन की ठीक करें",
-  "team.att.markAll": "सबको हाज़िर करें",
-  "team.att.markRest": "बाकी सबको हाज़िर करें",
-  "team.att.more": "और",
-  "team.att.clear": "हाज़िरी मिटाएं",
   "team.att.usualOff": "हर हफ़्ते की छुट्टी का दिन",
   "team.att.locked": "यह दिन बहुत पुराना है, अब बदला नहीं जा सकता।",
   "team.att.prevDay": "पिछला दिन",
@@ -1153,7 +1146,6 @@ export const hi: Messages = {
   "team.job.waiter": "वेटर",
   "team.job.cashier": "कैशियर",
   "team.job.delivery": "डिलीवरी",
-  "team.record.tapToChange": "बदलने के लिए किसी दिन पर टैप करें। {date} से आगे के दिन अभी बदले जा सकते हैं।",
   "team.record.checklists": "इस महीने जमा की गई दैनिक चेकलिस्ट: {count}",
   "team.record.pay": "इस महीने का वेतन",
   "team.pay.title": "वेतन का हिसाब",
@@ -1172,8 +1164,6 @@ export const hi: Messages = {
   "team.pay.overpaid": "ज़्यादा भुगतान हुआ",
   "team.pay.beforeRecords": "इस महीने का कोई रिकॉर्ड नहीं रखा गया था।",
   "team.pay.upTo": "{date} तक",
-  "team.pay.ruleMonthly": "मासिक वेतन {amount}, इस महीने के {days} दिनों में बांटा गया। हर गैरहाज़िर दिन पर एक दिन का और हर आधे दिन पर आधे दिन का वेतन कटता है। साप्ताहिक छुट्टी, वेतन सहित छुट्टी और जिन दिनों हाज़िरी दर्ज नहीं है, उनका वेतन मिलता है।",
-  "team.pay.ruleDaily": "रोज़ की मज़दूरी {amount}। हर हाज़िर दिन और वेतन सहित छुट्टी के हर दिन का पूरा पैसा मिलता है, और आधे दिन का आधा। साप्ताहिक छुट्टी, गैरहाज़िर और जिन दिनों हाज़िरी दर्ज नहीं है, उनका पैसा नहीं मिलता।",
   "team.pay.worked": "ऐप का निकाला हिसाब (वेतन वाले दिन: {days})",
   "team.pay.ownFigure": "आपकी अपनी रकम (₹)",
   "team.pay.ownFigureHint": "ऐप की रकम की जगह यही इस्तेमाल होती है। ऐप की रकम भी दिखती रहती है।",

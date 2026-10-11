@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const mr: Messages = {
+export const mr: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "स्वच्छ जागा. सुरक्षित कामकाज. मजबूत व्यवसाय.",
 
@@ -1085,7 +1085,6 @@ export const mr: Messages = {
   "visit.documents.failed": "कागदपत्र उघडता आले नाही. सिग्नल तपासा आणि पुन्हा प्रयत्न करा.",
 
   "tile.team": "स्टाफ",
-  "tile.markAttendance": "हजेरी लावा",
   "team.title": "स्टाफ",
   "team.save": "सेव्ह करा",
   "team.logins": "ॲप लॉगिन आणि PIN",
@@ -1095,13 +1094,7 @@ export const mr: Messages = {
   "team.status.ABSENT": "गैरहजर",
   "team.status.LEAVE": "पगारी रजा",
   "team.status.WEEKLY_OFF": "साप्ताहिक सुट्टी",
-  "team.status.NONE": "नोंद नाही",
   "team.att.title": "हजेरी",
-  "team.att.hint": "काही टॅपमध्ये आजची हजेरी लावा, किंवा आधीच्या दिवसाची दुरुस्त करा",
-  "team.att.markAll": "सर्वांना हजर लावा",
-  "team.att.markRest": "बाकीच्यांना हजर लावा",
-  "team.att.more": "आणखी",
-  "team.att.clear": "हजेरीची नोंद पुसा",
   "team.att.usualOff": "नेहमीचा सुट्टीचा दिवस",
   "team.att.locked": "हा दिवस खूप जुना आहे, आता बदलता येणार नाही.",
   "team.att.prevDay": "आधीचा दिवस",
@@ -1153,7 +1146,6 @@ export const mr: Messages = {
   "team.job.waiter": "वेटर",
   "team.job.cashier": "कॅशियर",
   "team.job.delivery": "डिलिव्हरी",
-  "team.record.tapToChange": "बदलण्यासाठी दिवसावर टॅप करा. {date} पासूनचे दिवस अजून बदलता येतात.",
   "team.record.checklists": "या महिन्यात सबमिट केलेल्या रोजच्या चेकलिस्ट: {count}",
   "team.record.pay": "या महिन्याचा पगार",
   "team.pay.title": "पगाराचा हिशोब",
@@ -1172,8 +1164,6 @@ export const mr: Messages = {
   "team.pay.overpaid": "जास्त दिले",
   "team.pay.beforeRecords": "या महिन्यासाठी कोणतीही नोंद ठेवलेली नव्हती.",
   "team.pay.upTo": "{date} पर्यंत",
-  "team.pay.ruleMonthly": "मासिक पगार {amount}, या महिन्याच्या {days} दिवसांनी भागलेला. प्रत्येक गैरहजर दिवसासाठी एका दिवसाचा आणि प्रत्येक अर्ध्या दिवसासाठी अर्ध्या दिवसाचा पगार कापला जातो. साप्ताहिक सुट्टी, पगारी रजा आणि नोंद नसलेल्या दिवसांचा पगार मिळतो.",
-  "team.pay.ruleDaily": "रोजची मजुरी {amount}. प्रत्येक हजर दिवसाचे आणि पगारी रजेच्या प्रत्येक दिवसाचे पूर्ण पैसे मिळतात, आणि अर्ध्या दिवसाचे अर्धे. साप्ताहिक सुट्टी, गैरहजर आणि नोंद नसलेल्या दिवसांचे पैसे मिळत नाहीत.",
   "team.pay.worked": "ॲपने काढलेला हिशोब (पगाराचे दिवस: {days})",
   "team.pay.ownFigure": "तुमची स्वतःची रक्कम (₹)",
   "team.pay.ownFigureHint": "ॲपच्या रकमेऐवजी ही वापरली जाते. ॲपची रक्कमही दिसत राहते.",

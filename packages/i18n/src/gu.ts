@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Messages = {
+export const gu: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 
@@ -1085,7 +1085,6 @@ export const gu: Messages = {
   "visit.documents.failed": "દસ્તાવેજ ખોલી ન શકાયો. સિગ્નલ તપાસો અને ફરી પ્રયાસ કરો.",
 
   "tile.team": "સ્ટાફ",
-  "tile.markAttendance": "હાજરી પૂરો",
   "team.title": "સ્ટાફ",
   "team.save": "સાચવો",
   "team.logins": "ઍપ લૉગિન અને PIN",
@@ -1095,13 +1094,7 @@ export const gu: Messages = {
   "team.status.ABSENT": "ગેરહાજર",
   "team.status.LEAVE": "પગાર સાથે રજા",
   "team.status.WEEKLY_OFF": "અઠવાડિક રજા",
-  "team.status.NONE": "હાજરી પૂરી નથી",
   "team.att.title": "હાજરી",
-  "team.att.hint": "થોડા ટૅપમાં આજની હાજરી પૂરો, અથવા આગળનો કોઈ દિવસ સુધારો",
-  "team.att.markAll": "બધાને હાજર કરો",
-  "team.att.markRest": "બાકીનાને હાજર કરો",
-  "team.att.more": "વધુ",
-  "team.att.clear": "હાજરી ભૂંસો",
   "team.att.usualOff": "નક્કી રજાનો દિવસ",
   "team.att.locked": "આ દિવસ બહુ જૂનો છે, હવે બદલી શકાશે નહીં.",
   "team.att.prevDay": "આગલો દિવસ",
@@ -1153,7 +1146,6 @@ export const gu: Messages = {
   "team.job.waiter": "વેઇટર",
   "team.job.cashier": "કેશિયર",
   "team.job.delivery": "ડિલિવરી",
-  "team.record.tapToChange": "કોઈ દિવસ બદલવા તેના પર ટૅપ કરો. {date} થી પછીના દિવસો હજી બદલી શકાય છે.",
   "team.record.checklists": "આ મહિને સબમિટ કરેલી રોજની ચેકલિસ્ટ: {count}",
   "team.record.pay": "આ મહિનાનો પગાર",
   "team.pay.title": "પગારનો ચોપડો",
@@ -1172,8 +1164,6 @@ export const gu: Messages = {
   "team.pay.overpaid": "વધારે ચૂકવાયું",
   "team.pay.beforeRecords": "આ મહિના માટે કોઈ રેકોર્ડ રાખ્યા નહોતા.",
   "team.pay.upTo": "{date} સુધી",
-  "team.pay.ruleMonthly": "મહિનાનો પગાર {amount}, આ મહિનાના {days} દિવસ વડે ભાગ્યો. દરેક ગેરહાજર માટે એક દિવસનો પગાર અને દરેક અડધા દિવસ માટે અડધા દિવસનો પગાર કપાય છે. અઠવાડિક રજા, પગાર સાથે રજા અને હાજરી ન પૂરેલા દિવસોનો પગાર મળે છે.",
-  "team.pay.ruleDaily": "રોજની મજૂરી {amount}. દરેક હાજર દિવસ અને પગાર સાથે રજાના દરેક દિવસ માટે પૂરી, અને અડધા દિવસ માટે અડધી મળે છે. અઠવાડિક રજા, ગેરહાજર અને હાજરી ન પૂરેલા દિવસો માટે મળતી નથી.",
   "team.pay.worked": "ઍપે ગણેલી રકમ (પગારના દિવસ: {days})",
   "team.pay.ownFigure": "તમારી પોતાની રકમ (₹)",
   "team.pay.ownFigureHint": "ઍપની રકમને બદલે આ વપરાય છે. ઍપની રકમ પણ દેખાતી રહે છે.",

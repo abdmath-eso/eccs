@@ -193,11 +193,18 @@ export class ApiError extends Error {
   readonly code?: string;
   /** How long to wait before trying again, where the server says so (a locked PIN pad). */
   readonly retryAfterSeconds?: number;
+  /**
+   * Everything else the server sent with the error, as it came. Some answers carry
+   * more than a reason: which photo to take again (`photo`), or who a face is
+   * already enrolled as (`staff`). Absent when the server sent nothing readable.
+   */
+  readonly details?: Readonly<Record<string, unknown>>;
 
   constructor(
     message: string,
     readonly status: number,
     code?: string,
+    details?: Readonly<Record<string, unknown>>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -205,6 +212,7 @@ export class ApiError extends Error {
     const wait = code?.match(/^(.+):(\d+)$/);
     this.code = wait ? wait[1] : code;
     this.retryAfterSeconds = wait ? Number(wait[2]) : undefined;
+    this.details = details;
   }
 
   /** True when the server could not be reached at all. */
@@ -296,7 +304,8 @@ export function createApiClient(options: ApiClientOptions) {
       const message = typeof details.message === "string" ? details.message : "Something went wrong. Try again.";
       const code = typeof details.code === "string" ? details.code : undefined;
       if (response.status === 401 && authenticated && token) options.onUnauthorized?.();
-      throw new ApiError(message, response.status, code);
+      const body = data && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>) : undefined;
+      throw new ApiError(message, response.status, code, body);
     }
     return data as T;
   }

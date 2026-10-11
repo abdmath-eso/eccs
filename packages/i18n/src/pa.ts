@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const pa: Messages = {
+export const pa: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ਸਾਫ਼ ਥਾਵਾਂ। ਸੁਰੱਖਿਅਤ ਕੰਮਕਾਜ। ਮਜ਼ਬੂਤ ਕਾਰੋਬਾਰ।",
 
@@ -1085,7 +1085,6 @@ export const pa: Messages = {
   "visit.documents.failed": "ਦਸਤਾਵੇਜ਼ ਖੋਲ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ। ਸਿਗਨਲ ਦੇਖੋ ਅਤੇ ਫਿਰ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
 
   "tile.team": "ਸਟਾਫ",
-  "tile.markAttendance": "ਹਾਜ਼ਰੀ ਲਾਓ",
   "team.title": "ਸਟਾਫ",
   "team.save": "ਸੇਵ ਕਰੋ",
   "team.logins": "ਐਪ ਲੌਗਇਨ ਅਤੇ PIN",
@@ -1095,13 +1094,7 @@ export const pa: Messages = {
   "team.status.ABSENT": "ਗੈਰਹਾਜ਼ਰ",
   "team.status.LEAVE": "ਤਨਖਾਹ ਸਮੇਤ ਛੁੱਟੀ",
   "team.status.WEEKLY_OFF": "ਹਫ਼ਤਾਵਾਰੀ ਛੁੱਟੀ",
-  "team.status.NONE": "ਹਾਜ਼ਰੀ ਨਹੀਂ ਲੱਗੀ",
   "team.att.title": "ਹਾਜ਼ਰੀ",
-  "team.att.hint": "ਕੁਝ ਟੈਪਾਂ ਵਿੱਚ ਅੱਜ ਦੀ ਹਾਜ਼ਰੀ ਲਾਓ, ਜਾਂ ਕੋਈ ਪਿਛਲਾ ਦਿਨ ਠੀਕ ਕਰੋ",
-  "team.att.markAll": "ਸਾਰਿਆਂ ਨੂੰ ਹਾਜ਼ਰ ਲਾਓ",
-  "team.att.markRest": "ਬਾਕੀਆਂ ਨੂੰ ਹਾਜ਼ਰ ਲਾਓ",
-  "team.att.more": "ਹੋਰ",
-  "team.att.clear": "ਹਾਜ਼ਰੀ ਮਿਟਾਓ",
   "team.att.usualOff": "ਪੱਕੀ ਛੁੱਟੀ ਦਾ ਦਿਨ",
   "team.att.locked": "ਇਹ ਦਿਨ ਬਹੁਤ ਪੁਰਾਣਾ ਹੈ, ਹੁਣ ਬਦਲਿਆ ਨਹੀਂ ਜਾ ਸਕਦਾ।",
   "team.att.prevDay": "ਪਿਛਲਾ ਦਿਨ",
@@ -1153,7 +1146,6 @@ export const pa: Messages = {
   "team.job.waiter": "ਵੇਟਰ",
   "team.job.cashier": "ਕੈਸ਼ੀਅਰ",
   "team.job.delivery": "ਡਿਲੀਵਰੀ",
-  "team.record.tapToChange": "ਕੋਈ ਦਿਨ ਬਦਲਣ ਲਈ ਉਸ 'ਤੇ ਟੈਪ ਕਰੋ। {date} ਤੋਂ ਅੱਗੇ ਦੇ ਦਿਨ ਅਜੇ ਬਦਲੇ ਜਾ ਸਕਦੇ ਹਨ।",
   "team.record.checklists": "ਇਸ ਮਹੀਨੇ ਜਮ੍ਹਾਂ ਕੀਤੀਆਂ ਰੋਜ਼ ਦੀਆਂ ਚੈੱਕਲਿਸਟਾਂ: {count}",
   "team.record.pay": "ਇਸ ਮਹੀਨੇ ਦੀ ਤਨਖਾਹ",
   "team.pay.title": "ਤਨਖਾਹ ਦਾ ਹਿਸਾਬ",
@@ -1172,8 +1164,6 @@ export const pa: Messages = {
   "team.pay.overpaid": "ਵੱਧ ਦਿੱਤਾ ਗਿਆ",
   "team.pay.beforeRecords": "ਇਸ ਮਹੀਨੇ ਦਾ ਕੋਈ ਰਿਕਾਰਡ ਨਹੀਂ ਰੱਖਿਆ ਗਿਆ ਸੀ।",
   "team.pay.upTo": "{date} ਤੱਕ",
-  "team.pay.ruleMonthly": "ਮਹੀਨੇ ਦੀ ਤਨਖਾਹ {amount}, ਇਸ ਮਹੀਨੇ ਦੇ {days} ਦਿਨਾਂ ਨਾਲ ਵੰਡੀ ਗਈ। ਹਰ ਗੈਰਹਾਜ਼ਰ ਲਈ ਇੱਕ ਦਿਨ ਦੀ ਅਤੇ ਹਰ ਅੱਧੇ ਦਿਨ ਲਈ ਅੱਧੇ ਦਿਨ ਦੀ ਤਨਖਾਹ ਕੱਟੀ ਜਾਂਦੀ ਹੈ। ਹਫ਼ਤਾਵਾਰੀ ਛੁੱਟੀ, ਤਨਖਾਹ ਸਮੇਤ ਛੁੱਟੀ ਅਤੇ ਜਿਨ੍ਹਾਂ ਦਿਨਾਂ ਦੀ ਹਾਜ਼ਰੀ ਨਹੀਂ ਲੱਗੀ, ਉਨ੍ਹਾਂ ਦੇ ਪੈਸੇ ਮਿਲਦੇ ਹਨ।",
-  "team.pay.ruleDaily": "ਦਿਹਾੜੀ {amount}। ਹਰ ਹਾਜ਼ਰ ਦਿਨ ਅਤੇ ਤਨਖਾਹ ਸਮੇਤ ਛੁੱਟੀ ਦੇ ਹਰ ਦਿਨ ਦੀ ਪੂਰੀ, ਅਤੇ ਅੱਧੇ ਦਿਨ ਦੀ ਅੱਧੀ ਮਿਲਦੀ ਹੈ। ਹਫ਼ਤਾਵਾਰੀ ਛੁੱਟੀ, ਗੈਰਹਾਜ਼ਰ ਅਤੇ ਜਿਨ੍ਹਾਂ ਦਿਨਾਂ ਦੀ ਹਾਜ਼ਰੀ ਨਹੀਂ ਲੱਗੀ, ਉਨ੍ਹਾਂ ਦੀ ਨਹੀਂ ਮਿਲਦੀ।",
   "team.pay.worked": "ਐਪ ਦਾ ਹਿਸਾਬ (ਜਿੰਨੇ ਦਿਨਾਂ ਦੇ ਪੈਸੇ: {days})",
   "team.pay.ownFigure": "ਤੁਹਾਡੀ ਆਪਣੀ ਰਕਮ (₹)",
   "team.pay.ownFigureHint": "ਐਪ ਦੀ ਰਕਮ ਦੀ ਥਾਂ ਇਹ ਵਰਤੀ ਜਾਂਦੀ ਹੈ। ਐਪ ਦੀ ਰਕਮ ਵੀ ਦਿਖਦੀ ਰਹਿੰਦੀ ਹੈ।",

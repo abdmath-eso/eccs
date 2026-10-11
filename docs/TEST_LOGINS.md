@@ -220,15 +220,21 @@ Restart the API and console terminals first. All prices and tax codes are sample
 5. **A visit photo:** as the Supervisor add the same picture twice as proof photos on a visit; as an admin open the visit in the console: the reason is under the photo.
 6. **Far from the kitchen:** take a proof photo on the phone somewhere else; the console shows "Taken ... from the outlet". Nothing is blocked on the phone.
 
-## 17. Trying attendance and the salary tracker
+## 17. Trying face attendance and the salary tracker
 
-1. **App, as the Owner of Deccan Biryani** (`DECCA-KP6R3T`, PIN `3917`): More > Staff. Four sample people are listed. "App logins and PINs" opens the old Staff logins screen.
-2. Add a person paid by the day (for example Rs 600 a day, weekly off Sunday).
-3. **Attendance:** "Mark everyone present", then change one to Half day and one to Absent. Use the arrow to go to yesterday and mark it. Open "Month summary".
-4. Tap a person, tap a day on their calendar to change it, then **"Pay for this month"**: read the rule on screen, add an advance, record a payment, try "Use my own figure", Save, then "Share summary" (on a phone; the browser preview has no share sheet).
-5. **As a Head Chef** (PIN `8264`): More > Mark attendance. Today only, and no pay anywhere.
-6. Edit a person and mark them as left: they leave the list; "Show people who have left" brings them back into view.
-7. **Console:** nothing about restaurant staff appears. ECCS cannot see it.
+First: stop the API and Expo terminals, run `pnpm install` once from `C:\Users\eosfera\eccs`, and start them again. Use Expo Go for now (the APK on the phone is older than this). The phone must be linked to an outlet, not to the restaurant as a whole.
+
+1. **App, as the Owner of Deccan Biryani** (`DECCA-KP6R3T`, PIN `3917`): More > Staff > Add a person. Type a name and the salary, then **Save and add their face**.
+2. Hand the phone to that person. They read the notice and tap **I agree**, then take three photos: straight, a little left, a little right. The phone's own camera opens for each; use the front camera.
+3. Log out to the PIN screen. Tap **Clock in / Clock out**, take the photo, and on "Is this you?" tap **Yes, that's me**. It says "Clocked IN" with the time and goes back by itself.
+4. Scan again straight away: it says you already clocked in. Scan again after 5 minutes: it clocks you OUT and shows the time worked.
+5. Let someone who is not enrolled scan: "Not recognised". Tap **Can't scan?**, pick a person, and type the Owner's PIN (`3917`): it is recorded "with approval".
+6. **As the Owner:** Staff > **To review** shows flagged scans with their photo: "Looks right" or "Void" (with a reason). Staff > **Attendance** > tap a person: add a missing clock-out, or change the day to Leave, each with a reason.
+7. Staff > **Hours for a full day**: 8 and 4 to begin with.
+8. The person's page > **Face for attendance** > **Remove face**: they can no longer be scanned and are clocked in by PIN instead.
+9. **As a Head Chef** (PIN `8264`): More > Attendance shows today, read-only, with no photos and no pay.
+10. **Pay:** tap a person > "Pay for this month" works as before, from the days the clock-ins produced.
+11. Deccan Biryani has no Manager; to try a Manager's approval, add one under "App logins and PINs" first.
 
 ## 18. Trying food labels
 

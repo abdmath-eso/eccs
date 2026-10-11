@@ -12,6 +12,21 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Sunday 11 October 2026
+
+*In progress. The work below began late on Friday 9 October and ran on unattended; the PC's clock read 11 October when it finished, so it is logged here. To be written up at the next end of day.*
+
+**So far**
+
+- The founder asked for attendance by face: a Clock in / Clock out option on the PIN screen that scans the face and marks attendance, no hand-marking by Head Chefs or Managers, the face captured when the Owner adds any employee, and the salary on that same form; with extensive research first, since salary depends on attendance.
+- Three research jobs ran: the technology (where matching should run, which models may be used commercially, stopping a photo of a colleague), the law in India (consent for face data, what happens when someone leaves), and how established attendance apps do it. Notes are in `research_notes/Face attendance/`. Findings that shaped the build: the model most tutorials use is not licensed for commercial use; a face pattern is sensitive personal data needing the employee's own consent; no attendance product works without one fallback and an owner's correction.
+- Server half built: face matching on our own server with YuNet and SFace, encrypted face patterns, consent records, punches, the rules that turn punches into a day's status, the PIN fallback, Owner-only corrections with a reason. The first worker stalled twice (pnpm trying to reinstall against files the running API holds open); a second worker finished it. 489 end-to-end tests pass (26 new), 226 unit tests.
+- The engine was measured on 181 public photos of 38 people: 38 of 40 scans by enrolled people matched, none to the wrong person; no stranger matched, 4 of 81 were "unsure".
+- Phone half built: the button on the PIN screen and the scan screens, the consent notice and face capture when adding a person, a read-only day sheet, the Owner's corrections, review list and hours settings. It uses the phone's own camera app for now because a camera component cannot be installed while the founder's servers are running; the photo-of-a-colleague check waits for that.
+- Not tried on any phone.
+
+---
+
 ## Friday 9 October 2026, after the day was closed
 
 *In progress. The founder called this a new day; the PC's clock still read Friday 9 October, so it is logged under that date. To be written up at the next end of day.*

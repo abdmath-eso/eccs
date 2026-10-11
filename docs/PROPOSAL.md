@@ -208,6 +208,12 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - **SalaryRecord**: StaffMember, month, base pay, days worked, overtime (hours and amount), bonuses, advances, deductions, amount paid, paid on. A record-keeping tracker only: no statutory calculations and no payouts.
 - **As built on 9 Oct 2026:** a staff member is paid a monthly salary or a daily wage, may have a weekly day off, a date of leaving and a link to an app login; advances and payments are kept one by one in **StaffPayEntry**; the pay the app works out from attendance, and the carried balance, can each be overridden. The rules are in STATUS section 3.
 
+### Attendance by face (added 11 Oct 2026)
+- **AttendancePunch**: one clock-in or clock-out: outlet, staff member, server time, IN or OUT, how it was made (face, with an Owner's or Manager's PIN, or an Owner's correction), the match score, a photo kept 35 days, a flag for the Owner, and who voided it and why. Never deleted.
+- **FaceTemplate** (an encrypted face pattern, never a photo), **FaceConsent** (the employee's own acceptance, with the notice's version and language, and its withdrawal), **AttendanceSettings** (hours for a full and a half day, per outlet).
+- **AttendanceRecord** stays the day's final status, which the salary tracker reads; it now says whether it came from the punches or from the Owner, with the minutes worked and any flags.
+- Roles: the Owner enrols faces, corrects days and reviews flags; the Manager reads; the Head Chef sees today's sheet only. Nobody marks attendance by hand.
+
 ### Food labels
 - **FoodItem**: per outlet. Name (translated), shelf life, storage type.
 - **FoodLabel**: FoodItem, prepared at, expires at (worked out from shelf life), prepared by, printed at.

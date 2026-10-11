@@ -208,7 +208,12 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | # | When | Who | Says | Channel (suggested) | Status |
 |---|---|---|---|---|---|
-| T1 | Attendance not marked by a set time today | M, HC | "Attendance has not been marked today." | Push + in-app | not built |
+| T1 | Withdrawn 11 Oct 2026: "attendance not marked". Nobody marks attendance now; see T5 to T9. | | | | withdrawn |
+| T5 | A scan needs the Owner's eye: an unsure match, a possible photo of a colleague, or a punch approved by the Manager's PIN | O | "{name}'s clock-in at {time} needs checking." | Push + in-app | not built |
+| T6 | Each morning: yesterday's days to settle (no clock-out, a short day) | O | "{count} attendance days need settling." | In-app | not built |
+| T7 | Someone on the staff has not clocked in by a set time | O, M | "{name} has not clocked in today." | In-app | not built |
+| T8 | A face is added or removed, or consent withdrawn | O, M | "{name}'s face was added for attendance." | In-app | not built |
+| T9 | Face clock-in is not working at an outlet, or the clock screen was locked after wrong PINs | O; Adm | "Face clock-in is not working at {outlet}." | Push + in-app | not built |
 | T2 | A month's pay still owed after a set day of the next month | O | "{count} people are still owed pay for {month}." | In-app | not built |
 | T3 | The Manager records an advance or a payment | O | "{manager} recorded {amount} for {name}." | In-app | not built |
 | T4 | A person is marked as left, or a past day's attendance is corrected | O | "{name} was marked as left." | In-app | not built |
@@ -233,6 +238,7 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | Date | Change |
 |---|---|
+| 11 Oct 2026 | Face attendance: T1 withdrawn, T5 to T9 added. |
 | 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |
 | 9 Oct 2026 | Added section 16 (staff, food labels, customer page), none built. |
 | 9 Oct 2026 | Added section 15 (new services and photo integrity), none built. |

@@ -282,7 +282,7 @@ describe('Attendance by face (e2e)', () => {
     expect((await identify(phone, face('cook'), fakePhoto([])).expect(400)).body).toMatchObject({ code: 'NO_FACE', photo: 2 });
 
     const stranger = (await identify(phone, face('a-stranger')).expect(200)).body as Identify;
-    expect(stranger).toEqual({ result: 'NO_MATCH', candidate: null, nextKind: null, lastPunchAt: null, lastPunchKind: null, already: false, ticket: null, ticketExpiresAt: null });
+    expect(stranger).toEqual({ result: 'NO_MATCH', candidate: null, nextKind: null, lastPunchAt: null, lastPunchKind: null, already: false, ticket: null, ticketExpiresAt: null, enrolledHere: expect.any(Number) });
     // Someone small in the background does not get in the way.
     const withBackground = (await identify(phone, fakePhoto([{ id: 'cook' }, { id: 'passer-by', size: 60 }])).expect(200)).body as Identify;
     expect(withBackground).toMatchObject({ result: 'MATCH', candidate: { staffId: cookId } });

@@ -130,7 +130,7 @@ export class ClockService {
     const gallery = await this.face.gallery(device.outletId);
     const decision = decideMatch(this.face.scores(gallery, first.template));
     if (!decision.best) {
-      return { result: 'NO_MATCH', candidate: null, nextKind: null, lastPunchAt: null, lastPunchKind: null, already: false, ticket: null, ticketExpiresAt: null };
+      return { result: 'NO_MATCH', candidate: null, nextKind: null, lastPunchAt: null, lastPunchKind: null, already: false, ticket: null, ticketExpiresAt: null, enrolledHere: gallery.length };
     }
 
     const who = decision.best.who;
@@ -164,6 +164,7 @@ export class ClockService {
       already,
       ticket,
       ticketExpiresAt: new Date(expiresAt).toISOString(),
+      enrolledHere: gallery.length,
     };
   }
 

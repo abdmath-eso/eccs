@@ -144,6 +144,12 @@ export interface ClockIdentifyDto {
   /** Send this back to `confirm` within two minutes. Null when there is no candidate. */
   ticket: string | null;
   ticketExpiresAt: string | null;
+  /**
+   * How many people have a face added at this phone's outlet. Faces are only
+   * looked for among them, so when this is 0 nobody can be recognised here and
+   * the app says so instead of "not recognised".
+   */
+  enrolledHere: number;
 }
 
 export interface ClockPunchResultDto {

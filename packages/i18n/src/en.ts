@@ -613,6 +613,8 @@ export const en = {
   "clock.problem.FACE_TOO_SMALL": "Move closer.",
   "clock.problem.TOO_DARK_OR_BLURRED": "Too dark or blurred. Face the light and hold still.",
   "clock.problem.NO_MATCH": "Not recognised.",
+  "clock.noneEnrolled": "No faces are added at {outlet} yet. This phone only recognises people on the staff of {outlet}. The Owner adds them under Staff.",
+  "face.clocksAt": "On the staff of {outlet}. Their face is recognised on that outlet's phones only.",
   "clock.problem.PHOTO": "That photo could not be used. Take it again.",
   "clock.wait": "Too many tries from this phone. Wait a minute and try again.",
   "clock.tooSlow": "That took too long. Scan again.",

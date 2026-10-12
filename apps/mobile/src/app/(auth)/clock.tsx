@@ -204,7 +204,12 @@ export default function ClockScreen() {
         // only when the phone's own camera app had to be used instead; see face-capture.tsx.
         ...(shot.turned && { secondPhoto: shot.turned }),
       });
-      if (found.result === 'NO_MATCH' || !found.candidate || !found.ticket) return failed(t('clock.problem.NO_MATCH'));
+      if (found.result === 'NO_MATCH' || !found.candidate || !found.ticket) {
+        // Faces are only looked for among this outlet's own staff. With none added here, say that:
+        // "not recognised" would send the person round in circles (it did, when staff had been
+        // added at another outlet of the same restaurant). An older server sends no count.
+        return failed(found.enrolledHere === 0 ? t('clock.noneEnrolled', { outlet: linkedDevice?.outletName ?? '' }) : t('clock.problem.NO_MATCH'));
+      }
       setWaited(0);
       setStep({ at: 'confirm', found: { ...found, candidate: found.candidate, ticket: found.ticket } });
     } catch (e) {

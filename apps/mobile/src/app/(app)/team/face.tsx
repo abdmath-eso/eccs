@@ -19,6 +19,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, indiaToday } from '@/lib/format';
 import { useSession } from '@/lib/session';
+import { useOutlet } from '@/lib/use-outlet';
 
 // A person's face for attendance: where it stands, and for the Owner the way
 // to add it, replace it or remove it.
@@ -72,6 +73,8 @@ const NOTICE: { icon: 'business-outline' | 'camera-outline' | 'time-outline' | '
 export default function FaceScreen() {
   const theme = useTheme();
   const { t, api, user, language } = useSession();
+  // To name the outlet this person clocks in at: a face is only recognised on that outlet's phones.
+  const { outlets } = useOutlet();
   const notify = useSnackbar();
   // `fresh` is set when the Owner has just added this person: the screen then offers "Do this later".
   const { staffId, fresh } = useLocalSearchParams<{ staffId: string; fresh?: string }>();
@@ -395,6 +398,12 @@ export default function FaceScreen() {
   // ── Where it stands ──
   return (
     <Screen back title={t('face.title')} subtitle={[name, person.jobTitle].filter(Boolean).join(' · ')}>
+      {/* Said plainly, because an Owner with several outlets can add someone at one and try the phone at another. */}
+      {outlets.some((outlet) => outlet.id === person.outletId) && (
+        <ThemedText type="default">
+          {t('face.clocksAt', { outlet: outlets.find((outlet) => outlet.id === person.outletId)?.name ?? '' })}
+        </ThemedText>
+      )}
       <View style={[styles.card, { borderColor: theme.border }]}>
         <Ionicons
           name={status.enrolled ? 'happy-outline' : 'remove-circle-outline'}

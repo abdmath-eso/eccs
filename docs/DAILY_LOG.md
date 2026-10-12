@@ -14,50 +14,179 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ## Monday 12 October 2026
 
-*In progress. To be written up at the next end of day.*
+The day face attendance met a real phone. The founder tried it for the first time, sent it back twice to be made simpler, and then moved on to how pay is counted and to three questions about the business itself: a pitch deck, where AI fits, and whether the company is viable and should apply to Y Combinator. 12 commits. Pushed to GitHub at the end of the day, together with everything since the push on 9 October.
 
-**So far**
+### Face attendance on a phone
 
-- The founder ran `pnpm install`. A camera component was added and a worker put a live camera inside the app for the face step: an oval guide, a countdown that takes the photo, and a second photo with the head turned when clocking in, which switches on the server's check against a photo of a colleague. Its six pieces of text were translated and a new APK was built. Still not seen on a phone.
-- Later the founder said the countdown camera sounded primitive and asked for it to work like face unlock and identity-check apps: move the face around to add it, no photo-taking to recognise it. A worker added on-device face detection (VisionCamera with Google ML Kit) and rebuilt the step: a head-circle scan with marks that fill in, automatic lock-on and head-turn catch when clocking in, and a three-second auto-confirm with "Not me" on a sure match. The Android app compiled on the second attempt (the first was blocked by an idle build helper holding a file) and the new camera opened on the virtual phone; nothing has run with a real face. The app now needs Android 8 and the APK is about 120 MB. 24 pieces of text translated; APK rebuilt.
-- In the afternoon the founder installed the APK and tried it. Adding a face worked, but clocking in said "Not recognised": the faces had been added to staff at Gachibowli and the phone was linked to Jubilee Hills, and a phone only recognises its own outlet's staff. The clock screen now says when no faces are added at the outlet and the face page names the person's outlet; APK rebuilt at 2:02 pm. The founder then confirmed it works, and asked that a second scan clock the person out and a third clock them in again, instead of "you already clocked in"; the 5-minute rule was replaced by a 10-second one that only catches the same scan arriving twice (a server change: no new APK needed).
-- The founder asked for a pitch deck of at most ten pages. Claude made one as a slide Artifact (private to the founder until shared; not in the repo): problem, solution, product, why now, business model, market, competition, where it stands, team and ask. Figures it had no source for (prices, market size, customers, the amount being raised) are left as brackets for the founder to fill.
-- The founder asked that a new employee's salary start from the day they were onboarded, that the Owner choose the days a month's salary is divided by (30, 31, 28 in February), and that the attendance page be looked at for clutter. A worker built all three: a joining date that defaults to today and pay counted from it; a setting for the divisor (the month's own days, 30, 26 or another number) with the rule shown on the pay screen; and plainer attendance and staff screens after looking at how Jibble, Connecteam, Zoho People and greytHR lay a day out. Claude then looked at phone-size pictures of the result and tightened the top of the screen: the outlet chooser became one line that opens a list, and the filter chips one row that slides. 494 end-to-end tests and 402 unit tests pass. Seen only in a browser at phone size, not on a phone.
-- The founder asked where the Claude API could be used in the app, now or later. Two research jobs ran (what the API can do and costs, read on Anthropic's own pages; and how food-safety, inspection and staff apps use AI). Claude checked the first job's figures against the official pages itself, because its report contradicted itself in places, and wrote `reports/ECCS where AI fits.md`: sixteen uses in three groups, what not to use AI for, the cost at pilot scale, and how it would be built. Nothing was built.
+- The founder ran `pnpm install`, which let a camera component be added. The first version was a camera inside the app with an oval and a countdown. The founder called it primitive and asked for it to work like face unlock: move the face around to add it, no photo-taking to recognise it.
+- It was rebuilt with face detection on the phone (VisionCamera with Google ML Kit). Adding a face is one scan: the person moves their head in a circle and marks round it fill in as five poses are captured. Clocking in locks on by itself when the face is centred and steady and catches a small head turn by itself. A sure match shows the name for three seconds with "Not me" and then marks it; an unsure one still asks.
+- The founder installed the APK and it worked, after one false alarm (see problems). Two changes followed from trying it: the clock screen now says when nobody at the outlet has a face added, and every scan switches between in and out.
+
+### Pay rules and plainer screens
+
+- A person added with no joining date gets today's, and pay for the first month counts from that day. People already on the list with no joining date count from the day they were added to the app.
+- The Owner chooses, per outlet, the days a month's salary is divided by: the month's own days, always 30, always 26, or another number. The pay screen shows how the figure was reached. A month keeps its number once paid or saved.
+- The attendance day view became a plain list with a strip of count chips that filter it, and on all staff screens the outlet chooser became one line that opens a list.
+
+### A pitch deck
+
+- Ten slides, made as a slide Artifact that is private to the founder until shared and is not in the repository. Prices, market size, customers, the team and the amount to raise are left as brackets, because there was no source for them.
+
+### Research: where AI fits
+
+- `reports/ECCS where AI fits.md`. Sixteen possible uses in three groups. Build first: reading a document into the vault form, translating what people type, a nudge at the camera when a proof photo is unusable, a draft of the inspection write-up, and a daily digest. Not for AI: face attendance, the score, inspection marks, attendance or pay. The key stays on the server. Cost at pilot scale: a few hundred rupees a month. Nothing was built.
+
+### Research: is the business viable, and Y Combinator
+
+- Seven lines of research and a report, `reports/ECCS viability and YC fit.md`.
+- **Its verdict:** viable as a specialised hygiene-services company for Hyderabad kitchens, with the app as proof of work, if a paid pilot shows that restaurants pay something near Rs 6,000 a month and renew, that crews stay busy within a few neighbourhoods, and that the work stays specialised. Not a venture-scale business on today's evidence. Software sold by itself to Indian restaurants is not viable. The service cannot be exported; the Gulf is a later market through a licensed local partner.
+- **On Y Combinator:** not as a serious bid for the Winter 2027 batch (deadline 2 November 2026), and not at all if the aim is a profitable local business. For venture scale, apply in 2027 with paying customers and preferably a co-founder. If ECCS already trades with customers, apply on time with the real numbers.
+- **Its weak points, stated in the report:** no price actually paid by a Hyderabad restaurant was found; the market size, margins and odds are the researchers' own arithmetic; and every researcher ran out of web searches part-way through.
+
+### Decisions the founder made
+
+- The face step must work like face unlock, with no photo-taking.
+- Every scan switches between clock in and clock out.
+- A new employee's pay starts on the day they joined, and the Owner chooses the days a month's salary is divided by.
+- The attendance screen was to be made less cluttered.
+
+Decided by Claude and its workers and not yet reviewed by the founder: Android 8 as the minimum; the three-second automatic confirm on a sure match; every threshold in the face camera; that a phone recognises only its own outlet's staff; the pay rule for a part month under "always 30" or "always 26"; that a month locks its number at its first payment; the consent notice saying "a few photos". All are in `STATUS.md` sections 3 and 4. Not decided: whether to use AI at all, and whether to apply to Y Combinator.
+
+### How it was tested
+
+- 494 automated end-to-end tests pass in 27 files, and 402 unit tests. The full build, type check and lint pass with every language required to have every key.
+- **By the founder, on a phone:** adding a face and clocking in work.
+- By Claude: the new face camera opened and ran its detector on the virtual phone, which has no face to show it. The pay and attendance screens were looked at in a browser at phone size, on test copies of the server and the app.
+- The newest APK is from 2:02 pm. It has face attendance; it does not have the pay rules or the plainer screens.
+- Not tried by anyone on a phone: switching between in and out, the PIN fallback, the Owner's review list and corrections, the hours and pay-days settings, the Manager's and Head Chef's views, and everything about pay built today.
+
+### Problems found
+
+- **"Not recognised" on the founder's first try.** The faces had been added to staff at Gachibowli and the phone was linked to Jubilee Hills; a phone recognises only its own outlet's staff. The matching was working. The message was the fault, and it now says what is wrong.
+- **An APK was ready about 15 minutes before the founder was told.** The build tool leaves a helper running, so the "finished" signal never came, and Claude waited for it instead of looking at the file. A later build's leftover process was stopped by the system for low memory, after the APK had been written.
+- **The Android build was blocked once** by that same idle helper holding a file. And the build script puts `package.json` back as it was in git, which removes a dependency that has been added but not yet committed.
+- **Claude told the founder that Anthropic keeps nothing that is sent to it.** Its policy is deletion within 30 days. Corrected the same day. The first research job's fact sheet contradicted itself in places, so its figures were checked against Anthropic's own pages before being used.
+- **The viability research ran out of web searches.** All seven researchers lost them part-way, and the report marks which conclusions rest on thin evidence.
+- **The founder's server was running old code** while the app preview already had the new screens; the pay screen fails against an older server.
+
+### Left open at the end of the day
+
+- **For the founder to try:** restart the server (`pnpm build`, then `pnpm --filter @eccs/api start`) and follow `docs/TEST_LOGINS.md` sections 17 and 18. A new APK with the pay rules and plainer screens has not been built.
+- **For the founder to answer, since the viability verdict turns on them:** whether ECCS already trades with paying customers and a crew; the founder's own history in the trade; and whether the aim is investment and fast growth or a profitable local business.
+- **The report's next steps:** phone five vendors for real quotes, talk to ten to twenty restaurant operators about what they pay now, and get three to five restaurants to pay for a first job before anything else is built.
+- **Decisions waiting** in `STATUS.md` section 4: the face attendance defaults; one wording for "Clock in / Clock out" across the languages; whether staff of one outlet may clock in at another; the pay rule; whether the Head Chef may add a food label; whether to use AI and which use first.
+- **Before real employees use face attendance:** a lawyer on the consent notice, and a week's trial at one outlet with 15 to 20 people.
+- Still open from before: the ECCS logo; a hosted server; a registered company; ECCS's real GSTIN and bank details; real prices; a review of the translations and of the 50 SOPs.
+
+### Carried over from 11 October
+
+- The camera inside the app and the check against a photo of a colleague, which waited for `pnpm install`: done today.
+- Trying face attendance on a phone: done by the founder for adding a face and clocking in. The rest is still to try.
 
 ---
 
 ## Sunday 11 October 2026
 
-*In progress. The work below began late on Friday 9 October and ran on unattended; the PC's clock read 11 October when it finished, so it is logged here. To be written up at the next end of day.*
+Not a working day for the founder. The face attendance build, asked for late on 9 October, ran on unattended, and the PC's clock read 11 October when it finished. 4 commits. Not pushed until 12 October.
 
-**So far**
+### The research
 
-- The founder asked for attendance by face: a Clock in / Clock out option on the PIN screen that scans the face and marks attendance, no hand-marking by Head Chefs or Managers, the face captured when the Owner adds any employee, and the salary on that same form; with extensive research first, since salary depends on attendance.
-- Three research jobs ran: the technology (where matching should run, which models may be used commercially, stopping a photo of a colleague), the law in India (consent for face data, what happens when someone leaves), and how established attendance apps do it. Notes are in `research_notes/Face attendance/`. Findings that shaped the build: the model most tutorials use is not licensed for commercial use; a face pattern is sensitive personal data needing the employee's own consent; no attendance product works without one fallback and an owner's correction.
-- Server half built: face matching on our own server with YuNet and SFace, encrypted face patterns, consent records, punches, the rules that turn punches into a day's status, the PIN fallback, Owner-only corrections with a reason. The first worker stalled twice (pnpm trying to reinstall against files the running API holds open); a second worker finished it. 489 end-to-end tests pass (26 new), 226 unit tests.
-- The engine was measured on 181 public photos of 38 people: 38 of 40 scans by enrolled people matched, none to the wrong person; no stranger matched, 4 of 81 were "unsure".
-- Phone half built: the button on the PIN screen and the scan screens, the consent notice and face capture when adding a person, a read-only day sheet, the Owner's corrections, review list and hours settings. It uses the phone's own camera app for now because a camera component cannot be installed while the founder's servers are running; the photo-of-a-colleague check waits for that.
-- Not tried on any phone.
+- Three research jobs ran first, because salary would come to depend on this: the technology (where matching should run, which models may be used commercially, stopping a photo of a colleague), the law in India (consent for face data, what happens when someone leaves), and how established attendance apps do it. Notes are kept on this PC in `research_notes/Face attendance/` and are not in git.
+- **What shaped the build:** the face model most tutorials use is licensed for research only; a face pattern is sensitive personal data that needs the employee's own consent; and no attendance product works without one fallback and an owner's correction.
+
+### The server half
+
+- Face matching on our own server with two openly licensed models (YuNet and SFace). Only an encrypted face pattern is kept, and only after a recorded consent. Every clock-in and clock-out is kept with its score and a photo for 35 days.
+- The rules that turn those into a day's status: a day runs from 4 am to 4 am, all the pairs are added up, 8 hours is a full day and 4 a half day. The salary tracker reads the result as before.
+- Hand-marking was removed. Only the Owner corrects a day, with a reason. An Owner's or Manager's PIN is the one fallback when a face will not scan.
+
+### The phone half
+
+- A "Clock in / Clock out" button on the PIN screen and the scan screens behind it; the consent notice and face capture when a person is added; a read-only day sheet; the Owner's corrections, review list and hours settings.
+- It used the phone's own camera app, because a camera component could not be installed while the founder's servers were running.
+
+### Decisions the founder made
+
+- From the request on 9 October: attendance is by face at the PIN screen; nobody marks it by hand, Managers and Head Chefs included; the Owner captures every employee's face when adding them, on the same form as the salary.
+
+Added by Claude from the research and not yet reviewed by the founder: the consent step; the PIN fallback; Owner-only corrections with a reason; the 4 am day and the 8 and 4 hours; a photo with every scan, kept 35 days; an unsure match allowed but flagged; matching on our own server.
+
+### How it was tested
+
+- 489 automated end-to-end tests passed (26 new) and 226 unit tests.
+- The matching was measured on 181 public photos of 38 people: 38 of 40 scans by enrolled people matched and none matched the wrong person; no stranger matched, and 4 of 81 were "unsure". These were press photos, not kitchen phones.
+- Nothing was tried on a phone.
+
+### Problems found
+
+- **The first worker stalled twice** and had to be replaced. The cause was `pnpm` trying to reinstall packages against files the founder's running server held open.
+- **The translators did not agree on "Clock in / Clock out":** native words in five languages, the English phrase in local script in six.
+
+### Left open at the end of the day
+
+- The founder to stop the servers and run `pnpm install`, so that a camera can be put inside the app and the check against a photo of a colleague switched on.
+- A lawyer to read the consent notice. A trial at one outlet before salary depends on it.
+
+### Carried over from 9 October
+
+- Nothing: this work was the last request of that day.
 
 ---
 
 ## Friday 9 October 2026, after the day was closed
 
-*In progress. The founder called this a new day; the PC's clock still read Friday 9 October, so it is logged under that date. To be written up at the next end of day.*
+The founder called this a new day; the PC's clock still read Friday 9 October, so it is logged under that date. Phase 1d was built, food labels were changed twice at the founder's word, a printer was started and stopped, and the founder asked how the app gets to the Play Store. 12 commits. Not pushed until 12 October.
 
-**So far**
+### Phase 1d
 
-- Founder asked to start phase 1d: attendance and salary, food labels, the customer QR page. Claude prepared the shared files and started three workers, one for each.
-- All three came back built. Staff: people, a day sheet for attendance with month views, and a salary tracker with pay worked out from attendance and overridable, advances and payments, a carried balance and a text summary to share. Food labels: items with shelf lives and a starter list, a label in two taps drawn as a picture, printing through the phone's print screen, a shared picture or an A4 sheet (no label printer has been chosen), a fridge list and counts on Home. Customer page: a public page per outlet showing the ECCS inspection result with its date and report number and saying plainly that it is not a government rating, off by default and switched on only by the Owner, with photos approved by ECCS.
-- Checked together: build, type check, lint and unit tests pass; 461 end-to-end tests pass (67 new). One test file had a type error from its worker, fixed by Claude.
-- The 393 new pieces of text were translated into the other eleven languages by six translation jobs and merged.
-- The founder asked for labels to be simpler: anyone creates their own label with a name and a length of time such as "8 hours" or "1 day", never an exact expiry time, and the prepared time is the moment Print is pressed. A worker rebuilt the make-a-label screen around one "name of the food" field that finds a saved label or starts a new one, with the length as buttons, and removed the time-adjusting buttons. 470 end-to-end tests pass (9 new for labels).
-- The founder sent photos of a printer on hand, a Rugtek RP326-USE: an 80 mm receipt printer with USB, Serial and LAN and no Bluetooth. Claude researched it, told the founder it prints receipt slips and not sticky labels and would be reached through the router, and started a worker on printing to it over the network. The founder then said to stop and not print. The worker was stopped and everything it had done was removed: six changed files put back, six new files deleted, and the empty table it had added to the local database dropped along with its migration record.
-- The founder asked for the steps to put the app on the Google Play store, then for the hosting options and costs, then how internal testing works and whether a personal account can become an organisation account later. Claude checked Google's help pages and answered: internal testing takes up to 100 invited testers and is live within minutes; a personal account opened after 13 November 2023 must run a closed test with 12 testers for 14 days before a public release; a personal account can be converted to an organisation account, one way only, with a D-U-N-S number and a verified website.
-- The founder said ECCS is not a registered company, so a personal developer account is opened now and converted later, and hosting waits. Claude gave the steps; the founder does the sign-up, not Claude.
-- The founder asked for a document to share with others on what an organisation account needs on both stores, the D-U-N-S number, DLT for SMS, WhatsApp as an option, and hosting with costs, as a PDF. Claude checked the requirements against Google's, Apple's and Meta's own pages, took DLT fees, WhatsApp rates in rupees and server prices from guides and price listings and marked those as secondary, and made `docs/ECCS go-live requirements.pdf` (13 pages). It lists what could not be confirmed, among them whether a sole proprietorship can get a D-U-N-S number and an organisation account, and whether a converted account is released from the 12-tester rule.
-- The founder asked whether the APK had the latest changes (it did) and then described a new Food labels screen, with the Jolt app as the model: a search bar, every saved label with − 0 + beside it, one Print at the bottom for all of them, adding a label that is missing, only the Owner and Manager changing labels, prepared-by taken from the account, and no "use by / used up / thrown away" page. Claude looked up Jolt's label screens and Baymard's research on counters in a list, a worker rebuilt the screen that way and removed the fridge page, the Home counts and their five API calls, and three translation jobs put the 32 new or reworded pieces of text into the other eleven languages. 463 end-to-end tests and 184 unit tests pass. Not seen on a phone by Claude.
+- Three workers built the three parts at once. **Staff:** people, a day sheet for attendance with month views, and a salary tracker with pay worked out from attendance and overridable, advances and payments, a carried balance and a text summary to share. **Food labels:** items with shelf lives and a starter list, a label drawn as a picture, printing through the phone's print screen, a shared picture or an A4 sheet. **Customer page:** a public page per outlet showing the ECCS inspection result with its date and report number, saying plainly that it is not a government rating, off by default, with photos approved by ECCS.
+- The 393 new pieces of text were translated into the other eleven languages.
+
+### Food labels, changed twice
+
+- First the founder asked for labels to be simpler: anyone makes a label from a name and a length of time such as "8 hours", never an exact time, and "prepared" is the moment Print is pressed.
+- Later the founder described the screen wanted, with the Jolt app as the model: a search bar, every saved label with − 0 + beside it, and one Print for all of them; only the Owner and Manager change labels; "prepared by" is the person signed in; no page of "use by, used up, thrown away". The screen was rebuilt that way and the fridge page and Home counts were removed.
+
+### A printer, started and stopped
+
+- The founder sent photos of a printer on hand, a Rugtek RP326-USE. Claude found it is an 80 mm receipt printer with no Bluetooth, which prints slips and not sticky labels, and started a worker on printing to it over the network. The founder said to stop and not print. The worker was stopped and everything it had done was removed.
+
+### Going live
+
+- The founder asked for the steps to the Play Store, the hosting options and costs, and how internal testing works. Claude answered from Google's own help pages.
+- A 13-page document to share, `docs/ECCS go-live requirements.pdf`: a registered business, the D-U-N-S number, the Play and App Store organisation accounts, SMS registration (DLT), WhatsApp, hosting, costs and the order to do things, with each fact marked as official or secondary.
+
+### Decisions the founder made
+
+- Start phase 1d.
+- Food labels: a name and a length of time, prepared at the press of Print; then one list with a counter on each label and a single Print.
+- No direct printing to a printer for now.
+- ECCS is not a registered company, so a personal Google Play developer account is opened now and converted later. Hosting waits.
+
+Decided by Claude and its workers and not yet reviewed by the founder: the salary rules; the limits on labels, including 50 of each and that the Head Chef may add a label but not change one; the wording of the customer page. All are in `STATUS.md` sections 3 and 4.
+
+### How it was tested
+
+- 463 automated end-to-end tests and 184 unit tests passed at the end of this stretch, with the build, type check and lint.
+- An APK was built at 4:40 pm with the new labels screen. It was not installed or run by Claude.
+- Nothing from this stretch was seen on a phone by Claude, and the founder had not yet reported trying it.
+
+### Problems found
+
+- **The go-live document's first print had a squeezed table and two totals that disagreed.** Both were fixed before it was handed over.
+- **The printer on hand is not a label printer.** A true label printer is still to be chosen.
+- **One worker's test file had a type error,** fixed by Claude.
+
+### Left open at the end of the day
+
+- Testing by the founder of all of phase 1d and the new labels screen.
+- The salary rules, the customer page's wording, and which label printer to buy.
+- The founder's sign-up for the Play developer account.
+
+### Carried over from 9 October
+
+- Phase 1d, not started when the day was closed: built in this stretch.
+- Testing by the founder of the new console, the new services and photo integrity: still to do.
 
 ---
 

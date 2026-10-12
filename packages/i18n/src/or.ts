@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const or: Partial<Messages> = {
+export const or: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ସଫା ଜାଗା। ସୁରକ୍ଷିତ କାମ। ମଜବୁତ ବ୍ୟବସାୟ।",
 
@@ -1643,4 +1643,38 @@ export const or: Partial<Messages> = {
 
   "clock.noneEnrolled": "{outlet} ରେ ଏଯାଏଁ କୌଣସି ମୁହଁ ଯୋଡ଼ାଯାଇନାହିଁ। ଏହି ଫୋନ୍ କେବଳ {outlet} ର ଷ୍ଟାଫ୍ ଲୋକଙ୍କୁ ଚିହ୍ନେ। ମାଲିକ ଷ୍ଟାଫ୍ ଭିତରେ ସେମାନଙ୍କୁ ଯୋଡ଼ନ୍ତି।",
   "face.clocksAt": "{outlet} ର ଷ୍ଟାଫ୍ ରେ ଅଛନ୍ତି। ତାଙ୍କ ମୁହଁ କେବଳ ସେହି ଆଉଟଲେଟ୍ ର ଫୋନ୍ ରେ ଚିହ୍ନାଯାଏ।",
+
+  "att.filter.all": "ସବୁ",
+  "att.filter.label": "କେବଳ ଏଗୁଡ଼ିକ ଦେଖାନ୍ତୁ",
+  "att.settings.hours": "ଘଣ୍ଟା",
+  "att.divisor.title": "ମାସର ଦରମାକୁ କେତେ ଦିନରେ ଭାଗ କରାଯିବ",
+  "att.divisor.help": "ଯେଉଁମାନେ ମାସ ହିସାବରେ ଦରମା ପାଆନ୍ତି, ସେମାନଙ୍କ ଏକ ଦିନର ଦରମା ଏଥିରୁ ଠିକ୍ ହୁଏ। ପ୍ରତି ଅନୁପସ୍ଥିତ ଦିନ ପାଇଁ ଏକ ଦିନର ଦରମା କଟାଯାଏ, ଆଉ ଅଧା ଦିନ ପାଇଁ ଅଧା। ପୂରା ମାସରେ ଗୋଟିଏ ବି ଅନୁପସ୍ଥିତ ଦିନ ନଥିଲେ ସବୁବେଳେ ପୂରା ଦରମା ମିଳେ।",
+  "att.divisor.calendar": "ସେହି ମାସର ଦିନ (28 ରୁ 31)",
+  "att.divisor.calendarHint": "ମାସକୁ {salary} ମାନେ 30 ଦିନର ମାସରେ ଦିନକୁ {rate30}, 31 ଦିନର ମାସରେ {rate31} ଆଉ ଫେବୃଆରୀରେ {rate28}।",
+  "att.divisor.fixed": "ସବୁବେଳେ {days} ଦିନ",
+  "att.divisor.fixed30Hint": "ମାସକୁ {salary} ÷ 30 = ଦିନକୁ {rate}, ପ୍ରତି ମାସରେ।",
+  "att.divisor.fixed26Hint": "ମାସକୁ {salary} ÷ 26 = ଦିନକୁ {rate}, ପ୍ରତି ମାସରେ। ଯେଉଁଠି ମାସକୁ 26 କାମ ଦିନ ଧରାଯାଏ, ସେହି ଜାଗା ପାଇଁ।",
+  "att.divisor.other": "ଅନ୍ୟ ସଂଖ୍ୟା",
+  "att.divisor.otherHint": "{min} ରୁ {max} ଭିତରେ ଗୋଟିଏ ପୂର୍ଣ୍ଣ ସଂଖ୍ୟା। 28 ହେଲେ: ମାସକୁ {salary} ÷ 28 = ଦିନକୁ {rate}, ପ୍ରତି ମାସରେ।",
+  "att.divisor.otherLabel": "ଦିନ ସଂଖ୍ୟା",
+  "att.divisor.bad": "{min} ରୁ {max} ଭିତରେ ଗୋଟିଏ ପୂର୍ଣ୍ଣ ସଂଖ୍ୟା ଟାଇପ୍ କରନ୍ତୁ।",
+  "att.divisor.kept": "ଏହା ବଦଳାଇଲେ ଯେଉଁ ମାସରେ ଆଗରୁ ପଇଠ ଅଛି କିମ୍ବା ଯେଉଁ ମାସ ସେଭ୍ ହୋଇସାରିଛି, ସେହି ମାସ ବଦଳେ ନାହିଁ: ସେହି ମାସର ସଂଖ୍ୟା ସେଇଆ ରହେ। ଯେଉଁମାନେ ଦିନ ହିସାବରେ ମଜୁରି ପାଆନ୍ତି, ସେମାନଙ୍କ ଉପରେ ଏହାର ପ୍ରଭାବ ପଡ଼େ ନାହିଁ।",
+  "team.record.joinedOn": "{date} ରେ କାମରେ ଯୋଗ ଦେଇଛନ୍ତି",
+  "team.record.countedFrom": "ଯୋଗ ଦେବା ତାରିଖ ନାହିଁ। ଦରମା {date} ଠାରୁ ଗଣାଯାଇଛି, ଯେଉଁ ଦିନ ତାଙ୍କୁ ଯୋଡ଼ାଯାଇଥିଲା।",
+  "team.record.changeStart": "ବଦଳାନ୍ତୁ",
+  "team.person.joinedHint": "ଦରମା ଏହି ଦିନଠାରୁ ଗଣାଯାଏ।",
+  "team.person.joinedOwnerOnly": "ଦରମା ଏହି ଦିନଠାରୁ ଗଣାଯାଏ। କେବଳ ମାଲିକ ଏହା ବଦଳାଇପାରିବେ।",
+  "team.pay.startJoined": "{date} ରେ କାମରେ ଯୋଗ ଦେଇଛନ୍ତି। {month} ର ଦରମା ସେହି ଦିନଠାରୁ ଗଣାଯାଇଛି।",
+  "team.pay.startAdded": "{date} ରେ ଯୋଡ଼ାଯାଇଛି, ଯୋଗ ଦେବା ତାରିଖ ନାହିଁ। {month} ର ଦରମା ସେହି ଦିନଠାରୁ ଗଣାଯାଇଛି।",
+  "team.pay.how": "ଏହି ହିସାବ କେମିତି ହେଲା",
+  "team.pay.howRateMonth": "ମାସକୁ {amount} ÷ ଏହି ମାସର {days} ଦିନ = ଦିନକୁ {rate}।",
+  "team.pay.howRateFixed": "ମାସକୁ {amount} ÷ {days} ଦିନ = ଦିନକୁ {rate}।",
+  "team.pay.howKept": "ଏହି ମାସ ପାଇଁ {days} ଦିନ ହିଁ ରହିବ: ପଇଠ କିମ୍ବା ସେଭ୍ ହେବା ବେଳେ ଏହି ସେଟିଂ ଥିଲା।",
+  "team.pay.howShare": "ଏହି ମାସର {monthDays} ଦିନରୁ {counted} ଦିନ ଗଣାଯାଇଛି: {amount} × {counted} ÷ {monthDays} = {share}।",
+  "team.pay.howLost": "ଅନୁପସ୍ଥିତ ଓ ଅଧା ଦିନ: {days} × {rate} = {amount} କଟାଯାଇଛି।",
+  "team.person.joined": "ଯୋଗ ଦେବା ତାରିଖ",
+  "team.pay.ruleMonthly": "ପ୍ରତି ଅନୁପସ୍ଥିତ ଦିନ ପାଇଁ ଏକ ଦିନର ଦରମା ଓ ପ୍ରତି ଅଧା ଦିନ ପାଇଁ ଅଧା ଦିନର ଦରମା କଟାଯାଏ। ସାପ୍ତାହିକ ଛୁଟି, ଦରମା ସହ ଛୁଟି ଓ ରେକର୍ଡ ନଥିବା ଦିନର ଦରମା ଦିଆଯାଏ।",
+  "att.settings.title": "ଘଣ୍ଟା ଓ ଦରମା ଦିନ",
+  "att.settings.hint": "ପୂରା ଦିନ ପାଇଁ ଘଣ୍ଟା, ଆଉ ଦରମାକୁ କେତେ ଦିନରେ ଭାଗ କରାଯିବ",
+  "att.settings.applies": "ଏହି ସେଟିଂସ୍ ଏହି ଆଉଟଲେଟ୍ ର ସବୁ ଲୋକଙ୍କ ପାଇଁ।",
 };

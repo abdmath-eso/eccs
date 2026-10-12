@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const te: Partial<Messages> = {
+export const te: Messages = {
   "app.name": "ECCS",
   "app.tagline": "శుభ్రమైన ప్రదేశాలు. సురక్షితమైన కార్యకలాపాలు. బలమైన వ్యాపారాలు.",
 
@@ -1643,4 +1643,38 @@ export const te: Partial<Messages> = {
 
   "clock.noneEnrolled": "{outlet} లో ఇంకా ముఖాలేవీ జోడించలేదు. ఈ ఫోన్ {outlet} సిబ్బందిని మాత్రమే గుర్తిస్తుంది. యజమాని సిబ్బంది విభాగంలో వారిని జోడిస్తారు.",
   "face.clocksAt": "{outlet} సిబ్బందిలో ఉన్నారు. వీరి ముఖాన్ని ఆ అవుట్‌లెట్ ఫోన్‌లు మాత్రమే గుర్తిస్తాయి.",
+
+  "att.filter.all": "అందరూ",
+  "att.filter.label": "ఇవి మాత్రమే చూపించు",
+  "att.settings.hours": "గంటలు",
+  "att.divisor.title": "నెల జీతాన్ని ఎన్ని రోజులతో భాగించాలి",
+  "att.divisor.help": "నెల జీతం తీసుకునే వారికి ఒక రోజు జీతం ఎంతో ఇది నిర్ణయిస్తుంది. ప్రతి గైర్హాజరుకు ఒక రోజు జీతం, సగం రోజుకు సగం కోత పడుతుంది. ఒక్క గైర్హాజరు కూడా లేని పూర్తి నెలకు ఎప్పుడూ పూర్తి జీతం వస్తుంది.",
+  "att.divisor.calendar": "ఆ నెలలోని రోజులు (28 నుండి 31)",
+  "att.divisor.calendarHint": "నెలకు {salary} అంటే 30 రోజుల నెలలో రోజుకు {rate30}, 31 రోజుల నెలలో {rate31}, ఫిబ్రవరిలో {rate28}.",
+  "att.divisor.fixed": "ఎప్పుడూ {days} రోజులు",
+  "att.divisor.fixed30Hint": "నెలకు {salary} ÷ 30 = రోజుకు {rate}, ప్రతి నెలలో.",
+  "att.divisor.fixed26Hint": "నెలకు {salary} ÷ 26 = రోజుకు {rate}, ప్రతి నెలలో. నెలను 26 పని రోజులుగా లెక్కించే చోట్ల కోసం.",
+  "att.divisor.other": "వేరే సంఖ్య",
+  "att.divisor.otherHint": "{min} నుండి {max} వరకు ఒక పూర్ణ సంఖ్య. 28 అయితే: నెలకు {salary} ÷ 28 = రోజుకు {rate}, ప్రతి నెలలో.",
+  "att.divisor.otherLabel": "రోజుల సంఖ్య",
+  "att.divisor.bad": "{min} నుండి {max} వరకు ఒక పూర్ణ సంఖ్య టైప్ చేయండి.",
+  "att.divisor.kept": "దీన్ని మార్చినా, ఇప్పటికే చెల్లింపు ఉన్న లేదా సేవ్ అయిన నెల మారదు: ఆ నెలకు దాని సంఖ్యే ఉంటుంది. రోజు కూలి తీసుకునే వారిపై దీని ప్రభావం ఉండదు.",
+  "team.record.joinedOn": "{date} న పనిలో చేరారు",
+  "team.record.countedFrom": "చేరిన తేదీ లేదు. వీరిని జోడించిన రోజు అయిన {date} నుండి జీతం లెక్కించబడింది.",
+  "team.record.changeStart": "మార్చండి",
+  "team.person.joinedHint": "జీతం ఈ తేదీ నుండి లెక్కించబడుతుంది.",
+  "team.person.joinedOwnerOnly": "జీతం ఈ తేదీ నుండి లెక్కించబడుతుంది. దీన్ని యజమాని మాత్రమే మార్చగలరు.",
+  "team.pay.startJoined": "{date} న పనిలో చేరారు. {month} జీతం ఆ రోజు నుండి లెక్కించబడింది.",
+  "team.pay.startAdded": "{date} న జోడించారు, చేరిన తేదీ లేదు. {month} జీతం ఆ రోజు నుండి లెక్కించబడింది.",
+  "team.pay.how": "ఇది ఎలా లెక్కించారు",
+  "team.pay.howRateMonth": "నెలకు {amount} ÷ ఈ నెలలోని {days} రోజులు = రోజుకు {rate}.",
+  "team.pay.howRateFixed": "నెలకు {amount} ÷ {days} రోజులు = రోజుకు {rate}.",
+  "team.pay.howKept": "ఈ నెలకు {days} రోజులే ఉంటాయి: చెల్లించినప్పుడు లేదా సేవ్ చేసినప్పుడు ఉన్న సెట్టింగ్ ఇదే.",
+  "team.pay.howShare": "ఈ నెలలోని {monthDays} రోజుల్లో {counted} రోజులు లెక్కించబడ్డాయి: {amount} × {counted} ÷ {monthDays} = {share}.",
+  "team.pay.howLost": "గైర్హాజరు మరియు సగం రోజు: {days} × {rate} = {amount} కోత పడింది.",
+  "team.person.joined": "చేరిన తేదీ",
+  "team.pay.ruleMonthly": "ప్రతి గైర్హాజరుకు ఒక రోజు జీతం, ప్రతి సగం రోజుకు సగం రోజు జీతం కోత పడుతుంది. వారపు సెలవు, జీతంతో సెలవు మరియు నమోదు లేని రోజులకు జీతం ఇస్తారు.",
+  "att.settings.title": "గంటలు మరియు జీతం రోజులు",
+  "att.settings.hint": "పూర్తి రోజుకు గంటలు, మరియు జీతాన్ని భాగించే రోజులు",
+  "att.settings.applies": "ఈ సెట్టింగ్‌లు ఈ అవుట్‌లెట్‌లోని అందరికీ వర్తిస్తాయి.",
 };

@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const bn: Partial<Messages> = {
+export const bn: Messages = {
   "app.name": "ECCS",
   "app.tagline": "পরিষ্কার জায়গা। নিরাপদ কাজ। মজবুত ব্যবসা।",
 
@@ -1643,4 +1643,38 @@ export const bn: Partial<Messages> = {
 
   "clock.noneEnrolled": "{outlet}-এ এখনও কোনো মুখ যোগ করা হয়নি। এই ফোন শুধু {outlet}-এর স্টাফদের চেনে। মালিক স্টাফ-এ গিয়ে তাঁদের যোগ করেন।",
   "face.clocksAt": "{outlet}-এর স্টাফ। এঁর মুখ শুধু ওই আউটলেটের ফোনেই চেনা যায়।",
+
+  "att.filter.all": "সবাই",
+  "att.filter.label": "শুধু এগুলো দেখান",
+  "att.settings.hours": "ঘণ্টা",
+  "att.divisor.title": "মাসের বেতন কত দিন দিয়ে ভাগ হবে",
+  "att.divisor.help": "যাঁরা মাস হিসেবে বেতন পান, তাঁদের এক দিনের বেতন এতে ঠিক হয়। প্রতিটি অনুপস্থিত দিনের জন্য এক দিনের বেতন কাটা হয়, আর আধা দিনের জন্য অর্ধেক। পুরো মাসে একদিনও অনুপস্থিত না থাকলে সব সময় পুরো বেতন পাওয়া যায়।",
+  "att.divisor.calendar": "ওই মাসের দিন (28 থেকে 31)",
+  "att.divisor.calendarHint": "মাসে {salary} মানে 30 দিনের মাসে দিনে {rate30}, 31 দিনের মাসে {rate31} আর ফেব্রুয়ারিতে {rate28}।",
+  "att.divisor.fixed": "সব সময় {days} দিন",
+  "att.divisor.fixed30Hint": "মাসে {salary} ÷ 30 = দিনে {rate}, প্রতি মাসে।",
+  "att.divisor.fixed26Hint": "মাসে {salary} ÷ 26 = দিনে {rate}, প্রতি মাসে। যেখানে এক মাসকে 26 কাজের দিন ধরা হয়, সেসব জায়গার জন্য।",
+  "att.divisor.other": "অন্য সংখ্যা",
+  "att.divisor.otherHint": "{min} থেকে {max}-র মধ্যে একটা পূর্ণ সংখ্যা। 28 হলে: মাসে {salary} ÷ 28 = দিনে {rate}, প্রতি মাসে।",
+  "att.divisor.otherLabel": "দিনের সংখ্যা",
+  "att.divisor.bad": "{min} থেকে {max}-র মধ্যে একটা পূর্ণ সংখ্যা লিখুন।",
+  "att.divisor.kept": "এটা বদলালে যে মাসে আগেই পেমেন্ট লেখা আছে বা যে মাস সেভ হয়ে গেছে, সেই মাস বদলায় না: সেই মাসের সংখ্যা যা ছিল তা-ই থাকে। যাঁরা দিন হিসেবে মজুরি পান, তাঁদের ক্ষেত্রে কিছু বদলায় না।",
+  "team.record.joinedOn": "{date} তারিখে কাজে যোগ দিয়েছেন",
+  "team.record.countedFrom": "যোগ দেওয়ার তারিখ নেই। বেতন ধরা হয়েছে {date} থেকে, যেদিন তাঁকে যোগ করা হয়েছিল।",
+  "team.record.changeStart": "বদলান",
+  "team.person.joinedHint": "এই দিন থেকে বেতন ধরা হয়।",
+  "team.person.joinedOwnerOnly": "এই দিন থেকে বেতন ধরা হয়। শুধু মালিক এটা বদলাতে পারেন।",
+  "team.pay.startJoined": "{date} তারিখে কাজে যোগ দিয়েছেন। {month}-এর বেতন সেই দিন থেকে ধরা হয়েছে।",
+  "team.pay.startAdded": "{date} তারিখে যোগ করা হয়েছে, যোগ দেওয়ার তারিখ নেই। {month}-এর বেতন সেই দিন থেকে ধরা হয়েছে।",
+  "team.pay.how": "এই হিসেব কীভাবে হল",
+  "team.pay.howRateMonth": "মাসে {amount} ÷ এই মাসের {days} দিন = দিনে {rate}।",
+  "team.pay.howRateFixed": "মাসে {amount} ÷ {days} দিন = দিনে {rate}।",
+  "team.pay.howKept": "এই মাসে {days} দিনই থাকছে: টাকা দেওয়ার বা সেভ করার সময় এই সেটিংই ছিল।",
+  "team.pay.howShare": "এই মাসের {monthDays} দিনের মধ্যে {counted} দিন ধরা হয়েছে: {amount} × {counted} ÷ {monthDays} = {share}।",
+  "team.pay.howLost": "অনুপস্থিত আর আধা দিন: {days} × {rate} = {amount} কাটা হয়েছে।",
+  "team.person.joined": "যোগ দেওয়ার তারিখ",
+  "team.pay.ruleMonthly": "প্রতিটি অনুপস্থিত দিনের জন্য এক দিনের বেতন আর প্রতিটি আধা দিনের জন্য আধা দিনের বেতন কাটা হয়। সাপ্তাহিক ছুটি, সবেতন ছুটি আর রেকর্ড না থাকা দিনের বেতন দেওয়া হয়।",
+  "att.settings.title": "ঘণ্টা আর বেতনের দিন",
+  "att.settings.hint": "পুরো দিনের ঘণ্টা, আর বেতন কত দিন দিয়ে ভাগ হবে",
+  "att.settings.applies": "এই সেটিংস এই আউটলেটের সবার জন্য।",
 };

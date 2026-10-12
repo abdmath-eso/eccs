@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const pa: Partial<Messages> = {
+export const pa: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ਸਾਫ਼ ਥਾਵਾਂ। ਸੁਰੱਖਿਅਤ ਕੰਮਕਾਜ। ਮਜ਼ਬੂਤ ਕਾਰੋਬਾਰ।",
 
@@ -1643,4 +1643,38 @@ export const pa: Partial<Messages> = {
 
   "clock.noneEnrolled": "{outlet} ਵਿੱਚ ਅਜੇ ਕੋਈ ਚਿਹਰਾ ਨਹੀਂ ਜੋੜਿਆ ਗਿਆ। ਇਹ ਫੋਨ ਸਿਰਫ਼ {outlet} ਦੇ ਸਟਾਫ ਦੇ ਬੰਦਿਆਂ ਨੂੰ ਹੀ ਪਛਾਣਦਾ ਹੈ। ਮਾਲਕ ਸਟਾਫ ਵਿੱਚ ਜਾ ਕੇ ਉਨ੍ਹਾਂ ਨੂੰ ਜੋੜਦਾ ਹੈ।",
   "face.clocksAt": "{outlet} ਦੇ ਸਟਾਫ ਵਿੱਚ ਹੈ। ਇਸ ਦਾ ਚਿਹਰਾ ਸਿਰਫ਼ ਉਸੇ ਆਊਟਲੈੱਟ ਦੇ ਫੋਨਾਂ 'ਤੇ ਹੀ ਪਛਾਣਿਆ ਜਾਂਦਾ ਹੈ।",
+
+  "att.filter.all": "ਸਾਰੇ",
+  "att.filter.label": "ਸਿਰਫ਼ ਇਹ ਦਿਖਾਓ",
+  "att.settings.hours": "ਘੰਟੇ",
+  "att.divisor.title": "ਮਹੀਨੇ ਦੀ ਤਨਖਾਹ ਨੂੰ ਕਿੰਨੇ ਦਿਨਾਂ ਨਾਲ ਭਾਗ ਕਰਨਾ ਹੈ",
+  "att.divisor.help": "ਇਸ ਨਾਲ ਮਹੀਨੇ ਦੀ ਤਨਖਾਹ ਵਾਲੇ ਬੰਦਿਆਂ ਦੀ ਇੱਕ ਦਿਨ ਦੀ ਤਨਖਾਹ ਤੈਅ ਹੁੰਦੀ ਹੈ। ਹਰ ਗੈਰਹਾਜ਼ਰ ਦਿਨ ਲਈ ਇੱਕ ਦਿਨ ਦੀ ਤਨਖਾਹ ਕੱਟੀ ਜਾਂਦੀ ਹੈ, ਅਤੇ ਅੱਧੇ ਦਿਨ ਲਈ ਅੱਧੀ। ਪੂਰੇ ਮਹੀਨੇ ਵਿੱਚ ਕੋਈ ਗੈਰਹਾਜ਼ਰੀ ਨਾ ਹੋਵੇ ਤਾਂ ਹਮੇਸ਼ਾ ਪੂਰੀ ਤਨਖਾਹ ਮਿਲਦੀ ਹੈ।",
+  "att.divisor.calendar": "ਉਸ ਮਹੀਨੇ ਦੇ ਦਿਨ (28 ਤੋਂ 31)",
+  "att.divisor.calendarHint": "{salary} ਮਹੀਨਾ ਮਤਲਬ 30 ਦਿਨਾਂ ਦੇ ਮਹੀਨੇ ਵਿੱਚ {rate30} ਰੋਜ਼, 31 ਦਿਨਾਂ ਦੇ ਮਹੀਨੇ ਵਿੱਚ {rate31} ਅਤੇ ਫ਼ਰਵਰੀ ਵਿੱਚ {rate28}।",
+  "att.divisor.fixed": "ਹਮੇਸ਼ਾ {days} ਦਿਨ",
+  "att.divisor.fixed30Hint": "{salary} ਮਹੀਨਾ ÷ 30 = {rate} ਰੋਜ਼, ਹਰ ਮਹੀਨੇ।",
+  "att.divisor.fixed26Hint": "{salary} ਮਹੀਨਾ ÷ 26 = {rate} ਰੋਜ਼, ਹਰ ਮਹੀਨੇ। ਉਨ੍ਹਾਂ ਥਾਵਾਂ ਲਈ ਜਿੱਥੇ ਮਹੀਨੇ ਵਿੱਚ ਕੰਮ ਦੇ 26 ਦਿਨ ਗਿਣੇ ਜਾਂਦੇ ਹਨ।",
+  "att.divisor.other": "ਕੋਈ ਹੋਰ ਸੰਖਿਆ",
+  "att.divisor.otherHint": "{min} ਤੋਂ {max} ਤੱਕ ਦੀ ਕੋਈ ਪੂਰੀ ਸੰਖਿਆ। 28 ਰੱਖਣ 'ਤੇ: {salary} ਮਹੀਨਾ ÷ 28 = {rate} ਰੋਜ਼, ਹਰ ਮਹੀਨੇ।",
+  "att.divisor.otherLabel": "ਦਿਨਾਂ ਦੀ ਗਿਣਤੀ",
+  "att.divisor.bad": "{min} ਤੋਂ {max} ਤੱਕ ਦੀ ਕੋਈ ਪੂਰੀ ਸੰਖਿਆ ਭਰੋ।",
+  "att.divisor.kept": "ਇਹ ਬਦਲਣ ਨਾਲ ਉਹ ਮਹੀਨਾ ਨਹੀਂ ਬਦਲਦਾ ਜਿਸ ਵਿੱਚ ਪਹਿਲਾਂ ਹੀ ਕੋਈ ਭੁਗਤਾਨ ਦਰਜ ਹੈ ਜਾਂ ਜੋ ਸੇਵ ਹੋ ਚੁੱਕਾ ਹੈ: ਉਸ ਮਹੀਨੇ ਦੀ ਸੰਖਿਆ ਉਹੀ ਰਹਿੰਦੀ ਹੈ। ਦਿਹਾੜੀ ਵਾਲੇ ਬੰਦਿਆਂ 'ਤੇ ਇਸਦਾ ਕੋਈ ਅਸਰ ਨਹੀਂ ਪੈਂਦਾ।",
+  "team.record.joinedOn": "{date} ਨੂੰ ਕੰਮ 'ਤੇ ਲੱਗੇ",
+  "team.record.countedFrom": "ਕੰਮ 'ਤੇ ਲੱਗਣ ਦੀ ਤਾਰੀਖ ਨਹੀਂ ਹੈ। ਤਨਖਾਹ {date} ਤੋਂ ਗਿਣੀ ਗਈ ਹੈ, ਜਿਸ ਦਿਨ ਇਨ੍ਹਾਂ ਨੂੰ ਜੋੜਿਆ ਗਿਆ ਸੀ।",
+  "team.record.changeStart": "ਬਦਲੋ",
+  "team.person.joinedHint": "ਤਨਖਾਹ ਇਸੇ ਦਿਨ ਤੋਂ ਗਿਣੀ ਜਾਂਦੀ ਹੈ।",
+  "team.person.joinedOwnerOnly": "ਤਨਖਾਹ ਇਸੇ ਦਿਨ ਤੋਂ ਗਿਣੀ ਜਾਂਦੀ ਹੈ। ਸਿਰਫ਼ ਮਾਲਕ ਹੀ ਇਹ ਬਦਲ ਸਕਦਾ ਹੈ।",
+  "team.pay.startJoined": "{date} ਨੂੰ ਕੰਮ 'ਤੇ ਲੱਗੇ। {month} ਦੀ ਤਨਖਾਹ ਉਸੇ ਦਿਨ ਤੋਂ ਗਿਣੀ ਗਈ ਹੈ।",
+  "team.pay.startAdded": "{date} ਨੂੰ ਜੋੜਿਆ ਗਿਆ, ਕੰਮ 'ਤੇ ਲੱਗਣ ਦੀ ਤਾਰੀਖ ਨਹੀਂ ਹੈ। {month} ਦੀ ਤਨਖਾਹ ਉਸੇ ਦਿਨ ਤੋਂ ਗਿਣੀ ਗਈ ਹੈ।",
+  "team.pay.how": "ਇਹ ਹਿਸਾਬ ਕਿਵੇਂ ਲੱਗਿਆ",
+  "team.pay.howRateMonth": "{amount} ਮਹੀਨਾ ÷ ਇਸ ਮਹੀਨੇ ਦੇ {days} ਦਿਨ = {rate} ਰੋਜ਼।",
+  "team.pay.howRateFixed": "{amount} ਮਹੀਨਾ ÷ {days} ਦਿਨ = {rate} ਰੋਜ਼।",
+  "team.pay.howKept": "ਇਸ ਮਹੀਨੇ ਲਈ {days} ਦਿਨ ਹੀ ਰਹਿੰਦੇ ਹਨ: ਭੁਗਤਾਨ ਜਾਂ ਸੇਵ ਕਰਨ ਵੇਲੇ ਇਹੀ ਸੈਟਿੰਗ ਸੀ।",
+  "team.pay.howShare": "ਇਸ ਮਹੀਨੇ ਦੇ {monthDays} ਦਿਨਾਂ ਵਿੱਚੋਂ {counted} ਦਿਨ ਗਿਣੇ ਗਏ ਹਨ: {amount} × {counted} ÷ {monthDays} = {share}।",
+  "team.pay.howLost": "ਗੈਰਹਾਜ਼ਰ ਅਤੇ ਅੱਧਾ ਦਿਨ: {days} × {rate} = {amount} ਕੱਟੇ ਗਏ।",
+  "team.person.joined": "ਕੰਮ 'ਤੇ ਲੱਗਣ ਦੀ ਤਾਰੀਖ",
+  "team.pay.ruleMonthly": "ਹਰ ਗੈਰਹਾਜ਼ਰ ਦਿਨ ਲਈ ਇੱਕ ਦਿਨ ਦੀ ਤਨਖਾਹ ਅਤੇ ਹਰ ਅੱਧੇ ਦਿਨ ਲਈ ਅੱਧੇ ਦਿਨ ਦੀ ਤਨਖਾਹ ਕੱਟੀ ਜਾਂਦੀ ਹੈ। ਹਫ਼ਤਾਵਾਰੀ ਛੁੱਟੀ, ਤਨਖਾਹ ਸਮੇਤ ਛੁੱਟੀ ਅਤੇ ਬਿਨਾਂ ਰਿਕਾਰਡ ਵਾਲੇ ਦਿਨਾਂ ਦੀ ਤਨਖਾਹ ਮਿਲਦੀ ਹੈ।",
+  "att.settings.title": "ਘੰਟੇ ਅਤੇ ਤਨਖਾਹ ਦੇ ਦਿਨ",
+  "att.settings.hint": "ਪੂਰੇ ਦਿਨ ਦੇ ਘੰਟੇ, ਅਤੇ ਤਨਖਾਹ ਨੂੰ ਕਿੰਨੇ ਦਿਨਾਂ ਨਾਲ ਭਾਗ ਕਰਨਾ ਹੈ",
+  "att.settings.applies": "ਇਹ ਸੈਟਿੰਗਾਂ ਇਸ ਆਊਟਲੈੱਟ ਦੇ ਸਾਰੇ ਬੰਦਿਆਂ ਲਈ ਹਨ।",
 };

@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const hi: Partial<Messages> = {
+export const hi: Messages = {
   "app.name": "ECCS",
   "app.tagline": "साफ़ जगहें। सुरक्षित संचालन। मज़बूत व्यवसाय।",
 
@@ -1643,4 +1643,38 @@ export const hi: Partial<Messages> = {
 
   "clock.noneEnrolled": "{outlet} में अभी कोई चेहरा नहीं जोड़ा गया है। यह फ़ोन सिर्फ़ {outlet} के स्टाफ के लोगों को पहचानता है। मालिक उन्हें स्टाफ में जाकर जोड़ते हैं।",
   "face.clocksAt": "{outlet} के स्टाफ में हैं। इनका चेहरा सिर्फ़ उसी आउटलेट के फ़ोन पर पहचाना जाता है।",
+
+  "att.filter.all": "सभी",
+  "att.filter.label": "सिर्फ़ ये दिखाएं",
+  "att.settings.hours": "घंटे",
+  "att.divisor.title": "महीने के वेतन को कितने दिनों से भाग दें",
+  "att.divisor.help": "इससे उन लोगों का एक दिन का वेतन तय होता है जिन्हें महीने के हिसाब से वेतन मिलता है। हर गैरहाज़िर दिन पर एक दिन का वेतन कटता है, और आधा दिन पर आधा। पूरे महीने में एक भी गैरहाज़िरी न हो, तो हमेशा पूरा वेतन मिलता है।",
+  "att.divisor.calendar": "उस महीने के दिन (28 से 31)",
+  "att.divisor.calendarHint": "{salary} प्रति महीना यानी 30 दिन के महीने में {rate30} प्रति दिन, 31 दिन के महीने में {rate31} और फ़रवरी में {rate28}।",
+  "att.divisor.fixed": "हमेशा {days} दिन",
+  "att.divisor.fixed30Hint": "{salary} प्रति महीना ÷ 30 = {rate} प्रति दिन, हर महीने में।",
+  "att.divisor.fixed26Hint": "{salary} प्रति महीना ÷ 26 = {rate} प्रति दिन, हर महीने में। उन जगहों के लिए जहां महीने में काम के 26 दिन गिने जाते हैं।",
+  "att.divisor.other": "कोई और संख्या",
+  "att.divisor.otherHint": "{min} से {max} तक की कोई पूरी संख्या। 28 रखने पर: {salary} प्रति महीना ÷ 28 = {rate} प्रति दिन, हर महीने में।",
+  "att.divisor.otherLabel": "दिनों की संख्या",
+  "att.divisor.bad": "{min} से {max} तक की कोई पूरी संख्या लिखें।",
+  "att.divisor.kept": "इसे बदलने से वह महीना नहीं बदलता जिसमें पहले से कोई भुगतान दर्ज है या जो सेव हो चुका है: उस महीने की संख्या वही रहती है। जिन्हें दिन के हिसाब से मज़दूरी मिलती है, उन पर इसका कोई असर नहीं पड़ता।",
+  "team.record.joinedOn": "{date} को काम शुरू किया",
+  "team.record.countedFrom": "काम शुरू करने की तारीख नहीं है। वेतन {date} से गिना गया है, जिस दिन इन्हें जोड़ा गया था।",
+  "team.record.changeStart": "बदलें",
+  "team.person.joinedHint": "वेतन इसी दिन से गिना जाता है।",
+  "team.person.joinedOwnerOnly": "वेतन इसी दिन से गिना जाता है। इसे सिर्फ़ मालिक बदल सकते हैं।",
+  "team.pay.startJoined": "{date} को काम शुरू किया। {month} का वेतन उसी दिन से गिना गया है।",
+  "team.pay.startAdded": "{date} को जोड़ा गया, काम शुरू करने की तारीख नहीं है। {month} का वेतन उसी दिन से गिना गया है।",
+  "team.pay.how": "यह हिसाब कैसे निकला",
+  "team.pay.howRateMonth": "{amount} प्रति महीना ÷ इस महीने के {days} दिन = {rate} प्रति दिन।",
+  "team.pay.howRateFixed": "{amount} प्रति महीना ÷ {days} दिन = {rate} प्रति दिन।",
+  "team.pay.howKept": "इस महीने के लिए {days} दिन ही रहते हैं: भुगतान या सेव करते समय यही सेटिंग थी।",
+  "team.pay.howShare": "इस महीने के {monthDays} दिनों में से {counted} दिन गिने गए हैं: {amount} × {counted} ÷ {monthDays} = {share}।",
+  "team.pay.howLost": "गैरहाज़िर और आधा दिन: {days} × {rate} = {amount} काटे गए।",
+  "team.person.joined": "काम शुरू करने की तारीख",
+  "team.pay.ruleMonthly": "हर गैरहाज़िर पर एक दिन का वेतन और हर आधा दिन पर आधे दिन का वेतन कटता है। साप्ताहिक छुट्टी, वेतन सहित छुट्टी और बिना रिकॉर्ड वाले दिनों का वेतन मिलता है।",
+  "att.settings.title": "घंटे और वेतन के दिन",
+  "att.settings.hint": "पूरे दिन के घंटे, और वेतन को कितने दिनों से भाग दें",
+  "att.settings.applies": "ये सेटिंग इस आउटलेट के सभी लोगों के लिए हैं।",
 };

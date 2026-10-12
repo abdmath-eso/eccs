@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Partial<Messages> = {
+export const gu: Messages = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 
@@ -1643,4 +1643,38 @@ export const gu: Partial<Messages> = {
 
   "clock.noneEnrolled": "{outlet} માં હજી કોઈ ચહેરો ઉમેરેલો નથી. આ ફોન ફક્ત {outlet} ના સ્ટાફના લોકોને જ ઓળખે છે. માલિક સ્ટાફ હેઠળ તેમને ઉમેરે છે.",
   "face.clocksAt": "{outlet} ના સ્ટાફમાં છે. તેમનો ચહેરો ફક્ત તે આઉટલેટના ફોન પર જ ઓળખાય છે.",
+
+  "att.filter.all": "બધા",
+  "att.filter.label": "ફક્ત આ બતાવો",
+  "att.settings.hours": "કલાક",
+  "att.divisor.title": "મહિનાના પગારને કેટલા દિવસ વડે ભાગવો",
+  "att.divisor.help": "જેમને મહિનાના હિસાબે પગાર મળે છે તેમનો એક દિવસનો પગાર આનાથી નક્કી થાય છે. દરેક ગેરહાજર દિવસ માટે એક દિવસનો પગાર કપાય છે, અને અડધા દિવસ માટે અડધો. આખા મહિનામાં એક પણ ગેરહાજરી ન હોય તો હંમેશા પૂરો પગાર મળે છે.",
+  "att.divisor.calendar": "તે મહિનાના દિવસો (28 થી 31)",
+  "att.divisor.calendarHint": "મહિને {salary} એટલે 30 દિવસના મહિનામાં રોજના {rate30}, 31 દિવસના મહિનામાં {rate31} અને ફેબ્રુઆરીમાં {rate28}.",
+  "att.divisor.fixed": "હંમેશા {days} દિવસ",
+  "att.divisor.fixed30Hint": "મહિને {salary} ÷ 30 = રોજના {rate}, દરેક મહિનામાં.",
+  "att.divisor.fixed26Hint": "મહિને {salary} ÷ 26 = રોજના {rate}, દરેક મહિનામાં. જ્યાં મહિનામાં કામના 26 દિવસ ગણાય છે એવી જગ્યાઓ માટે.",
+  "att.divisor.other": "બીજી સંખ્યા",
+  "att.divisor.otherHint": "{min} થી {max} સુધીની પૂર્ણ સંખ્યા. 28 રાખો તો: મહિને {salary} ÷ 28 = રોજના {rate}, દરેક મહિનામાં.",
+  "att.divisor.otherLabel": "દિવસોની સંખ્યા",
+  "att.divisor.bad": "{min} થી {max} સુધીની પૂર્ણ સંખ્યા લખો.",
+  "att.divisor.kept": "આ બદલવાથી જે મહિનામાં પહેલેથી પેમેન્ટ નોંધાયું છે અથવા જે મહિનો સચવાઈ ગયો છે તે બદલાતો નથી: તે મહિનાની સંખ્યા એ જ રહે છે. જેમને રોજની મજૂરી મળે છે તેમને આની અસર થતી નથી.",
+  "team.record.joinedOn": "{date} ના રોજ કામ પર જોડાયા",
+  "team.record.countedFrom": "જોડાયાની તારીખ નથી. પગાર {date} થી ગણ્યો છે, જે દિવસે તેમને ઉમેર્યા હતા.",
+  "team.record.changeStart": "બદલો",
+  "team.person.joinedHint": "પગાર આ દિવસથી ગણાય છે.",
+  "team.person.joinedOwnerOnly": "પગાર આ દિવસથી ગણાય છે. ફક્ત માલિક જ આ બદલી શકે છે.",
+  "team.pay.startJoined": "{date} ના રોજ કામ પર જોડાયા. {month} નો પગાર તે દિવસથી ગણ્યો છે.",
+  "team.pay.startAdded": "{date} ના રોજ ઉમેર્યા, જોડાયાની તારીખ નથી. {month} નો પગાર તે દિવસથી ગણ્યો છે.",
+  "team.pay.how": "આ કેવી રીતે ગણાયું",
+  "team.pay.howRateMonth": "મહિને {amount} ÷ આ મહિનાના {days} દિવસ = રોજના {rate}.",
+  "team.pay.howRateFixed": "મહિને {amount} ÷ {days} દિવસ = રોજના {rate}.",
+  "team.pay.howKept": "આ મહિના માટે {days} દિવસ જ રહે છે: ચૂકવ્યું કે સાચવ્યું ત્યારે આ જ સેટિંગ હતું.",
+  "team.pay.howShare": "આ મહિનાના {monthDays} દિવસમાંથી {counted} દિવસ ગણ્યા છે: {amount} × {counted} ÷ {monthDays} = {share}.",
+  "team.pay.howLost": "ગેરહાજર અને અડધો દિવસ: {days} × {rate} = {amount} કપાયા.",
+  "team.person.joined": "જોડાયાની તારીખ",
+  "team.pay.ruleMonthly": "દરેક ગેરહાજર દિવસ માટે એક દિવસનો પગાર અને દરેક અડધા દિવસ માટે અડધા દિવસનો પગાર કપાય છે. અઠવાડિક રજા, પગાર સાથે રજા અને રેકોર્ડ વગરના દિવસોનો પગાર મળે છે.",
+  "att.settings.title": "કલાક અને પગારના દિવસો",
+  "att.settings.hint": "આખા દિવસના કલાક, અને પગારને કેટલા દિવસ વડે ભાગવો",
+  "att.settings.applies": "આ સેટિંગ્સ આ આઉટલેટના બધા લોકો માટે છે.",
 };

@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ur: Partial<Messages> = {
+export const ur: Messages = {
   "app.name": "ECCS",
   "app.tagline": "صاف جگہیں۔ محفوظ کام۔ مضبوط کاروبار۔",
 
@@ -1643,4 +1643,38 @@ export const ur: Partial<Messages> = {
 
   "clock.noneEnrolled": "{outlet} میں ابھی کوئی چہرہ شامل نہیں کیا گیا۔ یہ فون صرف {outlet} کے اسٹاف کے لوگوں کو پہچانتا ہے۔ مالک انہیں اسٹاف کے تحت شامل کرتے ہیں۔",
   "face.clocksAt": "{outlet} کے اسٹاف میں ہیں۔ ان کا چہرہ صرف اسی آؤٹ لیٹ کے فون پر پہچانا جاتا ہے۔",
+
+  "att.filter.all": "سب",
+  "att.filter.label": "صرف یہ دکھائیں",
+  "att.settings.hours": "گھنٹے",
+  "att.divisor.title": "مہینے کی تنخواہ کو کتنے دنوں سے تقسیم کیا جائے",
+  "att.divisor.help": "اس سے ماہانہ تنخواہ والے لوگوں کی ایک دن کی تنخواہ طے ہوتی ہے۔ ہر غیر حاضر دن پر ایک دن کی تنخواہ کٹتی ہے، اور آدھا دن پر آدھی۔ پورے مہینے میں کوئی غیر حاضری نہ ہو تو ہمیشہ پوری تنخواہ ملتی ہے۔",
+  "att.divisor.calendar": "اس مہینے کے دن (28 سے 31)",
+  "att.divisor.calendarHint": "{salary} ماہانہ یعنی 30 دن کے مہینے میں {rate30} یومیہ، 31 دن کے مہینے میں {rate31} اور فروری میں {rate28}۔",
+  "att.divisor.fixed": "ہمیشہ {days} دن",
+  "att.divisor.fixed30Hint": "{salary} ماہانہ ÷ 30 = {rate} یومیہ، ہر مہینے میں۔",
+  "att.divisor.fixed26Hint": "{salary} ماہانہ ÷ 26 = {rate} یومیہ، ہر مہینے میں۔ ان جگہوں کے لیے جہاں مہینے میں کام کے 26 دن گنے جاتے ہیں۔",
+  "att.divisor.other": "کوئی اور عدد",
+  "att.divisor.otherHint": "{min} سے {max} تک کا کوئی پورا عدد۔ 28 رکھنے پر: {salary} ماہانہ ÷ 28 = {rate} یومیہ، ہر مہینے میں۔",
+  "att.divisor.otherLabel": "دنوں کی تعداد",
+  "att.divisor.bad": "{min} سے {max} تک کا کوئی پورا عدد ٹائپ کریں۔",
+  "att.divisor.kept": "اسے بدلنے سے وہ مہینہ نہیں بدلتا جس میں پہلے سے کوئی ادائیگی درج ہے یا جو محفوظ ہو چکا ہے: اس مہینے کا عدد وہی رہتا ہے۔ یومیہ اجرت والے لوگوں پر اس کا کوئی اثر نہیں پڑتا۔",
+  "team.record.joinedOn": "{date} کو کام پر آئے",
+  "team.record.countedFrom": "کام پر آنے کی تاریخ نہیں ہے۔ تنخواہ {date} سے گنی گئی ہے، جس دن انہیں شامل کیا گیا تھا۔",
+  "team.record.changeStart": "بدلیں",
+  "team.person.joinedHint": "تنخواہ اسی دن سے گنی جاتی ہے۔",
+  "team.person.joinedOwnerOnly": "تنخواہ اسی دن سے گنی جاتی ہے۔ صرف مالک اسے بدل سکتے ہیں۔",
+  "team.pay.startJoined": "{date} کو کام پر آئے۔ {month} کی تنخواہ اسی دن سے گنی گئی ہے۔",
+  "team.pay.startAdded": "{date} کو شامل کیا گیا، کام پر آنے کی تاریخ نہیں ہے۔ {month} کی تنخواہ اسی دن سے گنی گئی ہے۔",
+  "team.pay.how": "یہ حساب کیسے نکلا",
+  "team.pay.howRateMonth": "{amount} ماہانہ ÷ اس مہینے کے {days} دن = {rate} یومیہ۔",
+  "team.pay.howRateFixed": "{amount} ماہانہ ÷ {days} دن = {rate} یومیہ۔",
+  "team.pay.howKept": "اس مہینے کے لیے {days} دن ہی رہتے ہیں: ادائیگی یا محفوظ کرتے وقت یہی سیٹنگ تھی۔",
+  "team.pay.howShare": "اس مہینے کے {monthDays} دنوں میں سے {counted} دن گنے گئے ہیں: {amount} × {counted} ÷ {monthDays} = {share}۔",
+  "team.pay.howLost": "غیر حاضر اور آدھا دن: {days} × {rate} = {amount} کاٹے گئے۔",
+  "team.person.joined": "کام پر آنے کی تاریخ",
+  "team.pay.ruleMonthly": "ہر غیر حاضر دن پر ایک دن کی تنخواہ اور ہر آدھا دن پر آدھے دن کی تنخواہ کٹتی ہے۔ ہفتہ وار چھٹی، تنخواہ کے ساتھ چھٹی اور بغیر ریکارڈ والے دنوں کی تنخواہ ملتی ہے۔",
+  "att.settings.title": "گھنٹے اور تنخواہ کے دن",
+  "att.settings.hint": "پورے دن کے گھنٹے، اور تنخواہ کو کتنے دنوں سے تقسیم کیا جائے",
+  "att.settings.applies": "یہ سیٹنگز اس آؤٹ لیٹ کے سب لوگوں کے لیے ہیں۔",
 };

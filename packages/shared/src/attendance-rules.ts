@@ -48,8 +48,14 @@ export const FACE_RULES = {
    * high the best score: this is the guard against paying a look-alike.
    */
   marginOverSecond: 0.1,
-  /** A second scan by the same person within this many minutes records nothing: "already clocked in". */
-  repeatGuardMinutes: 5,
+  /**
+   * A second scan by the same person within this many seconds records nothing
+   * ("already clocked in"): it only catches the same scan arriving twice. It was
+   * five minutes at first; the founder asked (12 Oct 2026) that every scan
+   * simply switch between in and out, so a person can clock in, out and in again
+   * one after the other.
+   */
+  repeatGuardSeconds: 10,
   /** A ticket from "identify" must be confirmed within this many seconds, and once only. */
   ticketSeconds: 120,
   /** The photo taken at a punch is deleted after this many days. */
@@ -144,7 +150,7 @@ export function nextPunchKind(punchesOfDay: readonly RulePunch[]): PunchKind {
 
 /** True when a scan comes so soon after the person's last punch that it is taken as the same one. */
 export const withinRepeatGuard = (lastPunchAt: number, now: number) =>
-  now - lastPunchAt < FACE_RULES.repeatGuardMinutes * 60_000 && now >= lastPunchAt;
+  now - lastPunchAt < FACE_RULES.repeatGuardSeconds * 1000 && now >= lastPunchAt;
 
 export interface PunchPair {
   inAt: number;

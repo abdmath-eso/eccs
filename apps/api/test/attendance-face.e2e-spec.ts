@@ -328,8 +328,8 @@ describe('Attendance by face (e2e)', () => {
     expect(await cellOf(cookId, A)).toMatchObject({ status: 'PRESENT', source: 'PUNCHES', provisional: true, onDuty: true, punches: 1, firstInAt: ist(A, '09:00').toISOString(), enrolled: true });
   });
 
-  it('takes a second scan within five minutes as the same one', async () => {
-    setClock(A, '09:03');
+  it('takes a second scan within a few seconds as the same one', async () => {
+    clock.setForTest(new Date(ist(A, '09:00').getTime() + 5_000));
     const found = (await identify(phone, face('cook')).expect(200)).body as Identify;
     expect(found).toMatchObject({ result: 'MATCH', already: true, nextKind: 'IN', lastPunchKind: 'IN', lastPunchAt: ist(A, '09:00').toISOString() });
     const again = (await confirm(phone, found.ticket!).expect(200)).body as Punched;
@@ -424,7 +424,7 @@ describe('Attendance by face (e2e)', () => {
     expect(row.photoId).not.toBeNull();
     expect((await prisma.client.linkedDevice.findUniqueOrThrow({ where: { tokenHash: sha256(phone) } })).failedPinAttempts).toBe(0);
 
-    setClock(E, '09:32');
+    clock.setForTest(new Date(Date.parse(byManager.at) + 5_000));
     expect((await assisted(phone, managerPin, porterId).expect(200)).body).toMatchObject({ result: 'ALREADY', punchId: byManager.punchId });
 
     // When the Owner vouches, the Owner has already seen it.

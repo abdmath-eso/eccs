@@ -85,11 +85,12 @@ describe("in or out", () => {
     expect(nextPunchKind([punch(DAY, "14:00", "OUT"), punch(DAY, "09:00", "IN")])).toBe("IN");
   });
 
-  it("treats a scan within five minutes of the last punch as the same one", () => {
+  it("treats a scan within a few seconds of the last punch as the same one, and a later one as the next", () => {
     const last = ist(DAY, "09:00");
-    expect(withinRepeatGuard(last, last + 10_000)).toBe(true);
-    expect(withinRepeatGuard(last, last + 4 * 60_000 + 59_000)).toBe(true);
-    expect(withinRepeatGuard(last, last + FACE_RULES.repeatGuardMinutes * 60_000)).toBe(false);
+    expect(withinRepeatGuard(last, last + 2_000)).toBe(true);
+    expect(withinRepeatGuard(last, last + FACE_RULES.repeatGuardSeconds * 1000 - 1)).toBe(true);
+    expect(withinRepeatGuard(last, last + FACE_RULES.repeatGuardSeconds * 1000)).toBe(false);
+    expect(withinRepeatGuard(last, last + 60_000)).toBe(false);
     expect(withinRepeatGuard(last, last + 60 * 60_000)).toBe(false);
   });
 });

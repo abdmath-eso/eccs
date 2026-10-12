@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const or: Partial<Messages> = {
+export const or: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ସଫା ଜାଗା। ସୁରକ୍ଷିତ କାମ। ମଜବୁତ ବ୍ୟବସାୟ।",
 
@@ -1615,4 +1615,11 @@ export const or: Partial<Messages> = {
   "team.att.hint": "ଆଜି କିଏ ଆସିଛନ୍ତି, ଓ ପ୍ରତି ଦିନର ଆସିବା ଓ ଯିବା ହାଜିରା",
   "team.pay.ruleMonthly": "ମାସିକ ଦରମା {amount}, ଏହି ମାସର {days} ଦିନରେ ଭାଗ କରାଯାଏ। ପ୍ରତି ଅନୁପସ୍ଥିତ ପାଇଁ ଏକ ଦିନର ଓ ପ୍ରତି ଅଧା ଦିନ ପାଇଁ ଅଧା ଦିନର ଟଙ୍କା କଟାଯାଏ। ସାପ୍ତାହିକ ଛୁଟି, ଦରମା ସହ ଛୁଟି ଓ ରେକର୍ଡ ନଥିବା ଦିନର ଟଙ୍କା ଦିଆଯାଏ।",
   "team.pay.ruleDaily": "ଦୈନିକ ମଜୁରି {amount}। ପ୍ରତି ଉପସ୍ଥିତ ଦିନ ଓ ପ୍ରତି ଦରମା ସହ ଛୁଟି ଦିନ ପାଇଁ ଟଙ୍କା ଦିଆଯାଏ, ଆଉ ଅଧା ଦିନ ପାଇଁ ଅଧା। ସାପ୍ତାହିକ ଛୁଟି, ଅନୁପସ୍ଥିତ ଓ ରେକର୍ଡ ନଥିବା ଦିନର ଟଙ୍କା ଦିଆଯାଏ ନାହିଁ।",
+
+  "face.live.turn": "ଏବେ ମୁଣ୍ଡ ଟିକେ ପାଖକୁ ବୁଲାନ୍ତୁ",
+  "face.live.photoIn": "{seconds} ସେକେଣ୍ଡରେ ଫଟୋ",
+  "face.live.hold": "ହଲନ୍ତୁ ନାହିଁ",
+  "face.live.notStarted": "କ୍ୟାମେରା ଚାଲୁ ହେଲା ନାହିଁ",
+  "face.live.usePhoneCamera": "ଏହା ବଦଳରେ ଫୋନ୍ ର କ୍ୟାମେରା ବ୍ୟବହାର କରନ୍ତୁ",
+  "face.cameraNeeded": "ମୁହଁର ଫଟୋ ଉଠାଇବାକୁ କ୍ୟାମେରା ଦରକାର। ECCS କୁ କ୍ୟାମେରା ଅନୁମତି ଦିଅନ୍ତୁ।",
 };

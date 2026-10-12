@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Partial<Messages> = {
+export const gu: Messages = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 
@@ -1615,4 +1615,11 @@ export const gu: Partial<Messages> = {
   "team.att.hint": "આજે કોણ આવ્યું છે, અને દરેક દિવસના ક્લૉક ઇન અને ક્લૉક આઉટ",
   "team.pay.ruleMonthly": "મહિનાનો પગાર {amount}, આ મહિનાના {days} દિવસ વડે ભાગેલો. દરેક ગેરહાજર માટે એક દિવસનો પગાર અને દરેક અડધા દિવસ માટે અડધા દિવસનો પગાર કપાય છે. અઠવાડિક રજા, પગાર સાથે રજા અને રેકોર્ડ વગરના દિવસોનો પગાર મળે છે.",
   "team.pay.ruleDaily": "રોજની મજૂરી {amount}. દરેક હાજર દિવસ અને પગાર સાથે રજાના દરેક દિવસ માટે પૂરી, અને અડધા દિવસ માટે અડધી મળે છે. અઠવાડિક રજા, ગેરહાજર અને રેકોર્ડ વગરના દિવસોની મજૂરી મળતી નથી.",
+
+  "face.live.turn": "હવે માથું થોડું એક બાજુ ફેરવો",
+  "face.live.photoIn": "{seconds} સેકન્ડમાં ફોટો",
+  "face.live.hold": "હલશો નહીં",
+  "face.live.notStarted": "કેમેરા ચાલુ થયો નહીં",
+  "face.live.usePhoneCamera": "તેના બદલે ફોનનો કેમેરા વાપરો",
+  "face.cameraNeeded": "ચહેરાનો ફોટો લેવા માટે કેમેરા જરૂરી છે. ECCS ને કેમેરાની પરવાનગી આપો.",
 };

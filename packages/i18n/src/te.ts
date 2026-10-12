@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const te: Messages = {
+export const te: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "శుభ్రమైన ప్రదేశాలు. సురక్షితమైన కార్యకలాపాలు. బలమైన వ్యాపారాలు.",
 
@@ -1450,7 +1450,6 @@ export const te: Messages = {
   "clock.scan": "నా ముఖాన్ని స్కాన్ చేయండి",
   "clock.checking": "సరిచూస్తోంది…",
   "clock.cantScan": "స్కాన్ కావడం లేదా?",
-  "clock.isThisYou": "ఇది మీరేనా?",
   "clock.weThink": "మీరు {name} అని అనుకుంటున్నాం. అది సరైనదేనా?",
   "clock.will.IN": "రాక నమోదు",
   "clock.will.OUT": "వెళ్లడం నమోదు",

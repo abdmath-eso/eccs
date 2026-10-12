@@ -6,7 +6,7 @@ import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 
-import { FaceCapture } from '@/components/face-capture';
+import { FaceCapture, faceTrackingAvailable } from '@/components/face-capture';
 import { useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,13 @@ import { useSession } from '@/lib/session';
 // beforehand); only then the camera. Saying no costs the person nothing: the
 // Owner or Manager clocks them in instead. As in Jibble's set-up of face data,
 // several photos from slightly different angles are taken, and all must pass.
+//
+// The photos are taken in one of two ways. In the installed app the camera
+// follows the face: one continuous session in which the person moves their
+// head slowly in a circle and up to five photos are kept by themselves, the
+// way a phone's own face unlock is set up ("the scan"). Where that camera is
+// missing (Expo Go, the browser) or will not start, three photos are taken one
+// pose at a time, as before.
 
 // One instruction for each enrolment photo, in the order they are taken.
 const POSES: { instruction: MessageKey; icon: 'happy-outline' | 'arrow-back-circle-outline' | 'arrow-forward-circle-outline' }[] = [
@@ -47,7 +54,8 @@ type Step =
   | { at: 'status' }
   | { at: 'consent' }
   // `acceptedAt`: the moment the employee tapped "I agree". `retake`: the one photo the server asked for again.
-  | { at: 'capture'; acceptedAt: string; photos: (Taken | null)[]; camera: boolean; retake: boolean }
+  // `scan`: the photos come from one continuous session (then `photos` is empty until the scan is done).
+  | { at: 'capture'; acceptedAt: string; photos: (Taken | null)[]; camera: boolean; retake: boolean; scan: boolean }
   | { at: 'done' };
 
 // The consent notice, one short paragraph each, in the order it is read.
@@ -105,7 +113,7 @@ export default function FaceScreen() {
   const name = person.name;
   const date = (iso: string) => formatDate(iso.slice(0, 10), language);
 
-  async function send(acceptedAt: string, photos: Taken[]) {
+  async function send(acceptedAt: string, photos: Taken[], scan: boolean) {
     setBusy(true);
     setError(null);
     try {
@@ -119,11 +127,11 @@ export default function FaceScreen() {
     } catch (e) {
       const code = e instanceof ApiError ? e.code : undefined;
       const details = e instanceof ApiError ? e.details : undefined;
-      // The server says which photo it could not use (1, 2 or 3), where it was one photo's fault.
+      // The server says which photo it could not use (counting from 1), where it was one photo's fault.
       const bad = typeof details?.photo === 'number' && details.photo >= 1 && details.photo <= photos.length ? details.photo - 1 : null;
       const retakeAll = (message: string) => {
         setError(message);
-        setStep({ at: 'capture', acceptedAt, photos: POSES.map(() => null), camera: false, retake: false });
+        setStep({ at: 'capture', acceptedAt, photos: scan ? [] : POSES.map(() => null), camera: false, retake: false, scan });
       };
       if (code === ATTENDANCE_ERROR.facesDiffer) return retakeAll(t('face.error.FACES_DIFFER'));
       if (code === ATTENDANCE_ERROR.faceAlreadyEnrolled) {
@@ -142,13 +150,15 @@ export default function FaceScreen() {
       }
       const key = code ? PHOTO_ERROR[code] : undefined;
       if (key && bad !== null) {
+        // After a scan there is no "photo 2" to take again by itself: the scan is run again, with the reason shown.
+        if (scan) return retakeAll(t(key));
         setError(t('face.error.photoN', { number: bad + 1, problem: t(key) }));
-        return setStep({ at: 'capture', acceptedAt, photos: photos.map((photo, index) => (index === bad ? null : photo)), camera: false, retake: true });
+        return setStep({ at: 'capture', acceptedAt, photos: photos.map((photo, index) => (index === bad ? null : photo)), camera: false, retake: true, scan });
       }
       if (key) return retakeAll(t(key));
       // No signal or a fault: the photos are kept, so "Try again" sends the same ones.
       setError(errorMessage(e, t));
-      setStep({ at: 'capture', acceptedAt, photos, camera: false, retake: false });
+      setStep({ at: 'capture', acceptedAt, photos, camera: false, retake: false, scan });
     } finally {
       setBusy(false);
     }
@@ -215,11 +225,79 @@ export default function FaceScreen() {
               label={t('face.consent.agree')}
               onPress={() => {
                 setError(null);
-                setStep({ at: 'capture', acceptedAt: new Date().toISOString(), photos: POSES.map(() => null), camera: false, retake: false });
+                // One continuous scan where the camera can follow the face; otherwise one pose at a time.
+                const scan = faceTrackingAvailable();
+                setStep({ at: 'capture', acceptedAt: new Date().toISOString(), photos: scan ? [] : POSES.map(() => null), camera: false, retake: false, scan });
               }}
             />
           </View>
         </View>
+      </Screen>
+    );
+  }
+
+  // ── The photos, in one continuous scan ──
+  if (step.at === 'capture' && step.scan) {
+    const taken = step.photos.filter((photo): photo is Taken => photo !== null);
+    return (
+      <Screen back={!busy && !step.camera} onBack={() => setStep({ at: 'status' })} title={t('face.capture.title', { name })}>
+        {taken.length > 0 && (
+          <View style={styles.progress}>
+            {taken.map((photo, index) => (
+              <Image key={index} source={{ uri: photo.uri }} style={[styles.thumbSmall, { borderColor: theme.primary }]} accessibilityLabel={t('face.photoTaken', { number: index + 1 })} />
+            ))}
+          </View>
+        )}
+        <ErrorText message={error} />
+
+        {step.camera ? (
+          <FaceCapture
+            purpose="enrolSweep"
+            onSwept={(sweep) => {
+              setError(null);
+              const photos = sweep.photos.map((file, index) => ({ file, uri: sweep.uris[index] ?? '' }));
+              setStep({ ...step, photos, camera: false });
+              // Nothing more to ask: the photos go straight to the server with the agreement.
+              void send(step.acceptedAt, photos, true);
+            }}
+            onCancel={() => setStep({ ...step, camera: false })}
+            // The camera that follows the face would not start on this phone: the three poses, one at a time.
+            onUnavailable={() => setStep({ ...step, scan: false, photos: POSES.map(() => null), camera: false, retake: false })}
+          />
+        ) : taken.length > 0 ? (
+          // Sent, or waiting to be sent again after "no signal": the same photos are kept.
+          <>
+            <ThemedText type="default" style={styles.center}>
+              {t(busy ? 'face.saving' : 'face.allTaken')}
+            </ThemedText>
+            <Button icon="cloud-upload-outline" label={t(error ? 'common.retry' : 'face.save')} loading={busy} onPress={() => void send(step.acceptedAt, taken, true)} />
+            <Button
+              variant="secondary"
+              icon="refresh"
+              label={t('face.sweep.again')}
+              disabled={busy}
+              onPress={() => {
+                setError(null);
+                setStep({ ...step, photos: [], camera: true });
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <Ionicons name="scan-circle-outline" size={96} color={theme.primary} style={styles.icon} />
+            <ThemedText type="subtitle" style={styles.instruction}>
+              {t('face.sweep.title')}
+            </ThemedText>
+            <ThemedText type="default" style={styles.center}>
+              {t('face.sweep.intro')}
+            </ThemedText>
+            <ThemedText type="default" themeColor="textSecondary" style={styles.center}>
+              {t('face.capture.tips')}
+            </ThemedText>
+            {/* After a scan the server could not use, the reason is shown above and the scan is run again. */}
+            <Button icon="scan-outline" label={t(error ? 'face.sweep.again' : 'face.sweep.start')} onPress={() => setStep({ ...step, camera: true })} />
+          </>
+        )}
       </Screen>
     );
   }
@@ -258,7 +336,7 @@ export default function FaceScreen() {
                 setStep({ ...step, photos, camera: false });
                 // After the one photo the server asked for again, send straight away.
                 const all = photos.filter((photo): photo is Taken => photo !== null);
-                if (step.retake && all.length === POSES.length) void send(step.acceptedAt, all);
+                if (step.retake && all.length === POSES.length) void send(step.acceptedAt, all, false);
               }}
               onCancel={() => setStep({ ...step, camera: false })}
             />
@@ -282,7 +360,7 @@ export default function FaceScreen() {
             <ThemedText type="default" style={styles.center}>
               {t(busy ? 'face.saving' : 'face.allTaken')}
             </ThemedText>
-            <Button icon="cloud-upload-outline" label={t(error ? 'common.retry' : 'face.save')} loading={busy} onPress={() => void send(step.acceptedAt, taken)} />
+            <Button icon="cloud-upload-outline" label={t(error ? 'common.retry' : 'face.save')} loading={busy} onPress={() => void send(step.acceptedAt, taken, false)} />
             <Button
               variant="secondary"
               icon="refresh"
@@ -401,5 +479,7 @@ const styles = StyleSheet.create({
   progress: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.three },
   thumb: { width: 72, height: 72, borderRadius: 36, borderWidth: 3 },
   thumbEmpty: { alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' },
+  // Up to five fit side by side on a narrow phone.
+  thumbSmall: { width: 52, height: 52, borderRadius: 26, borderWidth: 2 },
   card: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three },
 });

@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const or: Messages = {
+export const or: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ସଫା ଜାଗା। ସୁରକ୍ଷିତ କାମ। ମଜବୁତ ବ୍ୟବସାୟ।",
 
@@ -1450,7 +1450,6 @@ export const or: Messages = {
   "clock.scan": "ମୋ ମୁହଁ ସ୍କାନ୍ କରନ୍ତୁ",
   "clock.checking": "ଯାଞ୍ଚ ହେଉଛି…",
   "clock.cantScan": "ସ୍କାନ୍ ହେଉନାହିଁ?",
-  "clock.isThisYou": "ଏ ଆପଣ କି?",
   "clock.weThink": "ଆମକୁ ଲାଗୁଛି ଆପଣ {name}। ଏହା ଠିକ୍ କି?",
   "clock.will.IN": "ଆସିବା ହାଜିରା",
   "clock.will.OUT": "ଯିବା ହାଜିରା",

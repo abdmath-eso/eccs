@@ -37,6 +37,10 @@ module.exports = ({ config }) => {
       ...config.android,
       ...(googleServicesFile && { googleServicesFile }),
     },
-    plugins: [...(config.plugins ?? []), ['expo-build-properties', { android: { usesCleartextTraffic: allowHttp } }]],
+    // minSdkVersion 26 means Android 8.0 or newer. The part that finds a face in the live
+    // camera picture (react-native-vision-camera-face-detector, Google ML Kit) needs it;
+    // without this line the build stops at "uses-sdk:minSdkVersion 24 cannot be smaller than
+    // version 26". Phones on Android 7 can no longer install the app.
+    plugins: [...(config.plugins ?? []), ['expo-build-properties', { android: { usesCleartextTraffic: allowHttp, minSdkVersion: 26 } }]],
   };
 };

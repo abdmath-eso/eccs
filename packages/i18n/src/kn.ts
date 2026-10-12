@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const kn: Messages = {
+export const kn: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ಸ್ವಚ್ಛ ಜಾಗಗಳು. ಸುರಕ್ಷಿತ ಕೆಲಸ. ಬಲವಾದ ವ್ಯಾಪಾರ.",
 
@@ -1450,7 +1450,6 @@ export const kn: Messages = {
   "clock.scan": "ನನ್ನ ಮುಖ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ",
   "clock.checking": "ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…",
   "clock.cantScan": "ಸ್ಕ್ಯಾನ್ ಆಗುತ್ತಿಲ್ಲವೇ?",
-  "clock.isThisYou": "ಇದು ನೀವೇನಾ?",
   "clock.weThink": "ನೀವು {name} ಎಂದು ನಮಗೆ ಅನಿಸುತ್ತಿದೆ. ಅದು ಸರಿಯೇ?",
   "clock.will.IN": "ಕ್ಲಾಕ್ ಇನ್",
   "clock.will.OUT": "ಕ್ಲಾಕ್ ಔಟ್",

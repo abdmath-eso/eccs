@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ml: Messages = {
+export const ml: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "വൃത്തിയുള്ള ഇടങ്ങൾ. സുരക്ഷിതമായ പ്രവർത്തനം. കരുത്തുള്ള ബിസിനസ്.",
 
@@ -1450,7 +1450,6 @@ export const ml: Messages = {
   "clock.scan": "എന്റെ മുഖം സ്കാൻ ചെയ്യുക",
   "clock.checking": "പരിശോധിക്കുന്നു…",
   "clock.cantScan": "സ്കാൻ ആകുന്നില്ലേ?",
-  "clock.isThisYou": "ഇത് നിങ്ങളാണോ?",
   "clock.weThink": "നിങ്ങൾ {name} ആണെന്ന് ഞങ്ങൾ കരുതുന്നു. അത് ശരിയാണോ?",
   "clock.will.IN": "ക്ലോക്ക് ഇൻ",
   "clock.will.OUT": "ക്ലോക്ക് ഔട്ട്",

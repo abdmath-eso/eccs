@@ -1,13 +1,11 @@
-import type { UploadFile } from '@eccs/api-client';
 import { CameraView, PermissionStatus, useCameraPermissions } from 'expo-camera';
-import { File } from 'expo-file-system';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, Modal, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DirectionView } from '@/components/direction-view';
+import { INK, shrink, START_TIMEOUT_MS, SURROUND, type FaceShot, type FaceSweep, type RawPhoto } from '@/components/face-capture-shared';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
@@ -16,6 +14,21 @@ import { useTheme } from '@/hooks/use-theme';
 import { useSession } from '@/lib/session';
 
 // The one place in the app that takes a photo of a face.
+//
+// There are three ways of doing it, and the best one the phone can manage is
+// chosen when the camera is opened:
+//
+//  1. The camera that follows the face (tracked-face-camera.tsx): no countdown
+//     and no button, it watches the face and keeps the pictures by itself. It
+//     needs two native parts (react-native-vision-camera and Google's ML Kit
+//     face detector) that exist only in the installed app, not in Expo Go or
+//     the browser preview. They are loaded only when asked for, so those two
+//     carry on working without them.
+//  2. The countdown camera, below: used where the first is missing, or when it
+//     will not start on a phone.
+//  3. The phone's own camera app, the last resort.
+//
+// The countdown camera, in its own words:
 //
 // It shows the front camera live inside our own screen, the way face clocks
 // and identity checks do (research_notes/Face attendance/product-patterns.md,
@@ -38,21 +51,12 @@ import { useSession } from '@/lib/session';
 // phone whose camera will not start inside the app, and a browser with no
 // webcam. That way takes one photo only, so there is no turned-head check.
 
-/** The photo is shrunk to this many pixels on its longer side: plenty for a face, and quick to send on a weak signal. */
-const LONG_SIDE = 720;
-/** JPEG quality. At this size a photo comes to well under 200 KB; the server accepts up to 1.5 MB. */
-const JPEG_QUALITY = 0.7;
 /** The countdown before the photo looking at the camera: 3, 2, 1. */
 const LOOK_SECONDS = 3;
 /** The shorter countdown before the photo with the head turned. */
 const TURN_SECONDS = 2;
-/** If the live camera has not started after this long, the phone's own camera app is offered instead. */
-const START_TIMEOUT_MS = 8000;
 /** How much taller than wide the oval is. */
 const OVAL_STRETCH = 1.3;
-// The camera screen's own colours, the same in light and dark mode (see the note on the bright surround above).
-const SURROUND = 'rgba(255,255,255,0.9)';
-const INK = '#111111';
 /**
  * Android only: ask the camera for a picture of about this size instead of its
  * largest. A face photo ends up 720 pixels tall anyway, and a 12-megapixel
@@ -61,16 +65,9 @@ const INK = '#111111';
  */
 const ANDROID_PICTURE_SIZE = '1280x960';
 
-export interface FaceShot {
-  /** The photo of the face, ready to hand to the API client. */
-  photo: UploadFile;
-  /** Clocking in only: a second photo with the head turned a little. Missing when the phone's own camera app had to be used. */
-  turned?: UploadFile;
-  /** Where the photo sits on the phone, for showing it on screen. */
-  uri: string;
-}
+export type { FaceShot, FaceSweep };
 
-interface FaceCaptureProps {
+interface CountdownProps {
   /**
    * What the photo is for. Clocking in takes two photos (looking at the camera,
    * then head turned). Enrolling is done with the Owner beside the person, one
@@ -86,25 +83,6 @@ interface FaceCaptureProps {
 
 /** Thrown inside this file when the person has not allowed the app to use the camera. */
 class NoCameraPermission extends Error {}
-
-interface RawPhoto {
-  uri: string;
-  width: number;
-  height: number;
-}
-
-/** Shrinks a photo and saves it as a JPEG, ready to send. */
-async function shrink(raw: RawPhoto): Promise<{ photo: UploadFile; uri: string }> {
-  const context = ImageManipulator.manipulate(raw.uri);
-  if (raw.width >= raw.height && raw.width > LONG_SIDE) context.resize({ width: LONG_SIDE });
-  else if (raw.height > raw.width && raw.height > LONG_SIDE) context.resize({ height: LONG_SIDE });
-  const rendered = await context.renderAsync();
-  const saved = await rendered.saveAsync({ compress: JPEG_QUALITY, format: SaveFormat.JPEG });
-  // On a phone the photo is handed over as an Expo `File` (see lib/photo.ts for why).
-  const photo: UploadFile =
-    Platform.OS === 'web' ? await (await fetch(saved.uri)).blob() : (new File(saved.uri) as unknown as Blob);
-  return { photo, uri: saved.uri };
-}
 
 /** The old way: one photo from the phone's own camera app (in a browser, a picture file). Null when the person backs out. */
 async function takeWithPhoneCamera(): Promise<FaceShot | null> {
@@ -127,12 +105,109 @@ async function takeWithPhoneCamera(): Promise<FaceShot | null> {
   return shrink(asset);
 }
 
+// ───────────────────────── Choosing the camera ─────────────────────────
+
+type TrackedModule = typeof import('./tracked-face-camera');
+// Undefined: not looked for yet. Null: this app has no camera that follows the face.
+let tracked: TrackedModule | null | undefined;
+// Set when that camera would not start on this phone; the countdown camera is used until the app is restarted.
+let trackedBroken = false;
+
+/**
+ * The camera that follows the face, if this app has it. It is fetched here,
+ * the first time it is wanted, and not at the top of the file: in Expo Go and
+ * in the browser its native parts do not exist, and merely loading it there
+ * stops with an error, which is caught and means "not available".
+ */
+function loadTracked(): TrackedModule | null {
+  if (tracked === undefined) {
+    if (Platform.OS === 'web') tracked = null;
+    else {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        tracked = require('./tracked-face-camera') as TrackedModule;
+      } catch {
+        tracked = null;
+      }
+    }
+  }
+  return tracked;
+}
+
+/** True when the camera that follows the face can be used: adding a face is then one continuous session. */
+export function faceTrackingAvailable(): boolean {
+  return !trackedBroken && loadTracked() !== null;
+}
+
+type FaceCaptureProps =
+  | CountdownProps
+  | {
+      /**
+       * Adding a face in one go: the person moves their head slowly in a circle
+       * and three to five photos are kept by themselves. Only where
+       * `faceTrackingAvailable()` is true.
+       */
+      purpose: 'enrolSweep';
+      onSwept: (sweep: FaceSweep) => void;
+      onCancel: () => void;
+      /** The camera that follows the face would not start: take the photos one at a time instead (purpose "enrol"). */
+      onUnavailable: () => void;
+    };
+
 /**
  * Takes a photo of a face. Show it only while a photo is wanted
  * (`{capturing && <FaceCapture ... />}`): it covers the screen with the camera
- * as soon as it appears, and answers through `onCaptured` or `onCancel`.
+ * as soon as it appears, and answers through `onCaptured` (or `onSwept`) or `onCancel`.
  */
-export function FaceCapture({ purpose, instruction, onCaptured, onCancel }: FaceCaptureProps) {
+export function FaceCapture(props: FaceCaptureProps) {
+  // Once the camera that follows the face has failed here, this stays on the countdown camera.
+  const [fellBack, setFellBack] = useState(false);
+  const Tracked = fellBack || !faceTrackingAvailable() ? null : (loadTracked()?.TrackedFaceCamera ?? null);
+
+  if (props.purpose === 'enrolSweep') {
+    if (!Tracked) return <SweepUnavailable onUnavailable={props.onUnavailable} />;
+    return (
+      <Tracked
+        purpose="enrolSweep"
+        onSwept={props.onSwept}
+        onCancel={props.onCancel}
+        onUnavailable={() => {
+          trackedBroken = true;
+          props.onUnavailable();
+        }}
+      />
+    );
+  }
+  // One pose at a time (purpose "enrol") is only ever asked for where the countdown camera is in use.
+  if (Tracked && props.purpose === 'clock') {
+    return (
+      <Tracked
+        purpose="clock"
+        onCaptured={props.onCaptured}
+        onCancel={props.onCancel}
+        onUnavailable={() => {
+          trackedBroken = true;
+          setFellBack(true);
+        }}
+      />
+    );
+  }
+  return <CountdownCapture {...props} />;
+}
+
+/** Asked for the continuous session where it cannot be had: says so at once, and draws nothing. */
+function SweepUnavailable({ onUnavailable }: { onUnavailable: () => void }) {
+  useEffect(() => {
+    onUnavailable();
+    // Once, as it appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
+// ───────────────────────── The countdown camera ─────────────────────────
+
+function CountdownCapture({ purpose, instruction, onCaptured, onCancel }: CountdownProps) {
   const theme = useTheme();
   const { t } = useSession();
   const insets = useSafeAreaInsets();

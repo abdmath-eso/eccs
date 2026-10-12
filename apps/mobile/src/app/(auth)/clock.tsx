@@ -26,9 +26,14 @@ import { useSession } from '@/lib/session';
 // kiosk, Truein, PagarBook Lens; see research_notes/Face attendance): the face
 // alone says who it is, the app decides between IN and OUT from the person's
 // last punch, and when the camera cannot recognise someone the Owner or a
-// Manager vouches with their own PIN and picks the name. We add one step those
-// products leave out: the person confirms "Yes, that's me" before anything is
-// recorded, because a wrong match here would pay the wrong person.
+// Manager vouches with their own PIN and picks the name.
+//
+// When the server is sure who it is, nothing is asked: the name is shown large
+// with "Clocking you IN…", a bar runs for three seconds, and the punch is then
+// recorded by itself, as those products do. We add one thing they leave out:
+// a big "Not me" button during those three seconds, because a wrong match here
+// would pay the wrong person. When the server is only fairly sure, the person
+// is still asked "is that right?" and must answer.
 //
 // Nothing is ever recorded without signal: the server's clock is the one that
 // counts, so a punch is not kept on the phone to send later.
@@ -37,6 +42,10 @@ import { useSession } from '@/lib/session';
 const TRIES_BEFORE_HELP = 3;
 /** How long the "done" screen stays before the PIN screen comes back by itself. */
 const DONE_SECONDS = 5;
+/** A sure match is recorded by itself after this long, unless "Not me" is tapped first. Long enough to read a name and reach the button. */
+const AUTO_CONFIRM_MS = 3000;
+/** How often the bar moves while that time runs. */
+const AUTO_TICK_MS = 100;
 /** The name list gets a search box once it is longer than this. */
 const SEARCH_FROM = 8;
 
@@ -74,6 +83,8 @@ export default function ClockScreen() {
   // Failed scans in a row; "No, not me" counts as one.
   const [fails, setFails] = useState(0);
   const [saving, setSaving] = useState(false);
+  // How much of the three seconds before a sure match is recorded has passed, in milliseconds.
+  const [waited, setWaited] = useState(0);
   // The outlet's staff by name, for the way through the Owner or Manager.
   const [roster, setRoster] = useState<ClockRosterDto | null>(null);
   const [rosterError, setRosterError] = useState<string | null>(null);
@@ -135,6 +146,26 @@ export default function ClockScreen() {
     return () => clearTimeout(timer);
   }, [doneAt]);
 
+  // A sure match: the bar runs, and at its end the punch is recorded without a tap.
+  // Tapping "Not me" (or Back) leaves this step, which stops the timer.
+  const sure = step.at === 'confirm' && step.found.result === 'MATCH' ? step.found : null;
+  const sureTicket = sure?.ticket ?? null;
+  useEffect(() => {
+    if (!sure) return;
+    const started = Date.now();
+    const timer = setInterval(() => {
+      const passed = Date.now() - started;
+      setWaited(Math.min(passed, AUTO_CONFIRM_MS));
+      if (passed >= AUTO_CONFIRM_MS) {
+        clearInterval(timer);
+        void confirm(sure);
+      }
+    }, AUTO_TICK_MS);
+    return () => clearInterval(timer);
+    // Once for each answer from the server; its ticket tells one answer from the next.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sureTicket]);
+
   // Counts down a locked PIN pad by the clock, as on the PIN screen.
   useEffect(() => {
     if (lockedUntil === null) return;
@@ -174,6 +205,7 @@ export default function ClockScreen() {
         ...(shot.turned && { secondPhoto: shot.turned }),
       });
       if (found.result === 'NO_MATCH' || !found.candidate || !found.ticket) return failed(t('clock.problem.NO_MATCH'));
+      setWaited(0);
       setStep({ at: 'confirm', found: { ...found, candidate: found.candidate, ticket: found.ticket } });
     } catch (e) {
       if (await handledEverywhere(e)) return;
@@ -330,13 +362,15 @@ export default function ClockScreen() {
         </View>
       )}
 
-      {/* ── Is this you? Nothing is recorded until "Yes" ── */}
+      {/* ── Who the server found. Sure: recorded by itself after three seconds. Less sure: nothing is recorded until "Yes" ── */}
       {step.at === 'confirm' && (
-        <View style={styles.block}>
-          <ThemedText type="default" style={styles.big}>
-            {/* Less sure of the match: asked as a question, with the name in the sentence as well as in large letters below. */}
-            {step.found.result === 'UNSURE' ? t('clock.weThink', { name: step.found.candidate.name }) : t('clock.isThisYou')}
-          </ThemedText>
+        <View style={styles.block} accessibilityLiveRegion="polite">
+          {step.found.result === 'UNSURE' && (
+            <ThemedText type="default" style={styles.big}>
+              {/* Less sure of the match: asked as a question, with the name in the sentence as well as in large letters below. */}
+              {t('clock.weThink', { name: step.found.candidate.name })}
+            </ThemedText>
+          )}
           <ThemedText type="title" style={styles.name}>
             {step.found.candidate.name}
           </ThemedText>
@@ -355,7 +389,7 @@ export default function ClockScreen() {
                 <View style={[styles.action, styles.actionStrong, { borderColor: theme.primary }]}>
                   <Ionicons name={PUNCH_KIND[step.found.nextKind].icon} size={44} color={theme.primary} />
                   <ThemedText type="subtitle" style={styles.actionText}>
-                    {t(`clock.will.${step.found.nextKind}`)}
+                    {t(step.found.result === 'MATCH' ? `clock.auto.${step.found.nextKind}` : `clock.will.${step.found.nextKind}`)}
                   </ThemedText>
                 </View>
                 {step.found.lastPunchAt && step.found.lastPunchKind && (
@@ -367,8 +401,21 @@ export default function ClockScreen() {
             )
           )}
 
-          <Button icon="checkmark-circle" label={t('clock.yes')} loading={saving} onPress={() => void confirm(step.found)} />
-          <Button variant="secondary" icon="close-circle-outline" label={t('clock.no')} disabled={saving} onPress={() => failed(t('clock.notYou'))} />
+          {step.found.result === 'MATCH' ? (
+            <>
+              {/* The three seconds, as a bar that fills. It grows from the side reading starts on, in Urdu too. */}
+              <View style={[styles.wait, { borderColor: theme.outline }]} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round((waited / AUTO_CONFIRM_MS) * 100) }}>
+                <View style={[styles.waitDone, { backgroundColor: theme.primary, width: `${(waited / AUTO_CONFIRM_MS) * 100}%` }]} />
+              </View>
+              {/* One button, and it is the way out: a wrong name is stopped with a single tap. */}
+              <Button icon="close-circle-outline" label={t('clock.notMe')} disabled={saving} onPress={() => failed(t('clock.notYou'))} />
+            </>
+          ) : (
+            <>
+              <Button icon="checkmark-circle" label={t('clock.yes')} loading={saving} onPress={() => void confirm(step.found)} />
+              <Button variant="secondary" icon="close-circle-outline" label={t('clock.no')} disabled={saving} onPress={() => failed(t('clock.notYou'))} />
+            </>
+          )}
         </View>
       )}
 
@@ -510,6 +557,9 @@ const styles = StyleSheet.create({
   },
   actionStrong: { borderWidth: 3 },
   actionText: { flexShrink: 1, textAlign: 'center', fontSize: 26, lineHeight: 34 },
+  // The bar that fills while a sure match waits to be recorded. A row, so it fills from the start side.
+  wait: { flexDirection: 'row', height: 16, borderWidth: 1, borderRadius: 8, overflow: 'hidden' },
+  waitDone: { height: '100%' },
   person: {
     flexDirection: 'row',
     alignItems: 'center',

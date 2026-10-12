@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Messages = {
+export const gu: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 
@@ -1450,7 +1450,6 @@ export const gu: Messages = {
   "clock.scan": "મારો ચહેરો સ્કૅન કરો",
   "clock.checking": "તપાસીએ છીએ…",
   "clock.cantScan": "સ્કૅન નથી થતું?",
-  "clock.isThisYou": "આ તમે છો?",
   "clock.weThink": "અમને લાગે છે કે તમે {name} છો. બરાબર છે?",
   "clock.will.IN": "ક્લૉક ઇન",
   "clock.will.OUT": "ક્લૉક આઉટ",

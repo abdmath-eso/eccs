@@ -222,11 +222,11 @@ Restart the API and console terminals first. All prices and tax codes are sample
 
 ## 17. Trying face attendance and the salary tracker
 
-First: stop the API and Expo terminals, run `pnpm install` once from `C:\Users\eosfera\eccs`, and start them again. Use Expo Go for now (the APK on the phone is older than this). The phone must be linked to an outlet, not to the restaurant as a whole.
+First: restart the API terminal so it has the attendance code. Use the APK built on 12 Oct, or Expo Go. The phone must be linked to an outlet, not to the restaurant as a whole. The first time, allow the camera when the app asks.
 
 1. **App, as the Owner of Deccan Biryani** (`DECCA-KP6R3T`, PIN `3917`): More > Staff > Add a person. Type a name and the salary, then **Save and add their face**.
-2. Hand the phone to that person. They read the notice and tap **I agree**, then take three photos: straight, a little left, a little right. The phone's own camera opens for each; use the front camera.
-3. Log out to the PIN screen. Tap **Clock in / Clock out**, take the photo, and on "Is this you?" tap **Yes, that's me**. It says "Clocked IN" with the time and goes back by itself.
+2. Hand the phone to that person. They read the notice and tap **I agree**, then take three photos: straight, a little left, a little right. The camera shows inside the app with an oval; a 3-2-1 countdown takes each photo, or tap "Take photo".
+3. Log out to the PIN screen. Tap **Clock in / Clock out**: look at the camera for the first photo, turn your head a little for the second, and on "Is this you?" tap **Yes, that's me**. It says "Clocked IN" with the time and goes back by itself.
 4. Scan again straight away: it says you already clocked in. Scan again after 5 minutes: it clocks you OUT and shows the time worked.
 5. Let someone who is not enrolled scan: "Not recognised". Tap **Can't scan?**, pick a person, and type the Owner's PIN (`3917`): it is recorded "with approval".
 6. **As the Owner:** Staff > **To review** shows flagged scans with their photo: "Looks right" or "Void" (with a reason). Staff > **Attendance** > tap a person: add a missing clock-out, or change the day to Leave, each with a reason.

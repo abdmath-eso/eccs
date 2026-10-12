@@ -24,6 +24,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - The engine was measured on 181 public photos of 38 people: 38 of 40 scans by enrolled people matched, none to the wrong person; no stranger matched, 4 of 81 were "unsure".
 - Phone half built: the button on the PIN screen and the scan screens, the consent notice and face capture when adding a person, a read-only day sheet, the Owner's corrections, review list and hours settings. It uses the phone's own camera app for now because a camera component cannot be installed while the founder's servers are running; the photo-of-a-colleague check waits for that.
 - Not tried on any phone.
+- 12 Oct: the founder ran `pnpm install`. A camera component was added and a worker put a live camera inside the app for the face step: an oval guide, a countdown that takes the photo, and a second photo with the head turned when clocking in, which switches on the server's check against a photo of a colleague. Its six pieces of text were translated and a new APK was built. Still not seen on a phone.
 
 ---
 

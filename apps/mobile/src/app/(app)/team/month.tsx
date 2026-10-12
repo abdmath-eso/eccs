@@ -47,39 +47,40 @@ export default function AttendanceMonthScreen() {
         </ThemedText>
       )}
 
-      {data?.people.map((person) => (
-        <Pressable
-          key={person.staffId}
-          accessibilityRole="button"
-          onPress={() => router.push({ pathname: '/team/[staffId]', params: { staffId: person.staffId, month } })}
-          style={({ pressed }) => [styles.card, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
-          <View style={styles.text}>
-            <ThemedText type="default" style={styles.bold}>
-              {person.name}
-            </ThemedText>
-            {person.jobTitle && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {person.jobTitle}
+      {/* One plain row per person with a thin line between, as on the day's list: the name and their counts.
+          Their job is on their own page. */}
+      <View>
+        {data?.people.map((person, index) => (
+          <Pressable
+            key={person.staffId}
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: '/team/[staffId]', params: { staffId: person.staffId, month } })}
+            style={({ pressed }) => [
+              styles.row,
+              index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+              pressed && { backgroundColor: theme.backgroundElement },
+            ]}>
+            <View style={styles.text}>
+              <ThemedText type="default" numberOfLines={1} style={styles.bold}>
+                {person.name}
               </ThemedText>
-            )}
-            <DayCounts counts={countsOf(person.totals)} />
-          </View>
-          <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
-        </Pressable>
-      ))}
+              <DayCounts counts={countsOf(person.totals)} />
+            </View>
+            <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
+          </Pressable>
+        ))}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    minHeight: MinTouchSize,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
+    minHeight: MinTouchSize + Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
   },
   text: { flex: 1, gap: Spacing.one },
   bold: { fontWeight: 700 },

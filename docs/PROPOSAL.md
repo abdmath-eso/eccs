@@ -213,6 +213,7 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - **FaceTemplate** (an encrypted face pattern, never a photo), **FaceConsent** (the employee's own acceptance, with the notice's version and language, and its withdrawal), **AttendanceSettings** (hours for a full and a half day, per outlet).
 - **AttendanceRecord** stays the day's final status, which the salary tracker reads; it now says whether it came from the punches or from the Owner, with the minutes worked and any flags.
 - Roles: the Owner enrols faces, corrects days and reviews flags; the Manager reads; the Head Chef sees today's sheet only. Nobody marks attendance by hand.
+- **Pay rules (added 12 Oct 2026).** A person's pay counts from the day they joined (today, when none is given). Each outlet chooses the days a month's salary is divided by: that month's own days, always 30, always 26, or another number from 20 to 31 (`AttendanceSettings.salaryDivisorDays`). A day's pay is the salary divided by that number; a part month starts from the share of the salary for the calendar days counted; an absence takes off a day's pay and a half day half; a full month with no absence always pays the whole salary. A month keeps the number it was worked out with once paid or saved (`SalaryRecord.divisorDays`).
 
 ### Food labels
 - **FoodItem**: per outlet. Name (translated), shelf life, storage type.

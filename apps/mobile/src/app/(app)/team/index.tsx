@@ -59,12 +59,19 @@ export default function TeamScreen() {
   // The Head Chef has one thing to see here: who is in today.
   if (!manages) return <Redirect href={can(memberships, 'staff', 'read') ? '/team/attendance' : '/'} />;
 
-  const section = (icon: IconName, title: string, hint: string, href: Href, count = 0) => (
+  // The ways in are one plain list with a thin line between, not a pile of boxes: a list is quicker
+  // to run the eye down than cards and takes less room (Nielsen Norman Group on cards against lists;
+  // Material's two-line list item).
+  const section = (icon: IconName, title: string, hint: string, href: Href, count = 0, first = false) => (
     <Pressable
       accessibilityRole="button"
       onPress={() => router.push(href)}
-      style={({ pressed }) => [styles.section, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
-      <Ionicons name={icon} size={28} color={theme.primary} />
+      style={({ pressed }) => [
+        styles.section,
+        !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+        pressed && { backgroundColor: theme.backgroundElement },
+      ]}>
+      <Ionicons name={icon} size={26} color={theme.primary} />
       <View style={styles.flex}>
         <ThemedText type="default" style={styles.bold}>
           {title}
@@ -89,18 +96,20 @@ export default function TeamScreen() {
     <Screen back title={t('team.title')} onRefresh={reload}>
       <OutletChips outlets={outlets} outletId={outletId} onChoose={choose} />
 
-      {section('checkmark-done-circle-outline', t('team.att.title'), t('team.att.hint'), '/team/attendance')}
-      {can(memberships, 'attendance', 'read') &&
-        section(
-          'flag-outline',
-          t('att.review.title'),
-          extra?.waiting ? t('att.review.waiting', { count: extra.waiting }) : t('att.review.hint'),
-          '/team/review',
-          extra?.waiting ?? 0,
-        )}
-      {can(memberships, 'salary', 'read') && section('wallet-outline', t('team.pay.title'), t('team.pay.hint'), '/team/salary')}
-      {can(memberships, 'attendance', 'read') && section('time-outline', t('att.settings.title'), t('att.settings.hint'), '/team/settings')}
-      {can(memberships, 'restaurantUsers', 'create') && section('key-outline', t('team.logins'), t('team.loginsHint'), '/staff')}
+      <View>
+        {section('checkmark-done-circle-outline', t('team.att.title'), t('team.att.hint'), '/team/attendance', 0, true)}
+        {can(memberships, 'attendance', 'read') &&
+          section(
+            'flag-outline',
+            t('att.review.title'),
+            extra?.waiting ? t('att.review.waiting', { count: extra.waiting }) : t('att.review.hint'),
+            '/team/review',
+            extra?.waiting ?? 0,
+          )}
+        {can(memberships, 'salary', 'read') && section('wallet-outline', t('team.pay.title'), t('team.pay.hint'), '/team/salary')}
+        {can(memberships, 'attendance', 'read') && section('options-outline', t('att.settings.title'), t('att.settings.hint'), '/team/settings')}
+        {can(memberships, 'restaurantUsers', 'create') && section('key-outline', t('team.logins'), t('team.loginsHint'), '/staff')}
+      </View>
 
       {/* ── The people ── */}
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.heading}>
@@ -117,39 +126,42 @@ export default function TeamScreen() {
         </ThemedText>
       )}
 
-      {people?.map((person) => (
-        <Pressable
-          key={person.id}
-          accessibilityRole="button"
-          onPress={() => router.push({ pathname: '/team/[staffId]', params: { staffId: person.id } })}
-          style={({ pressed }) => [styles.person, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
-          <View style={styles.flex}>
-            <ThemedText type="default" style={[styles.bold, !person.isActive && styles.left]}>
-              {person.name}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {[
-                person.jobTitle,
-                person.pay
-                  ? t(person.pay.payType === 'DAILY' ? 'team.pay.perDay' : 'team.pay.perMonth', {
-                      amount: formatMoney(person.pay.payPaise, language),
-                    })
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </ThemedText>
-            {person.leftOn && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {t('team.people.leftOn', { date: formatDate(person.leftOn, language) })}
+      <View>
+        {people?.map((person, index) => (
+          <Pressable
+            key={person.id}
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: '/team/[staffId]', params: { staffId: person.id } })}
+            style={({ pressed }) => [
+              styles.person,
+              index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+              pressed && { backgroundColor: theme.backgroundElement },
+            ]}>
+            <View style={styles.flex}>
+              <ThemedText type="default" numberOfLines={1} style={[styles.bold, !person.isActive && styles.left]}>
+                {person.name}
               </ThemedText>
-            )}
-            {/* Whether the camera can recognise them; shown once known, and only for people still working here. */}
-            {person.isActive && extra && person.id in extra.enrolled && <EnrolledMark enrolled={extra.enrolled[person.id] === true} />}
-          </View>
-          <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
-        </Pressable>
-      ))}
+              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                {[
+                  person.jobTitle,
+                  person.pay
+                    ? t(person.pay.payType === 'DAILY' ? 'team.pay.perDay' : 'team.pay.perMonth', {
+                        amount: formatMoney(person.pay.payPaise, language),
+                      })
+                    : null,
+                  person.leftOn ? t('team.people.leftOn', { date: formatDate(person.leftOn, language) }) : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </ThemedText>
+              {/* Only the exception is said here: someone the camera cannot recognise yet. "Face added" is on the
+                  person's own page. Shown once known, and only for people still working here. */}
+              {person.isActive && extra && extra.enrolled[person.id] === false && <EnrolledMark enrolled={false} />}
+            </View>
+            <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
+          </Pressable>
+        ))}
+      </View>
 
       <Button
         variant="link"
@@ -166,22 +178,19 @@ const styles = StyleSheet.create({
   left: { opacity: 0.6 },
   heading: { marginTop: Spacing.two },
   badge: { minWidth: 28, height: 28, borderRadius: 14, paddingHorizontal: Spacing.two, alignItems: 'center', justifyContent: 'center' },
+  // Plain rows with a thin line between: tall enough for a thumb, no box around each.
   section: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
     minHeight: MinTouchSize + Spacing.three,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
   },
   person: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    minHeight: MinTouchSize,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
+    minHeight: MinTouchSize + Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
   },
 });

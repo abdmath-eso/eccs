@@ -59,7 +59,8 @@ export default function PersonRecordScreen() {
 
   /** What a day shows: its mark, the usual day off where nothing was marked, or nothing yet. Null for a day that does not count. */
   const markOn = (date: string): { mark: DayMark; assumed: boolean } | null => {
-    if (!data || date > today || !worksOn(data.staff, date)) return null;
+    // Days before the person joined (or was added, when they have no joining date) are not theirs.
+    if (!data || date > today || !worksOn({ joinedOn: data.staff.countedFrom, leftOn: data.staff.leftOn }, date)) return null;
     const status = data.marks[date];
     if (status) return { mark: status, assumed: false };
     return weekdayOf(date) === data.staff.weeklyOffDay ? { mark: 'WEEKLY_OFF', assumed: true } : { mark: 'NONE', assumed: false };
@@ -91,6 +92,23 @@ export default function PersonRecordScreen() {
             .filter(Boolean)
             .join(' · ')}
         </ThemedText>
+      )}
+
+      {/* The day their attendance and pay count from. Someone added before joining dates were asked for has
+          none, and is counted from the day they were added; the Owner can put the real date in. */}
+      {staff && (
+        <View style={styles.startRow}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.noteText}>
+            {t(staff.joinedOn ? 'team.record.joinedOn' : 'team.record.countedFrom', { date: formatDate(staff.countedFrom, language) })}
+          </ThemedText>
+          {can(memberships, 'attendance', 'update') && (
+            <Button
+              variant="link"
+              label={t('team.record.changeStart')}
+              onPress={() => router.push({ pathname: '/team/person', params: { staffId: staff.id } })}
+            />
+          )}
+        </View>
       )}
 
       <MonthStepper month={month} thisMonth={thisMonth} earliest={shiftMonth(thisMonth, -MONTHS_BACK)} onChange={setMonth} />
@@ -160,7 +178,7 @@ export default function PersonRecordScreen() {
             <Pressable
               accessibilityRole="button"
               onPress={() => router.push({ pathname: '/team/face', params: { staffId: data.staff.id } })}
-              style={({ pressed }) => [styles.faceRow, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
+              style={({ pressed }) => [styles.faceRow, { borderTopColor: theme.border, borderBottomColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
               <Ionicons name="scan-circle-outline" size={28} color={theme.primary} />
               <View style={styles.noteText}>
                 <ThemedText type="default" style={styles.bold}>
@@ -221,8 +239,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
+    // A plain row between two thin lines, like the rows of the Staff screen, not one more box.
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: Spacing.three,
   },
+  startRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

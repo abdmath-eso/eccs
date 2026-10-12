@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const or: Messages = {
+export const or: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ସଫା ଜାଗା। ସୁରକ୍ଷିତ କାମ। ମଜବୁତ ବ୍ୟବସାୟ।",
 
@@ -1120,7 +1120,6 @@ export const or: Messages = {
   "team.person.payChangeHint": "ଦରମା ବଦଳିଲେ ତାହା ଏହି ମାସରୁ ଲାଗୁ ହୁଏ। ଆଗର ମାସଗୁଡ଼ିକରେ ପୁରୁଣା ଦରମା ରହେ।",
   "team.person.weeklyOff": "ସାପ୍ତାହିକ ଛୁଟି ଦିନ",
   "team.person.noFixedDay": "କୌଣସି ଠିକ୍ ଦିନ ନାହିଁ",
-  "team.person.joined": "କାମରେ ଯୋଗ ଦେବା ତାରିଖ",
   "team.person.phone": "ଫୋନ୍ ନମ୍ବର",
   "team.person.optional": "ନ ଦେଲେ ବି ଚଳିବ",
   "team.person.badDate": "ତାରିଖକୁ ଦିନ/ମାସ/ବର୍ଷ ଭାବରେ ଟାଇପ୍ କରନ୍ତୁ, ଯେମିତି 05/10/2026।",
@@ -1596,8 +1595,6 @@ export const or: Messages = {
   "att.review.days": "ଫଇସଲା କରିବାକୁ ଥିବା ଦିନ ({count})",
   "att.review.fixDay": "ଦିନଟିକୁ ଠିକ୍ କରନ୍ତୁ",
   "att.review.openDay": "ଦିନଟି ଖୋଲନ୍ତୁ",
-  "att.settings.title": "ପୂରା ଦିନ ପାଇଁ ଘଣ୍ଟା",
-  "att.settings.hint": "କେତେ ଘଣ୍ଟାକୁ ପୂରା ଦିନ ଓ ଅଧା ଦିନ ଧରାଯାଏ",
   "att.settings.how": "ଗୋଟିଏ ଦିନ ଭୋର {hour}ଟାରୁ ପରଦିନ ଭୋର {hour}ଟା ଯାଏଁ ଚାଲେ। ପ୍ରତି ଆସିବା ହାଜିରା ଓ ତା'ର ଯିବା ହାଜିରା ଭିତରର ସମୟ ମିଶାଯାଏ।",
   "att.settings.full": "ପୂରା ଦିନ ପାଇଁ ଘଣ୍ଟା",
   "att.settings.fullHint": "ଏତିକି ଘଣ୍ଟା କିମ୍ବା ତା'ଠାରୁ ଅଧିକ ହେଲେ ଉପସ୍ଥିତ ଧରାଯାଏ।",
@@ -1606,12 +1603,10 @@ export const or: Messages = {
   "att.settings.badFull": "1 ରୁ 16 ଭିତରେ ଘଣ୍ଟା ସଂଖ୍ୟା ଟାଇପ୍ କରନ୍ତୁ।",
   "att.settings.badHalf": "0.5 ରୁ 12 ଭିତରେ ଘଣ୍ଟା ସଂଖ୍ୟା ଟାଇପ୍ କରନ୍ତୁ।",
   "att.settings.halfShorter": "ଅଧା ଦିନ ପୂରା ଦିନଠାରୁ କମ୍ ହେବା ଦରକାର।",
-  "att.settings.applies": "ଏହି ଘଣ୍ଟା ଏହି ଆଉଟଲେଟ୍ ର ସବୁ ଲୋକଙ୍କ ପାଇଁ।",
   "att.settings.ownerOnly": "କେବଳ ମାଲିକ ଏଗୁଡ଼ିକ ବଦଳାଇପାରିବେ।",
   "team.person.saveAndFace": "ସେଭ୍ କରି ତାଙ୍କ ମୁହଁ ଯୋଡ଼ନ୍ତୁ",
   "team.status.NONE": "ରେକର୍ଡ ନାହିଁ",
   "team.att.hint": "ଆଜି କିଏ ଆସିଛନ୍ତି, ଓ ପ୍ରତି ଦିନର ଆସିବା ଓ ଯିବା ହାଜିରା",
-  "team.pay.ruleMonthly": "ମାସିକ ଦରମା {amount}, ଏହି ମାସର {days} ଦିନରେ ଭାଗ କରାଯାଏ। ପ୍ରତି ଅନୁପସ୍ଥିତ ପାଇଁ ଏକ ଦିନର ଓ ପ୍ରତି ଅଧା ଦିନ ପାଇଁ ଅଧା ଦିନର ଟଙ୍କା କଟାଯାଏ। ସାପ୍ତାହିକ ଛୁଟି, ଦରମା ସହ ଛୁଟି ଓ ରେକର୍ଡ ନଥିବା ଦିନର ଟଙ୍କା ଦିଆଯାଏ।",
   "team.pay.ruleDaily": "ଦୈନିକ ମଜୁରି {amount}। ପ୍ରତି ଉପସ୍ଥିତ ଦିନ ଓ ପ୍ରତି ଦରମା ସହ ଛୁଟି ଦିନ ପାଇଁ ଟଙ୍କା ଦିଆଯାଏ, ଆଉ ଅଧା ଦିନ ପାଇଁ ଅଧା। ସାପ୍ତାହିକ ଛୁଟି, ଅନୁପସ୍ଥିତ ଓ ରେକର୍ଡ ନଥିବା ଦିନର ଟଙ୍କା ଦିଆଯାଏ ନାହିଁ।",
 
   "face.live.turn": "ଏବେ ମୁଣ୍ଡ ଟିକେ ପାଖକୁ ବୁଲାନ୍ତୁ",

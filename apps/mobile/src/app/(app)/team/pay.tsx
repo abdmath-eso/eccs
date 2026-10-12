@@ -253,6 +253,12 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
       ));
 
   const amount = formatMoney(data.ratePaise, language);
+  // For the "how this is worked out" lines of someone paid by the month.
+  const divisor = data.divisor ?? data.totals.daysInMonth;
+  // Part of the month only: joined or left part-way, or the month is still running.
+  const partMonth = data.totals.countedDays > 0 && data.totals.countedDays < data.totals.daysInMonth;
+  // The share of the salary for the days counted, before anything is taken off for absences.
+  const sharePaise = Math.round((data.ratePaise * data.totals.countedDays) / data.totals.daysInMonth);
   return (
     <Screen
       back
@@ -281,11 +287,61 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
           {data.totals.upTo && data.month === thisMonth ? ` · ${t('team.pay.upTo', { date: formatDate(data.totals.upTo, language) })}` : ''}
         </ThemedText>
         <DayCounts counts={countsOf(data.totals)} />
-        <ThemedText type="small" themeColor="textSecondary">
-          {data.payType === 'DAILY'
-            ? t('team.pay.ruleDaily', { amount })
-            : t('team.pay.ruleMonthly', { amount, days: data.divisor ?? data.totals.daysInMonth })}
-        </ThemedText>
+        {/* The first month: pay starts on the day the person joined, and the screen says so plainly. */}
+        {data.countedFrom.slice(0, 7) === data.month && (
+          <ThemedText type="small" style={styles.bold}>
+            {t(data.joinedOn ? 'team.pay.startJoined' : 'team.pay.startAdded', {
+              date: formatDate(data.countedFrom, language),
+              month: formatMonth(data.month, language),
+            })}
+          </ThemedText>
+        )}
+        {data.payType === 'DAILY' ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('team.pay.ruleDaily', { amount })}
+          </ThemedText>
+        ) : (
+          // How the month's pay is worked out, step by step in rupees, with the day rate.
+          <View style={styles.how}>
+            <ThemedText type="smallBold" themeColor="textSecondary">
+              {t('team.pay.how')}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {t(divisor === data.totals.daysInMonth ? 'team.pay.howRateMonth' : 'team.pay.howRateFixed', {
+                amount,
+                days: divisor,
+                rate: formatMoney(data.dayRatePaise, language),
+              })}
+            </ThemedText>
+            {data.divisorKept && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {t('team.pay.howKept', { days: divisor })}
+              </ThemedText>
+            )}
+            {partMonth && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {t('team.pay.howShare', {
+                  counted: data.totals.countedDays,
+                  monthDays: data.totals.daysInMonth,
+                  amount,
+                  share: formatMoney(sharePaise, language),
+                })}
+              </ThemedText>
+            )}
+            {data.lostDays > 0 && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {t('team.pay.howLost', {
+                  days: data.lostDays,
+                  rate: formatMoney(data.dayRatePaise, language),
+                  amount: formatMoney(Math.max(sharePaise - data.computedDuePaise, 0), language),
+                })}
+              </ThemedText>
+            )}
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('team.pay.ruleMonthly')}
+            </ThemedText>
+          </View>
+        )}
         {line(t('team.pay.worked', { days: data.paidDays }), data.computedDuePaise, { strong: !ownDue })}
         {ownDue ? (
           <>
@@ -486,6 +542,7 @@ const styles = StyleSheet.create({
   line: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
   lineLabel: { flex: 1 },
   bold: { fontWeight: 700 },
+  how: { gap: Spacing.one },
   rule: { height: StyleSheet.hairlineWidth, marginVertical: Spacing.one },
   state: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   pair: { flexDirection: 'row', gap: Spacing.two },

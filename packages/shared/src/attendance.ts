@@ -10,7 +10,7 @@ import {
 } from "./attendance-rules.js";
 import { isCalendarDate } from "./licences.js";
 import { LANGUAGES, type Language } from "./roles.js";
-import { ATTENDANCE_STATUSES, type AttendanceStatus } from "./staff.js";
+import { ATTENDANCE_STATUSES, STAFF_RULES, type AttendanceStatus } from "./staff.js";
 
 // Attendance by face: what the apps send and what the server answers.
 //
@@ -217,6 +217,18 @@ export const attendanceSettingsSchema = z
     fullDayMinutes: z.number().int().min(60).max(16 * 60),
     /** Minutes worked that count as a half day. */
     halfDayMinutes: z.number().int().min(30).max(12 * 60),
+    /**
+     * The days a month's salary is divided by: null for the days in that month,
+     * or a whole number (30, 26...) for always that many. Left out by apps built
+     * before the setting existed, and then it stays as it is.
+     */
+    salaryDivisorDays: z
+      .number()
+      .int()
+      .min(STAFF_RULES.divisorMin, `Type a whole number from ${STAFF_RULES.divisorMin} to ${STAFF_RULES.divisorMax}`)
+      .max(STAFF_RULES.divisorMax, `Type a whole number from ${STAFF_RULES.divisorMin} to ${STAFF_RULES.divisorMax}`)
+      .nullable()
+      .optional(),
   })
   .refine((settings) => settings.halfDayMinutes < settings.fullDayMinutes, { message: "A half day must be shorter than a full day" });
 export type AttendanceSettingsInput = z.input<typeof attendanceSettingsSchema>;
@@ -225,6 +237,8 @@ export interface AttendanceSettingsDto {
   outletId: string;
   fullDayMinutes: number;
   halfDayMinutes: number;
+  /** The days a month's salary is divided by: null for the days in that month (28 to 31), or always this number. */
+  salaryDivisorDays: number | null;
   /** The hour the attendance day starts, India time. Fixed for everyone for now. */
   dayStartsAtHour: number;
   /** True while the outlet is on the standard figures and the Owner has saved none. */

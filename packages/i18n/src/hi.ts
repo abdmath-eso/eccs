@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const hi: Messages = {
+export const hi: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "साफ़ जगहें। सुरक्षित संचालन। मज़बूत व्यवसाय।",
 
@@ -1120,7 +1120,6 @@ export const hi: Messages = {
   "team.person.payChangeHint": "वेतन में बदलाव इस महीने से लागू होगा। पिछले महीनों में पुराना वेतन ही रहेगा।",
   "team.person.weeklyOff": "साप्ताहिक छुट्टी का दिन",
   "team.person.noFixedDay": "कोई तय दिन नहीं",
-  "team.person.joined": "काम शुरू करने की तारीख",
   "team.person.phone": "फ़ोन नंबर",
   "team.person.optional": "ज़रूरी नहीं",
   "team.person.badDate": "तारीख दिन/महीना/साल में लिखें, जैसे 05/10/2026।",
@@ -1596,8 +1595,6 @@ export const hi: Messages = {
   "att.review.days": "निपटाने के लिए दिन ({count})",
   "att.review.fixDay": "दिन ठीक करें",
   "att.review.openDay": "दिन खोलें",
-  "att.settings.title": "पूरे दिन के घंटे",
-  "att.settings.hint": "कितने घंटे पूरा दिन और कितने घंटे आधा दिन गिने जाते हैं",
   "att.settings.how": "एक दिन सुबह {hour} बजे से अगली सुबह {hour} बजे तक चलता है। हर आने और उसके बाद के जाने के बीच का समय जोड़ा जाता है।",
   "att.settings.full": "पूरे दिन के घंटे",
   "att.settings.fullHint": "इतने या इससे ज़्यादा घंटे हाज़िर गिने जाते हैं।",
@@ -1606,12 +1603,10 @@ export const hi: Messages = {
   "att.settings.badFull": "घंटों की संख्या 1 से 16 के बीच लिखें।",
   "att.settings.badHalf": "घंटों की संख्या 0.5 से 12 के बीच लिखें।",
   "att.settings.halfShorter": "आधा दिन पूरे दिन से छोटा होना चाहिए।",
-  "att.settings.applies": "ये घंटे इस आउटलेट के सभी लोगों के लिए हैं।",
   "att.settings.ownerOnly": "इन्हें सिर्फ़ मालिक बदल सकते हैं।",
   "team.person.saveAndFace": "सेव करें और इनका चेहरा जोड़ें",
   "team.status.NONE": "कोई रिकॉर्ड नहीं",
   "team.att.hint": "आज कौन आया है, और हर दिन का आना-जाना",
-  "team.pay.ruleMonthly": "महीने का वेतन {amount}, इस महीने के {days} दिनों में बांटा गया। हर गैरहाज़िर के लिए एक दिन का वेतन और हर आधा दिन के लिए आधे दिन का वेतन काटा जाता है। साप्ताहिक छुट्टी, वेतन सहित छुट्टी और बिना रिकॉर्ड वाले दिनों का वेतन मिलता है।",
   "team.pay.ruleDaily": "एक दिन की मज़दूरी {amount}। हर हाज़िर दिन और वेतन सहित छुट्टी के हर दिन का पूरा पैसा मिलता है, और आधा दिन का आधा। साप्ताहिक छुट्टी, गैरहाज़िर और बिना रिकॉर्ड वाले दिनों का पैसा नहीं मिलता।",
 
   "face.live.turn": "अब सिर थोड़ा एक तरफ़ घुमाएं",

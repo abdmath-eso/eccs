@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Messages = {
+export const gu: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 
@@ -1120,7 +1120,6 @@ export const gu: Messages = {
   "team.person.payChangeHint": "પગારમાં ફેરફાર આ મહિનાથી લાગુ પડે છે. આગળના મહિનાઓમાં જૂનો પગાર જ રહે છે.",
   "team.person.weeklyOff": "અઠવાડિક રજાનો દિવસ",
   "team.person.noFixedDay": "કોઈ નક્કી દિવસ નથી",
-  "team.person.joined": "કામ પર જોડાયાની તારીખ",
   "team.person.phone": "ફોન નંબર",
   "team.person.optional": "ન લખો તો ચાલે",
   "team.person.badDate": "તારીખ દિવસ/મહિનો/વર્ષ પ્રમાણે લખો, જેમ કે 05/10/2026.",
@@ -1596,8 +1595,6 @@ export const gu: Messages = {
   "att.review.days": "નિકાલ કરવાના દિવસો ({count})",
   "att.review.fixDay": "દિવસ સુધારો",
   "att.review.openDay": "દિવસ ખોલો",
-  "att.settings.title": "આખા દિવસના કલાક",
-  "att.settings.hint": "કેટલા કલાકે આખો દિવસ અને કેટલા કલાકે અડધો દિવસ ગણાય",
   "att.settings.how": "એક દિવસ સવારના {hour} વાગ્યાથી બીજા દિવસે સવારના {hour} વાગ્યા સુધી ચાલે છે. દરેક ક્લૉક ઇન અને તેના ક્લૉક આઉટ વચ્ચેનો સમય ઉમેરાય છે.",
   "att.settings.full": "આખા દિવસના કલાક",
   "att.settings.fullHint": "આટલા કે તેથી વધુ કલાક હાજર ગણાય છે.",
@@ -1606,12 +1603,10 @@ export const gu: Messages = {
   "att.settings.badFull": "1 થી 16 વચ્ચેની કલાકની સંખ્યા લખો.",
   "att.settings.badHalf": "0.5 થી 12 વચ્ચેની કલાકની સંખ્યા લખો.",
   "att.settings.halfShorter": "અડધો દિવસ આખા દિવસ કરતાં ટૂંકો હોવો જોઈએ.",
-  "att.settings.applies": "આ કલાક આ આઉટલેટના બધા માટે છે.",
   "att.settings.ownerOnly": "ફક્ત માલિક જ આ બદલી શકે છે.",
   "team.person.saveAndFace": "સાચવો અને તેમનો ચહેરો ઉમેરો",
   "team.status.NONE": "કોઈ રેકોર્ડ નથી",
   "team.att.hint": "આજે કોણ આવ્યું છે, અને દરેક દિવસના ક્લૉક ઇન અને ક્લૉક આઉટ",
-  "team.pay.ruleMonthly": "મહિનાનો પગાર {amount}, આ મહિનાના {days} દિવસ વડે ભાગેલો. દરેક ગેરહાજર માટે એક દિવસનો પગાર અને દરેક અડધા દિવસ માટે અડધા દિવસનો પગાર કપાય છે. અઠવાડિક રજા, પગાર સાથે રજા અને રેકોર્ડ વગરના દિવસોનો પગાર મળે છે.",
   "team.pay.ruleDaily": "રોજની મજૂરી {amount}. દરેક હાજર દિવસ અને પગાર સાથે રજાના દરેક દિવસ માટે પૂરી, અને અડધા દિવસ માટે અડધી મળે છે. અઠવાડિક રજા, ગેરહાજર અને રેકોર્ડ વગરના દિવસોની મજૂરી મળતી નથી.",
 
   "face.live.turn": "હવે માથું થોડું એક બાજુ ફેરવો",

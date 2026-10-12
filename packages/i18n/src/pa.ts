@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const pa: Messages = {
+export const pa: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ਸਾਫ਼ ਥਾਵਾਂ। ਸੁਰੱਖਿਅਤ ਕੰਮਕਾਜ। ਮਜ਼ਬੂਤ ਕਾਰੋਬਾਰ।",
 
@@ -1120,7 +1120,6 @@ export const pa: Messages = {
   "team.person.payChangeHint": "ਤਨਖਾਹ ਵਿੱਚ ਬਦਲਾਅ ਇਸ ਮਹੀਨੇ ਤੋਂ ਲਾਗੂ ਹੁੰਦਾ ਹੈ। ਪਿਛਲੇ ਮਹੀਨਿਆਂ ਵਿੱਚ ਪੁਰਾਣੀ ਤਨਖਾਹ ਹੀ ਰਹਿੰਦੀ ਹੈ।",
   "team.person.weeklyOff": "ਹਫ਼ਤਾਵਾਰੀ ਛੁੱਟੀ ਦਾ ਦਿਨ",
   "team.person.noFixedDay": "ਕੋਈ ਪੱਕਾ ਦਿਨ ਨਹੀਂ",
-  "team.person.joined": "ਕੰਮ 'ਤੇ ਲੱਗਣ ਦੀ ਤਾਰੀਖ",
   "team.person.phone": "ਫੋਨ ਨੰਬਰ",
   "team.person.optional": "ਜ਼ਰੂਰੀ ਨਹੀਂ",
   "team.person.badDate": "ਤਾਰੀਖ ਦਿਨ/ਮਹੀਨਾ/ਸਾਲ ਵਾਂਗ ਟਾਈਪ ਕਰੋ, ਜਿਵੇਂ 05/10/2026।",
@@ -1596,8 +1595,6 @@ export const pa: Messages = {
   "att.review.days": "ਨਿਪਟਾਉਣ ਵਾਲੇ ਦਿਨ ({count})",
   "att.review.fixDay": "ਦਿਨ ਠੀਕ ਕਰੋ",
   "att.review.openDay": "ਦਿਨ ਖੋਲ੍ਹੋ",
-  "att.settings.title": "ਪੂਰੇ ਦਿਨ ਦੇ ਘੰਟੇ",
-  "att.settings.hint": "ਕਿੰਨੇ ਘੰਟੇ ਪੂਰਾ ਦਿਨ ਅਤੇ ਕਿੰਨੇ ਘੰਟੇ ਅੱਧਾ ਦਿਨ ਗਿਣੇ ਜਾਣ",
   "att.settings.how": "ਇੱਕ ਦਿਨ ਸਵੇਰੇ {hour} ਵਜੇ ਤੋਂ ਅਗਲੀ ਸਵੇਰ {hour} ਵਜੇ ਤੱਕ ਚੱਲਦਾ ਹੈ। ਹਰ ਕਲਾਕ ਇਨ ਅਤੇ ਉਸਦੇ ਕਲਾਕ ਆਊਟ ਵਿਚਕਾਰਲਾ ਸਮਾਂ ਜੋੜਿਆ ਜਾਂਦਾ ਹੈ।",
   "att.settings.full": "ਪੂਰੇ ਦਿਨ ਦੇ ਘੰਟੇ",
   "att.settings.fullHint": "ਇੰਨੇ ਜਾਂ ਇਸ ਤੋਂ ਵੱਧ ਘੰਟੇ ਹਾਜ਼ਰ ਗਿਣੇ ਜਾਂਦੇ ਹਨ।",
@@ -1606,12 +1603,10 @@ export const pa: Messages = {
   "att.settings.badFull": "1 ਤੋਂ 16 ਤੱਕ ਘੰਟਿਆਂ ਦੀ ਗਿਣਤੀ ਭਰੋ।",
   "att.settings.badHalf": "0.5 ਤੋਂ 12 ਤੱਕ ਘੰਟਿਆਂ ਦੀ ਗਿਣਤੀ ਭਰੋ।",
   "att.settings.halfShorter": "ਅੱਧਾ ਦਿਨ ਪੂਰੇ ਦਿਨ ਨਾਲੋਂ ਛੋਟਾ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ।",
-  "att.settings.applies": "ਇਹ ਘੰਟੇ ਇਸ ਆਊਟਲੈੱਟ ਦੇ ਸਾਰਿਆਂ ਲਈ ਹਨ।",
   "att.settings.ownerOnly": "ਸਿਰਫ਼ ਮਾਲਕ ਹੀ ਇਹ ਬਦਲ ਸਕਦਾ ਹੈ।",
   "team.person.saveAndFace": "ਸੇਵ ਕਰੋ ਅਤੇ ਇਨ੍ਹਾਂ ਦਾ ਚਿਹਰਾ ਜੋੜੋ",
   "team.status.NONE": "ਕੋਈ ਰਿਕਾਰਡ ਨਹੀਂ",
   "team.att.hint": "ਅੱਜ ਕੌਣ ਆਇਆ ਹੈ, ਅਤੇ ਹਰ ਦਿਨ ਦੇ ਕਲਾਕ ਇਨ ਅਤੇ ਕਲਾਕ ਆਊਟ",
-  "team.pay.ruleMonthly": "ਮਹੀਨੇ ਦੀ ਤਨਖਾਹ {amount}, ਇਸ ਮਹੀਨੇ ਦੇ {days} ਦਿਨਾਂ ਨਾਲ ਵੰਡੀ ਹੋਈ। ਹਰ ਗੈਰਹਾਜ਼ਰ ਲਈ ਇੱਕ ਦਿਨ ਦੀ ਤਨਖਾਹ ਅਤੇ ਹਰ ਅੱਧੇ ਦਿਨ ਲਈ ਅੱਧੇ ਦਿਨ ਦੀ ਤਨਖਾਹ ਕੱਟੀ ਜਾਂਦੀ ਹੈ। ਹਫ਼ਤਾਵਾਰੀ ਛੁੱਟੀ, ਤਨਖਾਹ ਸਮੇਤ ਛੁੱਟੀ ਅਤੇ ਬਿਨਾਂ ਰਿਕਾਰਡ ਵਾਲੇ ਦਿਨਾਂ ਦੀ ਤਨਖਾਹ ਮਿਲਦੀ ਹੈ।",
   "team.pay.ruleDaily": "ਦਿਹਾੜੀ {amount}। ਹਰ ਹਾਜ਼ਰ ਦਿਨ ਅਤੇ ਤਨਖਾਹ ਸਮੇਤ ਛੁੱਟੀ ਦੇ ਹਰ ਦਿਨ ਲਈ ਪੂਰੀ, ਅਤੇ ਅੱਧੇ ਦਿਨ ਲਈ ਅੱਧੀ ਮਿਲਦੀ ਹੈ। ਹਫ਼ਤਾਵਾਰੀ ਛੁੱਟੀ, ਗੈਰਹਾਜ਼ਰ ਅਤੇ ਬਿਨਾਂ ਰਿਕਾਰਡ ਵਾਲੇ ਦਿਨਾਂ ਦੀ ਦਿਹਾੜੀ ਨਹੀਂ ਮਿਲਦੀ।",
 
   "face.live.turn": "ਹੁਣ ਸਿਰ ਥੋੜ੍ਹਾ ਜਿਹਾ ਇੱਕ ਪਾਸੇ ਘੁਮਾਓ",

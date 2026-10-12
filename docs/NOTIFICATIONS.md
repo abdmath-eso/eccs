@@ -214,6 +214,9 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 | T7 | Someone on the staff has not clocked in by a set time | O, M | "{name} has not clocked in today." | In-app | not built |
 | T8 | A face is added or removed, or consent withdrawn | O, M | "{name}'s face was added for attendance." | In-app | not built |
 | T9 | Face clock-in is not working at an outlet, or the clock screen was locked after wrong PINs | O; Adm | "Face clock-in is not working at {outlet}." | Push + in-app | not built |
+| T10 | A Manager adds a person to the staff | O | "{name} was added at {outlet}. Pay counts from {date}." | In-app | not built |
+| T11 | The Owner changes the days a month's salary is divided by | M | "Salaries at {outlet} are now divided by {days} days." | In-app | not built |
+| T12 | A person's joining date is changed | O | "{name}'s joining date was changed to {date}." | In-app | not built |
 | T2 | A month's pay still owed after a set day of the next month | O | "{count} people are still owed pay for {month}." | In-app | not built |
 | T3 | The Manager records an advance or a payment | O | "{manager} recorded {amount} for {name}." | In-app | not built |
 | T4 | A person is marked as left, or a past day's attendance is corrected | O | "{name} was marked as left." | In-app | not built |
@@ -238,6 +241,7 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | Date | Change |
 |---|---|
+| 12 Oct 2026 | Pay rules: T10 to T12 added. |
 | 11 Oct 2026 | Face attendance: T1 withdrawn, T5 to T9 added. |
 | 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |
 | 9 Oct 2026 | Added section 16 (staff, food labels, customer page), none built. |

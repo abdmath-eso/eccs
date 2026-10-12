@@ -13,6 +13,7 @@ import { attendanceDayOf, daysInMonth, shiftMonth } from '@eccs/shared';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
+import { AttendanceClock } from './../src/attendance/attendance-clock.js';
 import { indiaDate } from './../src/checklists/checklists.service.js';
 import { env } from './../src/config/env.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
@@ -35,6 +36,7 @@ type Person = {
   jobTitle: string | null;
   isActive: boolean;
   joinedOn: string | null;
+  countedFrom: string;
   leftOn: string | null;
   userId: string | null;
   userName: string | null;
@@ -58,6 +60,11 @@ type Salary = {
   totals: Totals;
   paidDays: number;
   divisor: number | null;
+  dayRatePaise: number;
+  lostDays: number;
+  divisorKept: boolean;
+  joinedOn: string | null;
+  countedFrom: string;
   computedDuePaise: number;
   dueOverridePaise: number | null;
   duePaise: number;
@@ -147,7 +154,7 @@ describe('Staff, attendance and salary (e2e)', () => {
       if (!outlet) continue;
       // The Owner's corrections are written to the audit log, which is not tied to the person's row.
       const staff = await db.staffMember.findMany({ where: { outletId: outlet.id }, select: { id: true } });
-      await db.auditLog.deleteMany({ where: { entityId: { in: staff.map((row) => row.id) } } });
+      await db.auditLog.deleteMany({ where: { entityId: { in: [outlet.id, ...staff.map((row) => row.id)] } } });
       // Attendance, pay records and pay entries go with their person.
       await db.staffMember.deleteMany({ where: { outletId: outlet.id } });
       // A server running alongside may have kept a score for the outlet.
@@ -199,6 +206,7 @@ describe('Staff, attendance and salary (e2e)', () => {
   });
 
   afterAll(async () => {
+    app.get(AttendanceClock).setForTest(null);
     await cleanUp();
     await app.close();
   });
@@ -212,18 +220,20 @@ describe('Staff, attendance and salary (e2e)', () => {
     await addPerson(manager, { name: 'E2E Cook', payType: 'MONTHLY', payPaise: rupees(30000), phone: 'call me' }).expect(400);
 
     cook = (
-      await addPerson(manager, { name: 'E2E Cook', jobTitle: 'Tandoor cook', phone: '9876543210', payType: 'MONTHLY', payPaise: rupees(30000) }).expect(201)
+      await addPerson(manager, { name: 'E2E Cook', jobTitle: 'Tandoor cook', phone: '9876543210', payType: 'MONTHLY', payPaise: rupees(30000), joinedOn: on(lastMonth, 1) }).expect(201)
     ).body as Person;
     expect(cook).toMatchObject({
       name: 'E2E Cook',
       jobTitle: 'Tandoor cook',
       isActive: true,
-      joinedOn: null,
+      // Both started at the beginning of last month: the Owner gives the real date when it is not today.
+      joinedOn: on(lastMonth, 1),
+      countedFrom: on(lastMonth, 1),
       leftOn: null,
       pay: { payType: 'MONTHLY', payPaise: rupees(30000) },
       hasRecords: false,
     });
-    helper = (await addPerson(owner, { name: 'E2E Helper', payType: 'DAILY', payPaise: rupees(600), weeklyOffDay: 0 }).expect(201)).body as Person;
+    helper = (await addPerson(owner, { name: 'E2E Helper', payType: 'DAILY', payPaise: rupees(600), weeklyOffDay: 0, joinedOn: on(lastMonth, 1) }).expect(201)).body as Person;
     expect(helper.pay).toEqual({ payType: 'DAILY', payPaise: rupees(600) });
 
     const list = (await people(owner).expect(200)).body as Person[];
@@ -578,5 +588,140 @@ describe('Staff, attendance and salary (e2e)', () => {
     // And they can come back.
     const returned = (await patchPerson(owner, cook.id, { leftOn: null }).expect(200)).body as Person;
     expect(returned).toMatchObject({ isActive: true, leftOn: null });
+  });
+
+  // ───────────────────────── Pay starts when the person joined; the divisor ─────────────────────────
+  //
+  // These move the attendance clock to August 2026 (a 31-day month, over long ago), so the
+  // sums are the same whenever the suite runs. The clock is let go again at the end.
+
+  describe('pay from the joining day, and the days a salary is divided by', () => {
+    const AUGUST = '2026-08';
+    const SEPTEMBER = '2026-09';
+    const at = (date: string, time = '10:00') => app.get(AttendanceClock).setForTest(new Date(`${date}T${time}:00+05:30`));
+    const settings = (token: string) => http().get(`/attendance/settings/${outletId}`).set(bearer(token));
+    const saveSettings = (token: string, body: Record<string, unknown>) =>
+      http().put(`/attendance/settings/${outletId}`).set(bearer(token)).send({ fullDayMinutes: 480, halfDayMinutes: 240, ...body });
+    let newcomer: Person;
+
+    afterAll(() => app.get(AttendanceClock).setForTest(null));
+
+    it('counts a new person from the day they were added, not from the 1st', async () => {
+      // Added on 12 August with no joining date: the server puts that day in.
+      at('2026-08-12');
+      newcomer = (await addPerson(owner, { name: 'E2E Newcomer', payType: 'MONTHLY', payPaise: rupees(31000) }).expect(201)).body as Person;
+      expect(newcomer).toMatchObject({ joinedOn: '2026-08-12', countedFrom: '2026-08-12' });
+
+      // On the 20th: nine days so far (the 12th to the 20th) of a 31-day month at 31,000, so 9,000. Not 20/31.
+      at('2026-08-20');
+      // Their first day on record. (A person's pay records begin with the first month that has any attendance.)
+      await mark(owner, '2026-08-12', [{ staffId: newcomer.id, status: 'PRESENT' }]).expect(200);
+      const soFar = (await salary(owner, newcomer.id, AUGUST).expect(200)).body as Salary;
+      expect(soFar).toMatchObject({
+        joinedOn: '2026-08-12',
+        countedFrom: '2026-08-12',
+        paidDays: 9,
+        divisor: 31,
+        dayRatePaise: rupees(1000),
+        computedDuePaise: rupees(9000),
+        balancePaise: rupees(9000),
+      });
+      expect(soFar.totals).toMatchObject({ daysInMonth: 31, countedDays: 9 });
+      // They were not on the staff on the 11th: not on that day's sheet, and that day cannot be set for them.
+      expect(((await day(owner, '2026-08-11').expect(200)).body as Day).people.some((person) => person.staffId === newcomer.id)).toBe(false);
+      await mark(owner, '2026-08-11', [{ staffId: newcomer.id, status: 'PRESENT' }]).expect(400);
+      // The month's attendance counts the same nine days.
+      expect((await personMonth(owner, newcomer.id, AUGUST).expect(200)).body.totals).toMatchObject({ countedDays: 9 });
+
+      // After the month is over: the 12th to the 31st, twenty days, 20,000.
+      at('2026-09-05');
+      expect((await salary(owner, newcomer.id, AUGUST).expect(200)).body).toMatchObject({ paidDays: 20, computedDuePaise: rupees(20000) });
+    });
+
+    it('lets the Owner give an earlier joining date, and counts someone with none from the day they were added', async () => {
+      // The person really started on the 5th: 27 days of August.
+      const earlier = (await patchPerson(owner, newcomer.id, { joinedOn: '2026-08-05' }).expect(200)).body as Person;
+      expect(earlier).toMatchObject({ joinedOn: '2026-08-05', countedFrom: '2026-08-05' });
+      expect((await salary(owner, newcomer.id, AUGUST).expect(200)).body).toMatchObject({ paidDays: 27, computedDuePaise: rupees(27000) });
+
+      // Someone left without a joining date (as people added before this change were): counted from the
+      // day their record was made. Here that is made to be 12 August.
+      await prisma.client.staffMember.update({ where: { id: newcomer.id }, data: { joinedOn: null, createdAt: new Date('2026-08-12T10:00:00+05:30') } });
+      const none = ((await people(owner).expect(200)).body as Person[]).find((person) => person.id === newcomer.id)!;
+      expect(none).toMatchObject({ joinedOn: null, countedFrom: '2026-08-12' });
+      expect((await salary(owner, newcomer.id, AUGUST).expect(200)).body).toMatchObject({ joinedOn: null, countedFrom: '2026-08-12', paidDays: 20, computedDuePaise: rupees(20000) });
+      await patchPerson(owner, newcomer.id, { joinedOn: '2026-08-12' }).expect(200);
+    });
+
+    it('lets the Owner alone choose the days a salary is divided by, and the Manager read it', async () => {
+      expect((await settings(manager).expect(200)).body).toMatchObject({ salaryDivisorDays: null, isDefault: true });
+      await settings(chef).expect(403);
+      await saveSettings(manager, { salaryDivisorDays: 30 }).expect(403);
+      for (const wrong of [19, 32, 26.5, '30']) await saveSettings(owner, { salaryDivisorDays: wrong }).expect(400);
+
+      expect((await saveSettings(owner, { salaryDivisorDays: 30 }).expect(200)).body).toMatchObject({ salaryDivisorDays: 30, fullDayMinutes: 480 });
+      // An app built before the setting existed does not send it: it stays as it is.
+      expect((await saveSettings(owner, {}).expect(200)).body).toMatchObject({ salaryDivisorDays: 30 });
+      expect((await settings(manager).expect(200)).body).toMatchObject({ salaryDivisorDays: 30 });
+      expect((await saveSettings(owner, { salaryDivisorDays: null }).expect(200)).body).toMatchObject({ salaryDivisorDays: null });
+    });
+
+    it('works a month out with the divisor chosen: calendar days, always 30, always 26', async () => {
+      // One absence, on the 20th. 31,000 a month, joined on the 12th: 20 of 31 days is 20,000 before the absence.
+      await mark(owner, '2026-08-20', [{ staffId: newcomer.id, status: 'ABSENT' }]).expect(200);
+      const august = async () => (await salary(manager, newcomer.id, AUGUST).expect(200)).body as Salary;
+
+      // The days in the month: 31,000 ÷ 31 = 1,000 a day, so 19,000.
+      expect(await august()).toMatchObject({ divisor: 31, divisorKept: false, dayRatePaise: rupees(1000), lostDays: 1, paidDays: 19, computedDuePaise: rupees(19000) });
+      // Always 30: 31,000 ÷ 30 = 1,033.33 a day, so 20,000 − 1,033.33.
+      await saveSettings(owner, { salaryDivisorDays: 30 }).expect(200);
+      expect(await august()).toMatchObject({ divisor: 30, divisorKept: false, dayRatePaise: 103_333, lostDays: 1, paidDays: 18.35, computedDuePaise: 1_896_667 });
+      // Always 26: 31,000 ÷ 26 = 1,192.31 a day, so 20,000 − 1,192.31.
+      await saveSettings(owner, { salaryDivisorDays: 26 }).expect(200);
+      expect(await august()).toMatchObject({ divisor: 26, dayRatePaise: 119_231, paidDays: 15.77, computedDuePaise: 1_880_769 });
+      // The outlet's list for the month says the same.
+      const list = (await salaryList(manager, AUGUST).expect(200)).body as { people: Salary[] };
+      expect(list.people.find((person) => person.staffId === newcomer.id)).toMatchObject({ divisor: 26, computedDuePaise: 1_880_769 });
+
+      // A full month with no absence is the whole salary whatever the divisor. (The cook left and came back
+      // above; in August they were not yet on the staff, so a second person is used.)
+      const steady = (await addPerson(owner, { name: 'E2E Steady', payType: 'MONTHLY', payPaise: rupees(31000), joinedOn: '2026-08-01' }).expect(201)).body as Person;
+      await mark(owner, '2026-08-03', [{ staffId: steady.id, status: 'PRESENT' }]).expect(200);
+      for (const days of [null, 30, 26, 28]) {
+        await saveSettings(owner, { salaryDivisorDays: days }).expect(200);
+        expect((await salary(owner, steady.id, AUGUST).expect(200)).body).toMatchObject({ divisor: days ?? 31, paidDays: days ?? 31, computedDuePaise: rupees(31000) });
+      }
+      // Daily-wage staff are not touched by it.
+      expect((await salary(owner, helper.id, AUGUST).expect(200)).body).toMatchObject({ divisor: null });
+    });
+
+    it('keeps the divisor a month was paid with when the setting is changed afterwards', async () => {
+      await saveSettings(owner, { salaryDivisorDays: 30 }).expect(200);
+      // An advance does not close the month: it still follows the setting.
+      await addEntry(manager, newcomer.id, { kind: 'ADVANCE', month: AUGUST, date: '2026-08-25', amountPaise: rupees(1000) }).expect(201);
+      expect((await salary(owner, newcomer.id, AUGUST).expect(200)).body).toMatchObject({ divisor: 30, divisorKept: false });
+
+      // A payment does: August now holds 30.
+      const paid = (await addEntry(owner, newcomer.id, { kind: 'PAYMENT', month: AUGUST, date: '2026-09-05', amountPaise: rupees(5000) }).expect(201)).body as Salary;
+      expect(paid).toMatchObject({ divisor: 30, divisorKept: true, computedDuePaise: 1_896_667, paidPaise: rupees(5000) });
+      const record = await prisma.client.salaryRecord.findFirstOrThrow({ where: { staffMemberId: newcomer.id } });
+      expect(record).toMatchObject({ divisorDays: 30, basePaise: rupees(31000), payType: 'MONTHLY' });
+
+      // The Owner moves the outlet to 26. August is not rewritten; September, still open, follows.
+      await saveSettings(owner, { salaryDivisorDays: 26 }).expect(200);
+      const august = (await salary(owner, newcomer.id, AUGUST).expect(200)).body as Salary;
+      expect(august).toMatchObject({ divisor: 30, divisorKept: true, computedDuePaise: 1_896_667 });
+      const september = (await salary(owner, newcomer.id, SEPTEMBER).expect(200)).body as Salary;
+      expect(september).toMatchObject({ divisor: 26, divisorKept: false, carriedPaise: august.balancePaise });
+      // Five days of September's thirty so far.
+      expect(september.computedDuePaise).toBe(Math.round((rupees(31000) * 5) / 30));
+
+      // Saving a month (overtime, a note...) keeps the divisor in force then, too.
+      const saved = (await saveSalary(owner, newcomer.id, SEPTEMBER, { note: 'Checked' }).expect(200)).body as Salary;
+      expect(saved).toMatchObject({ divisor: 26, divisorKept: true });
+      await saveSettings(owner, { salaryDivisorDays: null }).expect(200);
+      expect((await salary(owner, newcomer.id, SEPTEMBER).expect(200)).body).toMatchObject({ divisor: 26, divisorKept: true });
+      expect((await salary(owner, newcomer.id, AUGUST).expect(200)).body).toMatchObject({ divisor: 30, divisorKept: true });
+    });
   });
 });

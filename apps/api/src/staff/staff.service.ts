@@ -4,8 +4,11 @@ import {
   ATTENDANCE_ERROR,
   CORRECTION_REASON_MIN,
   attendanceDateVerdict,
+  attendanceDayOf,
   attendanceTotals,
   can,
+  countedFromOf,
+  divisorFor,
   earliestCorrectableDate,
   isCalendarDate,
   isMonth,
@@ -55,8 +58,15 @@ const salaryInclude = {
 } as const satisfies Prisma.StaffMemberInclude;
 type SalaryRow = Prisma.StaffMemberGetPayload<{ include: typeof salaryInclude }>;
 
-type PersonDates = { joinedOn: Date | null; leftOn: Date | null };
-const datesOf = (person: PersonDates) => ({ joinedOn: fromDbDateOrNull(person.joinedOn), leftOn: fromDbDateOrNull(person.leftOn) });
+type PersonDates = { joinedOn: Date | null; leftOn: Date | null; createdAt: Date };
+/**
+ * The day a person's attendance and pay count from: their joining date, or, for someone
+ * added before joining dates were filled in for everyone, the (attendance) day they were added.
+ */
+const countedFrom = (person: PersonDates) =>
+  countedFromOf({ joinedOn: fromDbDateOrNull(person.joinedOn), addedOn: attendanceDayOf(person.createdAt) });
+/** The dates every rule here works from. `joinedOn` is never empty in it: see `countedFrom`. */
+const datesOf = (person: PersonDates) => ({ joinedOn: countedFrom(person), leftOn: fromDbDateOrNull(person.leftOn) });
 const rateOf = (person: { payType: StaffPayType; monthlySalaryPaise: number; dailyWagePaise: number }) =>
   person.payType === 'DAILY' ? person.dailyWagePaise : person.monthlySalaryPaise;
 
@@ -118,7 +128,9 @@ export class StaffService {
         name: input.name,
         jobTitle: input.jobTitle ?? null,
         phone: input.phone ?? null,
-        joinedOn: input.joinedOn ? toDbDate(input.joinedOn) : null,
+        // Pay starts on the day the person joined. With no date given that is today (the attendance
+        // day, so someone added during a late shift can clock in on it), never the 1st of the month.
+        joinedOn: toDbDate(input.joinedOn ?? this.clock.day()),
         payType: input.payType,
         monthlySalaryPaise: input.payType === 'MONTHLY' ? input.payPaise : 0,
         dailyWagePaise: input.payType === 'DAILY' ? input.payPaise : 0,
@@ -140,10 +152,10 @@ export class StaffService {
     const today = this.clock.date();
 
     if (input.userId) await this.checkLogin(outlet.id, input.userId, row.id);
-    const joinedOn = input.joinedOn !== undefined ? input.joinedOn : fromDbDateOrNull(row.joinedOn);
+    const joinedOn = input.joinedOn ?? countedFrom(input.joinedOn === undefined ? row : { ...row, joinedOn: null });
     if (input.leftOn) {
       if (input.leftOn > today) throw new BadRequestException('The last day cannot be after today');
-      if (joinedOn && input.leftOn < joinedOn) throw new BadRequestException('The last day cannot be before the joining date');
+      if (input.leftOn < joinedOn) throw new BadRequestException('The last day cannot be before the joining date');
     }
 
     const payType = input.payType ?? row.payType;
@@ -362,13 +374,16 @@ export class StaffService {
     const today = this.clock.date();
     const wanted = this.monthOrThis(month, today);
     await this.attendance.settle(outlet.id);
-    const rows = await this.db.staffMember.findMany({ where: { outletId: outlet.id }, include: salaryInclude, orderBy: { name: 'asc' } });
+    const [rows, divisorDays] = await Promise.all([
+      this.db.staffMember.findMany({ where: { outletId: outlet.id }, include: salaryInclude, orderBy: { name: 'asc' } }),
+      this.divisorSetting(outlet.id),
+    ]);
     return {
       outletId: outlet.id,
       month: wanted,
       today,
       people: rows
-        .map((row) => this.toSalaryDto(row, outlet, wanted, today))
+        .map((row) => this.toSalaryDto(row, outlet, wanted, today, divisorDays))
         .filter((person) => person.totals.countedDays > 0 || person.entries.length > 0 || person.balancePaise !== 0),
     };
   }
@@ -413,6 +428,7 @@ export class StaffService {
       create: { staffMemberId: row.id, month: toDbDate(`${wanted}-01`), payType: row.payType, basePaise: rateOf(row), daysWorked: 0, netPaise: 0, ...typed },
       update: typed,
     });
+    await this.keepDivisor(row.id, outlet.id, wanted);
     return this.refreshCopies(row.id, outlet, wanted, today);
   }
 
@@ -437,6 +453,17 @@ export class StaffService {
         createdById: user.id,
       },
     });
+    if (input.kind === 'PAYMENT') {
+      // Once money has been paid for a month, the month keeps the pay and the divisor it was worked
+      // out with, so a later change of the setting (or a raise) does not rewrite it. An advance does
+      // not do this: it is money given ahead, and the month is still open.
+      await this.db.salaryRecord.upsert({
+        where: { staffMemberId_month: { staffMemberId: row.id, month: toDbDate(`${wanted}-01`) } },
+        create: { staffMemberId: row.id, month: toDbDate(`${wanted}-01`), payType: row.payType, basePaise: rateOf(row), daysWorked: 0, netPaise: 0, updatedById: user.id },
+        update: {},
+      });
+      await this.keepDivisor(row.id, outlet.id, wanted);
+    }
     return this.refreshCopies(row.id, outlet, wanted, today);
   }
 
@@ -475,8 +502,31 @@ export class StaffService {
   private async salaryOf(staffId: string, outlet: OutletRow, month: string, today: string): Promise<SalaryMonthDto> {
     // Days that ended since the last look are settled first, so the pay is worked out from final statuses.
     await this.attendance.settle(outlet.id);
-    const row = await this.db.staffMember.findUniqueOrThrow({ where: { id: staffId }, include: salaryInclude });
-    return this.toSalaryDto(row, outlet, month, today);
+    const [row, divisorDays] = await Promise.all([
+      this.db.staffMember.findUniqueOrThrow({ where: { id: staffId }, include: salaryInclude }),
+      this.divisorSetting(outlet.id),
+    ]);
+    return this.toSalaryDto(row, outlet, month, today, divisorDays);
+  }
+
+  /** The outlet's setting for the days a month's salary is divided by: null means the days in that month. */
+  private async divisorSetting(outletId: string): Promise<number | null> {
+    return (await this.attendance.settingsOf(outletId)).salaryDivisorDays;
+  }
+
+  /**
+   * Writes the divisor in force onto a month's record, if the month does not hold one yet.
+   * Called when a payment is recorded or the month is saved. From then on the month is worked
+   * out with that number whatever the outlet's setting becomes: a month already settled is
+   * never quietly rewritten. (The same idea as the month's own rate of pay, `basePaise`.)
+   */
+  private async keepDivisor(staffId: string, outletId: string, month: string): Promise<void> {
+    const divisorDays = divisorFor(month, await this.divisorSetting(outletId));
+    await this.db.salaryRecord.updateMany({
+      // Only a month paid by the month has a divisor; a daily wage is not divided by anything.
+      where: { staffMemberId: staffId, month: toDbDate(`${month}-01`), divisorDays: null, payType: 'MONTHLY' },
+      data: { divisorDays },
+    });
   }
 
   /**
@@ -535,12 +585,13 @@ export class StaffService {
     ]);
   }
 
-  private toSalaryDto(row: SalaryRow, outlet: OutletRow, month: string, today: string): SalaryMonthDto {
+  private toSalaryDto(row: SalaryRow, outlet: OutletRow, month: string, today: string, divisorDays: number | null): SalaryMonthDto {
     const records: Record<string, SalaryMonthEntryInput> = {};
     for (const record of row.salaries) {
       records[monthOfDate(fromDbDate(record.month))] = {
         payType: record.payType,
         ratePaise: record.basePaise,
+        divisorDays: record.divisorDays,
         dueOverridePaise: record.dueOverridePaise,
         carriedOverridePaise: record.carriedOverridePaise,
         overtimePaise: record.overtimePaise,
@@ -556,6 +607,7 @@ export class StaffService {
       records,
       entries: row.payEntries.map((entry) => ({ month: entryMonth(entry), kind: entry.kind, amountPaise: entry.amountPaise })),
       month,
+      divisorDays,
     });
     const record = row.salaries.find((candidate) => monthOfDate(fromDbDate(candidate.month)) === month);
     const entries = row.payEntries.filter((entry) => entryMonth(entry) === month);
@@ -566,6 +618,8 @@ export class StaffService {
       name: row.name,
       jobTitle: row.jobTitle,
       isActive: row.isActive,
+      joinedOn: fromDbDateOrNull(row.joinedOn),
+      countedFrom: countedFrom(row),
       outletId: outlet.id,
       outletName: outlet.name,
       organizationName: outlet.organization.name,
@@ -594,7 +648,9 @@ export class StaffService {
       name: row.name,
       jobTitle: row.jobTitle,
       phone: row.phone,
-      ...datesOf(row),
+      joinedOn: fromDbDateOrNull(row.joinedOn),
+      countedFrom: countedFrom(row),
+      leftOn: fromDbDateOrNull(row.leftOn),
       isActive: row.isActive,
       weeklyOffDay: row.weeklyOffDay,
       userId: row.userId,

@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const bn: Messages = {
+export const bn: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "পরিষ্কার জায়গা। নিরাপদ কাজ। মজবুত ব্যবসা।",
 
@@ -1120,7 +1120,6 @@ export const bn: Messages = {
   "team.person.payChangeHint": "বেতন বদলালে তা এই মাস থেকে ধরা হবে। আগের মাসগুলোতে পুরোনো বেতনই থাকবে।",
   "team.person.weeklyOff": "সাপ্তাহিক ছুটির দিন",
   "team.person.noFixedDay": "কোনো বাঁধা দিন নেই",
-  "team.person.joined": "কাজে যোগ দেওয়ার তারিখ",
   "team.person.phone": "ফোন নম্বর",
   "team.person.optional": "না দিলেও চলে",
   "team.person.badDate": "তারিখ দিন/মাস/বছর হিসেবে লিখুন, যেমন 05/10/2026।",
@@ -1596,8 +1595,6 @@ export const bn: Messages = {
   "att.review.days": "যে দিনগুলোর মীমাংসা করতে হবে ({count})",
   "att.review.fixDay": "দিনটা ঠিক করুন",
   "att.review.openDay": "দিনটা খুলুন",
-  "att.settings.title": "পুরো দিনের ঘণ্টা",
-  "att.settings.hint": "কত ঘণ্টায় পুরো দিন আর কত ঘণ্টায় আধা দিন ধরা হবে",
   "att.settings.how": "একটা দিন চলে ভোর {hour}টা থেকে পরদিন ভোর {hour}টা পর্যন্ত। প্রতিটি ক্লক ইন থেকে তার ক্লক আউট পর্যন্ত সময় যোগ করা হয়।",
   "att.settings.full": "পুরো দিনের ঘণ্টা",
   "att.settings.fullHint": "এত ঘণ্টা বা তার বেশি হলে উপস্থিত ধরা হয়।",
@@ -1606,12 +1603,10 @@ export const bn: Messages = {
   "att.settings.badFull": "1 থেকে 16-র মধ্যে ঘণ্টার সংখ্যা লিখুন।",
   "att.settings.badHalf": "0.5 থেকে 12-র মধ্যে ঘণ্টার সংখ্যা লিখুন।",
   "att.settings.halfShorter": "আধা দিন পুরো দিনের চেয়ে ছোট হতে হবে।",
-  "att.settings.applies": "এই ঘণ্টাগুলো এই আউটলেটের সবার জন্য।",
   "att.settings.ownerOnly": "শুধু মালিক এগুলো বদলাতে পারেন।",
   "team.person.saveAndFace": "সেভ করে এঁর মুখ যোগ করুন",
   "team.status.NONE": "রেকর্ড নেই",
   "team.att.hint": "আজ কে কে এসেছেন, আর প্রতিদিনের ক্লক ইন ও ক্লক আউট",
-  "team.pay.ruleMonthly": "মাসিক বেতন {amount}, এই মাসের {days} দিন দিয়ে ভাগ করা। প্রতিটি অনুপস্থিত দিনের জন্য এক দিনের বেতন আর প্রতিটি আধা দিনের জন্য আধা দিনের বেতন কাটা হয়। সাপ্তাহিক ছুটি, সবেতন ছুটি আর রেকর্ড না থাকা দিনের বেতন দেওয়া হয়।",
   "team.pay.ruleDaily": "দৈনিক মজুরি {amount}। প্রতিটি উপস্থিত দিন ও প্রতিটি সবেতন ছুটির দিনের জন্য পুরো মজুরি, আর আধা দিনের জন্য অর্ধেক দেওয়া হয়। সাপ্তাহিক ছুটি, অনুপস্থিত আর রেকর্ড না থাকা দিনের মজুরি দেওয়া হয় না।",
 
   "face.live.turn": "এবার মাথা একটু পাশের দিকে ঘোরান",

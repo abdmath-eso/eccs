@@ -11,6 +11,7 @@ import {
   attendanceDayOf,
   attendanceDayStart,
   can,
+  countedFromOf,
   earliestCorrectableDate,
   isMonth,
   monthBounds,
@@ -56,6 +57,12 @@ export interface PunchStaff {
   weeklyOffDay: number | null;
 }
 type StaffDates = PunchStaff & { name: string; joinedOn: Date | null; leftOn: Date | null; createdAt: Date };
+
+/** A person's dates as the rules read them: counted from their joining date, or the day they were added when they have none. */
+const datesOf = (person: { joinedOn: Date | null; leftOn: Date | null; createdAt: Date }) => ({
+  joinedOn: countedFromOf({ joinedOn: person.joinedOn ? fromDbDate(person.joinedOn) : null, addedOn: attendanceDayOf(person.createdAt) }),
+  leftOn: person.leftOn ? fromDbDate(person.leftOn) : null,
+});
 
 const toRule = (punch: PunchRow): RulePunch => ({ at: punch.at.getTime(), kind: punch.kind, flag: punch.flag });
 
@@ -118,6 +125,8 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
     return {
       fullDayMinutes: row?.fullDayMinutes ?? ATTENDANCE_DAY_RULES.fullDayMinutes,
       halfDayMinutes: row?.halfDayMinutes ?? ATTENDANCE_DAY_RULES.halfDayMinutes,
+      // The days a month's salary is divided by: empty means the days in that month, as it always was.
+      salaryDivisorDays: row?.salaryDivisorDays ?? null,
       isDefault: !row,
     };
   }
@@ -131,14 +140,25 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
    * The Owner changes what counts as a full day and a half day. Days already
    * worked out from punches, as far back as corrections reach, are worked out
    * again with the new figures; days the Owner set by hand are left alone.
+   *
+   * The days a month's salary is divided by is saved here too, when it is sent.
+   * Nothing is rewritten for it: months that hold their own divisor keep it, and
+   * open months are simply worked out with the new one the next time they are read.
    */
-  async saveSettings(user: AuthUser, outletId: string, input: { fullDayMinutes: number; halfDayMinutes: number }): Promise<AttendanceSettingsDto> {
+  async saveSettings(
+    user: AuthUser,
+    outletId: string,
+    input: { fullDayMinutes: number; halfDayMinutes: number; salaryDivisorDays?: number | null | undefined },
+  ): Promise<AttendanceSettingsDto> {
     const outlet = await this.requireOutlet(user, 'update', outletId);
     const before = await this.settingsOf(outletId);
+    const hours = { fullDayMinutes: input.fullDayMinutes, halfDayMinutes: input.halfDayMinutes };
+    // Left out by an app built before the setting existed: it then stays as it is.
+    const divisor = input.salaryDivisorDays === undefined ? {} : { salaryDivisorDays: input.salaryDivisorDays };
     await this.db.attendanceSettings.upsert({
       where: { outletId },
-      create: { outletId, ...input, updatedById: user.id },
-      update: { ...input, updatedById: user.id },
+      create: { outletId, ...hours, ...divisor, updatedById: user.id },
+      update: { ...hours, ...divisor, updatedById: user.id },
     });
     await this.audit.write({
       actorId: user.id,
@@ -146,7 +166,10 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
       entity: 'Outlet',
       entityId: outletId,
       organizationId: outlet.organizationId,
-      details: { before: { fullDayMinutes: before.fullDayMinutes, halfDayMinutes: before.halfDayMinutes }, after: input },
+      details: {
+        before: { fullDayMinutes: before.fullDayMinutes, halfDayMinutes: before.halfDayMinutes, salaryDivisorDays: before.salaryDivisorDays },
+        after: { ...hours, ...divisor },
+      },
     });
     await this.closeDays(undefined, outletId);
     return this.getSettings(user, outletId);
@@ -292,7 +315,7 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
     const outlet = await this.requireOutlet(user, 'update', input.outletId);
     this.requireOpenDay(input.date);
     const staff = await this.db.staffMember.findFirst({ where: { id: input.staffId, outletId: outlet.id } });
-    if (!staff || !worksOn({ joinedOn: staff.joinedOn ? fromDbDate(staff.joinedOn) : null, leftOn: staff.leftOn ? fromDbDate(staff.leftOn) : null }, input.date)) {
+    if (!staff || !worksOn(datesOf(staff), input.date)) {
       throw new BadRequestException('That person was not on the staff of this outlet that day');
     }
     const date = toDbDate(input.date);
@@ -331,7 +354,7 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
     if (at > this.clock.now()) throw new BadRequestException('A punch cannot be added for a time that has not come');
     const day = attendanceDayOf(at);
     this.requireOpenDay(day);
-    if (!worksOn({ joinedOn: staff.joinedOn ? fromDbDate(staff.joinedOn) : null, leftOn: staff.leftOn ? fromDbDate(staff.leftOn) : null }, day)) {
+    if (!worksOn(datesOf(staff), day)) {
       throw new BadRequestException('That person was not on the staff of this outlet that day');
     }
     const punch = await this.recordPunch(staff, { at, kind: input.kind, method: 'CORRECTION', flag: null, note: input.reason, createdById: user.id, reviewedById: user.id });
@@ -436,7 +459,7 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
       const recordOf = new Map(records.map((record) => [`${record.staffMemberId}|${fromDbDate(record.date)}`, record]));
 
       for (const person of staff) {
-        const dates = { joinedOn: person.joinedOn ? fromDbDate(person.joinedOn) : null, leftOn: person.leftOn ? fromDbDate(person.leftOn) : null };
+        const dates = datesOf(person);
         const addedOn = attendanceDayOf(person.createdAt);
         for (let day = from; day <= lastEnded; day = shiftDate(day, 1)) {
           const key = `${person.id}|${day}`;

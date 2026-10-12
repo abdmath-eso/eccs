@@ -104,7 +104,9 @@ function PersonForm({ person, outletId, logins, outletChoice }: PersonFormProps)
   const [name, setName] = useState(person?.name ?? '');
   const [jobTitle, setJobTitle] = useState(person?.jobTitle ?? '');
   const [phone, setPhone] = useState(person?.phone ?? '');
-  const [joined, setJoined] = useState(person?.joinedOn ? toTypedDate(person.joinedOn) : '');
+  // Pay starts on the day the person joined, so the date is always filled in: today for a new person,
+  // and for someone who was never given one, the day they were added (which is what counts for them now).
+  const [joined, setJoined] = useState(toTypedDate(person?.countedFrom ?? indiaToday()));
   const [payType, setPayType] = useState<StaffPayType>(person?.pay?.payType ?? 'MONTHLY');
   const [pay, setPay] = useState(typedRupees(person?.pay?.payPaise ?? 0));
   const [weeklyOffDay, setWeeklyOffDay] = useState<number | null>(person?.weeklyOffDay ?? null);
@@ -118,11 +120,11 @@ function PersonForm({ person, outletId, logins, outletChoice }: PersonFormProps)
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   async function save() {
-    const joinedOn = joined.trim() ? parseTypedDate(joined) : null;
+    const joinedOn = parseTypedDate(joined);
     const payPaise = parseRupees(pay);
     const found = {
       ...(name.trim().length < 2 && { name: t('staff.nameNeeded') }),
-      ...(joined.trim() && !joinedOn && { joined: t('team.person.badDate') }),
+      ...(isOwner && !joinedOn && { joined: t('team.person.badDate') }),
       ...((payPaise === null || payPaise <= 0) && { pay: t('team.person.payNeeded') }),
     };
     setErrors(found);
@@ -130,7 +132,18 @@ function PersonForm({ person, outletId, logins, outletChoice }: PersonFormProps)
 
     setBusy('save');
     setSaveError(null);
-    const fields = { name: name.trim(), jobTitle: jobTitle.trim() || null, phone: phone.trim() || null, joinedOn, payType, payPaise, weeklyOffDay, userId };
+    const fields = {
+      name: name.trim(),
+      jobTitle: jobTitle.trim() || null,
+      phone: phone.trim() || null,
+      payType,
+      payPaise,
+      weeklyOffDay,
+      userId,
+      // Only the Owner sets the joining date. From a Manager it is left out: a new person then joins
+      // today (the server puts the date in) and an existing person keeps theirs.
+      ...(isOwner && joinedOn && { joinedOn }),
+    };
     try {
       if (person) {
         await api.team.updatePerson(person.id, fields);
@@ -259,7 +272,8 @@ function PersonForm({ person, outletId, logins, outletChoice }: PersonFormProps)
         }}
         keyboardType="number-pad"
         placeholder="DD/MM/YYYY"
-        hint={t('team.person.optional')}
+        editable={isOwner}
+        hint={t(isOwner ? 'team.person.joinedHint' : 'team.person.joinedOwnerOnly')}
         error={errors.joined}
       />
       <TextField label={t('team.person.phone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" hint={t('team.person.optional')} />

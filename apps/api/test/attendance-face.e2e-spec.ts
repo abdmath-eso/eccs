@@ -154,7 +154,12 @@ describe('Attendance by face (e2e)', () => {
     return { pin: made.body.pin as string, token: await pinLogin(OUTLET_CODE, made.body.pin as string) };
   }
   async function addPerson(name: string, at: string, more: Record<string, unknown> = {}) {
-    const made = await http().post('/staff/people').set(bearer(owner)).send({ outletId: at, name, payType: 'DAILY', payPaise: 60000, ...more }).expect(201);
+    // Joined three weeks ago: with no date given a new person counts from today, and the days below would not be theirs.
+    const made = await http()
+      .post('/staff/people')
+      .set(bearer(owner))
+      .send({ outletId: at, name, payType: 'DAILY', payPaise: 60000, joinedOn: shiftDate(today, -21), ...more })
+      .expect(201);
     // As if added three weeks ago: nobody is marked absent for a day before they were in the app.
     await prisma.client.staffMember.update({ where: { id: made.body.id as string }, data: { createdAt: ist(shiftDate(today, -21), '10:00') } });
     return made.body.id as string;
@@ -654,7 +659,7 @@ describe('Attendance by face (e2e)', () => {
   it('lets the Owner alone change what counts as a full day, and works the days out again', async () => {
     const settings = (token: string) => http().get(`/attendance/settings/${outletId}`).set(bearer(token));
     const save = (token: string, body: Record<string, unknown>) => http().put(`/attendance/settings/${outletId}`).set(bearer(token)).send(body);
-    expect((await settings(manager).expect(200)).body).toEqual({ outletId, fullDayMinutes: 480, halfDayMinutes: 240, dayStartsAtHour: 4, isDefault: true });
+    expect((await settings(manager).expect(200)).body).toEqual({ outletId, fullDayMinutes: 480, halfDayMinutes: 240, salaryDivisorDays: null, dayStartsAtHour: 4, isDefault: true });
     await settings(chef).expect(403);
     await save(manager, { fullDayMinutes: 420, halfDayMinutes: 200 }).expect(403);
     await save(owner, { fullDayMinutes: 200, halfDayMinutes: 420 }).expect(400);

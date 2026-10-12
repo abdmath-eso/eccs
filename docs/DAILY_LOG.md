@@ -12,6 +12,20 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Monday 12 October 2026
+
+*In progress. To be written up at the next end of day.*
+
+**So far**
+
+- The founder ran `pnpm install`. A camera component was added and a worker put a live camera inside the app for the face step: an oval guide, a countdown that takes the photo, and a second photo with the head turned when clocking in, which switches on the server's check against a photo of a colleague. Its six pieces of text were translated and a new APK was built. Still not seen on a phone.
+- Later the founder said the countdown camera sounded primitive and asked for it to work like face unlock and identity-check apps: move the face around to add it, no photo-taking to recognise it. A worker added on-device face detection (VisionCamera with Google ML Kit) and rebuilt the step: a head-circle scan with marks that fill in, automatic lock-on and head-turn catch when clocking in, and a three-second auto-confirm with "Not me" on a sure match. The Android app compiled on the second attempt (the first was blocked by an idle build helper holding a file) and the new camera opened on the virtual phone; nothing has run with a real face. The app now needs Android 8 and the APK is about 120 MB. 24 pieces of text translated; APK rebuilt.
+- In the afternoon the founder installed the APK and tried it. Adding a face worked, but clocking in said "Not recognised": the faces had been added to staff at Gachibowli and the phone was linked to Jubilee Hills, and a phone only recognises its own outlet's staff. The clock screen now says when no faces are added at the outlet and the face page names the person's outlet; APK rebuilt at 2:02 pm. The founder then confirmed it works, and asked that a second scan clock the person out and a third clock them in again, instead of "you already clocked in"; the 5-minute rule was replaced by a 10-second one that only catches the same scan arriving twice (a server change: no new APK needed).
+- The founder asked for a pitch deck of at most ten pages. Claude made one as a slide Artifact (private to the founder until shared; not in the repo): problem, solution, product, why now, business model, market, competition, where it stands, team and ask. Figures it had no source for (prices, market size, customers, the amount being raised) are left as brackets for the founder to fill.
+- The founder asked that a new employee's salary start from the day they were onboarded, that the Owner choose the days a month's salary is divided by (30, 31, 28 in February), and that the attendance page be looked at for clutter. A worker built all three: a joining date that defaults to today and pay counted from it; a setting for the divisor (the month's own days, 30, 26 or another number) with the rule shown on the pay screen; and plainer attendance and staff screens after looking at how Jibble, Connecteam, Zoho People and greytHR lay a day out. Claude then looked at phone-size pictures of the result and tightened the top of the screen: the outlet chooser became one line that opens a list, and the filter chips one row that slides. 494 end-to-end tests and 402 unit tests pass. Seen only in a browser at phone size, not on a phone.
+
+---
+
 ## Sunday 11 October 2026
 
 *In progress. The work below began late on Friday 9 October and ran on unattended; the PC's clock read 11 October when it finished, so it is logged here. To be written up at the next end of day.*
@@ -24,9 +38,6 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - The engine was measured on 181 public photos of 38 people: 38 of 40 scans by enrolled people matched, none to the wrong person; no stranger matched, 4 of 81 were "unsure".
 - Phone half built: the button on the PIN screen and the scan screens, the consent notice and face capture when adding a person, a read-only day sheet, the Owner's corrections, review list and hours settings. It uses the phone's own camera app for now because a camera component cannot be installed while the founder's servers are running; the photo-of-a-colleague check waits for that.
 - Not tried on any phone.
-- 12 Oct: the founder ran `pnpm install`. A camera component was added and a worker put a live camera inside the app for the face step: an oval guide, a countdown that takes the photo, and a second photo with the head turned when clocking in, which switches on the server's check against a photo of a colleague. Its six pieces of text were translated and a new APK was built. Still not seen on a phone.
-- 12 Oct, later: the founder said the countdown camera sounded primitive and asked for it to work like face unlock and identity-check apps: move the face around to add it, no photo-taking to recognise it. A worker added on-device face detection (VisionCamera with Google ML Kit) and rebuilt the step: a head-circle scan with marks that fill in, automatic lock-on and head-turn catch when clocking in, and a three-second auto-confirm with "Not me" on a sure match. The Android app compiled on the second attempt (the first was blocked by an idle build helper holding a file) and the new camera opened on the virtual phone; nothing has run with a real face. The app now needs Android 8 and the APK is about 120 MB. 24 pieces of text translated; APK rebuilt.
-- 12 Oct, afternoon: the founder installed the APK and tried it. Adding a face worked, but clocking in said "Not recognised": the faces had been added to staff at Gachibowli and the phone was linked to Jubilee Hills, and a phone only recognises its own outlet's staff. The clock screen now says when no faces are added at the outlet and the face page names the person's outlet; APK rebuilt at 2:02 pm. The founder then confirmed it works, and asked that a second scan clock the person out and a third clock them in again, instead of "you already clocked in"; the 5-minute rule was replaced by a 10-second one that only catches the same scan arriving twice (a server change: no new APK needed).
 
 ---
 

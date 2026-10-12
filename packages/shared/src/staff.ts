@@ -43,7 +43,31 @@ export const STAFF_RULES = {
   correctionMonthsBack: 1,
   /** What a half day counts as, in days. */
   halfDay: 0.5,
+  /**
+   * The Owner's own number for "the days a month's salary is divided by" must be
+   * a whole number in this range. 26 (a month less its weekly offs) and 30 are
+   * the usual ones; nothing below 20 or above 31 is a month's worth of days.
+   */
+  divisorMin: 20,
+  divisorMax: 31,
 } as const;
+
+/**
+ * The days a month's salary is divided by to get one day's pay. Null means the
+ * calendar days of that month (28 to 31); a number means always that many,
+ * whatever the month.
+ */
+export type SalaryDivisorDays = number | null;
+
+/** The fixed numbers offered by name; any other whole number in range can be typed. */
+export const SALARY_DIVISOR_PRESETS = [30, 26] as const;
+
+/** True for a number the Owner may choose as the fixed divisor. */
+export const isSalaryDivisor = (days: number) =>
+  Number.isInteger(days) && days >= STAFF_RULES.divisorMin && days <= STAFF_RULES.divisorMax;
+
+/** The number a month's salary is divided by under a setting: the month's own length, or the fixed number. */
+export const divisorFor = (month: string, setting: SalaryDivisorDays) => setting ?? daysInMonth(month);
 
 // ───────────────────────── Dates ─────────────────────────
 
@@ -80,6 +104,14 @@ export function attendanceDateVerdict(date: string, today: string, mayCorrect: b
   return date < earliestCorrectableDate(today) ? "TOO_OLD" : "OK";
 }
 
+/**
+ * The day a person's attendance and pay count from. Pay never starts before the
+ * person joined: it is their joining date, and for someone who was never given
+ * one (people added before 12 Oct 2026) it is the day they were added to the
+ * app. Nothing is guessed: the Owner can put the real date in at any time.
+ */
+export const countedFromOf = (person: { joinedOn: string | null; addedOn: string }) => person.joinedOn ?? person.addedOn;
+
 /** True if the person was on the staff that day: on or after joining, and not after their last day. */
 export const worksOn = (person: { joinedOn: string | null; leftOn: string | null }, date: string) =>
   (person.joinedOn === null || person.joinedOn <= date) && (person.leftOn === null || person.leftOn >= date);
@@ -90,7 +122,7 @@ export interface AttendanceTotals {
   /** Days in the whole calendar month. */
   daysInMonth: number;
   /**
-   * The days that count for this person: from the 1st (or the day they joined)
+   * The days that count for this person: from the day they joined (or the 1st, if they joined before this month)
    * to the end of the month (or their last day, or today if the month is still running).
    */
   countedDays: number;
@@ -168,35 +200,82 @@ export interface MonthPay {
   paidDays: number;
   /** For monthly pay: the days the month's salary is divided by. Null for daily pay. */
   divisor: number | null;
+  /** One day's pay, in paise to the nearest paisa: the salary divided by `divisor`, or the daily wage. */
+  dayRatePaise: number;
+  /** For monthly pay: the days of pay lost, 1 for each absence and 0.5 for each half day. 0 for daily pay. */
+  lostDays: number;
   /** What the month's pay comes to, in paise, before overtime, bonus, advances and deductions. */
   duePaise: number;
 }
 
+const twoPlaces = (value: number) => Math.round(value * 100) / 100;
+
 /**
  * What a month's pay comes to from the attendance.
  *
- * Paid by the month: the salary is divided by the calendar days in the month.
- * Every counted day is paid except an absence (a full day lost) and a half day
- * (half a day lost). So a weekly off, leave and a day nobody marked are all paid:
- * a monthly salary is fixed unless an absence is recorded.
+ * Paid by the month. The Owner chooses the days a month's salary is divided by
+ * (`divisorDays`): the calendar days of that month (null; 28 to 31), or always
+ * the same number (30, 26, or their own). The rule, in plain words:
+ *
+ *   1. One day's pay = monthly salary ÷ divisor.
+ *   2. Someone on the staff for the whole month starts with the whole salary,
+ *      whatever the divisor and however long the month. Someone who joined or
+ *      left part-way, or a month still running, starts with the share of the
+ *      salary for the calendar days counted so far: days counted ÷ days in the
+ *      month. (Joined on the 12th of a 31-day month: 20 ÷ 31 of the salary.)
+ *   3. One day's pay is taken off for each absence and half a day's for each
+ *      half day. A weekly off, leave and a day with no record are paid.
+ *   4. Never below zero, and nothing at all when every counted day was lost.
+ *
+ * As a sum: pay = salary × (days counted ÷ days in month) − day's pay × days lost.
+ * `paidDays` says the same thing in days of pay: divisor × (days counted ÷ days
+ * in month) − days lost, so pay = day's pay × paidDays. With the calendar-days
+ * divisor that is simply "days counted − days lost", as it always was.
+ *
+ * Why this form (looked up 12 Oct 2026). Indian payroll products agree on two
+ * things: a day's pay is salary ÷ divisor, and an absence ("loss of pay") costs
+ * one day's pay (the loss-of-pay articles of Zoho Payroll, Keka and RazorpayX
+ * all give "salary ÷ days × days lost"). They do not agree on what a fixed 30
+ * or 26 means for part of a month, and none says pay is capped: multiplying a
+ * fixed 30 by days worked pays 31/30 in a long month and 28/30 in February.
+ * Step 2 is the reading that has no such corners. It gives the figure Keka
+ * shows for a mid-month joiner under a fixed 30 (joined 11 January, 21 of 31
+ * days: "20.32 / 30" payable days; taken from that figure, Keka does not state
+ * the rule), and it keeps three promises under every option: a full month with
+ * no absence pays exactly the salary, pay never exceeds the salary, and pay
+ * grows evenly through the month with no jump at the end.
+ *
+ * One known limit: with a divisor shorter than the month (26), someone absent
+ * for 26 days or more comes to nothing even if they worked a few days. The
+ * Owner's own figure is there for a month like that.
  *
  * Paid by the day: the wage is paid for each day present, half for a half day,
  * and for a day of leave (leave here means leave with pay). The weekly off, an
- * absence and a day nobody marked are not paid.
+ * absence and a day nobody marked are not paid. The divisor plays no part.
  *
  * These are this app's own plain rules, not the law's. The Owner can replace the
  * result with their own figure.
  */
-export function monthPay(payType: StaffPayType, ratePaise: number, totals: AttendanceTotals): MonthPay {
+export function monthPay(payType: StaffPayType, ratePaise: number, totals: AttendanceTotals, divisorDays: SalaryDivisorDays = null): MonthPay {
   if (payType === "DAILY") {
     const paidDays = totals.present + totals.halfDay * STAFF_RULES.halfDay + totals.leave;
-    return { paidDays, divisor: null, duePaise: Math.round(ratePaise * paidDays) };
+    return { paidDays, divisor: null, dayRatePaise: ratePaise, lostDays: 0, duePaise: Math.round(ratePaise * paidDays) };
   }
-  const paidDays = totals.countedDays - totals.absent - totals.halfDay * STAFF_RULES.halfDay;
+  const divisor = divisorDays ?? totals.daysInMonth;
+  const lostDays = totals.absent + totals.halfDay * STAFF_RULES.halfDay;
+  // The share of the month counted, in days of pay. Kept exact (no division) when the divisor is the month's own length.
+  const baseDays = divisor === totals.daysInMonth ? totals.countedDays : (totals.countedDays * divisor) / totals.daysInMonth;
+  // With a divisor longer than the month (30 in February) the absences alone would never reach the
+  // whole salary, so a month with no paid day at all is said to be nothing, outright.
+  const nothingPaid = totals.countedDays - lostDays <= 0;
+  const paidDays = nothingPaid ? 0 : Math.max(0, baseDays - lostDays);
   return {
-    paidDays,
-    divisor: totals.daysInMonth,
-    duePaise: Math.round((ratePaise * paidDays) / totals.daysInMonth),
+    // Two decimal places for showing ("19.35 days"); the money is worked out from the exact figure.
+    paidDays: twoPlaces(paidDays),
+    divisor,
+    dayRatePaise: Math.round(ratePaise / divisor),
+    lostDays,
+    duePaise: Math.round((ratePaise * paidDays) / divisor),
   };
 }
 
@@ -208,6 +287,12 @@ export interface SalaryMonthEntryInput {
   /** The rate of pay kept for that month; null means the person's pay as it is now. */
   payType: StaffPayType | null;
   ratePaise: number | null;
+  /**
+   * The days that month's salary was divided by, kept with the month once a
+   * payment was recorded or the month was saved. Null or left out: the month is
+   * still open and follows the outlet's setting as it is now.
+   */
+  divisorDays?: number | null;
   dueOverridePaise: number | null;
   carriedOverridePaise: number | null;
   overtimePaise: number;
@@ -224,6 +309,12 @@ export interface SalaryFigures {
   totals: AttendanceTotals;
   paidDays: number;
   divisor: number | null;
+  /** One day's pay: the salary divided by `divisor`, or the daily wage. In paise, to the nearest paisa. */
+  dayRatePaise: number;
+  /** For monthly pay: the days lost to absences and half days (1 and 0.5 each). */
+  lostDays: number;
+  /** True when this month keeps its own divisor (a payment was recorded, or the month was saved), whatever the setting says now. */
+  divisorKept: boolean;
   /** The month's pay as the app works it out from attendance. */
   computedDuePaise: number;
   /** The Owner's own figure, when they replaced the app's. */
@@ -266,6 +357,8 @@ export interface StaffSalaryInput {
   entries: readonly { month: string; kind: StaffPayEntryKind; amountPaise: number }[];
   /** The month wanted, YYYY-MM. Not after this month. */
   month: string;
+  /** The outlet's setting now for the days a month's salary is divided by. Left out or null: the days in that month. */
+  divisorDays?: SalaryDivisorDays;
 }
 
 function stateOf(balancePaise: number, paidPaise: number): SalaryState {
@@ -300,7 +393,9 @@ export function staffSalaryMonth(input: StaffSalaryInput): SalaryFigures {
     const payType = record?.payType ?? input.person.payType;
     const ratePaise = record?.ratePaise ?? input.person.ratePaise;
     const totals = attendanceTotals({ ...input.person, month, today: input.today, marks: input.marks });
-    const pay = monthPay(payType, ratePaise, totals);
+    // A month that holds its own divisor keeps it; an open month follows the outlet's setting as it is now.
+    const keptDivisor = record?.divisorDays ?? null;
+    const pay = monthPay(payType, ratePaise, totals, keptDivisor ?? input.divisorDays ?? null);
     const sum = (kind: StaffPayEntryKind) =>
       input.entries.reduce((total, entry) => (entry.month === month && entry.kind === kind ? total + entry.amountPaise : total), 0);
 
@@ -325,6 +420,9 @@ export function staffSalaryMonth(input: StaffSalaryInput): SalaryFigures {
       totals,
       paidDays: pay.paidDays,
       divisor: pay.divisor,
+      dayRatePaise: pay.dayRatePaise,
+      lostDays: pay.lostDays,
+      divisorKept: payType === "MONTHLY" && keptDivisor !== null,
       computedDuePaise: pay.duePaise,
       dueOverridePaise,
       duePaise,
@@ -353,7 +451,13 @@ export function staffSalaryMonth(input: StaffSalaryInput): SalaryFigures {
     ratePaise: input.person.ratePaise,
     totals,
     paidDays: 0,
-    divisor: input.person.payType === "MONTHLY" ? totals.daysInMonth : null,
+    divisor: input.person.payType === "MONTHLY" ? divisorFor(input.month, input.divisorDays ?? null) : null,
+    dayRatePaise:
+      input.person.payType === "MONTHLY"
+        ? Math.round(input.person.ratePaise / divisorFor(input.month, input.divisorDays ?? null))
+        : input.person.ratePaise,
+    lostDays: 0,
+    divisorKept: false,
     computedDuePaise: 0,
     dueOverridePaise: null,
     duePaise: 0,
@@ -482,8 +586,13 @@ export interface StaffMemberDto {
   name: string;
   jobTitle: string | null;
   phone: string | null;
-  /** YYYY-MM-DD */
+  /** YYYY-MM-DD. Null only for someone added before joining dates were filled in for everyone. */
   joinedOn: string | null;
+  /**
+   * The day their attendance and pay count from: the joining date, or, for
+   * someone who has none, the day they were added to the app.
+   */
+  countedFrom: string;
   /** The last day they worked, once they have left. */
   leftOn: string | null;
   isActive: boolean;
@@ -570,6 +679,10 @@ export interface SalaryMonthDto extends SalaryFigures {
   name: string;
   jobTitle: string | null;
   isActive: boolean;
+  /** The joining date, where the person has one. */
+  joinedOn: string | null;
+  /** The day their pay counts from: the joining date, or the day they were added when there is none. */
+  countedFrom: string;
   outletId: string;
   outletName: string;
   organizationName: string;

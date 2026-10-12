@@ -1299,6 +1299,7 @@ model AttendanceSettings {
   outletId       String   @id
   fullDayMinutes Int      @default(480)
   halfDayMinutes Int      @default(240)
+  salaryDivisorDays Int? /// the days a month's salary is divided by: empty means the days in that month (28 to 31), a number means always that many (30, 26...)
   updatedById    String?
   updatedAt      DateTime @default(now()) @updatedAt
 
@@ -1317,6 +1318,7 @@ model SalaryRecord {
   month                DateTime  @db.Date /// first day of the month
   payType              StaffPayType @default(MONTHLY)
   basePaise            Int
+  divisorDays          Int? /// the days this month's salary was divided by, kept once a payment is recorded or the month is saved; empty means the month is open and follows the outlet's setting
   daysWorked           Float
   overtimeHours        Float     @default(0)
   overtimePaise        Int       @default(0)

@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const mr: Messages = {
+export const mr: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "स्वच्छ जागा. सुरक्षित कामकाज. मजबूत व्यवसाय.",
 
@@ -1120,7 +1120,6 @@ export const mr: Messages = {
   "team.person.payChangeHint": "पगारातील बदल या महिन्यापासून लागू होतो. आधीच्या महिन्यांना जुनाच पगार राहतो.",
   "team.person.weeklyOff": "साप्ताहिक सुट्टीचा दिवस",
   "team.person.noFixedDay": "ठरलेला दिवस नाही",
-  "team.person.joined": "कामावर रुजू झाल्याची तारीख",
   "team.person.phone": "फोन नंबर",
   "team.person.optional": "ऐच्छिक",
   "team.person.badDate": "तारीख दिवस/महिना/वर्ष अशी टाका, उदाहरणार्थ 05/10/2026.",
@@ -1596,8 +1595,6 @@ export const mr: Messages = {
   "att.review.days": "निकाली काढायचे दिवस ({count})",
   "att.review.fixDay": "दिवस दुरुस्त करा",
   "att.review.openDay": "दिवस उघडा",
-  "att.settings.title": "पूर्ण दिवसाचे तास",
-  "att.settings.hint": "किती तास म्हणजे पूर्ण दिवस आणि अर्धा दिवस",
   "att.settings.how": "एक दिवस पहाटे {hour} वाजल्यापासून दुसऱ्या दिवशी पहाटे {hour} वाजेपर्यंत चालतो. प्रत्येक क्लॉक इन आणि त्याच्या क्लॉक आउटमधला वेळ जोडला जातो.",
   "att.settings.full": "पूर्ण दिवसाचे तास",
   "att.settings.fullHint": "इतके किंवा त्यापेक्षा जास्त तास झाले तर हजर मोजले जाते.",
@@ -1606,12 +1603,10 @@ export const mr: Messages = {
   "att.settings.badFull": "1 ते 16 मधली तासांची संख्या टाका.",
   "att.settings.badHalf": "0.5 ते 12 मधली तासांची संख्या टाका.",
   "att.settings.halfShorter": "अर्धा दिवस पूर्ण दिवसापेक्षा कमी असला पाहिजे.",
-  "att.settings.applies": "हे तास या आउटलेटवरील सर्वांसाठी आहेत.",
   "att.settings.ownerOnly": "फक्त मालकच हे बदलू शकतात.",
   "team.person.saveAndFace": "सेव्ह करा आणि यांचा चेहरा जोडा",
   "team.status.NONE": "नोंद नाही",
   "team.att.hint": "आज कोण आले आहे, आणि प्रत्येक दिवसाचे क्लॉक इन आणि क्लॉक आउट",
-  "team.pay.ruleMonthly": "महिन्याचा पगार {amount}, या महिन्याच्या {days} दिवसांनी भागला जातो. प्रत्येक गैरहजर दिवसासाठी एका दिवसाचा पगार आणि प्रत्येक अर्ध्या दिवसासाठी अर्ध्या दिवसाचा पगार कापला जातो. साप्ताहिक सुट्टी, पगारी रजा आणि नोंद नसलेल्या दिवसांचा पगार मिळतो.",
   "team.pay.ruleDaily": "रोजची मजुरी {amount}. हजर असलेल्या प्रत्येक दिवसासाठी आणि पगारी रजेच्या प्रत्येक दिवसासाठी पूर्ण मजुरी, आणि अर्ध्या दिवसासाठी अर्धी मजुरी मिळते. साप्ताहिक सुट्टी, गैरहजर आणि नोंद नसलेल्या दिवसांची मजुरी मिळत नाही.",
 
   "face.live.turn": "आता डोके थोडेसे एका बाजूला वळवा",

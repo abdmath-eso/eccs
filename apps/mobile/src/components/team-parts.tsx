@@ -6,7 +6,7 @@ import { useCallback, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OptionSheet } from '@/components/ui/option-sheet';
 import { MinTouchSize, Spacing, type ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useDirection } from '@/lib/direction';
@@ -116,7 +116,15 @@ export function MonthStepper({ month, thisMonth, earliest, onChange }: MonthStep
   );
 }
 
-/** The Owner's choice of outlet, shown only when they have more than one. */
+/**
+ * The Owner's choice of outlet, shown only when they have more than one.
+ *
+ * One line that names the outlet in view and opens the list when tapped. It was
+ * a chip for every outlet, which took a row each on a phone and pushed the
+ * screen's own content down (the founder found the attendance screen cluttered,
+ * 12 Oct 2026). A single line that opens a list is how apps let someone switch
+ * between a few places (Material's exposed dropdown menu).
+ */
 export function OutletChips({
   outlets,
   outletId,
@@ -126,14 +134,39 @@ export function OutletChips({
   outletId: string | null;
   onChoose: (outletId: string) => void;
 }) {
+  const theme = useTheme();
   const { t } = useSession();
+  const [open, setOpen] = useState(false);
   if (outlets.length < 2) return null;
+  const current = outlets.find((outlet) => outlet.id === outletId)?.name ?? '';
   return (
-    <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-      {outlets.map((outlet) => (
-        <OptionChip key={outlet.id} label={outlet.name} selected={outlet.id === outletId} onPress={() => onChoose(outlet.id)} />
-      ))}
-    </View>
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${t('checklists.chooseOutlet')}: ${current}`}
+        onPress={() => setOpen(true)}
+        style={({ pressed }) => [styles.outlet, { borderColor: theme.outline }, pressed && { backgroundColor: theme.backgroundElement }]}>
+        <Ionicons name="storefront-outline" size={20} color={theme.primary} />
+        <ThemedText type="default" numberOfLines={1} style={styles.outletName}>
+          {current || t('checklists.chooseOutlet')}
+        </ThemedText>
+        <Ionicons name="chevron-down" size={20} color={theme.textSecondary} />
+      </Pressable>
+      <OptionSheet
+        visible={open}
+        title={t('checklists.chooseOutlet')}
+        onClose={() => setOpen(false)}
+        options={outlets.map((outlet) => ({
+          label: outlet.name,
+          // The outlet in view carries a filled mark, the others an empty one.
+          icon: outlet.id === outletId ? ('radio-button-on' as const) : ('radio-button-off' as const),
+          onPress: () => {
+            setOpen(false);
+            onChoose(outlet.id);
+          },
+        }))}
+      />
+    </>
   );
 }
 
@@ -226,5 +259,14 @@ const styles = StyleSheet.create({
   stepperTitle: { flex: 1, textAlign: 'center', fontSize: 22, lineHeight: 30 },
   arrow: { minHeight: MinTouchSize, minWidth: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
   faded: { opacity: 0.3 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  outlet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    minHeight: MinTouchSize,
+    borderWidth: 1,
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.three,
+  },
+  outletName: { flex: 1, fontWeight: 700 },
 });

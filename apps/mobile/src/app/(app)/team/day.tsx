@@ -166,7 +166,7 @@ export default function PersonDayScreen() {
 
       {/* ── The day's status and what the clock-ins add up to ── */}
       {person && (
-        <View style={[styles.card, { borderColor: theme.border }]}>
+        <View style={styles.summary}>
           <View style={styles.row}>
             <Ionicons name={mark.icon} size={32} color={theme[mark.tone]} />
             <ThemedText type="subtitle" style={styles.status}>
@@ -174,6 +174,12 @@ export default function PersonDayScreen() {
             </ThemedText>
           </View>
           <DayFactsLine facts={person} />
+          {/* Their job and whether this is their usual day off: moved here from the day's list, which now shows only the essentials. */}
+          {(person.jobTitle || person.usualDayOff) && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {[person.jobTitle, person.usualDayOff ? t('team.att.usualOff') : null].filter(Boolean).join(' · ')}
+            </ThemedText>
+          )}
           {person.provisional && person.status !== null && (
             <ThemedText type="small" themeColor="textSecondary">
               {t('att.provisional')}
@@ -190,7 +196,7 @@ export default function PersonDayScreen() {
             </ThemedText>
           )}
           <FlagList flags={person.flags} />
-          {!person.enrolled && <EnrolledMark enrolled={false} />}
+          <EnrolledMark enrolled={person.enrolled} />
         </View>
       )}
 
@@ -372,6 +378,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1, gap: Spacing.half },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   card: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  // The day's own summary stands at the top without a box; only the clock-ins under it are boxed.
+  summary: { gap: Spacing.two },
   status: { flex: 1, fontSize: 24, lineHeight: 30 },
   bold: { fontWeight: 700 },
   struck: { textDecorationLine: 'line-through' },

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   attendanceDateVerdict,
   attendanceTotals,
+  countedFromOf,
+  divisorFor,
   earliestCorrectableDate,
+  isSalaryDivisor,
   monthPay,
   staffSalaryMonth,
   worksOn,
@@ -144,7 +147,7 @@ describe("monthPay", () => {
     attendanceTotals({ ...noOne, ...extra, month: "2026-09", today: "2026-10-09", marks });
 
   it("pays a monthly salary in full when nothing is marked absent", () => {
-    expect(monthPay("MONTHLY", rupees(30000), september({}))).toEqual({ paidDays: 30, divisor: 30, duePaise: rupees(30000) });
+    expect(monthPay("MONTHLY", rupees(30000), september({}))).toMatchObject({ paidDays: 30, divisor: 30, duePaise: rupees(30000) });
     // Leave and the weekly off are paid too.
     const marks = { ...days("2026-09", 1, 2, "LEAVE"), ...days("2026-09", 6, 6, "WEEKLY_OFF") };
     expect(monthPay("MONTHLY", rupees(30000), september(marks)).duePaise).toBe(rupees(30000));
@@ -152,13 +155,13 @@ describe("monthPay", () => {
 
   it("takes a day's pay for an absence and half for a half day, dividing by the days in the month", () => {
     const marks = { ...days("2026-09", 1, 2, "ABSENT"), ...days("2026-09", 3, 3, "HALF_DAY") };
-    expect(monthPay("MONTHLY", rupees(30000), september(marks))).toEqual({ paidDays: 27.5, divisor: 30, duePaise: rupees(27500) });
+    expect(monthPay("MONTHLY", rupees(30000), september(marks))).toMatchObject({ paidDays: 27.5, divisor: 30, duePaise: rupees(27500) });
   });
 
   it("divides by 31, 30, 29 or 28 as the month has", () => {
     const oneAbsence = (month: string) =>
       monthPay("MONTHLY", rupees(31000), attendanceTotals({ ...noOne, month, today: "2030-01-01", marks: { [`${month}-01`]: "ABSENT" } }));
-    expect(oneAbsence("2026-10")).toEqual({ paidDays: 30, divisor: 31, duePaise: rupees(30000) });
+    expect(oneAbsence("2026-10")).toMatchObject({ paidDays: 30, divisor: 31, duePaise: rupees(30000) });
     expect(oneAbsence("2026-02").divisor).toBe(28);
     expect(oneAbsence("2028-02").divisor).toBe(29);
     // 31,000 × 27 ÷ 28 = 29,892.857…, kept to the nearest paisa.
@@ -170,7 +173,7 @@ describe("monthPay", () => {
     expect(monthPay("MONTHLY", rupees(30000), september({}, { joinedOn: "2026-09-16" })).duePaise).toBe(rupees(15000));
     // Left on the 10th, with one absence in those ten days: 9 of 30.
     const left = attendanceTotals({ joinedOn: null, leftOn: "2026-09-10", weeklyOffDay: null, month: "2026-09", today: "2026-10-09", marks: { "2026-09-05": "ABSENT" } });
-    expect(monthPay("MONTHLY", rupees(30000), left)).toEqual({ paidDays: 9, divisor: 30, duePaise: rupees(9000) });
+    expect(monthPay("MONTHLY", rupees(30000), left)).toMatchObject({ paidDays: 9, divisor: 30, duePaise: rupees(9000) });
   });
 
   it("pays a daily wage for days present, half for a half day, and for leave; nothing else", () => {
@@ -181,9 +184,212 @@ describe("monthPay", () => {
       ...days("2026-09", 13, 13, "WEEKLY_OFF"),
       ...days("2026-09", 14, 15, "ABSENT"),
     };
-    expect(monthPay("DAILY", rupees(600), september(marks))).toEqual({ paidDays: 11.5, divisor: null, duePaise: rupees(6900) });
+    expect(monthPay("DAILY", rupees(600), september(marks))).toMatchObject({ paidDays: 11.5, divisor: null, duePaise: rupees(6900) });
     // Nothing marked, nothing due.
     expect(monthPay("DAILY", rupees(600), september({})).duePaise).toBe(0);
+  });
+});
+
+describe("countedFromOf", () => {
+  it("is the joining date, or the day the person was added when they have none", () => {
+    expect(countedFromOf({ joinedOn: "2026-10-12", addedOn: "2026-10-20" })).toBe("2026-10-12");
+    expect(countedFromOf({ joinedOn: null, addedOn: "2026-10-20" })).toBe("2026-10-20");
+  });
+});
+
+describe("pay starts on the day the person joined", () => {
+  it("counts a 31-day month from the 12th only: Rs 31,000 with calendar days", () => {
+    const person = { joinedOn: "2026-10-12", leftOn: null, weeklyOffDay: null };
+    // Looked at on the 20th, the month still running: the 12th to the 20th is 9 days of 31.
+    const soFar = attendanceTotals({ ...person, month: "2026-10", today: "2026-10-20", marks: {} });
+    expect(soFar).toMatchObject({ countedDays: 9, upTo: "2026-10-20" });
+    expect(monthPay("MONTHLY", rupees(31000), soFar)).toMatchObject({ paidDays: 9, divisor: 31, dayRatePaise: rupees(1000), duePaise: rupees(9000) });
+    // Once the month is over: the 12th to the 31st is 20 days, Rs 20,000, never the whole Rs 31,000.
+    const whole = attendanceTotals({ ...person, month: "2026-10", today: "2026-11-05", marks: {} });
+    expect(monthPay("MONTHLY", rupees(31000), whole)).toMatchObject({ paidDays: 20, duePaise: rupees(20000) });
+    // And nothing for the month before they joined.
+    const earlier = attendanceTotals({ ...person, month: "2026-09", today: "2026-11-05", marks: {} });
+    expect(monthPay("MONTHLY", rupees(31000), earlier).duePaise).toBe(0);
+  });
+
+  it("follows the person through staffSalaryMonth", () => {
+    const figures = staffSalaryMonth({
+      person: { payType: "MONTHLY", ratePaise: rupees(31000), joinedOn: "2026-10-12", leftOn: null, weeklyOffDay: null },
+      today: "2026-10-20",
+      marks: { "2026-10-12": "PRESENT" },
+      records: {},
+      entries: [],
+      month: "2026-10",
+    });
+    expect(figures).toMatchObject({ paidDays: 9, divisor: 31, computedDuePaise: rupees(9000), carriedPaise: 0 });
+  });
+});
+
+describe("the days a month's salary is divided by", () => {
+  const MONTHS = { "2026-02": 28, "2028-02": 29, "2026-04": 30, "2026-10": 31 } as const;
+  // Calendar days (null), always 30, always 26, and the Owner's own numbers.
+  const OPTIONS = [null, 30, 26, 28, 20, 31] as const;
+  const SALARY = rupees(31000);
+  const totalsOf = (month: string, more: Partial<Parameters<typeof attendanceTotals>[0]> = {}) =>
+    attendanceTotals({ ...noOne, month, today: "2030-01-01", marks: {}, ...more });
+  /** The rule written out a second way, to check the function against: salary × (counted ÷ month − lost ÷ divisor). */
+  const byHand = (counted: number, monthDays: number, lost: number, divisor: number) =>
+    counted - lost <= 0 ? 0 : Math.round(SALARY * Math.max(0, counted / monthDays - lost / divisor));
+
+  it("knows a divisor the Owner may choose, and the number in force for a month", () => {
+    expect([19, 20, 26, 30, 31, 32, 26.5].map(isSalaryDivisor)).toEqual([false, true, true, true, true, false, false]);
+    expect(divisorFor("2026-02", null)).toBe(28);
+    expect(divisorFor("2028-02", null)).toBe(29);
+    expect(divisorFor("2026-10", null)).toBe(31);
+    expect(divisorFor("2026-02", 30)).toBe(30);
+    expect(divisorFor("2026-10", 26)).toBe(26);
+  });
+
+  for (const option of OPTIONS) {
+    for (const [month, monthDays] of Object.entries(MONTHS)) {
+      const divisor = option ?? monthDays;
+      const name = `${option === null ? "calendar days" : `always ${option}`}, ${monthDays}-day month`;
+      const on = (day: number) => `${month}-${String(day).padStart(2, "0")}`;
+
+      it(`${name}: a full month with no absence pays exactly the salary`, () => {
+        const pay = monthPay("MONTHLY", SALARY, totalsOf(month), option);
+        expect(pay).toMatchObject({ divisor, paidDays: divisor, lostDays: 0, duePaise: SALARY, dayRatePaise: Math.round(SALARY / divisor) });
+        // Leave, weekly offs and days with no record are paid too.
+        const marks = { [on(2)]: "LEAVE", [on(3)]: "WEEKLY_OFF", [on(4)]: "PRESENT" } as const;
+        expect(monthPay("MONTHLY", SALARY, totalsOf(month, { marks }), option).duePaise).toBe(SALARY);
+      });
+
+      it(`${name}: one absence costs one day's pay, a half day half of one`, () => {
+        const absent = monthPay("MONTHLY", SALARY, totalsOf(month, { marks: { [on(5)]: "ABSENT" } }), option);
+        expect(absent).toMatchObject({ lostDays: 1, paidDays: divisor - 1 });
+        expect(absent.duePaise).toBe(Math.round((SALARY * (divisor - 1)) / divisor));
+        expect(absent.duePaise).toBe(byHand(monthDays, monthDays, 1, divisor));
+
+        const half = monthPay("MONTHLY", SALARY, totalsOf(month, { marks: { [on(5)]: "HALF_DAY" } }), option);
+        expect(half).toMatchObject({ lostDays: 0.5, paidDays: divisor - 0.5 });
+        expect(half.duePaise).toBe(Math.round((SALARY * (divisor - 0.5)) / divisor));
+        // Half a day costs half of what a day costs (to the paisa).
+        expect(Math.abs(SALARY - half.duePaise - (SALARY - absent.duePaise) / 2)).toBeLessThanOrEqual(1);
+      });
+
+      it(`${name}: joined mid-month, paid only from that day`, () => {
+        // Joined on the 12th: the days from the 12th to the end, as a share of the month.
+        const counted = monthDays - 11;
+        const joined = totalsOf(month, { joinedOn: on(12) });
+        expect(joined.countedDays).toBe(counted);
+        const pay = monthPay("MONTHLY", SALARY, joined, option);
+        expect(pay.duePaise).toBe(Math.round((SALARY * counted) / monthDays));
+        expect(pay.paidDays).toBeCloseTo((divisor * counted) / monthDays, 2);
+        expect(pay.duePaise).toBeLessThan(SALARY);
+        // With an absence after joining.
+        const withAbsence = monthPay("MONTHLY", SALARY, totalsOf(month, { joinedOn: on(12), marks: { [on(15)]: "ABSENT" } }), option);
+        expect(withAbsence.duePaise).toBe(byHand(counted, monthDays, 1, divisor));
+        // An absence marked before they joined is not theirs.
+        expect(monthPay("MONTHLY", SALARY, totalsOf(month, { joinedOn: on(12), marks: { [on(3)]: "ABSENT" } }), option).duePaise).toBe(pay.duePaise);
+      });
+
+      it(`${name}: left mid-month, paid only up to the last day`, () => {
+        const left = totalsOf(month, { leftOn: on(10), marks: { [on(4)]: "HALF_DAY" } });
+        expect(left.countedDays).toBe(10);
+        const pay = monthPay("MONTHLY", SALARY, left, option);
+        expect(pay.duePaise).toBe(byHand(10, monthDays, 0.5, divisor));
+        expect(pay.duePaise).toBeLessThan(SALARY);
+      });
+
+      it(`${name}: a month still running grows day by day to exactly the salary, with no jump`, () => {
+        let last = 0;
+        for (let day = 1; day <= monthDays; day += 1) {
+          const pay = monthPay("MONTHLY", SALARY, totalsOf(month, { today: on(day) }), option);
+          expect(pay.duePaise).toBe(Math.round((SALARY * day) / monthDays));
+          expect(pay.duePaise).toBeGreaterThan(last);
+          expect(pay.duePaise).toBeLessThanOrEqual(SALARY);
+          last = pay.duePaise;
+        }
+        expect(last).toBe(SALARY);
+        // Part-way through with an absence so far.
+        const soFar = monthPay("MONTHLY", SALARY, totalsOf(month, { today: on(9), marks: { [on(2)]: "ABSENT" } }), option);
+        expect(soFar.duePaise).toBe(byHand(9, monthDays, 1, divisor));
+      });
+
+      it(`${name}: pay is never above the salary and never below zero`, () => {
+        for (let absences = 0; absences <= monthDays; absences += 1) {
+          const marks: Record<string, AttendanceStatus> = {};
+          for (let day = 1; day <= absences; day += 1) marks[on(day)] = "ABSENT";
+          const pay = monthPay("MONTHLY", SALARY, totalsOf(month, { marks }), option);
+          expect(pay.duePaise).toBeGreaterThanOrEqual(0);
+          expect(pay.duePaise).toBeLessThanOrEqual(SALARY);
+          expect(pay.paidDays).toBeGreaterThanOrEqual(0);
+        }
+        // Absent every day: nothing, even where the divisor is longer than the month (30 in February).
+        const all: Record<string, AttendanceStatus> = {};
+        for (let day = 1; day <= monthDays; day += 1) all[on(day)] = "ABSENT";
+        expect(monthPay("MONTHLY", SALARY, totalsOf(month, { marks: all }), option)).toMatchObject({ paidDays: 0, duePaise: 0 });
+        // Joined on the last day and absent on it: nothing.
+        expect(monthPay("MONTHLY", SALARY, totalsOf(month, { joinedOn: on(monthDays), marks: { [on(monthDays)]: "ABSENT" } }), option).duePaise).toBe(0);
+      });
+
+      it(`${name}: daily-wage staff are not touched by the divisor`, () => {
+        const marks = { [on(1)]: "PRESENT", [on(2)]: "HALF_DAY", [on(3)]: "LEAVE", [on(4)]: "ABSENT", [on(5)]: "WEEKLY_OFF" } as const;
+        expect(monthPay("DAILY", rupees(600), totalsOf(month, { marks }), option)).toEqual({ paidDays: 2.5, divisor: null, dayRatePaise: rupees(600), lostDays: 0, duePaise: rupees(1500) });
+      });
+    }
+  }
+
+  it("works the examples shown to the Owner", () => {
+    // Rs 30,000 ÷ 30 = Rs 1,000 a day: one absence costs Rs 1,000 in October (31 days) and in February (28) alike.
+    for (const month of ["2026-10", "2026-02"]) {
+      expect(monthPay("MONTHLY", rupees(30000), totalsOf(month, { marks: { [`${month}-07`]: "ABSENT" } }), 30)).toMatchObject({ dayRatePaise: rupees(1000), duePaise: rupees(29000) });
+    }
+    // Calendar days: the same absence costs Rs 30,000 ÷ 31 in October and Rs 30,000 ÷ 28 in February.
+    expect(monthPay("MONTHLY", rupees(30000), totalsOf("2026-10", { marks: { "2026-10-07": "ABSENT" } })).duePaise).toBe(rupees(30000) - 96_774);
+    expect(monthPay("MONTHLY", rupees(30000), totalsOf("2026-02", { marks: { "2026-02-07": "ABSENT" } })).duePaise).toBe(rupees(30000) - 107_143);
+    // Rs 26,000 ÷ 26 = Rs 1,000 a day: an absence and a half day in April cost Rs 1,500.
+    const april = totalsOf("2026-04", { marks: { "2026-04-07": "ABSENT", "2026-04-08": "HALF_DAY" } });
+    expect(monthPay("MONTHLY", rupees(26000), april, 26)).toMatchObject({ paidDays: 24.5, dayRatePaise: rupees(1000), duePaise: rupees(24500) });
+    // Rs 31,000 with "always 30", joined on 12 October, one absence: 20 ÷ 31 of the salary is Rs 20,000,
+    // less one day's pay of Rs 1,033.33. In days of pay that is 19.35 − 1 = 18.35 (as Keka shows "20.32 / 30").
+    const joiner = totalsOf("2026-10", { joinedOn: "2026-10-12", marks: { "2026-10-20": "ABSENT" } });
+    expect(monthPay("MONTHLY", rupees(31000), joiner, 30)).toMatchObject({ paidDays: 18.35, divisor: 30, dayRatePaise: 103_333, lostDays: 1, duePaise: 1_896_667 });
+  });
+});
+
+describe("a month keeps the divisor it was worked out with", () => {
+  const person = { payType: "MONTHLY" as const, ratePaise: rupees(30000), joinedOn: "2026-01-01", leftOn: null, weeklyOffDay: null };
+  const base = { person, today: "2026-11-05", marks: { "2026-10-07": "ABSENT" as const }, entries: [] };
+
+  it("follows the outlet's setting while the month is open", () => {
+    expect(staffSalaryMonth({ ...base, records: {}, month: "2026-10" })).toMatchObject({ divisor: 31, divisorKept: false, computedDuePaise: rupees(30000) - 96_774 });
+    expect(staffSalaryMonth({ ...base, records: {}, month: "2026-10", divisorDays: 30 })).toMatchObject({
+      divisor: 30,
+      divisorKept: false,
+      dayRatePaise: rupees(1000),
+      lostDays: 1,
+      computedDuePaise: rupees(29000),
+    });
+    // A record that only holds the month's rate of pay (made when the pay was raised) does not hold a divisor.
+    const rateOnly = { "2026-10": typed({ payType: "MONTHLY", ratePaise: rupees(30000) }) };
+    expect(staffSalaryMonth({ ...base, records: rateOnly, month: "2026-10", divisorDays: 26 })).toMatchObject({ divisor: 26, divisorKept: false });
+  });
+
+  it("keeps its own once one is stored with the month, whatever the setting becomes", () => {
+    const records = { "2026-10": typed({ divisorDays: 31 }) };
+    for (const setting of [null, 30, 26]) {
+      expect(staffSalaryMonth({ ...base, records, month: "2026-10", divisorDays: setting })).toMatchObject({
+        divisor: 31,
+        divisorKept: true,
+        computedDuePaise: rupees(30000) - 96_774,
+      });
+    }
+    // The next month, still open, takes the new setting, and what October left is carried in unchanged.
+    const november = staffSalaryMonth({ ...base, records, month: "2026-11", divisorDays: 30 });
+    expect(november).toMatchObject({ divisor: 30, divisorKept: false, carriedPaise: rupees(30000) - 96_774 });
+    // 5 of November's 30 days so far.
+    expect(november.computedDuePaise).toBe(rupees(5000));
+  });
+
+  it("says nothing of a divisor for daily pay", () => {
+    const daily = staffSalaryMonth({ ...base, person: { ...person, payType: "DAILY", ratePaise: rupees(600) }, records: { "2026-10": typed({ divisorDays: 30 }) }, month: "2026-10", divisorDays: 26 });
+    expect(daily).toMatchObject({ divisor: null, divisorKept: false, dayRatePaise: rupees(600) });
   });
 });
 

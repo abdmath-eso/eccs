@@ -222,7 +222,7 @@ Restart the API and console terminals first. All prices and tax codes are sample
 
 ## 17. Trying face attendance and the salary tracker
 
-First: restart the API terminal so it has the attendance code. Use the APK built on the afternoon of 12 Oct on a real phone with Android 8 or later (Expo Go shows an older countdown camera instead). The phone must be linked to an outlet, not to the restaurant as a whole. The first time, allow the camera when the app asks.
+First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api start`, so it has the attendance and pay code (with an older API the pay screen fails). Use the APK built on the afternoon of 12 Oct on a real phone with Android 8 or later (Expo Go shows an older countdown camera instead). The phone must be linked to an outlet, not to the restaurant as a whole. The first time, allow the camera when the app asks.
 
 1. **App, as the Owner of Deccan Biryani** (`DECCA-KP6R3T`, PIN `3917`): More > Staff > Add a person. Type a name and the salary, then **Save and add their face**.
 2. Hand the phone to that person. They read the notice and tap **I agree**, then tap Start, put their face in the circle and move their head slowly in a circle: the marks round it fill in and "2 of 5" counts up. It finishes by itself.
@@ -230,11 +230,12 @@ First: restart the API terminal so it has the attendance code. Use the APK built
 4. Scan again: it clocks you OUT and shows the time worked. Scan a third time: it clocks you IN again. Every scan switches between the two.
 5. Let someone who is not enrolled scan: "Not recognised". Tap **Can't scan?**, pick a person, and type the Owner's PIN (`3917`): it is recorded "with approval".
 6. **As the Owner:** Staff > **To review** shows flagged scans with their photo: "Looks right" or "Void" (with a reason). Staff > **Attendance** > tap a person: add a missing clock-out, or change the day to Leave, each with a reason.
-7. Staff > **Hours for a full day**: 8 and 4 to begin with.
+7. Staff > **Hours and pay days**: 8 and 4 hours to begin with, and under them the days a month's salary is divided by. Choose **Always 30 days**, Save, and open someone's pay: "How this is worked out" shows the new day's pay. Record a payment for the month, change the setting to 26, and open the pay again: that month still says 30.
 8. The person's page > **Face for attendance** > **Remove face**: they can no longer be scanned and are clocked in by PIN instead.
 9. **As a Head Chef** (PIN `8264`): More > Attendance shows today, read-only, with no photos and no pay.
-10. **Pay:** tap a person > "Pay for this month" works as before, from the days the clock-ins produced.
-11. Deccan Biryani has no Manager; to try a Manager's approval, add one under "App logins and PINs" first.
+10. **Pay:** tap a person > "Pay for this month" works from the days the clock-ins produced. For someone just added it says "Joined on ... Pay for October is counted from that day." A person with no joining date shows "Pay counted from ..., the day they were added" on their page, with **Change**.
+11. **Attendance screen:** the chips under the date (All, Present, No record, Needs a look) narrow the list; slide the row sideways if there are more. With more than one outlet, tap the outlet's name at the top to switch.
+12. Deccan Biryani has no Manager; to try a Manager's approval, add one under "App logins and PINs" first.
 
 ## 18. Trying food labels
 

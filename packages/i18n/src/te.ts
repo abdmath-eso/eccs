@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const te: Messages = {
+export const te: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "శుభ్రమైన ప్రదేశాలు. సురక్షితమైన కార్యకలాపాలు. బలమైన వ్యాపారాలు.",
 
@@ -1120,7 +1120,6 @@ export const te: Messages = {
   "team.person.payChangeHint": "జీతంలో మార్పు ఈ నెల నుండి వర్తిస్తుంది. మునుపటి నెలలకు పాత జీతమే ఉంటుంది.",
   "team.person.weeklyOff": "వారపు సెలవు రోజు",
   "team.person.noFixedDay": "నిర్ణీత రోజు లేదు",
-  "team.person.joined": "పనిలో చేరిన తేదీ",
   "team.person.phone": "ఫోన్ నంబర్",
   "team.person.optional": "తప్పనిసరి కాదు",
   "team.person.badDate": "తేదీని రోజు/నెల/సంవత్సరం రూపంలో టైప్ చేయండి, ఉదాహరణకు 05/10/2026.",
@@ -1596,8 +1595,6 @@ export const te: Messages = {
   "att.review.days": "తేల్చాల్సిన రోజులు ({count})",
   "att.review.fixDay": "రోజును సరిచేయండి",
   "att.review.openDay": "రోజును తెరవండి",
-  "att.settings.title": "పూర్తి రోజుకు గంటలు",
-  "att.settings.hint": "ఎన్ని గంటలు పూర్తి రోజుగా, ఎన్ని గంటలు సగం రోజుగా లెక్కించాలి",
   "att.settings.how": "ఒక రోజు ఉదయం {hour} గంటల నుండి మరుసటి ఉదయం {hour} గంటల వరకు ఉంటుంది. ప్రతి రాకకు, దాని తర్వాతి వెళ్లడానికి మధ్య ఉన్న సమయాన్ని కలుపుతారు.",
   "att.settings.full": "పూర్తి రోజుకు గంటలు",
   "att.settings.fullHint": "ఇన్ని గంటలు లేదా అంతకంటే ఎక్కువ అయితే హాజరుగా లెక్కించబడుతుంది.",
@@ -1606,12 +1603,10 @@ export const te: Messages = {
   "att.settings.badFull": "1 నుండి 16 మధ్య గంటల సంఖ్య టైప్ చేయండి.",
   "att.settings.badHalf": "0.5 నుండి 12 మధ్య గంటల సంఖ్య టైప్ చేయండి.",
   "att.settings.halfShorter": "సగం రోజు పూర్తి రోజు కంటే తక్కువగా ఉండాలి.",
-  "att.settings.applies": "ఈ గంటలు ఈ అవుట్‌లెట్‌లోని అందరికీ వర్తిస్తాయి.",
   "att.settings.ownerOnly": "వీటిని యజమాని మాత్రమే మార్చగలరు.",
   "team.person.saveAndFace": "సేవ్ చేసి వీరి ముఖాన్ని జోడించండి",
   "team.status.NONE": "నమోదు లేదు",
   "team.att.hint": "ఈ రోజు ఎవరు వచ్చారు, ప్రతి రోజు రాక, వెళ్లడం నమోదులు",
-  "team.pay.ruleMonthly": "నెల జీతం {amount}, ఈ నెలలోని {days} రోజులతో భాగించబడుతుంది. ప్రతి గైర్హాజరుకు ఒక రోజు జీతం, ప్రతి సగం రోజుకు సగం రోజు జీతం తగ్గించబడుతుంది. వారపు సెలవు, జీతంతో సెలవు మరియు నమోదు లేని రోజులకు జీతం ఇస్తారు.",
   "team.pay.ruleDaily": "ఒక రోజు కూలి {amount}. హాజరైన ప్రతి రోజుకు, జీతంతో సెలవు ఉన్న ప్రతి రోజుకు పూర్తిగా, సగం రోజుకు సగం ఇస్తారు. వారపు సెలవు, గైర్హాజరు మరియు నమోదు లేని రోజులకు డబ్బు ఇవ్వరు.",
 
   "face.live.turn": "ఇప్పుడు తలను కొంచెం పక్కకు తిప్పండి",

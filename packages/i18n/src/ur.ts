@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ur: Messages = {
+export const ur: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "صاف جگہیں۔ محفوظ کام۔ مضبوط کاروبار۔",
 
@@ -1120,7 +1120,6 @@ export const ur: Messages = {
   "team.person.payChangeHint": "تنخواہ میں تبدیلی اس مہینے سے لاگو ہوتی ہے۔ پچھلے مہینوں میں پرانی تنخواہ ہی رہتی ہے۔",
   "team.person.weeklyOff": "ہفتہ وار چھٹی کا دن",
   "team.person.noFixedDay": "کوئی مقررہ دن نہیں",
-  "team.person.joined": "کام پر آنے کی تاریخ",
   "team.person.phone": "فون نمبر",
   "team.person.optional": "ضروری نہیں",
   "team.person.badDate": "تاریخ دن/مہینہ/سال کی شکل میں ٹائپ کریں، جیسے 05/10/2026۔",
@@ -1596,8 +1595,6 @@ export const ur: Messages = {
   "att.review.days": "فیصلہ طلب دن ({count})",
   "att.review.fixDay": "دن کو درست کریں",
   "att.review.openDay": "دن کھولیں",
-  "att.settings.title": "پورے دن کے گھنٹے",
-  "att.settings.hint": "کتنے گھنٹے پورا دن اور آدھا دن گنے جاتے ہیں",
   "att.settings.how": "ایک دن صبح {hour} بجے سے اگلی صبح {hour} بجے تک چلتا ہے۔ ہر آنے کی حاضری اور اس کی جانے کی حاضری کے درمیان کا وقت جمع کیا جاتا ہے۔",
   "att.settings.full": "پورے دن کے گھنٹے",
   "att.settings.fullHint": "اتنے یا اس سے زیادہ گھنٹے حاضر گنے جاتے ہیں۔",
@@ -1606,12 +1603,10 @@ export const ur: Messages = {
   "att.settings.badFull": "گھنٹوں کی تعداد 1 سے 16 تک ٹائپ کریں۔",
   "att.settings.badHalf": "گھنٹوں کی تعداد 0.5 سے 12 تک ٹائپ کریں۔",
   "att.settings.halfShorter": "آدھا دن پورے دن سے چھوٹا ہونا چاہیے۔",
-  "att.settings.applies": "یہ گھنٹے اس آؤٹ لیٹ کے سب لوگوں کے لیے ہیں۔",
   "att.settings.ownerOnly": "صرف مالک انہیں بدل سکتے ہیں۔",
   "team.person.saveAndFace": "محفوظ کریں اور ان کا چہرہ شامل کریں",
   "team.status.NONE": "کوئی ریکارڈ نہیں",
   "team.att.hint": "آج کون آیا ہے، اور ہر دن کی آنے اور جانے کی حاضریاں",
-  "team.pay.ruleMonthly": "ماہانہ تنخواہ {amount}، اس مہینے کے {days} دنوں پر تقسیم۔ ہر غیر حاضر پر ایک دن کے اور ہر آدھا دن پر آدھے دن کے پیسے کاٹے جاتے ہیں۔ ہفتہ وار چھٹی، تنخواہ کے ساتھ چھٹی اور بغیر ریکارڈ والے دنوں کے پیسے دیے جاتے ہیں۔",
   "team.pay.ruleDaily": "یومیہ اجرت {amount}۔ ہر حاضر دن اور تنخواہ کے ساتھ چھٹی کے ہر دن کے پیسے دیے جاتے ہیں، اور آدھا دن کے آدھے۔ ہفتہ وار چھٹی، غیر حاضر اور بغیر ریکارڈ والے دنوں کے پیسے نہیں دیے جاتے۔",
 
   "face.live.turn": "اب سر تھوڑا سا ایک طرف گھمائیں",

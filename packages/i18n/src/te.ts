@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const te: Messages = {
+export const te: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "శుభ్రమైన ప్రదేశాలు. సురక్షితమైన కార్యకలాపాలు. బలమైన వ్యాపారాలు.",
 
@@ -1525,7 +1525,6 @@ export const te: Messages = {
   "face.pose.right": "తలను కొంచెం కుడి వైపు తిప్పండి",
   "face.takePhoto": "ఫోటో తీయండి",
   "face.openingCamera": "కెమెరా తెరుచుకుంటోంది…",
-  "face.cameraNeeded": "ముఖం ఫోటో తీయడానికి కెమెరా అనుమతి ఇవ్వండి.",
   "face.cameraFailed": "కెమెరా తెరుచుకోలేదు. మళ్లీ ప్రయత్నించండి.",
   "face.allTaken": "ఫోటోలన్నీ తీయబడ్డాయి.",
   "face.saving": "సేవ్ అవుతోంది. దీనికి కొన్ని సెకన్లు పడుతుంది.",

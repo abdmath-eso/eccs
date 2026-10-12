@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Messages = {
+export const gu: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 
@@ -1525,7 +1525,6 @@ export const gu: Messages = {
   "face.pose.right": "માથું થોડું જમણી બાજુ ફેરવો",
   "face.takePhoto": "ફોટો લો",
   "face.openingCamera": "કેમેરા ખૂલે છે…",
-  "face.cameraNeeded": "ચહેરાનો ફોટો લેવા માટે કેમેરાની પરવાનગી આપો.",
   "face.cameraFailed": "કેમેરા ખૂલી શક્યો નહીં. ફરી પ્રયાસ કરો.",
   "face.allTaken": "બધા ફોટા લેવાઈ ગયા.",
   "face.saving": "સચવાય છે. થોડી સેકન્ડ લાગશે.",

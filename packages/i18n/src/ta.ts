@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ta: Messages = {
+export const ta: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "சுத்தமான இடங்கள். பாதுகாப்பான செயல்பாடுகள். வலுவான தொழில்கள்.",
 
@@ -1525,7 +1525,6 @@ export const ta: Messages = {
   "face.pose.right": "தலையைக் கொஞ்சம் வலது பக்கம் திருப்புங்கள்",
   "face.takePhoto": "போட்டோ எடு",
   "face.openingCamera": "கேமரா திறக்கிறது…",
-  "face.cameraNeeded": "முகத்தின் போட்டோவை எடுக்க கேமரா அனுமதியைக் கொடுங்கள்.",
   "face.cameraFailed": "கேமராவைத் திறக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
   "face.allTaken": "எல்லா போட்டோக்களும் எடுக்கப்பட்டன.",
   "face.saving": "சேமிக்கப்படுகிறது. இதற்குச் சில வினாடிகள் ஆகும்.",

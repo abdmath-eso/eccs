@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ur: Messages = {
+export const ur: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "صاف جگہیں۔ محفوظ کام۔ مضبوط کاروبار۔",
 
@@ -1525,7 +1525,6 @@ export const ur: Messages = {
   "face.pose.right": "سر تھوڑا سا دائیں طرف گھمائیں",
   "face.takePhoto": "تصویر لیں",
   "face.openingCamera": "کیمرا کھل رہا ہے…",
-  "face.cameraNeeded": "چہرے کی تصویر لینے کے لیے کیمرے کی اجازت دیں۔",
   "face.cameraFailed": "کیمرا نہیں کھل سکا۔ دوبارہ کوشش کریں۔",
   "face.allTaken": "تمام تصویریں لے لی گئیں۔",
   "face.saving": "محفوظ ہو رہا ہے۔ اس میں چند سیکنڈ لگتے ہیں۔",

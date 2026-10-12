@@ -39,9 +39,17 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "ECCS uses the camera to take proof photos for checklists, visits and inspections, and your profile photo.",
+          "cameraPermission": "ECCS uses the camera to clock staff in and out by face and to take proof photos.",
           "photosPermission": "ECCS lets you choose a photo or a document you already have, such as a licence.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ECCS uses the camera to clock staff in and out by face and to take proof photos.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [

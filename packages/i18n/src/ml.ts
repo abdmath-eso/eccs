@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ml: Messages = {
+export const ml: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "വൃത്തിയുള്ള ഇടങ്ങൾ. സുരക്ഷിതമായ പ്രവർത്തനം. കരുത്തുള്ള ബിസിനസ്.",
 
@@ -1525,7 +1525,6 @@ export const ml: Messages = {
   "face.pose.right": "തല അല്പം വലത്തേക്ക് തിരിക്കുക",
   "face.takePhoto": "ഫോട്ടോ എടുക്കുക",
   "face.openingCamera": "ക്യാമറ തുറക്കുന്നു…",
-  "face.cameraNeeded": "മുഖത്തിന്റെ ഫോട്ടോ എടുക്കാൻ ക്യാമറ അനുവദിക്കുക.",
   "face.cameraFailed": "ക്യാമറ തുറക്കാൻ കഴിഞ്ഞില്ല. വീണ്ടും ശ്രമിക്കുക.",
   "face.allTaken": "എല്ലാ ഫോട്ടോകളും എടുത്തു.",
   "face.saving": "സേവ് ചെയ്യുന്നു. ഇതിന് കുറച്ച് സെക്കൻഡ് എടുക്കും.",

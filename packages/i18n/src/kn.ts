@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const kn: Messages = {
+export const kn: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ಸ್ವಚ್ಛ ಜಾಗಗಳು. ಸುರಕ್ಷಿತ ಕೆಲಸ. ಬಲವಾದ ವ್ಯಾಪಾರ.",
 
@@ -1525,7 +1525,6 @@ export const kn: Messages = {
   "face.pose.right": "ತಲೆಯನ್ನು ಸ್ವಲ್ಪ ಬಲಕ್ಕೆ ತಿರುಗಿಸಿ",
   "face.takePhoto": "ಫೋಟೋ ತೆಗೆಯಿರಿ",
   "face.openingCamera": "ಕ್ಯಾಮೆರಾ ತೆರೆಯುತ್ತಿದೆ…",
-  "face.cameraNeeded": "ಮುಖದ ಫೋಟೋ ತೆಗೆಯಲು ಕ್ಯಾಮೆರಾ ಬಳಸಲು ಅನುಮತಿ ಕೊಡಿ.",
   "face.cameraFailed": "ಕ್ಯಾಮೆರಾ ತೆರೆಯಲು ಆಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
   "face.allTaken": "ಎಲ್ಲ ಫೋಟೋಗಳನ್ನು ತೆಗೆಯಲಾಗಿದೆ.",
   "face.saving": "ಸೇವ್ ಆಗುತ್ತಿದೆ. ಇದಕ್ಕೆ ಕೆಲವು ಸೆಕೆಂಡ್ ಬೇಕು.",

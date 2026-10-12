@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const bn: Messages = {
+export const bn: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "পরিষ্কার জায়গা। নিরাপদ কাজ। মজবুত ব্যবসা।",
 
@@ -1525,7 +1525,6 @@ export const bn: Messages = {
   "face.pose.right": "মাথা একটু ডান দিকে ঘোরান",
   "face.takePhoto": "ছবি তুলুন",
   "face.openingCamera": "ক্যামেরা খোলা হচ্ছে…",
-  "face.cameraNeeded": "মুখের ছবি তুলতে ক্যামেরার অনুমতি দিন।",
   "face.cameraFailed": "ক্যামেরা খোলা গেল না। আবার চেষ্টা করুন।",
   "face.allTaken": "সব ছবি তোলা হয়েছে।",
   "face.saving": "সেভ হচ্ছে। কয়েক সেকেন্ড লাগবে।",

@@ -169,7 +169,8 @@ export default function ClockScreen() {
       const found = await api.attendance.clock.identify({
         deviceToken,
         photo: shot.photo,
-        // Only once the live camera takes the "turn your head" photo; see face-capture.tsx.
+        // The "turn your head" photo, for the server's check that a real person is there. Missing
+        // only when the phone's own camera app had to be used instead; see face-capture.tsx.
         ...(shot.turned && { secondPhoto: shot.turned }),
       });
       if (found.result === 'NO_MATCH' || !found.candidate || !found.ticket) return failed(t('clock.problem.NO_MATCH'));

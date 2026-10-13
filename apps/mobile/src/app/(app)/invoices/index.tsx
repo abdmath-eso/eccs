@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -127,22 +127,14 @@ export default function InvoicesScreen() {
 
   return (
     <Screen back title={t('bill.title')} onRefresh={load}>
-      {outlets.length > 1 && (
-        <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => {
-                if (outlet.id === outletId) return;
-                setError(null);
-                choose(outlet.id);
-              }}
-            />
-          ))}
-        </View>
-      )}
+      <OutletPicker
+        outlets={outlets}
+        outletId={outletId}
+        onChoose={(nextOutletId) => {
+          setError(null);
+          choose(nextOutletId);
+        }}
+      />
 
       <ErrorText message={error} onRetry={() => void load()} />
       {(outletLoading || (invoices === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
@@ -200,7 +192,6 @@ export default function InvoicesScreen() {
 }
 
 const styles = StyleSheet.create({
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   sectionGap: { marginTop: Spacing.three },
   summary: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   total: { fontSize: 36, lineHeight: 44 },

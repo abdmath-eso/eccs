@@ -9,7 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { VisitCard } from '@/components/visit-card';
@@ -207,21 +207,15 @@ export default function ServicesScreen() {
         outbox.kick();
         await load();
       }}>
-      {!eccs && outlets.length > 1 && (
-        <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => {
-                if (outlet.id === outletId) return;
-                setError(null);
-                choose(outlet.id);
-              }}
-            />
-          ))}
-        </View>
+      {!eccs && (
+        <OutletPicker
+          outlets={outlets}
+          outletId={outletId}
+          onChoose={(nextOutletId) => {
+            setError(null);
+            choose(nextOutletId);
+          }}
+        />
       )}
 
       {!eccs && <Button label={t('svc.book')} onPress={() => router.push('/services/book')} disabled={!outletId} />}
@@ -325,7 +319,6 @@ export default function ServicesScreen() {
 const styles = StyleSheet.create({
   planLine: { borderTopWidth: 1, paddingTop: Spacing.two, gap: Spacing.half },
   planService: { fontWeight: 600 },
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   sectionGap: { marginTop: Spacing.four },
   request: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   requestTitle: { fontWeight: 700, fontSize: 18 },

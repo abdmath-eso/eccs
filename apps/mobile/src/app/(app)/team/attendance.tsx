@@ -5,10 +5,11 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { DayFactsLine, EnrolledMark, FlagList } from '@/components/attendance-parts';
-import { DAY_MARK, DayCounts, OutletChips, useLoaded, type DayMark } from '@/components/team-parts';
+import { DAY_MARK, DayCounts, useLoaded, type DayMark } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -53,7 +54,7 @@ export default function AttendanceDayScreen() {
       title={t('team.att.title')}
       onRefresh={reload}
       footer={data && data.people.length > 0 ? <DayCounts counts={counts} /> : undefined}>
-      <OutletChips outlets={outlets} outletId={outletId} onChoose={choose} />
+      <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
 
       {/* ── The day, and for whoever may look back, moving to another day ── */}
       {data && (

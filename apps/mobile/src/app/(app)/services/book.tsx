@@ -14,7 +14,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
@@ -200,16 +200,7 @@ export default function BookServiceScreen() {
           'outlet',
           <>
             {heading(t('checklists.chooseOutlet'))}
-            <View style={styles.options} accessibilityRole="radiogroup">
-              {outlets.map((outlet) => (
-                <OptionChip
-                  key={outlet.id}
-                  label={outlet.name}
-                  selected={outlet.id === outletId}
-                  onPress={() => choose(outlet.id)}
-                />
-              ))}
-            </View>
+            <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
             {need('outlet', t('book.needOutlet'))}
           </>,
         )}
@@ -357,7 +348,6 @@ export default function BookServiceScreen() {
 }
 
 const styles = StyleSheet.create({
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   section: { gap: Spacing.three },
   days: { gap: Spacing.two, paddingVertical: Spacing.one },
   day: {

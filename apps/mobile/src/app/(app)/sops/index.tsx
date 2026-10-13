@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -63,23 +63,15 @@ export default function SopsScreen() {
 
   return (
     <Screen back title={t('sops.title')} subtitle={t(mayAdd ? 'sops.helpAdd' : 'sops.help')} onRefresh={reload}>
-      {outlets.length > 1 && (
-        <View style={styles.outlets} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => {
-                if (outlet.id === outletId) return;
-                setSops(null);
-                setError(null);
-                choose(outlet.id);
-              }}
-            />
-          ))}
-        </View>
-      )}
+      <OutletPicker
+        outlets={outlets}
+        outletId={outletId}
+        onChoose={(nextOutletId) => {
+          setSops(null);
+          setError(null);
+          choose(nextOutletId);
+        }}
+      />
 
       <ErrorText message={error} onRetry={() => void reload()} />
       {(outletLoading || (sops === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
@@ -141,7 +133,6 @@ export default function SopsScreen() {
 }
 
 const styles = StyleSheet.create({
-  outlets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   adding: { gap: Spacing.two },
   group: { gap: Spacing.two, marginTop: Spacing.two },
   row: {

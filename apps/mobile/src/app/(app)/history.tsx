@@ -18,7 +18,7 @@ import { ActivityIndicator, PanResponder, Pressable, StyleSheet, View, type Scro
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -295,18 +295,7 @@ export default function HistoryScreen() {
 
   return (
     <Screen back scrollRef={scrollRef} onRefresh={reload}>
-      {outlets.length > 1 && (
-        <View style={styles.outlets} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => choose(outlet.id)}
-            />
-          ))}
-        </View>
-      )}
+      <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
 
       {/* ── Month title, and moving between months ── */}
       <View style={styles.monthBar}>
@@ -544,7 +533,6 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  outlets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   monthBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   month: { flex: 1, fontSize: 24, lineHeight: 32 },
   todayButton: { minHeight: MinTouchSize, justifyContent: 'center', paddingHorizontal: Spacing.two },

@@ -2,14 +2,14 @@ import type { ApiClient } from '@eccs/api-client';
 import { isEccsRole, type InspectionSummaryDto } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState, useSyncExternalStore } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet } from 'react-native';
 
 import { FieldMark, SavedCopyNote } from '@/components/field-sync-parts';
 import { InspectionCard } from '@/components/inspection-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -148,21 +148,15 @@ export default function InspectionsScreen() {
         outbox.kick();
         await load();
       }}>
-      {!eccs && outlets.length > 1 && (
-        <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => {
-                if (outlet.id === outletId) return;
-                setError(null);
-                choose(outlet.id);
-              }}
-            />
-          ))}
-        </View>
+      {!eccs && (
+        <OutletPicker
+          outlets={outlets}
+          outletId={outletId}
+          onChoose={(nextOutletId) => {
+            setError(null);
+            choose(nextOutletId);
+          }}
+        />
       )}
 
       {eccs && <Button icon="add" label={t('insp.start')} onPress={() => router.push('/inspections/start')} />}
@@ -194,6 +188,5 @@ export default function InspectionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   sectionGap: { marginTop: Spacing.four },
 });

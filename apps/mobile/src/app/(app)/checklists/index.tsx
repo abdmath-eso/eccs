@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { UnsentMark } from '@/components/unsent-mark';
 import { MinTouchSize, Spacing } from '@/constants/theme';
@@ -115,21 +115,14 @@ export default function ChecklistsScreen() {
         outbox.kick();
         await load();
       }}>
-      {outlets.length > 1 && (
-        <View style={styles.outlets} accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => {
-                setError(null);
-                choose(outlet.id);
-              }}
-            />
-          ))}
-        </View>
-      )}
+      <OutletPicker
+        outlets={outlets}
+        outletId={outletId}
+        onChoose={(nextOutletId) => {
+          setError(null);
+          choose(nextOutletId);
+        }}
+      />
 
       <ErrorText message={error} onRetry={() => void load()} />
       {(outletLoading || (runs === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
@@ -241,7 +234,6 @@ export default function ChecklistsScreen() {
 }
 
 const styles = StyleSheet.create({
-  outlets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two, minHeight: MinTouchSize * 1.6 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },

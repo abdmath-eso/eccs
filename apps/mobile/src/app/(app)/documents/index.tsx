@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
@@ -321,26 +322,18 @@ export default function DocumentsScreen() {
 
   return (
     <Screen back title={t('docs.title')} subtitle={t('docs.help')} onRefresh={reload}>
-      {outlets.length > 1 && (
-        <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => {
-                if (outlet.id === outletId) return;
-                setLicences(null);
-                setDocuments(null);
-                setLoadError(null);
-                setRowError(null);
-                setForm(null);
-                choose(outlet.id);
-              }}
-            />
-          ))}
-        </View>
-      )}
+      <OutletPicker
+        outlets={outlets}
+        outletId={outletId}
+        onChoose={(nextOutletId) => {
+          setLicences(null);
+          setDocuments(null);
+          setLoadError(null);
+          setRowError(null);
+          setForm(null);
+          choose(nextOutletId);
+        }}
+      />
 
       <ErrorText message={loadError} onRetry={() => void reload()} />
       {(outletLoading || (licences === null && !loadError && outletId)) && <ActivityIndicator color={theme.primary} />}

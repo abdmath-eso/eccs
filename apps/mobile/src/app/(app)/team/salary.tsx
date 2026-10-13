@@ -4,9 +4,10 @@ import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
-import { MonthStepper, OutletChips, SALARY_STATE, useLoaded } from '@/components/team-parts';
+import { MonthStepper, SALARY_STATE, useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -40,7 +41,7 @@ export default function SalaryMonthScreen() {
 
   return (
     <Screen back title={t('team.pay.title')} subtitle={t('team.pay.notPayroll')} onRefresh={reload}>
-      <OutletChips outlets={outlets} outletId={outletId} onChoose={choose} />
+      <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
       <MonthStepper month={month} thisMonth={thisMonth} earliest={shiftMonth(thisMonth, -MONTHS_BACK)} onChange={setMonth} />
 
       <ErrorText message={error} onRetry={() => void reload()} />

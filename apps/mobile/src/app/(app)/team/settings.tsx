@@ -4,10 +4,11 @@ import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
-import { OutletChips, useLoaded } from '@/components/team-parts';
+import { useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
@@ -64,7 +65,7 @@ export default function AttendanceSettingsScreen() {
 
   return (
     <Screen back title={t('att.settings.title')}>
-      <OutletChips outlets={outlets} outletId={outletId} onChoose={choose} />
+      <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
       <ErrorText message={error} onRetry={() => void reload()} />
       {!data && !error && <ActivityIndicator color={theme.primary} />}
       {/* A fresh form for each outlet, so one outlet's settings are never saved to another. */}

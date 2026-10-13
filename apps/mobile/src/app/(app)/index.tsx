@@ -11,7 +11,7 @@ import { PinReveal } from '@/components/pin-reveal';
 import { ScoreCard } from '@/components/score-parts';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { VisitCard } from '@/components/visit-card';
 import { Spacing } from '@/constants/theme';
@@ -123,20 +123,15 @@ export default function HomeScreen() {
           )
         : outlet && (
             <>
-              {overview && overview.length > 1 && (
-                <View style={styles.outlets} accessibilityLabel={t('checklists.chooseOutlet')}>
-                  {overview.map((entry) => (
-                    <OptionChip
-                      key={entry.outletId}
-                      label={entry.outletName}
-                      selected={entry.outletId === outlet.outletId}
-                      onPress={() => {
-                        setChosenOutlet(entry.outletId);
-                        void rememberOutlet(entry.outletId);
-                      }}
-                    />
-                  ))}
-                </View>
+              {overview && (
+                <OutletPicker
+                  outlets={overview.map((entry) => ({ id: entry.outletId, name: entry.outletName }))}
+                  outletId={outlet.outletId}
+                  onChoose={(outletId) => {
+                    setChosenOutlet(outletId);
+                    void rememberOutlet(outletId);
+                  }}
+                />
               )}
 
               {/* The hygiene score for this outlet; it is fetched again each time Home reloads. */}
@@ -170,5 +165,4 @@ const styles = StyleSheet.create({
   header: { flex: 1, gap: Spacing.one, paddingTop: Spacing.two },
   greeting: { fontSize: 24, lineHeight: 30 },
   sectionGap: { marginTop: Spacing.three },
-  outlets: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
 });

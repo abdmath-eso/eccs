@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
@@ -203,16 +204,7 @@ export default function StaffScreen() {
               <ThemedText type="smallBold" themeColor="textSecondary">
                 {t('staff.outlet')}
               </ThemedText>
-              <View style={styles.options} accessibilityRole="radiogroup">
-                {outlets.map((outlet) => (
-                  <OptionChip
-                    key={outlet.id}
-                    label={outlet.name}
-                    selected={outletId === outlet.id}
-                    onPress={() => setOutletId(outlet.id)}
-                  />
-                ))}
-              </View>
+              <OutletPicker outlets={outlets} outletId={outletId} onChoose={setOutletId} />
             </>
           )}
 

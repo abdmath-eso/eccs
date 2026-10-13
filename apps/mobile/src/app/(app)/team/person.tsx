@@ -9,12 +9,13 @@ import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { OutletChips, parseRupees, typedRupees, weekdayName } from '@/components/team-parts';
+import { parseRupees, typedRupees, weekdayName } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
@@ -84,7 +85,7 @@ export default function PersonScreen() {
       outletId={formOutletId}
       // Only the logins of this outlet can be linked, and the Owner is not on the staff list.
       logins={logins.filter((login) => login.outletId === formOutletId && login.role !== 'OWNER' && login.isActive)}
-      outletChoice={person ? null : <OutletChips outlets={outlets} outletId={outletId} onChoose={choose} />}
+      outletChoice={person ? null : <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />}
     />
   );
 }

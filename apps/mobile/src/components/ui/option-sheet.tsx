@@ -47,11 +47,12 @@ export function OptionSheet({ visible, title, options, onClose }: OptionSheetPro
               {title}
             </ThemedText>
           )}
-          {options.map((option) => {
+          {options.map((option, index) => {
             const color = option.danger ? theme.danger : theme.text;
             return (
               <Pressable
-                key={option.label}
+                // By place as well as by words: two outlets of one restaurant can carry the same name.
+                key={`${index}:${option.label}`}
                 accessibilityRole="button"
                 onPress={option.onPress}
                 style={({ pressed }) => [styles.option, pressed && { backgroundColor: theme.backgroundElement }]}>

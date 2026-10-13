@@ -21,6 +21,7 @@ import { ErrorText } from '@/components/ui/error-text';
 import { NumberDialog } from '@/components/ui/number-dialog';
 import { OptionChip } from '@/components/ui/option-chip';
 import { OptionSheet } from '@/components/ui/option-sheet';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
@@ -437,25 +438,17 @@ export default function FoodLabelsScreen() {
         manages ? <Button label={t('labels.manage')} icon="list-outline" variant="link" onPress={() => router.push('/labels/items')} /> : undefined
       }
       footer={footer}>
-      {outlets.length > 1 && (
-        <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => {
-                if (outlet.id === outletId) return;
-                // Another outlet has its own labels: the list and the numbers start again.
-                setItems(null);
-                setError(null);
-                clear();
-                choose(outlet.id);
-              }}
-            />
-          ))}
-        </View>
-      )}
+      <OutletPicker
+        outlets={outlets}
+        outletId={outletId}
+        onChoose={(nextOutletId) => {
+          // Another outlet has its own labels: the list and the numbers start again.
+          setItems(null);
+          setError(null);
+          clear();
+          choose(nextOutletId);
+        }}
+      />
 
       {listed && (
         <View style={styles.searchLine}>

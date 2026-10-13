@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
@@ -179,18 +180,13 @@ export default function RaiseIssueScreen() {
               <ThemedText type="smallBold" themeColor="textSecondary">
                 {t('checklists.chooseOutlet')}
               </ThemedText>
-              <View style={styles.options} accessibilityRole="radiogroup">
-                {outlets.map((outlet) => (
-                  <OptionChip
-                    key={outlet.id}
-                    label={outlet.name}
-                    selected={outlet.id === outletId}
-                    onPress={() => changeOutlet(outlet.id)}
-                    // Not while a photo is on its way: it is being stored under the outlet chosen now.
-                    disabled={sending || photosSending}
-                  />
-                ))}
-              </View>
+              <OutletPicker
+                outlets={outlets}
+                outletId={outletId}
+                onChoose={changeOutlet}
+                // Not while a photo is on its way: it is being stored under the outlet chosen now.
+                disabled={sending || photosSending}
+              />
             </>
           )}
 

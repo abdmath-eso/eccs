@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { Spacing } from '@/constants/theme';
@@ -312,24 +312,16 @@ export default function CustomerPageScreen() {
 
   return (
     <Screen back title={t('cpage.title')} subtitle={t('cpage.help')} onRefresh={load}>
-      {outlets.length > 1 && (
-        <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => {
-                if (outlet.id === outletId) return;
-                setPage(null);
-                setError(null);
-                setFailed(null);
-                choose(outlet.id);
-              }}
-            />
-          ))}
-        </View>
-      )}
+      <OutletPicker
+        outlets={outlets}
+        outletId={outletId}
+        onChoose={(nextOutletId) => {
+          setPage(null);
+          setError(null);
+          setFailed(null);
+          choose(nextOutletId);
+        }}
+      />
 
       <ErrorText message={error} onRetry={() => void load()} />
       {(outletLoading || (page === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
@@ -373,7 +365,6 @@ export default function CustomerPageScreen() {
 }
 
 const styles = StyleSheet.create({
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   grow: { flex: 1 },

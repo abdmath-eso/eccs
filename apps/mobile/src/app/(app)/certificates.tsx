@@ -7,7 +7,7 @@ import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -148,24 +148,16 @@ export default function CertificatesScreen() {
 
   return (
     <Screen back title={t('cert.title')} subtitle={t('cert.help')} onRefresh={load}>
-      {outlets.length > 1 && (
-        <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => {
-                if (outlet.id === outletId) return;
-                setCertificates(null);
-                setError(null);
-                setFailed(null);
-                choose(outlet.id);
-              }}
-            />
-          ))}
-        </View>
-      )}
+      <OutletPicker
+        outlets={outlets}
+        outletId={outletId}
+        onChoose={(nextOutletId) => {
+          setCertificates(null);
+          setError(null);
+          setFailed(null);
+          choose(nextOutletId);
+        }}
+      />
 
       <ErrorText message={error} onRetry={() => void load()} />
       {(outletLoading || (certificates === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
@@ -189,7 +181,6 @@ export default function CertificatesScreen() {
 }
 
 const styles = StyleSheet.create({
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   sectionGap: { marginTop: Spacing.four },
   card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },

@@ -19,7 +19,7 @@ import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -412,25 +412,17 @@ export default function PlanScreen() {
 
   return (
     <Screen back title={t('plan.title')} subtitle={t('plan.help')} onRefresh={load}>
-      {outlets.length > 1 && (
-        <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('checklists.chooseOutlet')}>
-          {outlets.map((outlet) => (
-            <OptionChip
-              key={outlet.id}
-              label={outlet.name}
-              selected={outlet.id === outletId}
-              onPress={() => {
-                if (outlet.id === outletId) return;
-                setData(null);
-                setError(null);
-                setActionError(null);
-                setChoosing(false);
-                choose(outlet.id);
-              }}
-            />
-          ))}
-        </View>
-      )}
+      <OutletPicker
+        outlets={outlets}
+        outletId={outletId}
+        onChoose={(nextOutletId) => {
+          setData(null);
+          setError(null);
+          setActionError(null);
+          setChoosing(false);
+          choose(nextOutletId);
+        }}
+      />
 
       <ErrorText message={error} onRetry={() => void load()} />
       {(outletLoading || (data === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
@@ -529,7 +521,6 @@ function Question({
 }
 
 const styles = StyleSheet.create({
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   sectionGap: { marginTop: Spacing.four },
   card: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
   currentCard: { borderWidth: 2 },

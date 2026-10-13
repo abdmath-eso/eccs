@@ -5,10 +5,11 @@ import { useState, type ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { EnrolledMark } from '@/components/attendance-parts';
-import { OutletChips, useLoaded } from '@/components/team-parts';
+import { useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -94,7 +95,7 @@ export default function TeamScreen() {
 
   return (
     <Screen back title={t('team.title')} onRefresh={reload}>
-      <OutletChips outlets={outlets} outletId={outletId} onChoose={choose} />
+      <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
 
       <View>
         {section('checkmark-done-circle-outline', t('team.att.title'), t('team.att.hint'), '/team/attendance', 0, true)}

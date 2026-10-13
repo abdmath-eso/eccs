@@ -5,10 +5,11 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 
 import { DayFactsLine, FlagList, PUNCH_KIND, PUNCH_METHOD } from '@/components/attendance-parts';
-import { DAY_MARK, OutletChips, useLoaded } from '@/components/team-parts';
+import { DAY_MARK, useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { OutletPicker } from '@/components/ui/outlet-picker';
 import { ReasonDialog } from '@/components/ui/reason-dialog';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
@@ -79,7 +80,7 @@ export default function AttendanceReviewScreen() {
 
   return (
     <Screen back title={t('att.review.title')} subtitle={t(isOwner ? 'att.review.help' : 'att.review.helpReadOnly')} onRefresh={reload}>
-      <OutletChips outlets={outlets} outletId={outletId} onChoose={choose} />
+      <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
       <ErrorText message={loadError} onRetry={() => void reload()} />
       <ErrorText message={error} />
       {!data && !loadError && <ActivityIndicator color={theme.primary} />}

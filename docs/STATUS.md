@@ -543,6 +543,7 @@ Other running costs: OTP SMS about ₹0.20 to ₹0.25 each; Razorpay about 2% pe
 | `docs/DAILY_LOG.md` | What was done each day, newest first. Written at the end of each working day. |
 | `docs/TEST_LOGINS.md` | Every sample login in one place: restaurant codes, PINs, ECCS phone numbers, the one-time code. Update it whenever the seed's people or codes change. |
 | `docs/ECCS go-live requirements.pdf` | A 13-page document to share with others: what ECCS needs before the app is offered to real restaurants. A registered business, the D-U-N-S number, the Google Play organisation account, the Apple Developer Program, SMS login codes (DLT), WhatsApp login codes, hosting, the costs together and the order to do things, and sources. Each fact is marked as from the provider's own page or from a secondary guide. Its source is an HTML page that was not kept; ask Claude to rebuild it if it needs changing. |
+| `docs/ECCS briefing for the BD team.pdf` | A 15-page briefing in simple English for new business development staff (13 Oct 2026): what ECCS is and sells, the app screen by screen with pictures, the console, a restaurant's journey, **what is ready and what is not**, what to say and never say (above all: not a government or FSSAI rating), owners' questions, a word list and a first-meeting script. It states that ECCS is not yet registered, has no customers and has no final prices, and tells BD staff not to sign or take money yet: update or remove those lines when they stop being true. It names no prices and no contact details. Its source is `.work/bdbrief/brief.html` (kept on this PC only, not in git); rebuild with `node .work/bdbrief/build.cjs`, which also reports any page that has grown too long. The pictures were taken with the tester's name and profile photo left out. |
 | `docs/PROPOSAL.md` | Specification: stack, roles, data model, scope, roadmap, folder structure. |
 | `docs/FSSAI 2026 KITCHEN SAFETY CHECKLIST.docx` | Founder's checklist and inspection source document. See the decision dated 5 Oct 2026. |
 | `docs/Restaurant_Master_Checklist_Library.xlsx` | Founder's master library of 588 restaurant checks. Loaded into the app as add-item suggestions. |
@@ -564,6 +565,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 13 Oct 2026 | Added `docs/ECCS briefing for the BD team.pdf`: a 15-page briefing in simple English for new business development staff, with pictures of the app. |
 | 13 Oct 2026 | Vendor directory added: a "Vendors" page for the Owner and Manager with the whole directory nearest first, search, category chips, and Call / WhatsApp / Directions; 24 invented sample vendors that the app never dials. Translated. No console page yet. |
 | 13 Oct 2026 | APK rebuilt at 4:58 pm with the attendance roles. |
 | 13 Oct 2026 | Attendance roles: the Head Chef no longer has an attendance page or the staff list; a Manager cannot change their own staff record, pay or attendance, or clock themselves in with their own PIN (only the Owner can); the Owner's Staff screen shows Manager logins not yet linked to a person. Translated. |

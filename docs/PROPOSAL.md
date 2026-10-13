@@ -223,6 +223,7 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 
 ### Inspections and public page
 - **Inspection**: a scored ECCS audit of an outlet using an FSSAI Schedule 4 style template. Section scores, overall score, non-conformities with photos and corrective actions, PDF report. Scoring as built (7 Oct 2026), after FSSAI's hygiene rating: 2 marks a check and 4 for a critical one; a not-applicable check is left out; score = marks earned ÷ marks possible × 100; grade A+ from 88, A from 80, B from 68, otherwise none; failing any critical check means no grade.
+- **The public page as changed on 13 Oct 2026 (the founder's design):** it shows whenever the Owner has switched it on, with or without an ECCS inspection. It opens with a disclaimer that ECCS is a private company engaged and paid by the restaurant and is not associated with FSSAI, TG-SAFE or any government body; then the hygiene score for yesterday with its three parts, the daily checklists with yesterday's result, photos, ECCS's inspection when there is a current one, and recent services. A photo is put forward either by an ECCS Supervisor from a visit or inspection, or by the Owner or Manager from the outlet's own daily-check photos; ECCS approves each, and each is shown for 90 days from the day it was taken (`PublicPhoto.source`, `PublicPhoto.takenOn`).
 - **PublicProfile**: per outlet. Random URL token for the QR, an on/off switch the restaurant controls, and the **PublicPhotos** approved for display.
 
 ### Cross-cutting

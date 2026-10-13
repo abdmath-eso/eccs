@@ -252,12 +252,16 @@ Needs the APK built after 4:30 pm on 9 Oct (or Expo Go), and the API restarted s
 
 ## 19. Trying the customer page
 
-The link works only on this PC or the office network until there is a hosted server.
+First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api start`. Until then the customer page screens fail, because the running server is older than the database. The link works only on this PC or the office network until there is a hosted server.
 
-1. **App, as the Owner of Spice Route** (`SPICE-JH2K7M`, PIN `2580`): More > Customer page. It is off, and says the link only works inside the office network.
-2. Turn it on (it shows what will be published first). If the outlet has an approved inspection from the last 180 days it says "on"; if not, it says it is waiting for an inspection: approve one first (section 7).
-3. Open the page: "Open the page" in the app, or `http://localhost:3000/k/<token>` on the PC. "Open the poster to print" shows the QR code poster.
-4. **As the Manager** (PIN `4821`): the same screen with the switch disabled.
-5. **As the Supervisor** (`9000000003`): open a finished visit of yours > "Propose photos for the customer page", pick a caption, propose.
-6. **Console > Customer pages:** approve or reject (a rejection needs a reason). **Clients >** the client > the outlet's "Customer page" line: "Take the page down" (reason required) and "Restore the page".
-7. **As the Owner:** remove a photo; then "Make a new link" and check that the old address shows "Nothing current to show".
+1. **App, as the Owner of Deccan Biryani** (`DECCA-KP6R3T`, PIN `3917`): More > Customer page. Turn it on. No inspection is needed. Read "What every customer is told first" (the disclaimer) and "What customers see".
+2. Open the page: "Open the page" in the app, or `http://localhost:3000/k/<token>` on the PC with the console terminal running. It starts with the box "Not a government rating", then the ECCS hygiene score for yesterday. With no approved inspection, a box above the number says ECCS has not inspected this kitchen yet.
+3. Below the score: each daily checklist with yesterday's result, then photos if there are any.
+4. **As a Head Chef** (PIN `8264`): complete a checklist with photo checks marked OK and hand it in.
+5. **As the Owner:** Customer page > **Add photos from your daily checks** > choose a photo > pick what it shows > **Send to ECCS**. It says ECCS will look at the photo first.
+6. **Console > Customer pages:** the photo says it is from the restaurant's own daily check. Approve it (or reject it with a reason, which the restaurant is told).
+7. Reload the page: the photo shows with "Taken by the restaurant's staff during a daily check". In the app, remove it.
+8. "Open the poster to print" shows the new poster, with the short disclaimer under the QR code.
+9. **As the Supervisor** (`9000000003`): open a finished visit of yours > "Propose photos for the customer page", as before.
+10. **Console > Clients >** the client > the outlet's "Customer page" line: "Take the page down" (reason required) and "Restore the page". **As the Owner:** "Make a new link" and check that the old address shows "Nothing current to show".
+11. Approve an inspection for the outlet (section 7) and reload the page: the inspection's points join the score, the "not inspected" box goes, and an "ECCS inspection" section appears.

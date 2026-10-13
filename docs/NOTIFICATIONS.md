@@ -223,12 +223,14 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 | F1 to F3 | Withdrawn 9 Oct 2026: "use today", "past use-by" and "use-by extended". The app no longer tracks a label after it is printed and nobody can extend a use-by, so there is nothing to send. | | | | withdrawn |
 | F5 | A saved label is added, changed or removed | O, M | "{name} added the label {item}." / "{name} changed {item}: keeps {length}." | In-app | not built |
 | F4 | Labels made offline could not be saved | the person | "Some labels could not be saved. Make them again." | In-app | not built |
-| Q1 | A photo is proposed for a customer page | Adm | "A photo for {outlet}'s customer page is waiting." | Console badge + in-app | not built (the console shows a count) |
-| Q2 | A photo is approved; a photo is rejected | O; Sup | "A new photo is on your customer page." / "Your photo was not approved: {reason}." | In-app | not built |
+| Q1 | A photo is put forward for a customer page, by a Supervisor or by the restaurant from its daily checks | Adm | "A photo for {outlet}'s customer page is waiting." | Console badge + in-app | not built (the console shows a count) |
+| Q2 | A photo is approved; a photo is not approved | O; whoever put it forward (Sup, or the Owner or Manager, who is told the reason) | "A new photo is on your customer page." / "Your photo was not approved: {reason}." | In-app | not built |
 | Q3 | The Owner turns the page on or off, removes a photo, or makes a new link | Adm | "{outlet} turned its customer page {on/off}." | In-app | not built |
 | Q4 | ECCS takes a page down or restores it | O, M | "Your customer page has been taken down by ECCS." | Push + in-app | not built |
-| Q5 | The inspection on a customer page is about to lapse (30 and 7 days before), and when it has | O, M; Adm | "Your customer page stops showing a result on {date}." | Push + in-app | not built |
-| Q6 | The page goes live after the first approved inspection | O | "Your customer page is now live." | In-app | not built |
+| Q5 | ECCS's inspection is about to drop off a customer page (30 and 7 days before), and when it has. The page itself no longer stops. | O, M; Adm | "ECCS's inspection drops off your customer page on {date}." | Push + in-app | not built |
+| Q6 | A newly approved inspection appears on the customer page (changed 13 Oct: the page no longer waits for one) | O | "ECCS's inspection is now on your customer page." | In-app | not built |
+| Q7 | A photo will drop off the page in 7 days (90 days after it was taken) | O, M | "A photo drops off your customer page in 7 days." | In-app | not built |
+| Q8 | A page that is switched on has had no score for 3 days | O, M | "Your customer page has had no score for 3 days." | In-app | not built |
 
 ## 17. Features not built yet (to fill in when they are)
 
@@ -241,6 +243,7 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | Date | Change |
 |---|---|
+| 13 Oct 2026 | Customer page rebuilt: Q1, Q2, Q5 and Q6 reworded, Q7 and Q8 added. |
 | 12 Oct 2026 | Pay rules: T10 to T12 added. |
 | 11 Oct 2026 | Face attendance: T1 withdrawn, T5 to T9 added. |
 | 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |

@@ -53,6 +53,20 @@ describe("can", () => {
     for (const action of ["create", "read", "update"] as const) expect(can(headChef, "staff", action, here)).toBe(false);
   });
 
+  it("shows the vendor directory to the owner and the manager only, and lets nobody change it", () => {
+    const here = { organizationId: "org-1", outletId: "outlet-1" };
+    expect(can(owner, "vendors", "read", here)).toBe(true);
+    expect(can(owner, "vendors", "read", { organizationId: "org-1", outletId: "outlet-2" })).toBe(true);
+    expect(can(owner, "vendors", "read", { organizationId: "org-2", outletId: "outlet-9" })).toBe(false);
+    expect(can(manager, "vendors", "read", here)).toBe(true);
+    expect(can(manager, "vendors", "read", { organizationId: "org-1", outletId: "outlet-2" })).toBe(false);
+    expect(can(headChef, "vendors", "read", here)).toBe(false);
+    for (const role of ["SUPER_ADMIN", "OPS_MANAGER", "SUPERVISOR"] as const) expect(can(eccs(role), "vendors", "read")).toBe(false);
+    for (const action of ["create", "update", "approve"] as const) {
+      for (const who of [owner, manager, headChef, eccs("SUPER_ADMIN")]) expect(can(who, "vendors", action, here)).toBe(false);
+    }
+  });
+
   it("gives the head chef checklists and labels only", () => {
     expect(can(headChef, "checklists", "create", { outletId: "outlet-1" })).toBe(true);
     // "create" covers making a label and saving a new one; changing a saved label is "update".

@@ -29,6 +29,7 @@ export const RESOURCES = [
   "payments",
   "auditLog",
   "settings",
+  "vendors", // the directory of nearby wholesalers and distributors
 ] as const;
 
 export type Resource = (typeof RESOURCES)[number];
@@ -68,6 +69,11 @@ const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A:
 // `ownRecordLocked` in staff.ts. The API's services check it.
 // ECCS roles get nothing on staff, attendance and salary: that is the
 // restaurant's private employee data.
+// For vendors (the vendor directory, 13 Oct 2026): R = see the wholesalers and
+// distributors near the outlet. The Owner and the Manager, who do the buying,
+// have it; the Head Chef does not. Nobody has C or U: the list is loaded by
+// ECCS and nothing is written through the API yet. ECCS roles have no grant
+// either, until the console gets a page for keeping the list.
 const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
   SUPER_ADMIN: {
     clients: "CRU", eccsUsers: "CRU", restaurantUsers: "CRU", sopTemplates: "CRU",
@@ -94,7 +100,7 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     foodLabels: "CRU", issues: "CRU", catalog: "R", bookings: "CRU", subscriptions: "CRU",
     schedule: "R", jobs: "RA", inspections: "R", reports: "R", publicPage: "RU",
     licences: "CRU", documents: "CRU", scores: "R", staff: "CRU", attendance: "CRU",
-    salary: "CRU", invoices: "R", payments: "C",
+    salary: "CRU", invoices: "R", payments: "C", vendors: "R",
   },
   MANAGER: {
     clients: "R", restaurantUsers: "CRU", sopTemplates: "CRU", checklists: "CRUA",
@@ -103,7 +109,7 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     licences: "CRU", documents: "CRU", scores: "R", staff: "CRU", attendance: "R",
     // The Manager reads invoices. The grant on payments lets a Manager reach the payment
     // routes, where the billing service turns away anyone but the client's Owner.
-    salary: "CRU", invoices: "R", payments: "C",
+    salary: "CRU", invoices: "R", payments: "C", vendors: "R",
   },
   HEAD_CHEF: {
     sopTemplates: "R", checklists: "CR", foodLabels: "CR", issues: "CR",

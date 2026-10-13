@@ -154,6 +154,8 @@ import type {
 } from "@eccs/shared";
 // certificates-types: the certificates worker imports its types from "@eccs/shared" on the next line
 import type { CertificateDto } from "@eccs/shared";
+// vendors-types: the vendor directory (13 Oct 2026)
+import type { VendorDirectoryDto, VendorDto } from "@eccs/shared";
 // offline-visits-types: the offline worker imports any new types from "@eccs/shared" on the next line
 // scores-types: the hygiene score worker imports its types from "@eccs/shared" on the next line
 import type { HygieneScoreDto } from "@eccs/shared";
@@ -888,6 +890,18 @@ export function createApiClient(options: ApiClientOptions) {
       /** ECCS admins make the PDF again; the new one takes the old one's place. */
       remakePdf: (certificateId: string) =>
         call<{ path: string }>("POST", `/certificates/${id(certificateId)}/pdf/remake`),
+    },
+    // vendors-api: the vendor directory (13 Oct 2026)
+    /** The vendor directory: nearby wholesalers and distributors, for the Owner and the Manager. Reading only. */
+    vendors: {
+      /**
+       * Every vendor on the list as seen from one outlet: the nearest first, or in
+       * name order when ECCS has not saved the outlet's place (`outletHasPlace`).
+       */
+      list: (outletId: string) => call<VendorDirectoryDto>("GET", `/vendors${query({ outletId })}`),
+      /** One vendor, with its distance from that outlet. */
+      get: (vendorId: string, outletId: string) =>
+        call<VendorDto>("GET", `/vendors/${id(vendorId)}${query({ outletId })}`),
     },
     // scores-api: the hygiene score worker adds `scores: { ... },` on the next line
     /** The hygiene score: one number out of 100 per outlet, with what it is made of. */

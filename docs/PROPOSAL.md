@@ -156,6 +156,7 @@ Restaurant roles never see another organisation's data. Owner covers all outlets
 | Dues | R, pay | R, pay | – |
 | Subscription plan, invoices, billing | CRU, pay | R | – |
 | Customer QR page | R, U settings | R | – |
+| Vendor directory (added 13 Oct 2026) | R | R own | – |
 
 **Nobody but the Owner changes their own record (13 Oct 2026).** A person with an app login who is also on the staff list reads their own attendance, pay and details as their role allows, and cannot change them: not their staff record, not their pay figures, advances or payments, and not by clocking themselves in with their own PIN. The Owner does it for them. This needs the person to be linked to their login on the staff list.
 
@@ -217,6 +218,11 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - **AttendanceRecord** stays the day's final status, which the salary tracker reads; it now says whether it came from the punches or from the Owner, with the minutes worked and any flags.
 - Roles: the Owner enrols faces, corrects days and reviews flags; the Manager reads; the Head Chef has no attendance page (13 Oct 2026). Nobody marks attendance by hand, and a Manager cannot clock themselves in or out with their own PIN.
 - **Pay rules (added 12 Oct 2026).** A person's pay counts from the day they joined (today, when none is given). Each outlet chooses the days a month's salary is divided by: that month's own days, always 30, always 26, or another number from 20 to 31 (`AttendanceSettings.salaryDivisorDays`). A day's pay is the salary divided by that number; a part month starts from the share of the salary for the calendar days counted; an absence takes off a day's pay and a half day half; a full month with no absence always pays the whole salary. A month keeps the number it was worked out with once paid or saved (`SalaryRecord.divisorDays`).
+
+### Vendor directory (added 13 Oct 2026)
+- **Vendor**: a wholesaler or distributor who sells in bulk to restaurants. A stable code, name, what they sell (one or more of 14 categories, and a line of text that can be translated), locality, city, address and place on the map, phone and WhatsApp, whether they deliver and the minimum order, hours, the FSSAI number as they gave it, and whether it is a sample.
+- The Owner and Manager read the whole directory sorted nearest first from their outlet's saved place, with those within 5 km grouped as "near your restaurant". Nobody adds or changes a vendor through the app or the API yet: the list is loaded from a file of invented samples, which the app never dials. A console page for ECCS to manage real vendors is the next step.
+- It is a list for convenience, not an endorsement: the page says ECCS has not checked the vendors, and shows each FSSAI number with where to check it, because FSSAI's licence conditions ask a restaurant to buy food only from licensed or registered vendors.
 
 ### Food labels
 - **FoodItem**: per outlet. Name (translated), shelf life, storage type.

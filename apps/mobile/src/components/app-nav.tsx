@@ -52,6 +52,8 @@ const MANAGER_MENU: MenuItem[] = [
   ...HEAD_CHEF_MENU,
   { label: 'tile.services', icon: 'construct-outline', href: '/services' },
   { label: 'tile.history', icon: 'calendar-outline', href: '/history' },
+  // The vendor directory (13 Oct 2026): for the Owner and the Manager, who do the buying. Not in the Head Chef's menu.
+  { label: 'tile.vendors', icon: 'storefront-outline', href: '/vendors' },
   { label: 'tile.documents', icon: 'document-text-outline', href: '/documents' },
   { label: 'tile.certificates', icon: 'ribbon-outline', href: '/certificates' },
   { label: 'tile.customerPage', icon: 'qr-code-outline', href: '/customer-page' },

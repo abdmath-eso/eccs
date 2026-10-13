@@ -26,6 +26,7 @@ import { ServicesModule } from './services/services.module.js';
 import { RestaurantUsersModule } from './restaurant-users/restaurant-users.module.js';
 import { SopsModule } from './sops/sops.module.js';
 import { StorageModule } from './storage/storage.module.js';
+import { VendorsModule } from './vendors/vendors.module.js';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { StorageModule } from './storage/storage.module.js';
     AttendanceModule,
     FoodLabelsModule,
     PublicPageModule,
+    VendorsModule,
   ],
   controllers: [AppController],
 })

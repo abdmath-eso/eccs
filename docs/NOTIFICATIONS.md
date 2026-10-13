@@ -233,6 +233,9 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 | Q6 | A newly approved inspection appears on the customer page (changed 13 Oct: the page no longer waits for one) | O | "ECCS's inspection is now on your customer page." | In-app | not built |
 | Q7 | A photo will drop off the page in 7 days (90 days after it was taken) | O, M | "A photo drops off your customer page in 7 days." | In-app | not built |
 | Q8 | A page that is switched on has had no score for 3 days | O, M | "Your customer page has had no score for 3 days." | In-app | not built |
+| V1 | New vendors were added within 5 km of an outlet (a digest, weekly at most, never one per vendor) | O, M | "{count} new vendors near {outlet}." | In-app | not built |
+| V2 | A vendor near an outlet was taken off the list (once ECCS can edit the list) | O, M | "{vendor} is no longer on the vendor list." | In-app | not built |
+| V3 | A restaurant reported a wrong number or a closed vendor (if reporting is added) | Adm | "{restaurant} reported a problem with {vendor}." | In-app | not built |
 
 ## 17. Features not built yet (to fill in when they are)
 
@@ -245,6 +248,7 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | Date | Change |
 |---|---|
+| 13 Oct 2026 | Vendor directory: V1 to V3 added. |
 | 13 Oct 2026 | Attendance roles: T13 and T14 added. |
 | 13 Oct 2026 | Customer page rebuilt: Q1, Q2, Q5 and Q6 reworded, Q7 and Q8 added. |
 | 12 Oct 2026 | Pay rules: T10 to T12 added. |

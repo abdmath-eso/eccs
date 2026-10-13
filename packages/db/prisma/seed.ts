@@ -16,6 +16,7 @@ import { addSampleVisits } from "./sample-visits.js";
 import { loadSampleSops } from "./sops.js";
 import { loadSopLibrary } from "./sop-library.js";
 import { translateContent } from "./content-translations.js";
+import { loadVendorDirectory } from "./vendors.js";
 
 // PIN_SECRET lives in the repo-root .env, shared with the API.
 const rootEnvFile = resolve(import.meta.dirname, "../../../.env");
@@ -482,6 +483,8 @@ async function main() {
   await loadInspectionTemplate(prisma);
   await translateContent(prisma);
   const library = await loadChecklistLibrary(prisma);
+  // The vendor directory's sample vendors (13 Oct 2026). They belong to no outlet.
+  const vendors = await loadVendorDirectory(prisma);
 
   const counts = {
     users: await prisma.user.count(),
@@ -497,6 +500,7 @@ async function main() {
     staffMembers: await prisma.staffMember.count(),
     foodItems: await prisma.foodItem.count(),
     checklistLibraryItems: library.total,
+    vendors: vendors.total,
   };
   console.log("Seeded sample data:", counts);
 }

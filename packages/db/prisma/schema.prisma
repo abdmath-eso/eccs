@@ -1499,6 +1499,48 @@ model PublicPhoto {
   @@index([profileId, status])
 }
 
+// ───────────────────────── Vendor directory ─────────────────────────
+
+/// A wholesaler or distributor that sells in bulk to restaurants, shown to the Owner and
+/// Manager with the nearest to their outlet first. One list for every restaurant: a vendor
+/// belongs to no outlet. Loaded from packages/db/prisma/data/vendor-directory.json by
+/// `pnpm vendors:load`; nothing is written through the API yet.
+model Vendor {
+  id            String   @id @default(uuid())
+  /// A stable name for the loader to find it by again, e.g. "sample-bowenpally-veg".
+  code          String   @unique
+  name          String
+  /// What they sell, as codes from VENDOR_CATEGORIES in packages/shared/src/vendors.ts.
+  categories    String[]
+  /// What they sell, in a line, per language: { "en": "Onions, potatoes and tomatoes, by the sack" }.
+  sells         Json?
+  /// The locality, e.g. "Bowenpally".
+  area          String
+  city          String
+  address       String?
+  /// Where the shop is. Empty when not known: the vendor is then listed last, with no distance.
+  latitude      Float?
+  longitude     Float?
+  phone         String?
+  whatsapp      String?
+  /// True if they bring the goods to the restaurant.
+  delivers      Boolean  @default(false)
+  /// The smallest order they deliver, in paise.
+  minOrderPaise Int?
+  /// When they are open, in words, per language: { "en": "4 am to 11 am, closed on Sunday" }.
+  hours         Json?
+  /// Their FSSAI licence or registration number as they gave it. Not checked by ECCS.
+  fssaiNumber   String?
+  /// True for an invented vendor, loaded for trying the app. The app never dials one.
+  isSample      Boolean  @default(false)
+  /// False once taken off the list.
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([city])
+}
+
 // ───────────────────────── Cross-cutting ─────────────────────────
 
 model Notification {

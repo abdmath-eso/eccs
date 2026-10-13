@@ -81,7 +81,8 @@ The same three can log in to the mobile app through **"ECCS staff login"**, but 
 | SOPs | Read, add own | Read, add own | Read |
 | History calendar | Yes | Yes | No |
 | Licences and documents | Yes | Yes | No |
-| Staff logins | Yes | Yes, own branch | No |
+| Staff, attendance and salary tracker | Yes | Yes, own branch (not their own record) | No |
+| Vendors | Yes | Yes, own branch | No |
 
 ---
 
@@ -268,3 +269,16 @@ First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api st
 9. **As the Supervisor** (`9000000003`): open a finished visit of yours > "Propose photos for the customer page", as before.
 10. **Console > Clients >** the client > the outlet's "Customer page" line: "Take the page down" (reason required) and "Restore the page". **As the Owner:** "Make a new link" and check that the old address shows "Nothing current to show".
 11. Approve an inspection for the outlet (section 7) and reload the page: the inspection's points join the score, the "not inspected" box goes, and an "ECCS inspection" section appears.
+
+## 20. Trying the vendor directory
+
+First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api start`. Until then the Vendors screen shows an error, because the running server is older than the feature. Every vendor is an invented sample.
+
+1. **App, as the Owner of Deccan Biryani** (`DECCA-KP6R3T`, PIN `3917`): More > **Vendors**. Under "Near your restaurant, within 5 km" the first is Kukatpally Food Packaging Mart (sample), 1.1 km away; "Further away" follows with the rest, nearest first.
+2. Type `rice` in the search box, then clear it. Tap a chip such as **Dairy**; tap **All** to go back.
+3. Tap **Call** or **WhatsApp** on a row: "This is a sample vendor, so the number is not real." Nothing is dialled. Tap **Directions**: the map opens.
+4. Tap a vendor's name: what they sell, the distance and address, hours, delivery and minimum order, the FSSAI number, and the buttons again.
+5. Open **Yousufguda Mutton and Chicken Shop**: "No FSSAI number on file". Open **Balanagar Commercial Gas Agency**: no FSSAI line at all, since it sells no food. **Malakpet Grain and Oil Merchants** is last, with no distance and no Directions (its place is not saved).
+6. At the end of the list, "About this list" opens to say ECCS has not checked the vendors, and what FSSAI asks of a restaurant.
+7. **As the Owner of Spice Route** (`SPICE-JH2K7M`, PIN `2580`): tap the outlet's name at the top to switch between Jubilee Hills and Gachibowli; the order and the distances change.
+8. **As a Head Chef** (PIN `8264`): there is no Vendors in the menu.

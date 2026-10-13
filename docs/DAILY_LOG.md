@@ -12,6 +12,17 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Tuesday 13 October 2026
+
+*In progress. To be written up at the next end of day.*
+
+**So far**
+
+- The founder restarted the API and opened the app in Expo Go: "could not reach the server". Nothing was listening on port 4000 although the API's process was running. Claude started a test copy on another port, which stopped at the same point, and found the cause: Docker Desktop was open but its engine had stopped, so the database, cache and file store were down while their ports still accepted connections, and the API waited for ever on its start-up check of the file store. Claude restarted Docker with its own command, started the three containers, and the founder's API began listening by itself. The data was intact (3 outlets, 17 staff, 16 face patterns, 10 clock-ins, 56 checklist runs). Why the engine stopped is not known; the PC ran low on memory the day before.
+- So that this is obvious next time, the API now asks the database one question at start-up and stops after 8 seconds with one plain sentence that names Docker Desktop, and the file-store check gives up after 5 seconds with a warning. Tried with Docker down (it stopped in about 10 seconds with the sentence as its last line) and with Docker up (the login, attendance and staff tests pass).
+
+---
+
 ## Monday 12 October 2026
 
 The day face attendance met a real phone. The founder tried it for the first time, sent it back twice to be made simpler, and then moved on to how pay is counted and to three questions about the business itself: a pitch deck, where AI fits, and whether the company is viable and should apply to Y Combinator. 12 commits. Pushed to GitHub at the end of the day, together with everything since the push on 9 October.

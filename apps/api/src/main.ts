@@ -1,5 +1,7 @@
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
+import { StartupProblem } from './common/startup-problem.js';
 import { env } from './config/env.js';
 
 async function bootstrap() {
@@ -13,4 +15,13 @@ async function bootstrap() {
   app.enableShutdownHooks();
   await app.listen(env.API_PORT);
 }
-await bootstrap();
+
+try {
+  await bootstrap();
+} catch (error) {
+  // A reason already written in plain words is printed by itself and the server stops.
+  // Anything unexpected keeps its full detail, which is what is needed to find a fault.
+  if (!(error instanceof StartupProblem)) throw error;
+  new Logger('Start-up').error(`The API did not start. ${error.message}`);
+  process.exit(1);
+}

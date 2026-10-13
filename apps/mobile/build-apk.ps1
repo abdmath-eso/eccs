@@ -72,7 +72,16 @@ git checkout -- package.json
 # Compile. arm64-v8a is for real phones, x86_64 for the virtual phone on this PC.
 Set-Location (Join-Path $mobile 'android')
 & .\gradlew.bat assembleRelease --console=plain '-PreactNativeArchitectures=arm64-v8a,x86_64'
-if ($LASTEXITCODE -ne 0) { throw 'The Android build failed. The lines above say why.' }
+$buildResult = $LASTEXITCODE
+
+# Stop the build tool's helper, whether the build worked or not. Left running, it keeps this
+# window's output open, so anything waiting to hear that the build has finished never does
+# (twice the APK sat ready for a quarter of an hour before anyone was told); it keeps files in
+# the android folder locked, which stops the next build ("EBUSY"); and it sits on about 400 MB
+# of memory for hours.
+& .\gradlew.bat --stop | Out-Null
+
+if ($buildResult -ne 0) { throw 'The Android build failed. The lines above say why.' }
 
 $apk = Join-Path $mobile 'ECCS-test.apk'
 Copy-Item (Join-Path $mobile 'android\app\build\outputs\apk\release\app-release.apk') $apk -Force

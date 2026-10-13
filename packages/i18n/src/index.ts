@@ -16,7 +16,7 @@ export type { MessageKey, Messages };
 // The codes match the Language list in @eccs/shared and the database.
 export type LanguageCode = "EN" | "HI" | "TE" | "TA" | "KN" | "ML" | "MR" | "BN" | "GU" | "PA" | "OR" | "UR";
 
-export const MESSAGES: Record<LanguageCode, Partial<Messages>> = {
+export const MESSAGES: Record<LanguageCode, Messages> = {
   EN: en,
   HI: hi,
   TE: te,

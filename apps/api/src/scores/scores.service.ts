@@ -35,6 +35,19 @@ const addDays = (date: string, days: number) => fromDbDate(new Date(toDbDate(dat
 const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 
 /**
+ * True when a checklist of `date` that was handed in was handed in on time: on its
+ * own day and by its due time, with the grace allowed, or it has no due time at all.
+ * One rule, used for the score and for the customer page's "done on time" or "done late".
+ */
+export function handedInOnTime(date: string, submittedAt: Date | null, dueTime: string | null): boolean {
+  return (
+    dueTime === null ||
+    !submittedAt ||
+    (indiaDate(submittedAt) === date && minutes(indiaTime(submittedAt)) <= minutes(dueTime) + SCORE_RULES.onTimeGraceMinutes)
+  );
+}
+
+/**
  * The scorer reads through the checklist, licence and inspection services, so
  * their rules (what counts as missed, expired and so on) stay in one place. Those
  * services ask who is reading; the timer has no person, so it reads as ECCS, which
@@ -226,12 +239,7 @@ export class ScoresService implements OnModuleInit, OnModuleDestroy {
         if (!settled) continue;
         counts.due += 1;
         if (!handedIn) continue;
-        const inTime =
-          dueTime === null ||
-          !run.submittedAt ||
-          (indiaDate(run.submittedAt) === date &&
-            minutes(indiaTime(run.submittedAt)) <= minutes(dueTime) + SCORE_RULES.onTimeGraceMinutes);
-        if (inTime) counts.onTime += 1;
+        if (handedInOnTime(date, run.submittedAt, dueTime)) counts.onTime += 1;
         else counts.late += 1;
       }
       return counts;

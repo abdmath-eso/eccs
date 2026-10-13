@@ -1,6 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { PUBLIC_PAGE_RULES, type PublicPageSettingsDto, type PublicPageState, type PublicPhotoDto } from '@eccs/shared';
-import { useFocusEffect } from 'expo-router';
+import {
+  localize,
+  PUBLIC_PAGE_RULES,
+  type PublicCheckResult,
+  type PublicPageDto,
+  type PublicPageSettingsDto,
+  type PublicPageState,
+  type PublicPhotoDto,
+} from '@eccs/shared';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState, type ComponentProps } from 'react';
 import { ActivityIndicator, Linking, Share, StyleSheet, Switch, View } from 'react-native';
 
@@ -17,7 +25,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatDayLong } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
@@ -28,24 +36,59 @@ const STATE_ICON: Record<PublicPageState, IconName> = {
   LIVE: 'checkmark-circle',
   OFF: 'eye-off',
   TAKEN_DOWN: 'hand-left',
-  NO_INSPECTION: 'time',
-  INSPECTION_EXPIRED: 'time',
   INACTIVE: 'eye-off',
 };
 
-const PUBLISHED = ['cpage.switch.item1', 'cpage.switch.item2', 'cpage.switch.item3', 'cpage.switch.item4', 'cpage.switch.item5', 'cpage.switch.item6'] as const;
+// Yesterday's result for a checklist, with the same four pictures the customer's page draws.
+const RESULT_ICON: Record<PublicCheckResult, IconName> = {
+  ON_TIME: 'checkmark',
+  LATE: 'time-outline',
+  NOT_DONE: 'close',
+  NOT_DUE: 'remove',
+};
+
+// What turning the page on publishes, in the order the customer's page shows it.
+const PUBLISHED = [
+  'cpage.switch.item1',
+  'cpage.switch.item7',
+  'cpage.switch.item8',
+  'cpage.switch.item3',
+  'cpage.switch.item6',
+  'cpage.switch.item2',
+  'cpage.switch.item4',
+  'cpage.switch.item5',
+] as const;
+
+// The three sentences every customer is shown before any score, as on the page itself.
+const DISCLAIMER = ['public.disclaimer.private', 'public.disclaimer.notGov', 'public.disclaimer.own'] as const;
+
+const PART_LABEL = {
+  inspection: 'score.part.inspection',
+  licences: 'score.part.licences',
+  checklists: 'public.score.part.checklists',
+} as const;
+
+/** Points as they are: a whole number, or one decimal place when there is one. */
+const points = (value: number) => String(Math.round(value * 10) / 10);
 
 /**
  * The restaurant's customer page: the public web page a diner opens from a QR
  * code. The Owner turns it on or off here, sees what a diner sees, shows or
  * shares the QR code, makes a new link, and removes photos. The Manager sees
- * the same but changes nothing.
+ * the same but changes nothing, except that both can put forward photos from
+ * the outlet's own daily checks.
+ *
+ * Since 13 Oct 2026 the page can be switched on before ECCS has inspected: it
+ * shows yesterday's hygiene score, the daily checklists and photos, and ECCS's
+ * inspection once there is one.
  *
  * Built the way apps handle a shareable link: one switch that takes effect at
  * once, with what it publishes spelled out beside it (Material's guidance for
- * switches); the QR code large on white with Share under it (the "my QR code"
- * screens of payment and messaging apps); and "make a new link", which kills
- * the old one, behind a warning (WhatsApp's "Reset link" for group invites).
+ * switches); a preview of exactly what the public will see before publishing
+ * (the "view as" and profile-preview screens of social and listing apps); the
+ * QR code large on white with Share under it (the "my QR code" screens of
+ * payment and messaging apps); and "make a new link", which kills the old one,
+ * behind a warning (WhatsApp's "Reset link" for group invites).
  */
 export default function CustomerPageScreen() {
   const theme = useTheme();
@@ -118,11 +161,48 @@ export default function CustomerPageScreen() {
     </ThemedText>
   );
 
+  /** Whether ECCS's inspection is on the page: told as information, since the page shows without one. */
+  const inspectionLine = (settings: PublicPageSettingsDto) => {
+    const { state, date, shownUntil } = settings.inspection;
+    if (state === 'NONE' || !date) return t('cpage.inspection.NONE');
+    if (state === 'CURRENT') return t('cpage.inspection.CURRENT', { date: formatDate(date, language), until: formatDate(shownUntil ?? date, language) });
+    return t('cpage.inspection.EXPIRED', { date: formatDate(date, language), days: PUBLIC_PAGE_RULES.inspectionValidDays });
+  };
+
+  /** The score exactly as a customer is given it: the day, the number, what is not in it, and the three parts. */
+  const scorePreview = (preview: PublicPageDto) => {
+    const score = preview.score;
+    if (!score) return <ThemedText type="small">{t('public.score.none', { days: PUBLIC_PAGE_RULES.scoreWithinDays })}</ThemedText>;
+    return (
+      <>
+        <ThemedText type="small" themeColor="textSecondary">
+          {t(score.isYesterday ? 'public.score.forYesterday' : 'public.score.forEarlier', { date: formatDayLong(score.date, language) })}
+        </ThemedText>
+        {score.provisional && score.inspection !== 'COUNTED' && (
+          <View style={[styles.caveat, { borderColor: theme.warning }]}>
+            <Ionicons name="alert-circle" size={22} color={theme.warning} />
+            <ThemedText type="smallBold" style={styles.grow}>
+              {t(`public.score.noInspection.${score.inspection}`)} {t('public.score.onlyOwn')}
+            </ThemedText>
+          </View>
+        )}
+        <ThemedText type="default" style={styles.score}>
+          {t('public.inspection.score', { score: score.score })} · {t(`score.band.${score.band}`)}
+        </ThemedText>
+        {score.parts.map((part) => (
+          <ThemedText key={part.key} type="small">
+            {t(PART_LABEL[part.key])}: {part.measured ? t('score.points', { earned: points(part.earned), max: points(part.max) }) : t('public.score.notCounted')}
+          </ThemedText>
+        ))}
+      </>
+    );
+  };
+
   const body = () => {
     if (!page) return null;
     const preview = page.preview;
     const live = page.state === 'LIVE';
-    const stateColor = live ? theme.primary : page.state === 'TAKEN_DOWN' || page.state === 'INSPECTION_EXPIRED' ? theme.warning : theme.textSecondary;
+    const stateColor = live ? theme.primary : page.state === 'TAKEN_DOWN' ? theme.warning : theme.textSecondary;
     const shownPhotos = page.photos.filter((photo) => photo.shown).length;
 
     return (
@@ -131,7 +211,7 @@ export default function CustomerPageScreen() {
         <View style={[styles.card, styles.row, { borderColor: stateColor }]}>
           <Ionicons name={STATE_ICON[page.state]} size={28} color={stateColor} />
           <ThemedText type="default" style={styles.grow}>
-            {t(`cpage.state.${page.state}`, { days: PUBLIC_PAGE_RULES.inspectionValidDays })}
+            {t(`cpage.state.${page.state}`)}
           </ThemedText>
         </View>
 
@@ -162,7 +242,7 @@ export default function CustomerPageScreen() {
                 accessibilityLabel={t('cpage.switch.label')}
                 value={page.enabled}
                 disabled={!page.canSwitch || busy !== null || (page.takenDown && !page.enabled)}
-                // Turning it on publishes the restaurant's result, so that way round is asked first.
+                // Turning it on publishes the restaurant's score, so that way round is asked first.
                 onValueChange={(next) => (next ? setAsking({ what: 'on' }) : setEnabled(false))}
                 trackColor={{ true: theme.primary, false: theme.outline }}
               />
@@ -185,7 +265,20 @@ export default function CustomerPageScreen() {
           ))}
           <ThemedText type="smallBold">{t('cpage.switch.never')}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {t('cpage.switch.lapse', { days: PUBLIC_PAGE_RULES.inspectionValidDays })}
+            {t('cpage.switch.lapse', { days: PUBLIC_PAGE_RULES.inspectionValidDays, photoDays: PUBLIC_PAGE_RULES.photoShownDays })}
+          </ThemedText>
+        </View>
+
+        {/* The disclaimer a customer reads before any score, shown here so the Owner knows it is on the page. */}
+        <View style={card}>
+          {heading(t('cpage.disclaimer.title'))}
+          {DISCLAIMER.map((key) => (
+            <ThemedText key={key} type="small">
+              {t(key)}
+            </ThemedText>
+          ))}
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('cpage.disclaimer.help')}
           </ThemedText>
         </View>
 
@@ -194,26 +287,50 @@ export default function CustomerPageScreen() {
           {heading(t('cpage.preview.title'))}
           {preview ? (
             <>
-              <ThemedText type="default" style={styles.score}>
-                {t('cpage.preview.score', { score: preview.inspection.score })}
+              {scorePreview(preview)}
+
+              <ThemedText type="smallBold" style={styles.gap}>
+                {t('public.checks.heading')}
               </ThemedText>
-              <ThemedText type="smallBold">{t(`public.inspection.grade.${preview.inspection.grade}`)}</ThemedText>
-              <ThemedText type="small">
-                {t('cpage.preview.inspected', {
-                  date: formatDate(preview.inspection.date, language),
-                  number: ltrText(preview.inspection.reportNumber),
-                })}
-              </ThemedText>
+              {preview.checklists.length === 0 && <ThemedText type="small">{t('public.checks.none')}</ThemedText>}
+              {preview.checklists.map((list, index) => (
+                <View key={index} style={styles.result}>
+                  <Ionicons name={RESULT_ICON[list.result]} size={20} color={theme.text} />
+                  <ThemedText type="small" style={styles.grow}>
+                    {localize(list.name, language)}: {t(`public.checks.result.${list.result}`)}
+                  </ThemedText>
+                </View>
+              ))}
               <ThemedText type="small">
                 {preview.selfChecks
                   ? t('cpage.preview.self', { done: preview.selfChecks.handedIn, days: preview.selfChecks.days })
                   : t('public.self.none')}
               </ThemedText>
-              <ThemedText type="small">{t('cpage.preview.services', { count: preview.services.length })}</ThemedText>
-              <ThemedText type="small">{t('cpage.preview.photos', { count: preview.photos.length })}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {t('public.inspection.until', { date: formatDate(preview.inspection.shownUntil, language) })}
+
+              <ThemedText type="smallBold" style={styles.gap}>
+                {t('public.inspection.heading')}
               </ThemedText>
+              {preview.inspection && (
+                <>
+                  <ThemedText type="small">
+                    {t('cpage.preview.score', { score: preview.inspection.score })} · {t(`public.inspection.grade.${preview.inspection.grade}`)}
+                  </ThemedText>
+                  <ThemedText type="small">
+                    {t('cpage.preview.inspected', {
+                      date: formatDate(preview.inspection.date, language),
+                      number: ltrText(preview.inspection.reportNumber),
+                    })}
+                  </ThemedText>
+                </>
+              )}
+              <ThemedText type="small" themeColor="textSecondary">
+                {inspectionLine(page)}
+              </ThemedText>
+
+              <ThemedText type="small" style={styles.gap}>
+                {t('cpage.preview.services', { count: preview.services.length })}
+              </ThemedText>
+              <ThemedText type="small">{t('cpage.preview.photos', { count: preview.photos.length })}</ThemedText>
               {live && (
                 <Button icon="open-outline" label={t('cpage.preview.open')} variant="secondary" onPress={() => void Linking.openURL(page.url)} />
               )}
@@ -267,8 +384,18 @@ export default function CustomerPageScreen() {
         <View style={card}>
           {heading(t('cpage.photos.title'))}
           <ThemedText type="small" themeColor="textSecondary">
-            {t('cpage.photos.help')}
+            {t('cpage.photos.help', { days: PUBLIC_PAGE_RULES.photoShownDays })}
           </ThemedText>
+          {/* The restaurant's own photos: chosen one by one on the next screen, never published by themselves. */}
+          {page.canPropose && (
+            <Button
+              icon="images-outline"
+              label={t('cpage.photos.add')}
+              hint={t('cpage.photos.addHint', { days: PUBLIC_PAGE_RULES.checkPhotoDays })}
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/customer-page/from-checks', params: { outletId: page.outletId } })}
+            />
+          )}
           {page.photosWaiting > 0 && <ThemedText type="smallBold">{t('cpage.photos.waiting', { count: page.photosWaiting })}</ThemedText>}
           {page.photos.length === 0 && (
             <ThemedText type="default" themeColor="textSecondary">
@@ -280,6 +407,9 @@ export default function CustomerPageScreen() {
             <View key={photo.id} style={styles.photo}>
               <ProofPhoto uri={api.fileUrl(photo.path)} label={t(`public.photo.${photo.caption}`)} />
               <ThemedText type="smallBold">{t(`public.photo.${photo.caption}`)}</ThemedText>
+              {/* The same two lines a customer reads under the photo. */}
+              <ThemedText type="small">{t('public.photos.takenOn', { date: formatDate(photo.takenOn, language) })}</ThemedText>
+              <ThemedText type="small">{t(photo.source === 'DAILY_CHECK' ? 'public.photos.by.RESTAURANT' : 'public.photos.by.ECCS')}</ThemedText>
               {!photo.shown && (
                 <ThemedText type="small" themeColor="textSecondary">
                   {t('cpage.photos.notShown', { count: PUBLIC_PAGE_RULES.maxPhotos })}
@@ -302,10 +432,6 @@ export default function CustomerPageScreen() {
             </ThemedText>
           )}
         </View>
-
-        <ThemedText type="small" themeColor="textSecondary">
-          {t('public.private')}
-        </ThemedText>
       </>
     );
   };
@@ -370,6 +496,9 @@ const styles = StyleSheet.create({
   grow: { flex: 1 },
   heading: { fontWeight: 700, fontSize: 18 },
   score: { fontWeight: 700, fontSize: 22 },
+  caveat: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, borderWidth: 2, borderRadius: Spacing.two, padding: Spacing.two },
+  result: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  gap: { marginTop: Spacing.two },
   bullet: { flexDirection: 'row', gap: Spacing.two, paddingStart: Spacing.one },
   qr: { alignItems: 'center', paddingVertical: Spacing.two },
   centred: { textAlign: 'center' },

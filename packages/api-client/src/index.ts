@@ -122,6 +122,7 @@ import type {
 } from "@eccs/shared";
 // public-page-types: the public-page worker imports its types from "@eccs/shared" on the next line
 import type {
+  PublicCheckPhotosDto,
   PublicPageSettingsDto,
   PublicPhotoCaption,
   PublicPhotoDto,
@@ -784,6 +785,11 @@ export function createApiClient(options: ApiClientOptions) {
         form.append("file", file, "photo.jpg");
         return send<PublicPhotoDto>("POST", `/public-page/outlets/${id(outletId)}/photos`, form, undefined, true);
       },
+      /** The restaurant: its own daily-check photos that can be put forward for the page, and what became of those already put forward. */
+      checkPhotos: (outletId: string) => call<PublicCheckPhotosDto>("GET", `/public-page/outlets/${id(outletId)}/check-photos`),
+      /** The restaurant puts one of its own daily-check photos forward. ECCS looks at it before it appears. */
+      proposeFromCheck: (outletId: string, attachmentId: string, caption: PublicPhotoCaption) =>
+        call<PublicPhotoDto>("POST", `/public-page/outlets/${id(outletId)}/check-photos`, { attachmentId, caption }),
       approvePhoto: (photoId: string) => call<PublicPhotoDto>("POST", `/public-page/photos/${id(photoId)}/approve`),
       rejectPhoto: (photoId: string, reason: string) =>
         call<PublicPhotoDto>("POST", `/public-page/photos/${id(photoId)}/reject`, { reason }),

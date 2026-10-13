@@ -2,7 +2,6 @@
 
 import {
   PUBLIC_PAGE_REASON_MAX,
-  PUBLIC_PAGE_RULES,
   type OrganizationDto,
   type PublicPageSettingsDto,
   type PublicPageState,
@@ -24,11 +23,6 @@ const STATE: Record<PublicPageState, { tag: string; line: string }> = {
   LIVE: { tag: "Showing", line: "Diners who scan the QR code see this outlet's page." },
   OFF: { tag: "Off", line: "The restaurant has not turned its page on. Only its Owner can, in the app." },
   TAKEN_DOWN: { tag: "Taken down by ECCS", line: "The restaurant cannot turn it back on until ECCS restores it." },
-  NO_INSPECTION: { tag: "On, nothing to show", line: "The restaurant has turned it on, but there is no approved inspection yet, so diners see nothing." },
-  INSPECTION_EXPIRED: {
-    tag: "On, lapsed",
-    line: `The restaurant has turned it on, but the last approved inspection is more than ${PUBLIC_PAGE_RULES.inspectionValidDays} days old, so diners see nothing.`,
-  },
   INACTIVE: { tag: "Not showing", line: "This client or outlet is switched off, so diners see nothing." },
 };
 
@@ -37,6 +31,10 @@ const STATE: Record<PublicPageState, { tag: string; line: string }> = {
  * it and why, its link, and ECCS's switch to take it down (when a client
  * leaves, or after a complaint), which the restaurant cannot override. Turning
  * a page on is the restaurant's own decision and is not offered here.
+ *
+ * Since 13 Oct 2026 a page shows without an ECCS inspection: it carries yesterday's
+ * hygiene score, the daily checklists and photos, and the inspection once there is
+ * one. So the inspection is told here as information, no longer as a reason.
  *
  * Fetched only while the client's row is open, like the plan beside it.
  */
@@ -98,6 +96,13 @@ export function OutletPublicPage({ outlet }: { outlet: Outlet }) {
   }
 
   const state = STATE[page.state];
+  const score = page.preview?.score ?? null;
+  const inspection =
+    page.inspection.state === "NONE" || !page.inspection.date
+      ? "No approved inspection yet: the page says so beside the score."
+      : page.inspection.state === "CURRENT"
+        ? `The approved inspection of ${longDay(page.inspection.date)} is on the page${page.inspection.shownUntil ? ` until ${longDay(page.inspection.shownUntil)}` : ""}.`
+        : `The approved inspection of ${longDay(page.inspection.date)} is too old to be on the page.`;
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2.5 text-sm">
       <p>
@@ -119,10 +124,11 @@ export function OutletPublicPage({ outlet }: { outlet: Outlet }) {
         </p>
       )}
       <p className="text-muted">
-        {page.inspection.date
-          ? `Latest approved inspection: ${longDay(page.inspection.date)}${page.inspection.shownUntil ? `, shown until ${longDay(page.inspection.shownUntil)}` : ""}.`
-          : "No approved inspection yet."}{" "}
-        Photos on the page: {page.photos.filter((photo) => photo.shown).length}.{" "}
+        {page.preview &&
+          (score
+            ? `Score on the page: ${score.score} out of 100 for ${longDay(score.date)}${score.provisional ? ", with no ECCS inspection in it" : ""}. `
+            : "No hygiene score on the page for the last week. ")}
+        {inspection} Photos on the page: {page.photos.filter((photo) => photo.shown).length}.{" "}
         {page.photosWaiting > 0 && (
           <Link href="/customer-pages" className="font-semibold text-primary underline">
             {page.photosWaiting} waiting for approval

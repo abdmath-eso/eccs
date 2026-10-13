@@ -113,7 +113,8 @@ export class PublicPagesController {
 
 // The "Customer QR page" and "Customer QR photos" rows of the permission table:
 // the Owner reads and changes the settings, the Manager reads, the Head Chef has no
-// access; a Supervisor proposes photos; ECCS admins approve them and can take a page
+// access; a Supervisor proposes photos from ECCS's visits; the restaurant puts forward
+// photos from its own daily checks; ECCS admins approve them all and can take a page
 // down. Which outlets and photos each of them reaches is narrowed in the service.
 @Controller('public-page')
 export class PublicPageController {
@@ -217,6 +218,29 @@ export class PublicPageController {
   @RequirePermission('publicPage', 'approve')
   restore(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
     return this.pages.restore(user, outletId);
+  }
+
+  /** The restaurant's own daily-check photos that can be put forward for its page, and what became of those already put forward. */
+  @Get('outlets/:outletId/check-photos')
+  @RequirePermission('publicPage', 'read')
+  checkPhotos(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
+    return this.pages.checkPhotos(user, outletId);
+  }
+
+  /**
+   * The restaurant puts one of those photos forward. The permission table has no letter
+   * of its own for this, so the request is let in on "read" (the Owner and the Manager,
+   * never the Head Chef) and the service decides who on the restaurant's side may do it,
+   * and turns away everyone at ECCS.
+   */
+  @Post('outlets/:outletId/check-photos')
+  @RequirePermission('publicPage', 'read')
+  proposeFromCheck(
+    @CurrentUser() user: AuthUser,
+    @Param('outletId') outletId: string,
+    @Body(new ZodValidationPipe(proposePublicPhotoSchema)) body: z.output<typeof proposePublicPhotoSchema>,
+  ) {
+    return this.pages.proposeFromCheck(user, outletId, body);
   }
 
   /** A Supervisor takes a photo specially for the page. */

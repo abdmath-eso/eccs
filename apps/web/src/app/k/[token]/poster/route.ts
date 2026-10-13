@@ -6,7 +6,9 @@ import { qrSvg } from "@/lib/qr-svg";
 import { createTranslator } from "@eccs/i18n";
 
 // The printable poster for a customer page: /k/<token>/poster. It is only the QR
-// code of the page's own address with a line of text, so it asks the API nothing
+// code of the page's own address, a line saying what scanning it shows, and the
+// disclaimer in short (ECCS is a private company working for the restaurant, not
+// a government body; this is not a government rating). So it asks the API nothing
 // and shows nothing about the restaurant. The Owner opens it from the app and
 // prints it with the browser's own Print.
 

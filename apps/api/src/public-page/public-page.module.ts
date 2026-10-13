@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ChecklistsModule } from '../checklists/checklists.module.js';
+import { ScoresModule } from '../scores/scores.module.js';
 import { PublicPageController, PublicPagesController } from './public-page.controller.js';
 import { PublicPageService } from './public-page.service.js';
 
 // The customer QR page: the public answer a diner's phone gets, the restaurant's
 // switch, ECCS's take-down and the photo approvals. It reads checklists through the
-// checklist service; storage and the database are global.
+// checklist service and yesterday's hygiene score through the scorer; storage and the
+// database are global.
 @Module({
-  imports: [ChecklistsModule],
+  imports: [ChecklistsModule, ScoresModule],
   controllers: [PublicPagesController, PublicPageController],
   providers: [PublicPageService],
   exports: [PublicPageService],

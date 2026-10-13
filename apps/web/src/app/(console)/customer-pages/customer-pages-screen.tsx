@@ -8,6 +8,7 @@ import {
   PUBLIC_PHOTO_RULE,
   type PublicPhotoCaption,
   type PublicPhotoDto,
+  type PublicPhotoSource,
   type PublicPhotoStatus,
 } from "@eccs/shared";
 import { useEffect, useState } from "react";
@@ -16,7 +17,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
 import { Button, Card, EmptyState, ErrorMessage, LoadError, Loading, NoAccess, PageHeader, SelectField, TextAreaField, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
-import { describe, when } from "@/lib/format";
+import { describe, longDay, when } from "@/lib/format";
 import { useNavCounts } from "@/lib/nav-counts";
 import { useQuery } from "@/lib/query";
 import { useSession } from "@/lib/session";
@@ -31,6 +32,14 @@ export const CAPTION: Record<PublicPhotoCaption, string> = {
   WASH_AREA: "Washing area",
 };
 
+/** Where a photo came from, said beside it: the approver needs to know whose photo this is. */
+const SOURCE: Record<PublicPhotoSource, string> = {
+  DAILY_CHECK: "From the restaurant's own daily check",
+  ECCS_VISIT: "From an ECCS service visit",
+  ECCS_INSPECTION: "From an ECCS inspection",
+  ECCS_FOR_PAGE: "Taken by an ECCS Supervisor for the page",
+};
+
 const SHOWS: readonly { value: PublicPhotoStatus; label: string }[] = [
   { value: "PROPOSED", label: "Waiting" },
   { value: "APPROVED", label: "Approved" },
@@ -40,14 +49,15 @@ const SHOWS: readonly { value: PublicPhotoStatus; label: string }[] = [
 const OTHER = "other";
 
 /**
- * Customer pages: the photos Supervisors have proposed for restaurants'
- * public QR pages, waiting for ECCS's decision, the longest-waiting first.
+ * Customer pages: the photos proposed for restaurants' public QR pages, by
+ * ECCS Supervisors from their visits and by restaurants from their own daily
+ * checks, waiting for ECCS's decision, the longest-waiting first.
  *
  * Laid out as review queues are in moderation tools (Discourse's review queue,
  * the "queue and detail" pattern): each photo is shown large, because the
  * decision is made by looking at it; the rule it is judged by stays in view
  * beside it instead of living in someone's head; approving is one click, and
- * rejecting asks for the reason, which the Supervisor is shown.
+ * rejecting asks for the reason, which whoever proposed the photo is shown.
  *
  * The filter is kept in the web address as `show=`.
  */
@@ -110,7 +120,7 @@ export default function CustomerPagesScreen() {
   async function remove(photo: PublicPhotoDto) {
     const sure = await confirm({
       title: "Take this photo off the page?",
-      body: `It comes off ${photo.organizationName}'s customer page straight away and cannot be put back; the Supervisor would have to propose a new one.`,
+      body: `It comes off ${photo.organizationName}'s customer page straight away and cannot be put back; a new photo would have to be proposed.`,
       confirmLabel: "Take the photo off",
       cancelLabel: "Keep the photo",
     });
@@ -127,8 +137,14 @@ export default function CustomerPagesScreen() {
         how={
           <>
             <p>
-              A Supervisor proposes photos from a finished visit or inspection, or takes one for the purpose. Each waits here until a Super Admin or
-              Operations Manager approves or rejects it. A page shows its newest {PUBLIC_PAGE_RULES.maxPhotos} approved photos.
+              A Supervisor proposes photos from a finished visit or inspection, or takes one for the purpose. A restaurant&apos;s Owner or Manager
+              puts forward proof photos from their own daily checks of the last {PUBLIC_PAGE_RULES.checkPhotoDays} days, and only of checks marked
+              as fine. Each waits here until a Super Admin or Operations Manager approves or rejects it, and each says where it came from.
+            </p>
+            <p>
+              A restaurant&apos;s checklist photos are otherwise not open to ECCS: only the ones it puts forward appear here. A page shows its
+              newest {PUBLIC_PAGE_RULES.maxPhotos} approved photos, and a photo drops off by itself {PUBLIC_PAGE_RULES.photoShownDays} days after
+              the day it was taken.
             </p>
             <p>
               The restaurant&apos;s Owner can remove any approved photo from their page at any time, and so can ECCS. A decision is final: a rejected
@@ -155,7 +171,9 @@ export default function CustomerPagesScreen() {
 
       {photos !== null && photos.length === 0 && (
         <EmptyState title={show === "PROPOSED" ? "No photos are waiting" : show === "APPROVED" ? "No approved photos" : "No rejected photos"}>
-          {show === "PROPOSED" ? "A photo appears here when a Supervisor proposes one from the app, on a finished visit or inspection." : undefined}
+          {show === "PROPOSED"
+            ? "A photo appears here when a Supervisor proposes one from a finished visit or inspection, or a restaurant puts one forward from its daily checks."
+            : undefined}
         </EmptyState>
       )}
 
@@ -178,8 +196,11 @@ export default function CustomerPagesScreen() {
               <p>
                 {photo.organizationName}, {photo.outletName}
               </p>
+              {/* Whose photo it is, in words: a restaurant's own photo is judged by the same rule as ECCS's. */}
+              <p className="font-semibold">{SOURCE[photo.source]}</p>
               <p className="text-sm text-muted">
-                Proposed by {photo.proposedByName ?? "a Supervisor"} on {when(photo.proposedAt)}
+                Taken on {longDay(photo.takenOn)}. Proposed by {photo.proposedByName ?? (photo.source === "DAILY_CHECK" ? "the restaurant" : "a Supervisor")}
+                {photo.source === "DAILY_CHECK" && photo.proposedByName ? " (the restaurant)" : ""} on {when(photo.proposedAt)}
               </p>
               {photo.status !== "PROPOSED" && photo.decidedAt && (
                 <p className="text-sm text-muted">
@@ -189,7 +210,13 @@ export default function CustomerPagesScreen() {
               )}
               {photo.status === "APPROVED" && (
                 <p className="text-sm font-semibold">
-                  {photo.removed ? "Removed from the page" : photo.shown ? "On the page now" : `Approved, but not among the newest ${PUBLIC_PAGE_RULES.maxPhotos} shown`}
+                  {photo.removed
+                    ? "Removed from the page"
+                    : photo.shown
+                      ? `On the page now, until ${longDay(photo.shownUntil)} at the latest`
+                      : photo.expired
+                        ? `Dropped off the page: taken more than ${PUBLIC_PAGE_RULES.photoShownDays} days ago`
+                        : `Approved, but not among the newest ${PUBLIC_PAGE_RULES.maxPhotos} shown`}
                 </p>
               )}
             </div>
@@ -213,7 +240,11 @@ export default function CustomerPagesScreen() {
                   >
                     <SelectField
                       label="Why is it rejected?"
-                      hint="The Supervisor who proposed it sees this. The restaurant does not."
+                      hint={
+                        photo.source === "DAILY_CHECK"
+                          ? "The restaurant put this photo forward, so its Owner and Manager see this reason."
+                          : "The Supervisor who proposed it sees this. The restaurant does not."
+                      }
                       value={rejecting.picked}
                       onChange={(event) => setRejecting({ ...rejecting, picked: event.target.value })}
                     >

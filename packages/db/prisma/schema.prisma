@@ -1485,6 +1485,12 @@ model PublicPhoto {
   /// Set when the restaurant's Owner (or ECCS) took an approved photo off the page.
   removedAt    DateTime?
   removedById  String?
+  /// Where the photo came from (PUBLIC_PHOTO_SOURCES in packages/shared): "DAILY_CHECK" for one the restaurant
+  /// put forward from its own daily checks, "ECCS_VISIT", "ECCS_INSPECTION" or "ECCS_FOR_PAGE" for a Supervisor's.
+  source       String
+  /// The day (in India) the photo was taken; for a daily-check photo, the day of that check.
+  /// A photo drops off the page by itself 90 days after this day.
+  takenOn      DateTime          @db.Date
   createdAt    DateTime          @default(now())
 
   profile    PublicProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)

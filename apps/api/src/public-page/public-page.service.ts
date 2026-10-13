@@ -1,34 +1,49 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@eccs/db';
 import {
   accessScope,
   can,
+  checkPhotoWindow,
   inspectionShownUntil,
+  isEccsRole,
   isLocalOnlyAddress,
+  oldestPhotoShown,
+  photoShownUntil,
   pickRecentServices,
+  pickScoreDay,
   PUBLIC_PAGE_RULES,
+  PUBLIC_PHOTO_BARRED_FLAGS,
   PUBLIC_PHOTO_CAPTIONS,
+  PUBLIC_PHOTO_SOURCES,
+  publicCheckResult,
   publicInspectionState,
   publicPageState,
   publicPageUrl,
+  publicPhotoBy,
+  publicScoreInspection,
+  readPhotoFlags,
+  readStoredScore,
   selfCheckSummary,
   selfCheckWindow,
   type Action,
   type InspectionGrade,
   type LocalizedText,
+  type PublicCheckPhotosDto,
   type PublicInspectionState,
   type PublicPageDto,
   type PublicPageSettingsDto,
   type PublicPageState,
   type PublicPhotoCaption,
   type PublicPhotoDto,
+  type PublicPhotoSource,
   type PublicPhotoStatus,
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ChecklistsService, indiaDate } from '../checklists/checklists.service.js';
 import { env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { handedInOnTime, ScoresService } from '../scores/scores.service.js';
 import { sniffFile } from '../storage/attachments.controller.js';
 import { PhotoIntegrityService, type PhotoFacts } from '../storage/photo-integrity.service.js';
 import { StorageService } from '../storage/storage.service.js';
@@ -36,20 +51,31 @@ import { stripPhotoDetails } from './strip-photo-details.js';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const MAX_LISTED = 200;
+/** The restaurant's own screen lists this many of the photos it has put forward, the newest first. */
+const MAX_OWN_PROPOSALS = 60;
 /** No more than this many answers are remembered at once, so guessing at links cannot fill the memory. */
 const MAX_REMEMBERED = 5000;
 /** What a link's token looks like. Anything else is not looked up at all. */
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{10,64}$/;
 /** The kinds of service a diner is told about: cleaning and pest control, ECCS's own work. */
 const SHOWN_CATEGORIES = ['CLEANING', 'PEST'];
+/**
+ * Who on the restaurant's side may put photos from its daily checks forward: whoever can
+ * open the "Customer page" screen, which is the Owner and the Manager (the Head Chef
+ * cannot). To make it the Owner alone, change 'read' to 'update' here; nothing else needs to change.
+ */
+const PROPOSE_FROM_CHECKS_NEEDS: Action = 'read';
 
+const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const fromDbDate = (date: Date) => date.toISOString().slice(0, 10);
+const addDays = (date: string, days: number) => fromDbDate(new Date(toDbDate(date).getTime() + days * 86_400_000));
 
 /**
- * The page reads checklists through the checklist service, so "which checklists were due
- * and which were missed" stays one rule. That service asks who is reading; the page has
- * no person, so it reads as ECCS. It is never used to change anything, and only two
- * numbers ever leave this service: days handed in, and days counted.
+ * The page reads checklists and the score through their own services, so "which
+ * checklists were due", "what counts as late" and the score itself stay one rule each.
+ * Those services ask who is reading; the page has no person, so it reads as ECCS. It
+ * is never used to change anything a person recorded, and what leaves this service for
+ * a diner is only what PublicPageDto lists: names of checklists, counts, results and points.
  */
 const READER: AuthUser = {
   id: 'public-page',
@@ -77,31 +103,65 @@ const profileInclude = {
 type ProfileRow = Prisma.PublicProfileGetPayload<{ include: typeof profileInclude }>;
 
 const photoInclude = {
-  attachment: { select: { id: true, capturedAt: true, createdAt: true } },
+  attachment: { select: { id: true } },
   profile: { select: { outletId: true, outlet: { select: { name: true, organizationId: true, organization: { select: { name: true } } } } } },
 } as const satisfies Prisma.PublicPhotoInclude;
 type PhotoRow = Prisma.PublicPhotoGetPayload<{ include: typeof photoInclude }>;
 
-/** The photos a diner sees: approved by ECCS, not removed since, the most recently approved first. */
-const shownPhotos = (profileId: string) =>
+/**
+ * The photos a diner sees: approved by ECCS, not removed since, taken within the last
+ * 90 days, the most recently taken first (then the most recently approved).
+ */
+const shownPhotos = (profileId: string, today: string) =>
   ({
-    where: { profileId, status: 'APPROVED', removedAt: null },
-    orderBy: [{ decidedAt: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
+    where: { profileId, status: 'APPROVED', removedAt: null, takenOn: { gte: toDbDate(oldestPhotoShown(today)) } },
+    orderBy: [{ takenOn: 'desc' }, { decidedAt: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
     take: PUBLIC_PAGE_RULES.maxPhotos,
   }) as const satisfies Prisma.PublicPhotoFindManyArgs;
 
+/**
+ * A proof photo of the outlet's own daily checks that may be put forward for the page:
+ * the proof of a check that was marked as fine (never the photo of a reported problem),
+ * in a checklist that was handed in (so the answer can no longer change), on one of the
+ * days in the window, at this outlet.
+ */
+const eligibleCheckPhoto = (outletId: string, window: { from: string; to: string }) =>
+  ({
+    outletId,
+    kind: 'PROOF',
+    mimeType: { startsWith: 'image/' },
+    checklistResponse: {
+      passed: true,
+      run: { outletId, status: 'SUBMITTED', date: { gte: toDbDate(window.from), lte: toDbDate(window.to) } },
+    },
+  }) as const satisfies Prisma.AttachmentWhereInput;
+
+/** True when a photo carries a mark that puts in doubt the day or the place the page would state for it. */
+const barred = (integrityFlags: unknown) => readPhotoFlags(integrityFlags).some((flag) => PUBLIC_PHOTO_BARRED_FLAGS.includes(flag.code));
+
 /** A new link token: 128 random bits, so a link cannot be guessed or worked out from another. */
 const newToken = () => randomBytes(16).toString('base64url');
+
+/** ECCS's latest approved inspection of an outlet, and where it stands for the page today. */
+interface LatestInspection {
+  state: PublicInspectionState;
+  /** The day it was carried out. Null when there is none. */
+  date: string | null;
+  score: number;
+  grade: InspectionGrade | null;
+  reportNumber: string;
+}
 
 /**
  * The customer QR page: what a diner sees, the restaurant's switch, ECCS's
  * take-down, and the photos proposed, approved and removed.
  *
- * The rules for whether there is anything to show are in
- * packages/shared/src/public-page.ts; this service reads the records.
+ * The rules for what is shown are in packages/shared/src/public-page.ts; this
+ * service reads the records.
  */
 @Injectable()
 export class PublicPageService {
+  private readonly logger = new Logger(PublicPageService.name);
   /** Answers already worked out, by token, so a busy table does not read the records for every scan. */
   private readonly remembered = new Map<string, { until: number; page: PublicPageDto | null }>();
 
@@ -109,6 +169,7 @@ export class PublicPageService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly checklists: ChecklistsService,
+    private readonly scores: ScoresService,
     private readonly integrity: PhotoIntegrityService,
   ) {}
 
@@ -129,9 +190,9 @@ export class PublicPageService {
   // ───────────────────────── For the diner (no login) ─────────────────────────
 
   /**
-   * What the page at this link shows, or null when there is nothing current to show.
+   * What the page at this link shows, or null when there is nothing to show.
    * Null covers every reason alike (unknown link, switched off, taken down, client
-   * gone, inspection too old), and the caller must not tell them apart either.
+   * gone), and the caller must not tell them apart either.
    */
   async page(token: string): Promise<PublicPageDto | null> {
     if (!TOKEN_PATTERN.test(token)) return null;
@@ -140,8 +201,12 @@ export class PublicPageService {
     if (known && known.until > now) return known.page;
 
     const profile = await this.db.publicProfile.findUnique({ where: { token }, include: profileInclude });
-    const view = profile ? await this.view(profile) : null;
-    const page = view?.state === 'LIVE' ? view.page : null;
+    // Only a page that is showing is put together. For any other, nothing beyond its own record is read.
+    let page: PublicPageDto | null = null;
+    if (profile && this.stateOf(profile) === 'LIVE') {
+      const today = indiaDate();
+      page = await this.content(profile, today, await this.latestInspection(profile.outlet.id, today));
+    }
 
     if (this.remembered.size >= MAX_REMEMBERED) this.remembered.clear();
     this.remembered.set(token, { until: now + PUBLIC_PAGE_RULES.cacheSeconds * 1000, page });
@@ -159,7 +224,7 @@ export class PublicPageService {
     const profile = await this.db.publicProfile.findUnique({ where: { token }, select: { id: true } });
     if (!profile) return null;
     const photos = await this.db.publicPhoto.findMany({
-      ...shownPhotos(profile.id),
+      ...shownPhotos(profile.id, indiaDate()),
       select: { attachment: { select: { storageKey: true, mimeType: true } } },
     });
     const attachment = photos[place - 1]?.attachment;
@@ -171,49 +236,44 @@ export class PublicPageService {
 
   // ───────────────────────── Working out what is shown ─────────────────────────
 
-  /**
-   * Where an outlet's page stands, and what it shows or would show. `page` is filled
-   * whenever the client is active and has a current inspection, even while the page is
-   * off, so the Owner can see what turning it on would publish.
-   */
-  private async view(profile: ProfileRow): Promise<{
-    state: PublicPageState;
-    inspection: { state: PublicInspectionState; date: string | null; shownUntil: string | null };
-    page: PublicPageDto | null;
-  }> {
-    const today = indiaDate();
-    const outlet = profile.outlet;
-    const clientActive = outlet.isActive && outlet.organization.isActive;
+  /** Whether a diner is shown the page. Since 13 Oct 2026 this needs no inspection. */
+  private stateOf(profile: ProfileRow): PublicPageState {
+    return publicPageState({
+      clientActive: profile.outlet.isActive && profile.outlet.organization.isActive,
+      takenDown: profile.takenDownAt !== null,
+      enabled: profile.isEnabled,
+    });
+  }
 
-    // ECCS's latest approved inspection. Without a report number there is nothing a diner could check, so it does not count.
+  /** ECCS's latest approved inspection. Without a report number there is nothing a diner could check, so it does not count. */
+  private async latestInspection(outletId: string, today: string): Promise<LatestInspection> {
     const latest = await this.db.inspection.findFirst({
-      where: { outletId: outlet.id, status: 'APPROVED', overallScore: { not: null }, grade: { not: null }, reportNumber: { not: null } },
+      where: { outletId, status: 'APPROVED', overallScore: { not: null }, grade: { not: null }, reportNumber: { not: null } },
       orderBy: [{ conductedAt: 'desc' }, { createdAt: 'desc' }],
       select: { conductedAt: true, overallScore: true, grade: true, reportNumber: true },
     });
-    const inspectionDate = latest ? indiaDate(latest.conductedAt) : null;
-    const inspectionState = publicInspectionState(inspectionDate, today);
-    const state = publicPageState({
-      clientActive,
-      takenDown: profile.takenDownAt !== null,
-      enabled: profile.isEnabled,
-      inspectionDate,
-      today,
-    });
-    const inspection = {
-      state: inspectionState,
-      date: inspectionDate,
-      shownUntil: inspectionDate ? inspectionShownUntil(inspectionDate) : null,
+    const date = latest ? indiaDate(latest.conductedAt) : null;
+    return {
+      state: publicInspectionState(date, today),
+      date,
+      score: Math.round(latest?.overallScore ?? 0),
+      grade: (latest?.grade as InspectionGrade | null | undefined) ?? null,
+      reportNumber: latest?.reportNumber ?? '',
     };
-    if (!latest || !inspectionDate || inspectionState !== 'CURRENT' || !clientActive) return { state, inspection, page: null };
+  }
 
-    const [selfChecks, services, photos, fssai] = await Promise.all([
-      this.selfChecks(outlet.id, today),
+  /**
+   * Everything the page shows for an outlet, whether or not the page is on: the
+   * Owner's screen shows the same thing as "what customers see".
+   */
+  private async content(profile: ProfileRow, today: string, latest: LatestInspection): Promise<PublicPageDto> {
+    const outlet = profile.outlet;
+    // The score first and by itself: working it out reads the same checklist records the daily checks read next.
+    const score = await this.score(outlet.id, today, latest.state);
+    const daily = await this.dailyChecks(outlet.id, today);
+    const [services, photos, fssai] = await Promise.all([
       this.services(outlet.id, today),
-      this.db.publicPhoto.findMany({
-        ...shownPhotos(profile.id),
-        select: { captionCode: true, attachment: { select: { capturedAt: true, createdAt: true } } },
-      }),
+      this.db.publicPhoto.findMany({ ...shownPhotos(profile.id, today), select: { captionCode: true, source: true, takenOn: true } }),
       this.db.licence.findFirst({
         where: { outletId: outlet.id, type: 'FSSAI', number: { not: null } },
         orderBy: { expiresOn: 'desc' },
@@ -222,41 +282,121 @@ export class PublicPageService {
     ]);
 
     return {
-      state,
-      inspection,
-      page: {
-        restaurantName: outlet.organization.name,
-        outletName: outlet.name,
-        city: outlet.city,
-        inspection: {
-          score: Math.round(latest.overallScore ?? 0),
-          grade: latest.grade as InspectionGrade,
-          date: inspectionDate,
-          shownUntil: inspectionShownUntil(inspectionDate),
-          reportNumber: latest.reportNumber ?? '',
-        },
-        selfChecks,
-        services,
-        photos: photos.map((photo, index) => ({
-          n: index + 1,
-          caption: toCaption(photo.captionCode),
-          date: indiaDate(photo.attachment.capturedAt ?? photo.attachment.createdAt),
-        })),
-        fssaiNumber: fssai?.number?.trim() || outlet.fssaiNumber?.trim() || null,
-        eccsPhone: env.SUPPORT_PHONE,
-        updatedAt: new Date().toISOString(),
-      },
+      restaurantName: outlet.organization.name,
+      outletName: outlet.name,
+      city: outlet.city,
+      yesterday: addDays(today, -1),
+      score,
+      ...daily,
+      photos: photos.map((photo, index) => ({
+        n: index + 1,
+        caption: toCaption(photo.captionCode),
+        date: fromDbDate(photo.takenOn),
+        by: publicPhotoBy(toSource(photo.source)),
+      })),
+      // The inspection is shown only inside its validity period; afterwards it drops off by itself.
+      inspection:
+        latest.state === 'CURRENT' && latest.date && latest.grade
+          ? {
+              score: latest.score,
+              grade: latest.grade,
+              date: latest.date,
+              shownUntil: inspectionShownUntil(latest.date),
+              reportNumber: latest.reportNumber,
+            }
+          : null,
+      services,
+      fssaiNumber: fssai?.number?.trim() || outlet.fssaiNumber?.trim() || null,
+      eccsPhone: env.SUPPORT_PHONE,
+      updatedAt: new Date().toISOString(),
     };
   }
 
-  /** On how many of the last 30 days the kitchen handed in all of its own daily checklists. */
-  private async selfChecks(outletId: string, today: string): Promise<PublicPageDto['selfChecks']> {
+  /**
+   * Yesterday's hygiene score with its three parts, or the most recent one of the last
+   * week with its own date, or null when there is none.
+   *
+   * Yesterday is over, so its score is worked out afresh here by the scorer itself
+   * (apps/api/src/scores), which also stores it as that day's row. Reading the row
+   * as it stood would not do: it may have been written during the day, before the
+   * evening's checklists, and it would not know of an inspection approved since. This
+   * way the app's trend and the page always show the same number for the day.
+   */
+  private async score(outletId: string, today: string, inspection: PublicInspectionState): Promise<PublicPageDto['score']> {
+    const yesterday = addDays(today, -1);
+    try {
+      await this.scores.snapshot(outletId, yesterday);
+    } catch (error) {
+      // The stored days are still read below: a number with its own date is better than none.
+      this.logger.warn(`Could not work out yesterday's hygiene score of outlet ${outletId} for its customer page: ${String(error)}`);
+    }
+
+    const rows = await this.db.hygieneScoreSnapshot.findMany({
+      where: { outletId, date: { gte: toDbDate(addDays(today, -PUBLIC_PAGE_RULES.scoreWithinDays)), lte: toDbDate(yesterday) } },
+      select: { date: true, score: true, breakdown: true },
+    });
+    const days = rows.flatMap((row) => {
+      const read = readStoredScore(row.score, row.breakdown);
+      return read ? [{ date: fromDbDate(row.date), ...read }] : [];
+    });
+    const chosen = pickScoreDay(days.map((day) => day.date), today);
+    const found = days.find((day) => day.date === chosen);
+    if (!found) return null;
+
+    const counted = !found.provisional;
+    // Only asked when it decides the wording: has ECCS finished an inspection here at all, approved or not?
+    const everInspected =
+      counted ||
+      inspection !== 'NONE' ||
+      (await this.db.inspection.count({ where: { outletId, status: { in: ['SUBMITTED', 'APPROVED'] } } })) > 0;
+    return { ...found, isYesterday: found.date === yesterday, inspection: publicScoreInspection({ counted, inspection, everInspected }) };
+  }
+
+  /**
+   * The outlet's daily checklists with yesterday's result for each, and on how many of
+   * the last 30 days all of them were handed in. Only names, counts and results: never
+   * the checks themselves, who did them, at what time, or what was written.
+   */
+  private async dailyChecks(outletId: string, today: string): Promise<Pick<PublicPageDto, 'checklists' | 'selfChecks'>> {
     const { from, to } = selfCheckWindow(today);
+    // The checklist service also writes down as missed any day nobody opened the app.
     const summaries = await this.checklists.between(READER, outletId, from, to);
-    return selfCheckSummary(
-      summaries.map((summary) => ({ date: summary.date, handedIn: summary.status === 'SUBMITTED' })),
-      today,
-    );
+    const lists = await this.checklists.outletChecklists(READER, outletId);
+
+    // `to` is yesterday. Each checklist has at most one record a day.
+    const ofYesterday = new Map(summaries.filter((summary) => summary.date === to).map((summary) => [summary.id, summary.status]));
+    const records = ofYesterday.size
+      ? await this.db.checklistRun.findMany({
+          where: { id: { in: [...ofYesterday.keys()] } },
+          select: { id: true, outletChecklistId: true, submittedAt: true, outletChecklist: { select: { dueTime: true } } },
+        })
+      : [];
+    const byList = new Map(records.map((record) => [record.outletChecklistId, record]));
+
+    return {
+      checklists: lists
+        // A checklist the restaurant has made but given no checks yet is not handed out, so it is not listed.
+        .filter((list) => list.items.length > 0)
+        .map((list) => {
+          const record = byList.get(list.id);
+          return {
+            name: list.title,
+            checks: list.items.length,
+            result: publicCheckResult(
+              record
+                ? {
+                    handedIn: ofYesterday.get(record.id) === 'SUBMITTED',
+                    onTime: handedInOnTime(to, record.submittedAt, record.outletChecklist.dueTime),
+                  }
+                : null,
+            ),
+          };
+        }),
+      selfChecks: selfCheckSummary(
+        summaries.map((summary) => ({ date: summary.date, handedIn: summary.status === 'SUBMITTED' })),
+        today,
+      ),
+    };
   }
 
   /**
@@ -304,17 +444,17 @@ export class PublicPageService {
   async settings(user: AuthUser, outletId: string): Promise<PublicPageSettingsDto> {
     const outlet = await this.requireOutlet(user, outletId, 'read');
     const profile = await this.ensureProfile(outlet.id);
-    const view = await this.view(profile);
+    const today = indiaDate();
+    const state = this.stateOf(profile);
+    const latest = await this.latestInspection(outlet.id, today);
     const restaurant = this.isRestaurant(user);
     const target = { organizationId: outlet.organizationId, outletId: outlet.id };
 
-    const [photos, photosWaiting] = await Promise.all([
-      this.db.publicPhoto.findMany({
-        where: { profileId: profile.id, status: 'APPROVED', removedAt: null },
-        include: photoInclude,
-        orderBy: shownPhotos(profile.id).orderBy,
-        take: MAX_LISTED,
-      }),
+    const current = shownPhotos(profile.id, today);
+    const [preview, photos, photosWaiting] = await Promise.all([
+      // What a diner sees, or would see if the page were on. A client that is switched off has no page to preview.
+      state === 'INACTIVE' ? null : this.content(profile, today, latest),
+      this.db.publicPhoto.findMany({ where: current.where, include: photoInclude, orderBy: current.orderBy, take: MAX_LISTED }),
       this.db.publicPhoto.count({ where: { profileId: profile.id, status: 'PROPOSED' } }),
     ]);
     const url = publicPageUrl(this.baseUrl, profile.token);
@@ -326,17 +466,19 @@ export class PublicPageService {
       enabled: profile.isEnabled,
       takenDown: profile.takenDownAt !== null,
       takenDownReason: restaurant ? null : profile.takenDownReason,
-      state: view.state,
+      state,
       url,
       localOnly: isLocalOnlyAddress(url),
       linkChangedAt: profile.tokenChangedAt?.toISOString() ?? null,
-      inspection: view.inspection,
-      preview: view.page,
+      // For information: the page shows without an inspection, and shows the inspection while there is a current one.
+      inspection: { state: latest.state, date: latest.date, shownUntil: latest.date ? inspectionShownUntil(latest.date) : null },
+      preview,
       photos: photos.map((photo, index) => this.toPhoto(photo, restaurant, index < PUBLIC_PAGE_RULES.maxPhotos)),
       photosWaiting,
       // The switch is the restaurant's own: publishing is its decision, so ECCS cannot turn a page on.
       canSwitch: restaurant && can(user.memberships, 'publicPage', 'update', target),
       canTakeDown: !restaurant && can(user.memberships, 'publicPage', 'approve', target),
+      canPropose: this.mayProposeFromChecks(user, target),
     };
   }
 
@@ -388,12 +530,13 @@ export class PublicPageService {
     return this.settings(user, outletId);
   }
 
-  // ───────────────────────── Photos ─────────────────────────
+  // ───────────────────────── Photos from ECCS's visits ─────────────────────────
 
   /**
    * A Supervisor proposes a photo already taken during one of their own finished
-   * visits or inspections. Checklist photos are the restaurant's own and can never
-   * be proposed. A photo is proposed once; ECCS's decision on it stands.
+   * visits or inspections. A restaurant's checklist photos are its own: a Supervisor
+   * can never propose one (the restaurant does that itself, below). A photo is
+   * proposed once; ECCS's decision on it stands.
    */
   async propose(user: AuthUser, input: { attachmentId: string; caption: PublicPhotoCaption }): Promise<PublicPhotoDto> {
     const attachment = await this.db.attachment.findUnique({
@@ -402,6 +545,8 @@ export class PublicPageService {
         id: true,
         outletId: true,
         mimeType: true,
+        capturedAt: true,
+        createdAt: true,
         job: { select: { supervisorId: true, status: true } },
         inspectionFinding: { select: { inspection: { select: { supervisorId: true, status: true } } } },
         publicPhotos: { select: { id: true }, take: 1 },
@@ -418,7 +563,10 @@ export class PublicPageService {
       throw new ConflictException({ message: 'This photo has already been proposed', code: 'PHOTO_ALREADY_PROPOSED' });
     }
     await this.requireOutlet(user, attachment.outletId, 'create');
-    return this.createProposal(user, attachment.outletId, attachment.id, input.caption);
+    return this.createProposal(user, attachment.outletId, attachment.id, input.caption, {
+      source: visit ? 'ECCS_VISIT' : 'ECCS_INSPECTION',
+      takenOn: indiaDate(attachment.capturedAt ?? attachment.createdAt),
+    });
   }
 
   /** A Supervisor takes a photo specially for the page, at an outlet they have worked at. */
@@ -440,6 +588,7 @@ export class PublicPageService {
     const storageKey = `outlets/${outlet.id}/public-page/${id}.${image.extension}`;
     await this.storage.put(storageKey, file.buffer, image.mimeType);
     const said = phone.capturedAt ? new Date(phone.capturedAt) : null;
+    const capturedAt = said && !Number.isNaN(said.getTime()) && said <= now ? said : now;
     await this.db.attachment.create({
       data: {
         id,
@@ -448,21 +597,134 @@ export class PublicPageService {
         storageKey,
         mimeType: image.mimeType,
         sizeBytes: file.size,
-        capturedAt: said && !Number.isNaN(said.getTime()) && said <= now ? said : now,
+        capturedAt,
         uploadedById: user.id,
         ...this.integrity.captureColumns({ buffer: file.buffer, mimeType: image.mimeType }, phone.capturedAt, now, facts),
       },
     });
-    return this.createProposal(user, outlet.id, id, caption);
+    return this.createProposal(user, outlet.id, id, caption, { source: 'ECCS_FOR_PAGE', takenOn: indiaDate(capturedAt) });
   }
 
-  private async createProposal(user: AuthUser, outletId: string, attachmentId: string, caption: PublicPhotoCaption): Promise<PublicPhotoDto> {
+  // ───────────────────────── Photos from the restaurant's own daily checks ─────────────────────────
+
+  /**
+   * For the restaurant's "Add photos from your daily checks" screen: the proof photos it
+   * may put forward (see eligibleCheckPhoto), the newest day first, and what has become
+   * of the ones it already has. Nothing here is published: a person chooses each photo,
+   * and ECCS approves it, before a diner can see it.
+   */
+  async checkPhotos(user: AuthUser, outletId: string): Promise<PublicCheckPhotosDto> {
+    const outlet = await this.requireOutlet(user, outletId, 'read');
+    // ECCS cannot browse a restaurant's checklist photos from here: this list is for the restaurant's own people.
+    if (!this.isRestaurant(user)) throw new ForbiddenException('Only the restaurant can see its own checklist photos here');
+    const profile = await this.ensureProfile(outlet.id);
+    const today = indiaDate();
+
+    const [photos, proposed] = await Promise.all([
+      this.db.attachment.findMany({
+        where: { ...eligibleCheckPhoto(outlet.id, checkPhotoWindow(today)), publicPhotos: { none: {} } },
+        // By day, then by checklist in the order they fall due, then in the order of the checks.
+        orderBy: [
+          { checklistResponse: { run: { date: 'desc' } } },
+          { checklistResponse: { run: { outletChecklist: { dueTime: { sort: 'asc', nulls: 'last' } } } } },
+          { checklistResponse: { run: { outletChecklistId: 'asc' } } },
+          { checklistResponse: { item: { position: 'asc' } } },
+        ],
+        take: MAX_LISTED,
+        select: {
+          id: true,
+          integrityFlags: true,
+          checklistResponse: {
+            select: {
+              item: { select: { label: true } },
+              run: { select: { date: true, outletChecklist: { select: { template: { select: { title: true } } } } } },
+            },
+          },
+        },
+      }),
+      this.db.publicPhoto.findMany({
+        where: { profileId: profile.id, source: 'DAILY_CHECK' },
+        include: photoInclude,
+        orderBy: { createdAt: 'desc' },
+        take: MAX_OWN_PROPOSALS,
+      }),
+    ]);
+    const shown = await this.shownIds(proposed);
+
+    return {
+      eligible: photos.flatMap((photo) => {
+        const answer = photo.checklistResponse;
+        if (!answer || barred(photo.integrityFlags)) return [];
+        return [
+          {
+            attachmentId: photo.id,
+            path: this.storage.signedPath(photo.id),
+            date: fromDbDate(answer.run.date),
+            checklist: answer.run.outletChecklist.template.title as LocalizedText,
+            check: answer.item.label as LocalizedText,
+          },
+        ];
+      }),
+      proposed: proposed.map((photo) => this.toPhoto(photo, true, shown.has(photo.id))),
+      canPropose: this.mayProposeFromChecks(user, { organizationId: outlet.organizationId, outletId: outlet.id }),
+    };
+  }
+
+  /**
+   * The restaurant puts one of its own daily-check photos forward for its page. It then
+   * waits for ECCS's approval like any other, and that approval shows ECCS this one
+   * photo and nothing else of the checklist. Proposed once; ECCS's decision stands.
+   */
+  async proposeFromCheck(user: AuthUser, outletId: string, input: { attachmentId: string; caption: PublicPhotoCaption }): Promise<PublicPhotoDto> {
+    const outlet = await this.requireOutlet(user, outletId, 'read');
+    if (!this.mayProposeFromChecks(user, { organizationId: outlet.organizationId, outletId: outlet.id })) {
+      throw new ForbiddenException('Only the restaurant can put forward photos from its own daily checks');
+    }
+    const photo = await this.db.attachment.findFirst({
+      where: { id: input.attachmentId, ...eligibleCheckPhoto(outlet.id, checkPhotoWindow(indiaDate())) },
+      select: {
+        id: true,
+        integrityFlags: true,
+        publicPhotos: { select: { id: true }, take: 1 },
+        checklistResponse: { select: { run: { select: { date: true } } } },
+      },
+    });
+    // One answer for a photo of another outlet, the photo of a reported problem, a photo from a checklist
+    // that was not handed in or is too old, a doubtful photo, and a photo that does not exist.
+    if (!photo?.checklistResponse || barred(photo.integrityFlags)) throw new NotFoundException('Photo not found');
+    if (photo.publicPhotos.length > 0) {
+      throw new ConflictException({ message: 'This photo has already been proposed', code: 'PHOTO_ALREADY_PROPOSED' });
+    }
+    // The day stated for the photo is the day of the check it was the proof for.
+    const takenOn = fromDbDate(photo.checklistResponse.run.date);
+    return this.createProposal(user, outlet.id, photo.id, input.caption, { source: 'DAILY_CHECK', takenOn }, true);
+  }
+
+  // ───────────────────────── ECCS's approval, and removing ─────────────────────────
+
+  private async createProposal(
+    user: AuthUser,
+    outletId: string,
+    attachmentId: string,
+    caption: PublicPhotoCaption,
+    from: { source: PublicPhotoSource; takenOn: string },
+    forRestaurant = false,
+  ): Promise<PublicPhotoDto> {
     const profile = await this.ensureProfile(outletId);
+    const today = indiaDate();
     const created = await this.db.publicPhoto.create({
-      data: { profileId: profile.id, attachmentId, captionCode: caption, proposedById: user.id },
+      data: {
+        profileId: profile.id,
+        attachmentId,
+        captionCode: caption,
+        proposedById: user.id,
+        source: from.source,
+        // A photo cannot have been taken after it was proposed, whatever the phone's clock said.
+        takenOn: toDbDate(from.takenOn > today ? today : from.takenOn),
+      },
       include: photoInclude,
     });
-    return this.toPhoto(created, false, false);
+    return this.toPhoto(created, forRestaurant, false);
   }
 
   /**
@@ -555,6 +817,20 @@ export class PublicPageService {
   }
 
   /**
+   * True for someone on the restaurant's side who may put this outlet's daily-check
+   * photos forward: they can open its customer page (see PROPOSE_FROM_CHECKS_NEEDS)
+   * and can already see its checklists, photos included. Never anyone at ECCS.
+   */
+  private mayProposeFromChecks(user: AuthUser, target: { organizationId: string; outletId: string }) {
+    return user.memberships.some(
+      (membership) =>
+        !isEccsRole(membership.role) &&
+        can([membership], 'publicPage', PROPOSE_FROM_CHECKS_NEEDS, target) &&
+        can([membership], 'checklists', 'read', target),
+    );
+  }
+
+  /**
    * The outlet, if the person may do this to its customer page: their own restaurant's
    * for the Owner, their own outlet's for the Manager (reading only), any for ECCS
    * admins, and for a Supervisor the outlets where they have a visit or an inspection.
@@ -604,8 +880,11 @@ export class PublicPageService {
 
   /** Of these photos, the ids of the ones a diner sees now. */
   private async shownIds(photos: readonly PhotoRow[]): Promise<Set<string>> {
+    const today = indiaDate();
     const profileIds = [...new Set(photos.filter((photo) => photo.status === 'APPROVED' && !photo.removedAt).map((photo) => photo.profileId))];
-    const shown = await Promise.all(profileIds.map((profileId) => this.db.publicPhoto.findMany({ ...shownPhotos(profileId), select: { id: true } })));
+    const shown = await Promise.all(
+      profileIds.map((profileId) => this.db.publicPhoto.findMany({ ...shownPhotos(profileId, today), select: { id: true } })),
+    );
     return new Set(shown.flat().map((photo) => photo.id));
   }
 
@@ -617,6 +896,9 @@ export class PublicPageService {
   }
 
   private toPhoto(photo: PhotoRow, forRestaurant: boolean, shown: boolean, proposedByName: string | null = null): PublicPhotoDto {
+    const source = toSource(photo.source);
+    const takenOn = fromDbDate(photo.takenOn);
+    const expired = takenOn < oldestPhotoShown(indiaDate());
     return {
       id: photo.id,
       outletId: photo.profile.outletId,
@@ -624,15 +906,21 @@ export class PublicPageService {
       organizationName: photo.profile.outlet.organization.name,
       caption: toCaption(photo.captionCode),
       status: photo.status,
+      source,
+      takenOn,
+      shownUntil: photoShownUntil(takenOn),
+      expired,
       path: this.storage.signedPath(photo.attachment.id),
       sourcePhotoId: forRestaurant ? null : photo.attachment.id,
-      // The restaurant is not told which Supervisor proposed a photo, nor why another was rejected.
+      // The restaurant is not told which Supervisor proposed a photo.
       proposedByName: forRestaurant ? null : proposedByName,
       proposedAt: photo.createdAt.toISOString(),
       decidedAt: photo.decidedAt?.toISOString() ?? null,
-      rejectReason: forRestaurant ? null : photo.rejectReason,
+      // Why a photo was rejected is told to whoever put it forward: the restaurant for one from
+      // its own daily checks, the Supervisor (and not the restaurant) for one of ECCS's.
+      rejectReason: forRestaurant && source !== 'DAILY_CHECK' ? null : photo.rejectReason,
       removed: photo.removedAt !== null,
-      shown: shown && photo.status === 'APPROVED' && photo.removedAt === null,
+      shown: shown && photo.status === 'APPROVED' && photo.removedAt === null && !expired,
     };
   }
 }
@@ -640,4 +928,9 @@ export class PublicPageService {
 /** A stored caption code as one of the fixed list. Anything unknown reads as the prep area, the most general. */
 function toCaption(code: string | null): PublicPhotoCaption {
   return PUBLIC_PHOTO_CAPTIONS.find((caption) => caption === code) ?? 'PREP_AREA';
+}
+
+/** A stored source as one of the fixed list. Only this service writes it, so anything else is not expected. */
+function toSource(code: string): PublicPhotoSource {
+  return PUBLIC_PHOTO_SOURCES.find((source) => source === code) ?? 'ECCS_FOR_PAGE';
 }

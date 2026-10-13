@@ -2,6 +2,7 @@
 
 import {
   can,
+  formatDistance,
   PUBLIC_PAGE_REASON_MAX,
   PUBLIC_PAGE_RULES,
   PUBLIC_PHOTO_REJECT_REASONS,
@@ -202,6 +203,13 @@ export default function CustomerPagesScreen() {
                 Taken on {longDay(photo.takenOn)}. Proposed by {photo.proposedByName ?? (photo.source === "DAILY_CHECK" ? "the restaurant" : "a Supervisor")}
                 {photo.source === "DAILY_CHECK" && photo.proposedByName ? " (the restaurant)" : ""} on {when(photo.proposedAt)}
               </p>
+              {/* A photo taken far from the outlet is still put forward (13 Oct 2026); the distance is for whoever decides. */}
+              {photo.farMetres !== null && (
+                <p className="mt-2 rounded-lg border-2 border-foreground px-3 py-2 text-sm">
+                  <span className="font-semibold">Taken about {formatDistance(photo.farMetres)} from the place saved for this outlet.</span> Check that it is
+                  this kitchen. The saved place can also be wrong, and a phone indoors can be some way out.
+                </p>
+              )}
               {photo.status !== "PROPOSED" && photo.decidedAt && (
                 <p className="text-sm text-muted">
                   {photo.status === "APPROVED" ? "Approved" : "Rejected"} on {when(photo.decidedAt)}

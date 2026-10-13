@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
+  formatDistance,
   localize,
   PUBLIC_PAGE_RULES,
   PUBLIC_PHOTO_CAPTIONS,
@@ -21,6 +22,7 @@ import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { formatDayLong } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -49,6 +51,13 @@ const PAGE = 12;
  * owner's photos: "Pending", "Not approved" and "Live"). The rule and the
  * review sentence sit beside the Send button, where the decision is made, not
  * on an earlier screen.
+ *
+ * A photo taken far from the place saved for the outlet is still offered, with
+ * the distance said beside it; ECCS sees the same distance when it decides. The
+ * few kinds that are never offered (a picture used before, a phone time before
+ * the day of the check, a faked location) are counted under the list with the
+ * reasons. Before 13 Oct 2026 all of these were left out without a word, and
+ * the founder, testing away from the sample outlet, found an empty screen.
  *
  * Opened from the customer page screen with `outletId`.
  */
@@ -138,10 +147,6 @@ export default function PhotosFromChecksScreen() {
           {t('cpage.propose.rule')}
         </ThemedText>
       </View>
-      <ThemedText type="small" themeColor="textSecondary">
-        {t('cpage.checks.which', { days: PUBLIC_PAGE_RULES.checkPhotoDays })} {t('cpage.checks.reviewMore')}
-      </ThemedText>
-
       <ErrorText message={error} onRetry={() => void load()} />
       {photos === null && !error && <ActivityIndicator color={theme.primary} />}
 
@@ -177,6 +182,15 @@ export default function PhotosFromChecksScreen() {
                   <ThemedText type="small">{check}</ThemedText>
                 </View>
               </View>
+              {/* `typeof`, not a comparison with null: an API older than this app sends no distance at all. */}
+              {typeof photo.farMetres === 'number' && (
+                <View style={styles.status}>
+                  <Ionicons name="location-outline" size={20} color={theme.textSecondary} />
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.grow}>
+                    {t('cpage.checks.far', { distance: ltrText(formatDistance(photo.farMetres)) })}
+                  </ThemedText>
+                </View>
+              )}
 
               {photos?.canPropose && !picked && (
                 <Button
@@ -219,6 +233,22 @@ export default function PhotosFromChecksScreen() {
 
       {eligible.length > showing && (
         <Button icon="chevron-down" label={t('cpage.checks.more')} variant="secondary" onPress={() => setShowing((current) => current + PAGE)} />
+      )}
+
+      {/* Photos that are never offered are counted here with the reasons, so a missing photo is not a mystery. */}
+      {photos !== null && photos.leftOut > 0 && (
+        <View style={styles.status}>
+          <Ionicons name="information-circle-outline" size={20} color={theme.textSecondary} />
+          <ThemedText type="small" themeColor="textSecondary" style={styles.grow}>
+            {t('cpage.checks.leftOut', { count: photos.leftOut })}
+          </ThemedText>
+        </View>
+      )}
+      {/* Which photos are listed, and that ECCS sees no others: under the photos, so the photos come first. */}
+      {photos !== null && eligible.length > 0 && (
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('cpage.checks.which', { days: PUBLIC_PAGE_RULES.checkPhotoDays })} {t('cpage.checks.reviewMore')}
+        </ThemedText>
       )}
 
       {photos !== null && photos.proposed.length > 0 && (

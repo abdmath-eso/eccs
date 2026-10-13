@@ -10,16 +10,24 @@
 //
 // The order of the page (13 Oct 2026) follows how public hygiene results are
 // shown elsewhere, and what a private scheme has to say about itself:
-// - Whose page it is, then the disclaimer in a marked box BEFORE any score, and again
-//   in full at the end. Guidance on disclosures (India's 2022 guidelines on misleading
-//   advertisements; the US FTC's guidance for small screens) asks for a disclaimer that
-//   is prominent, in the same language and size as the claim, and next to the claim,
-//   not in small print at the bottom.
-// - The score with the day it is for, then its parts each named in words: the way
-//   the UK Food Standards Agency's page for a business gives the rating, the date
-//   of inspection, and then the three areas it is made of.
+// - The score comes first, on the first screen, with the day it is for: the way the
+//   UK Food Standards Agency's page for a business opens with the rating and its date,
+//   and only then the areas it is made of. (The first version put a long disclaimer box
+//   above it; the founder, on a phone, had to scroll for "the main part".)
+// - The disclaimer stays joined to the score instead of sitting above it: "Not a
+//   government rating" in bold over the number, and two full-size sentences in a box
+//   directly under it, with a link to the full words at the end of the page. Guidance
+//   on disclosures asks for exactly this: as close to the claim as possible, seen
+//   without scrolling, in the claim's language, not small print (the US FTC's ".com
+//   Disclosures"; India's 2022 guidelines on misleading advertisements; ASCI's rule that
+//   a disclaimer be short enough to read, about two lines).
 // - A score with no ECCS inspection in it says so above the number, as a named
 //   state of its own (New York's "Grade Pending" card, the UK's "awaiting inspection").
+// - Then the evidence in the order a diner cares: photos, the daily checklists, ECCS's
+//   inspection, ECCS's services. Explanations of how things are worked out are closed
+//   lines that open when tapped (the browser's own <details>, which needs no script),
+//   so they are there for whoever wants them and nobody else scrolls past them.
+//   What the page does NOT cover, and the full disclaimer, are never folded away.
 //
 // The look is deliberately plain black on white with large type, so it reads in
 // sunlight, and deliberately unlike FSSAI's own hygiene rating: no smiley faces,
@@ -59,6 +67,8 @@ const MUST_BE_TRANSLATED: readonly MessageKey[] = [
   "public.disclaimer.private",
   "public.disclaimer.notGov",
   "public.disclaimer.own",
+  "public.disclaimer.short",
+  "public.gov.heading",
   "public.score.noInspection.NOT_INSPECTED",
   "public.score.noInspection.NO_CURRENT_RESULT",
   "public.score.noInspection.NOT_IN_THIS_SCORE",
@@ -95,6 +105,13 @@ const escapeHtml = (text: string) =>
 /** Report numbers, phone numbers and licence numbers always read left to right, also inside Urdu. */
 const ltr = (text: string) => `<bdi dir="ltr">${escapeHtml(text)}</bdi>`;
 
+/**
+ * "TG-SAFE" is a name, so it stays on one line and reads left to right. Without this
+ * it broke at its hyphen in the narrow disclaimer box, and in Urdu the hyphen moved.
+ * Takes text that is already escaped.
+ */
+const wholeNames = (html: string) => html.replace(/TG-SAFE/g, `<bdi dir="ltr" class="nb">TG-SAFE</bdi>`);
+
 // Ordinary digits (0-9) in every language, as in the app.
 const dateFormat = (language: PublicPageLanguage, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat(`${LOCALE[language]}-u-nu-latn`, options);
@@ -123,14 +140,15 @@ p{margin:.4rem 0}
 a{color:#000}
 .kicker{font-weight:700;margin:0}
 .place{margin:.15rem 0 0;color:#333}
-.notice{border:3px solid #000;padding:.6rem .75rem;margin:1rem 0}
-.notice h2{margin:0 0 .25rem}
-.notice p{font-weight:600}
+.notgov{font-weight:700;margin:0 0 .4rem}
+.notice{border:2px solid #000;padding:.5rem .7rem;margin:.75rem 0;font-weight:600}
+.notice p{margin:.3rem 0}
 .caveat{border:2px solid #000;border-inline-start-width:8px;padding:.5rem .75rem;margin:.6rem 0;font-weight:600}
-.langs{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0 0;padding:0;list-style:none}
-.langs a,.langs span{display:block;min-width:3rem;padding:.55rem .8rem;border:2px solid #000;text-align:center;text-decoration:none;font-weight:600}
+.langs{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0 0;padding:0;list-style:none}
+.langs a,.langs span{display:block;min-width:2.75rem;padding:.4rem .7rem;border:2px solid #000;text-align:center;text-decoration:none;font-weight:600}
 .langs span{background:#000;color:#fff}
-section{border-top:2px solid #000;padding:1rem 0 .5rem;margin-top:1rem}
+section{border-top:2px solid #000;padding:.8rem 0 .4rem;margin-top:.8rem}
+section h2+.notgov{margin-top:-.4rem}
 .score{font-size:1.5rem;line-height:1.1;font-weight:800;margin:0}
 .score .num{font-size:3.5rem}
 .grade{font-size:1.4rem;font-weight:700;margin:.2rem 0 .6rem}
@@ -145,11 +163,15 @@ li{margin:.35rem 0}
 .bar i{display:block;height:100%;background:#000}
 .check{display:flex;gap:.75rem;align-items:flex-start}
 .check svg{flex:none;width:2rem;height:2rem;border:2px solid #000;padding:.2rem}
-.photos{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:.75rem 0 0;padding:0;list-style:none}
+.photos{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.75rem;margin:.75rem 0 0;padding:0;list-style:none}
+.photos li{min-width:0}
 figure{margin:0}
-img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#ddd}
-figcaption{font-size:.95rem;font-weight:600;margin-top:.25rem}
-summary{font-weight:700;font-size:1.05rem;padding:.4rem 0;cursor:pointer}
+img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;background:#ddd}
+.nb{white-space:nowrap}
+figcaption{font-size:.95rem;font-weight:600;margin-top:.25rem;overflow-wrap:anywhere}
+summary{font-weight:700;padding:.55rem 0;cursor:pointer}
+details{border-top:1px solid #999}
+details:last-of-type{border-bottom:1px solid #999}
 footer{margin-top:1.5rem;border-top:2px solid #000;padding-top:.75rem}
 `;
 
@@ -183,9 +205,10 @@ function languageSwitch(token: string, language: PublicPageLanguage, t: Translat
 }
 
 /**
- * The disclaimer: who ECCS is to this restaurant, that it is no part of any
- * government body, and that nothing here is a government rating. The same three
- * sentences in the box at the top of the page and under "About this page".
+ * The disclaimer in full: who ECCS is to this restaurant, that it is no part of any
+ * government body, and that nothing here is a government rating. These three sentences
+ * are under "About this page"; a short form of them ("public.disclaimer.short") sits
+ * in a box directly under the score, with a link down to these.
  * "FSSAI", "TG-SAFE" and "ECCS" stay in Latin letters in every language.
  */
 const DISCLAIMER = ["public.disclaimer.private", "public.disclaimer.notGov", "public.disclaimer.own"] as const;
@@ -219,7 +242,9 @@ export function renderPage(page: PublicPageDto, token: string, language: PublicP
       .join(link ? `<a href="${escapeHtml(link)}">${ltr(value)}</a>` : ltr(value));
   const phoneLink = `tel:${page.eccsPhone.replace(/[^+\d]/g, "")}`;
 
-  const disclaimer = DISCLAIMER.map((key) => `<p>${text(key)}</p>`).join("");
+  const disclaimer = DISCLAIMER.map((key) => `<p>${wholeNames(text(key))}</p>`).join("");
+  // The disclaimer in short, at full size, joined to the score it is about, with a way down to the full words.
+  const shortDisclaimer = `<p class="notice" role="note">${wholeNames(text("public.disclaimer.short"))} <a href="#about">${text("public.about.more")}</a></p>`;
 
   // ── Yesterday's score. What is not in it is said above the number, never under it. ──
   const scoreBlock = (score: PublicPageScoreDto) => {
@@ -233,11 +258,7 @@ export function renderPage(page: PublicPageDto, token: string, language: PublicP
         const bar = part.measured
           ? `<div class="bar" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, Math.round((part.earned / part.max) * 100)))}%"></i></div>`
           : "";
-        const why =
-          part.key === "inspection" && !part.measured && score.inspection !== "COUNTED"
-            ? `<p class="small">${text(`public.score.noInspection.${score.inspection}`)}</p>`
-            : "";
-        return `<li><div class="part"><span>${text(label)}</span> <b>${value}</b></div>${bar}${why}</li>`;
+        return `<li><div class="part"><span>${text(label)}</span> <b>${value}</b></div>${bar}</li>`;
       })
       .join("");
     const caveat =
@@ -245,7 +266,7 @@ export function renderPage(page: PublicPageDto, token: string, language: PublicP
         ? `<p class="caveat">${text(`public.score.noInspection.${score.inspection}`)} ${text("public.score.onlyOwn")}</p>`
         : "";
     return `
-<p>${text(score.isYesterday ? "public.score.forYesterday" : "public.score.forEarlier", { date: weekday(score.date, language) })}</p>
+<p class="small">${text(score.isYesterday ? "public.score.forYesterday" : "public.score.forEarlier", { date: weekday(score.date, language) })}</p>
 ${caveat}
 <p class="score">${t("public.inspection.score", { score: "\u0000" })
         .split("\u0000")
@@ -253,26 +274,28 @@ ${caveat}
         // The number is drawn large and the words round it smaller, so "81 out of 100" stays on one line on a narrow phone.
         .join(`<span class="num">${ltr(String(score.score))}</span>`)}</p>
 <p class="grade">${text(`score.band.${score.band}`)}</p>
+${shortDisclaimer}
 <h3>${text("public.score.partsHeading")}</h3>
-<ul class="plain">${parts}</ul>
-<p class="small">${text("public.score.how", { inspection: SCORE_WEIGHTS.inspection, licences: SCORE_WEIGHTS.licences, checklists: SCORE_WEIGHTS.checklists })}</p>
-<p class="small">${text("public.score.selfNote")}</p>`;
+<ul class="plain">${parts}</ul>`;
   };
-  const score = page.score ? scoreBlock(page.score) : `<p><strong>${text("public.score.none", { days: PUBLIC_PAGE_RULES.scoreWithinDays })}</strong></p>`;
+  const score = page.score
+    ? scoreBlock(page.score)
+    : `<p><strong>${text("public.score.none", { days: PUBLIC_PAGE_RULES.scoreWithinDays })}</strong></p>${shortDisclaimer}`;
 
-  // ── The daily checklists: a name, a count and yesterday's result. Never the checks themselves. ──
+  // ── The daily checklists: a name, yesterday's result and a count. Never the checks themselves. ──
   const checklists = page.checklists.length
     ? `<p class="small">${text("public.checks.intro", { date: weekday(page.yesterday, language) })}</p><ul class="plain">${page.checklists
         .map(
           (list) =>
             `<li class="check">${picture(list.result)}<div><strong>${escapeHtml(localize(list.name, language))}</strong><br>${text(`public.checks.result.${list.result}`)}` +
-            `<br><span class="small">${text("public.checks.count", { count: list.checks })}</span></div></li>`,
+            ` <span class="small">· ${text("public.checks.count", { count: list.checks })}</span></div></li>`,
         )
         .join("")}</ul>`
     : `<p>${text("public.checks.none")}</p>`;
 
+  // ── Photos: the pictures first, and how they were chosen in a line under them. ──
   const photos = page.photos.length
-    ? `<section><h2>${text("public.photos.heading")}</h2><p class="small">${text("public.photos.note", { days: PUBLIC_PAGE_RULES.photoShownDays })}</p><ul class="photos">${page.photos
+    ? `<section><h2>${text("public.photos.heading")}</h2><ul class="photos">${page.photos
         .map((photo) => {
           const caption = text(`public.photo.${photo.caption}`);
           return (
@@ -280,19 +303,18 @@ ${caveat}
             `<figcaption>${caption}<br><span class="small">${text("public.photos.takenOn", { date: day(photo.date, language) })}<br>${text(`public.photos.by.${photo.by}`)}</span></figcaption></figure></li>`
           );
         })
-        .join("")}</ul></section>`
+        .join("")}</ul><p class="small">${text("public.photos.note", { days: PUBLIC_PAGE_RULES.photoShownDays })}</p></section>`
     : "";
 
   // ── ECCS's own inspection, only while there is an approved one inside its validity. ──
+  // The result, whose it is and its number are in view; how it is worked out and how to check it open when tapped.
   const inspected = inspection
     ? `
 <section>
 <h2>${text("public.inspection.heading")}</h2>
-<p class="grade">${text("public.inspection.score", { score: inspection.score })}<br>${text(`public.inspection.grade.${inspection.grade}`)}</p>
+<p class="grade">${text("public.inspection.score", { score: inspection.score })} · ${text(`public.inspection.grade.${inspection.grade}`)}</p>
 <p>${text("public.inspection.by", { date: day(inspection.date, language) })}</p>
-<p>${withNumber(t("public.inspection.report", { number: "\u0000" }), inspection.reportNumber)}</p>
-<p class="small">${withNumber(t("public.inspection.verify", { phone: "\u0000" }), page.eccsPhone, phoneLink)}</p>
-<p class="small">${text("public.inspection.until", { date: day(inspection.shownUntil, language) })}</p>
+<p class="small">${withNumber(t("public.inspection.report", { number: "\u0000" }), inspection.reportNumber)}</p>
 <details>
 <summary>${text("public.how.heading")}</summary>
 <ul><li>${text("public.how.1")}</li><li>${text("public.how.2")}</li><li>${text("public.how.3", {
@@ -300,6 +322,8 @@ ${caveat}
         a: INSPECTION_GRADE_FROM.A,
         b: INSPECTION_GRADE_FROM.B,
       })}</li><li>${text("public.how.4", { days: PUBLIC_PAGE_RULES.inspectionValidDays })}</li></ul>
+<p class="small">${text("public.inspection.until", { date: day(inspection.shownUntil, language) })}</p>
+<p class="small">${withNumber(t("public.inspection.verify", { phone: "\u0000" }), page.eccsPhone, phoneLink)}</p>
 </details>
 </section>`
     : "";
@@ -329,45 +353,45 @@ ${caveat}
 ${languageSwitch(token, language, t)}
 </header>
 
-<div class="notice" role="note" aria-labelledby="not-gov">
-<h2 id="not-gov">${text("public.gov.heading")}</h2>
-${disclaimer}
-</div>
-
 <section>
 <h2>${text("public.score.heading")}</h2>
+<p class="notgov">${text("public.gov.heading")}</p>
 ${score}
 </section>
-
+${photos}
 <section>
 <h2>${text("public.checks.heading")}</h2>
 ${checklists}
 <p><strong>${page.selfChecks ? text("public.self.line", { done: page.selfChecks.handedIn, days: page.selfChecks.days }) : text("public.self.none")}</strong></p>
 <p class="small">${text("public.score.selfNote")}</p>
 </section>
-${photos}${inspected}
+${inspected}
 <section>
 <h2>${text("public.services.heading")}</h2>
 ${services}
 </section>
 
-<section>
+<section id="about">
 <h2>${text("public.about.heading")}</h2>
 ${disclaimer}
 <p>${text("public.about.notRating")}</p>
-<h3>${text("public.score.partsHeading")}</h3>
+<h3>${text("public.not.heading")}</h3>
+<ul><li>${text("public.not.1")}</li><li>${text("public.not.2")}</li><li>${text("public.not.3")}</li><li>${text("public.not.4")}</li></ul>
+<details>
+<summary>${text("public.score.partsHeading")}</summary>
 <p>${text("public.about.score", {
     inspection: SCORE_WEIGHTS.inspection,
     licences: SCORE_WEIGHTS.licences,
     checklists: SCORE_WEIGHTS.checklists,
     days: PUBLIC_PAGE_RULES.inspectionValidDays,
   })}</p>
-<h3>${text("public.not.heading")}</h3>
-<ul><li>${text("public.not.1")}</li><li>${text("public.not.2")}</li><li>${text("public.not.3")}</li><li>${text("public.not.4")}</li></ul>
-<h3>${text("public.about.checkHeading")}</h3>
+</details>
+<details>
+<summary>${text("public.about.checkHeading")}</summary>
 ${page.fssaiNumber ? `<p>${withNumber(t("public.gov.licence", { number: "\u0000" }), page.fssaiNumber)}</p>` : ""}
 <p>${text("public.gov.check")}</p>
 <p>${withNumber(t("public.about.verify", { phone: "\u0000" }), page.eccsPhone, phoneLink)}</p>
+</details>
 </section>
 
 <footer>
@@ -429,7 +453,7 @@ button{font:inherit;font-weight:700;padding:.7rem 1.4rem;border:2px solid #000;b
 <p>${escapeHtml(t("public.poster.what"))}</p>
 ${qr}
 <p><strong>${escapeHtml(t("public.poster.scan"))}</strong></p>
-<p class="by">${escapeHtml(t("public.poster.by"))}</p>
+<p class="by">${wholeNames(escapeHtml(t("public.poster.by")))}</p>
 </div>`;
   return shell(language, t("public.poster.line"), body).replace("</style>", `${style}</style>`);
 }

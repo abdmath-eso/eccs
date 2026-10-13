@@ -9,6 +9,7 @@ import {
   isEccsRole,
   isLocalOnlyAddress,
   oldestPhotoShown,
+  photoFarMetres,
   photoShownUntil,
   pickRecentServices,
   pickScoreDay,
@@ -103,7 +104,7 @@ const profileInclude = {
 type ProfileRow = Prisma.PublicProfileGetPayload<{ include: typeof profileInclude }>;
 
 const photoInclude = {
-  attachment: { select: { id: true } },
+  attachment: { select: { id: true, integrityFlags: true } },
   profile: { select: { outletId: true, outlet: { select: { name: true, organizationId: true, organization: { select: { name: true } } } } } },
 } as const satisfies Prisma.PublicPhotoInclude;
 type PhotoRow = Prisma.PublicPhotoGetPayload<{ include: typeof photoInclude }>;
@@ -136,7 +137,7 @@ const eligibleCheckPhoto = (outletId: string, window: { from: string; to: string
     },
   }) as const satisfies Prisma.AttachmentWhereInput;
 
-/** True when a photo carries a mark that puts in doubt the day or the place the page would state for it. */
+/** True when a photo carries a mark that bars it from the page: the day it would state is in doubt, or its location was faked. */
 const barred = (integrityFlags: unknown) => readPhotoFlags(integrityFlags).some((flag) => PUBLIC_PHOTO_BARRED_FLAGS.includes(flag.code));
 
 /** A new link token: 128 random bits, so a link cannot be guessed or worked out from another. */
@@ -651,20 +652,26 @@ export class PublicPageService {
     ]);
     const shown = await this.shownIds(proposed);
 
+    const eligible = photos.flatMap((photo) => {
+      const answer = photo.checklistResponse;
+      if (!answer || barred(photo.integrityFlags)) return [];
+      return [
+        {
+          attachmentId: photo.id,
+          path: this.storage.signedPath(photo.id),
+          date: fromDbDate(answer.run.date),
+          checklist: answer.run.outletChecklist.template.title as LocalizedText,
+          check: answer.item.label as LocalizedText,
+          // Taken far from the outlet's saved place: still offered, with the distance said beside it.
+          farMetres: photoFarMetres(readPhotoFlags(photo.integrityFlags)),
+        },
+      ];
+    });
+
     return {
-      eligible: photos.flatMap((photo) => {
-        const answer = photo.checklistResponse;
-        if (!answer || barred(photo.integrityFlags)) return [];
-        return [
-          {
-            attachmentId: photo.id,
-            path: this.storage.signedPath(photo.id),
-            date: fromDbDate(answer.run.date),
-            checklist: answer.run.outletChecklist.template.title as LocalizedText,
-            check: answer.item.label as LocalizedText,
-          },
-        ];
-      }),
+      eligible,
+      // Said on the screen with the reasons, so a photo that is missing is not a mystery.
+      leftOut: photos.length - eligible.length,
       proposed: proposed.map((photo) => this.toPhoto(photo, true, shown.has(photo.id))),
       canPropose: this.mayProposeFromChecks(user, { organizationId: outlet.organizationId, outletId: outlet.id }),
     };
@@ -921,6 +928,8 @@ export class PublicPageService {
       rejectReason: forRestaurant && source !== 'DAILY_CHECK' ? null : photo.rejectReason,
       removed: photo.removedAt !== null,
       shown: shown && photo.status === 'APPROVED' && photo.removedAt === null && !expired,
+      // For ECCS's office to weigh; the restaurant is told it of its own photos only, like the reason above.
+      farMetres: forRestaurant && source !== 'DAILY_CHECK' ? null : photoFarMetres(readPhotoFlags(photo.attachment.integrityFlags)),
     };
   }
 }

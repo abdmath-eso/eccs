@@ -88,9 +88,18 @@ type Photo = {
   rejectReason: string | null;
   removed: boolean;
   shown: boolean;
+  farMetres: number | null;
 };
 type CheckPhotos = {
-  eligible: { attachmentId: string; path: string; date: string; checklist: Record<string, string>; check: Record<string, string> }[];
+  eligible: {
+    attachmentId: string;
+    path: string;
+    date: string;
+    checklist: Record<string, string>;
+    check: Record<string, string>;
+    farMetres: number | null;
+  }[];
+  leftOut: number;
   proposed: Photo[];
   canPropose: boolean;
 };
@@ -152,9 +161,10 @@ describe('Customer QR page (e2e)', () => {
   let visitPhotos: string[];
   let openVisitPhoto: string;
   let loosePhoto: string;
-  /** Proof photos of the outlet's own daily checks: the two that may be put forward, and the ones that may not. */
+  /** Proof photos of the outlet's own daily checks: the three that may be put forward, and the ones that may not. */
   let goodPhoto: string;
   let earlierGoodPhoto: string;
+  let farPhoto: string;
   let problemPhoto: string;
   let unfinishedPhoto: string;
   let doubtfulPhoto: string;
@@ -382,7 +392,7 @@ describe('Customer QR page (e2e)', () => {
     // Due at 09:00 and handed in at noon: late.
     const late = await checklist('E2E late checklist', '09:00', setUp, ['Secret late check']);
     const [lateAnswer] = await record(late, yesterday, [{ passed: true }], people);
-    await record(late, dayBefore, [{ passed: true }], people);
+    const [earlierLateAnswer] = await record(late, dayBefore, [{ passed: true }], people);
     // Set up yesterday, begun and never handed in.
     const missed = await checklist('E2E missed checklist', '23:58', noon(yesterday), ['Secret missed check']);
     const [unfinished] = await record(missed, yesterday, [{ passed: true }], people, 'IN_PROGRESS');
@@ -400,6 +410,12 @@ describe('Customer QR page (e2e)', () => {
       { checklistResponseId: lateAnswer!, flags: [{ code: 'LOOKS_SAME', certain: false, earlierOn: daysAgo(9) }] },
       'check-doubtful',
       yesterday,
+    );
+    // Marked as taken 9 km from the outlet's saved place: a reason to look, not a bar, so it is still offered.
+    farPhoto = await photoOf(
+      { checklistResponseId: earlierLateAnswer!, flags: [{ code: 'FAR_FROM_OUTLET', certain: false, distanceMetres: 9189 }] },
+      'check-far',
+      dayBefore,
     );
     await db.licence.create({ data: { outletId, type: 'FSSAI', name: 'FSSAI licence', number: FSSAI_NUMBER, expiresOn: dbDate(daysAgo(-200)) } });
 
@@ -990,8 +1006,13 @@ describe('Customer QR page (e2e)', () => {
       for (const session of [owner, manager]) {
         const list = (await checkPhotos(session).expect(200)).body as CheckPhotos;
         // The newest day first. Not the photo of the reported problem, not the one from the checklist that was never
-        // handed in, not the one from 20 days ago, not the one the photo checks marked, and nothing of another outlet.
-        expect(list.eligible.map((photo) => photo.attachmentId)).toEqual([goodPhoto, earlierGoodPhoto]);
+        // handed in, not the one from 20 days ago, not the one the photo checks marked as a repeat, and nothing of
+        // another outlet. The one taken far from the outlet is offered, with its distance; within a day the
+        // checklists come in the order they fall due.
+        expect(list.eligible.map((photo) => photo.attachmentId)).toEqual([goodPhoto, farPhoto, earlierGoodPhoto]);
+        expect(list.eligible.map((photo) => photo.farMetres)).toEqual([null, 9189, null]);
+        // The repeat is counted, so the screen can say that a photo was left out and why.
+        expect(list.leftOut).toBe(1);
         expect(list.eligible[0]).toMatchObject({ date: daysAgo(1), checklist: { en: 'E2E page checklist' }, check: { en: 'Secret check wording' } });
         expect(list.eligible[0]!.path).toMatch(/^\/attachments\/.+\/content\?exp=\d+&sig=/);
         expect(list).toMatchObject({ proposed: [], canPropose: true });
@@ -1054,7 +1075,7 @@ describe('Customer QR page (e2e)', () => {
       expect((await expectLive()).photos).toEqual([]);
       await publicPhoto(1).expect(404);
       const list = (await checkPhotos(owner).expect(200)).body as CheckPhotos;
-      expect(list.eligible).toEqual([]);
+      expect(list.eligible.map((photo) => photo.attachmentId)).toEqual([farPhoto]);
       expect(list.proposed.map((photo) => [photo.id, photo.status, photo.shown])).toEqual([
         [earlier.id, 'PROPOSED', false],
         [put.id, 'PROPOSED', false],
@@ -1142,6 +1163,22 @@ describe('Customer QR page (e2e)', () => {
         shown: false,
       });
       await proposeCheck(owner, goodPhoto).expect(409);
+    });
+
+    it('can be put forward when taken far from the outlet, and the distance is told to the restaurant and to ECCS', async () => {
+      const far = (await proposeCheck(owner, farPhoto, 'HOOD').expect(201)).body as Photo;
+      expect(far).toMatchObject({ status: 'PROPOSED', source: 'DAILY_CHECK', takenOn: daysAgo(2), farMetres: 9189 });
+      // ECCS's office sees the distance beside the photo it is asked to approve; the others carry none.
+      const queue = await photos(admin);
+      expect(queue.find((photo) => photo.id === far.id)).toMatchObject({ farMetres: 9189 });
+      expect(queue.filter((photo) => photo.id !== far.id).every((photo) => photo.farMetres === null)).toBe(true);
+      // The restaurant sees it in its own list of what it has sent.
+      const list = (await checkPhotos(owner).expect(200)).body as CheckPhotos;
+      expect(list.proposed.find((photo) => photo.id === far.id)).toMatchObject({ farMetres: 9189 });
+      expect(list.eligible).toEqual([]);
+
+      // Taken back out, so the tests after this one count the same photos as before.
+      await prisma.client.publicPhoto.delete({ where: { id: far.id } });
     });
   });
 

@@ -25,7 +25,7 @@
 import { z } from "zod";
 import type { LocalizedText } from "./checklists.js";
 import type { InspectionGrade } from "./inspections.js";
-import type { PhotoFlagCode } from "./photo-integrity.js";
+import type { PhotoFlagCode, PhotoFlagDto } from "./photo-integrity.js";
 import { SCORE_BANDS, SCORE_COMPONENTS, SCORE_RULE_VERSION, SCORE_RULES, type ScoreBand, type ScoreComponentKey } from "./scores.js";
 
 /** The settings of the page. Change the numbers here to retune it. */
@@ -336,14 +336,31 @@ export function checkPhotoWindow(today: string): { from: string; to: string } {
 
 /**
  * A daily-check photo carrying one of these marks (see photo-integrity.ts) is not
- * offered for the page. Each puts in doubt something the page would state about the
- * photo: the day it was taken (the same picture was used before; the phone's time is
- * before the day of the check) or that it is this kitchen (taken far away; a faked
- * location). The marks for a phone clock running ahead and for a picture chosen from
- * files in the browser preview do not bar a photo: its day is taken from the
- * checklist it belongs to, and a person at ECCS looks at every photo anyway.
+ * offered for the page. Each puts in doubt the day the page would state for the photo
+ * (the same picture was used before; the phone's time is before the day of the check)
+ * or is a sign of deliberate faking (a faked location). The screen says how many
+ * photos were left out and why, so nobody is left wondering where they went.
+ *
+ * "Far from the outlet" does not bar a photo (13 Oct 2026). It was barred at first,
+ * and the founder, testing away from the sample outlet, was offered no photos at all
+ * and not told why. The place saved for an outlet can itself be wrong, and a phone
+ * indoors can be placed streets away, so distance is a reason to look, not proof. Such
+ * a photo is offered with the distance said beside it (see photoFarMetres), and ECCS's
+ * office is shown the same distance when it decides.
+ *
+ * The marks for a phone clock running ahead and for a picture chosen from files in
+ * the browser preview do not bar a photo either: its day is taken from the checklist
+ * it belongs to, and a person at ECCS looks at every photo anyway.
  */
-export const PUBLIC_PHOTO_BARRED_FLAGS: readonly PhotoFlagCode[] = ["SAME_FILE", "LOOKS_SAME", "TAKEN_BEFORE", "FAR_FROM_OUTLET", "MOCK_LOCATION"];
+export const PUBLIC_PHOTO_BARRED_FLAGS: readonly PhotoFlagCode[] = ["SAME_FILE", "LOOKS_SAME", "TAKEN_BEFORE", "MOCK_LOCATION"];
+
+/**
+ * How far the phone was from the outlet's saved place, in metres, when a photo was
+ * marked as taken far away. Null when it carries no such mark.
+ */
+export function photoFarMetres(flags: readonly PhotoFlagDto[]): number | null {
+  return flags.find((flag) => flag.code === "FAR_FROM_OUTLET")?.distanceMetres ?? null;
+}
 
 /**
  * The languages the page can be read in, in the order of its language switch.
@@ -443,6 +460,12 @@ export interface PublicPhotoDto {
   removed: boolean;
   /** True when it is one of the photos a diner sees now (approved, not removed, not too old, among the newest six). */
   shown: boolean;
+  /**
+   * Metres between the phone and the outlet's saved place, when the photo was marked as
+   * taken far away (see photoFarMetres); null otherwise. For ECCS's office to weigh when
+   * it decides. The restaurant is told it of its own photos only.
+   */
+  farMetres: number | null;
 }
 
 /** A proof photo from the outlet's own daily checks that the restaurant can put forward for its page. */
@@ -456,12 +479,16 @@ export interface PublicCheckPhotoDto {
   /** The checklist and the check it was the proof for. Shown to the restaurant only, never on the page. */
   checklist: LocalizedText;
   check: LocalizedText;
+  /** Metres from the outlet's saved place when it was marked as taken far away; null otherwise. Said beside the photo, and ECCS sees it too. */
+  farMetres: number | null;
 }
 
 /** The "Add photos from your daily checks" screen: what can be put forward, and what already has been. */
 export interface PublicCheckPhotosDto {
   /** Photos of checks marked as fine, in checklists handed in during the last 14 days, not yet put forward. The newest first. */
   eligible: PublicCheckPhotoDto[];
+  /** How many more would be offered but for a mark on them (see PUBLIC_PHOTO_BARRED_FLAGS), so the screen can say so. */
+  leftOut: number;
   /** What the restaurant has put forward from its daily checks, the newest first: waiting, on the page, or not approved. */
   proposed: PublicPhotoDto[];
   /** What this person may do here. */

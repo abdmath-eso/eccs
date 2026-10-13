@@ -18,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
+import { Expandable } from '@/components/ui/expandable';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
@@ -59,7 +60,7 @@ const PUBLISHED = [
   'cpage.switch.item5',
 ] as const;
 
-// The three sentences every customer is shown before any score, as on the page itself.
+// The three sentences at the end of every customer's page. A short form of them sits under the score.
 const DISCLAIMER = ['public.disclaimer.private', 'public.disclaimer.notGov', 'public.disclaimer.own'] as const;
 
 const PART_LABEL = {
@@ -82,13 +83,20 @@ const points = (value: number) => String(Math.round(value * 10) / 10);
  * shows yesterday's hygiene score, the daily checklists and photos, and ECCS's
  * inspection once there is one.
  *
- * Built the way apps handle a shareable link: one switch that takes effect at
- * once, with what it publishes spelled out beside it (Material's guidance for
- * switches); a preview of exactly what the public will see before publishing
- * (the "view as" and profile-preview screens of social and listing apps); the
- * QR code large on white with Share under it (the "my QR code" screens of
- * payment and messaging apps); and "make a new link", which kills the old one,
- * behind a warning (WhatsApp's "Reset link" for group invites).
+ * The order of the screen (13 Oct 2026, after the founder found it "too much text
+ * and too long", with the main part far down): where the page stands and its
+ * switch, then the photos, then the QR code with its buttons. Everything that
+ * only explains (what customers see, what the page shows and never shows, the
+ * disclaimer) is one line each at the end that opens when tapped. Main controls
+ * first and detail on request is what guidance for small screens asks for
+ * (Nielsen Norman Group on progressive disclosure and on accordions on mobile;
+ * Material's expansion panels).
+ *
+ * Other patterns kept from before: one switch that takes effect at once, with
+ * what it publishes said in the question asked before it is turned on (Material's
+ * guidance for switches); the QR code on white with Share under it (the "my QR
+ * code" screens of payment and messaging apps); and "make a new link", which
+ * kills the old one, behind a warning (WhatsApp's "Reset link" for group invites).
  */
 export default function CustomerPageScreen() {
   const theme = useTheme();
@@ -203,38 +211,16 @@ export default function CustomerPageScreen() {
     const preview = page.preview;
     const live = page.state === 'LIVE';
     const stateColor = live ? theme.primary : page.state === 'TAKEN_DOWN' ? theme.warning : theme.textSecondary;
-    const shownPhotos = page.photos.filter((photo) => photo.shown).length;
 
     return (
       <>
-        {/* Where the page stands, first: the one thing the Owner came to check. */}
-        <View style={[styles.card, styles.row, { borderColor: stateColor }]}>
-          <Ionicons name={STATE_ICON[page.state]} size={28} color={stateColor} />
-          <ThemedText type="default" style={styles.grow}>
-            {t(`cpage.state.${page.state}`)}
-          </ThemedText>
-        </View>
-
-        {page.localOnly && (
-          <View style={[styles.card, styles.row, { borderColor: theme.warning }]}>
-            <Ionicons name="warning" size={24} color={theme.warning} />
-            <ThemedText type="default" style={styles.grow}>
-              {t('cpage.local')}
-            </ThemedText>
-          </View>
-        )}
-
-        {/* The switch, with exactly what turning it on publishes. */}
-        <View style={card}>
+        {/* Where the page stands, and the switch that changes it: together, and first. */}
+        <View style={[styles.card, { borderColor: stateColor }]}>
           <View style={styles.row}>
-            <View style={styles.grow}>
-              <ThemedText type="default" style={styles.heading}>
-                {t('cpage.switch.label')}
-              </ThemedText>
-              <ThemedText type="smallBold" themeColor="textSecondary">
-                {t(page.enabled ? 'cpage.switch.on' : 'cpage.switch.off')}
-              </ThemedText>
-            </View>
+            <Ionicons name={STATE_ICON[page.state]} size={28} color={stateColor} />
+            <ThemedText type="default" style={[styles.grow, styles.bold]}>
+              {t(`cpage.state.${page.state}`)}
+            </ThemedText>
             {busy === 'switch' ? (
               <ActivityIndicator color={theme.primary} />
             ) : (
@@ -254,37 +240,107 @@ export default function CustomerPageScreen() {
               {t('cpage.switch.ownerOnly')}
             </ThemedText>
           )}
-          <ThemedText type="small">{t('cpage.switch.publishes')}</ThemedText>
-          {PUBLISHED.map((key) => (
-            <View key={key} style={styles.bullet}>
-              <ThemedText type="small">•</ThemedText>
-              <ThemedText type="small" style={styles.grow}>
-                {t(key)}
-              </ThemedText>
+        </View>
+
+        {/* The photos: what the Owner comes back to most often, so they come before the code. */}
+        <View style={card}>
+          {heading(t('cpage.photos.title'))}
+          {/* The restaurant's own photos: chosen one by one on the next screen, never published by themselves. */}
+          {page.canPropose && (
+            <Button
+              icon="images-outline"
+              label={t('cpage.photos.add')}
+              hint={t('cpage.photos.addHint', { days: PUBLIC_PAGE_RULES.checkPhotoDays })}
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/customer-page/from-checks', params: { outletId: page.outletId } })}
+            />
+          )}
+          {page.photosWaiting > 0 && <ThemedText type="smallBold">{t('cpage.photos.waiting', { count: page.photosWaiting })}</ThemedText>}
+          {page.photos.length === 0 && (
+            <ThemedText type="default" themeColor="textSecondary">
+              {t('cpage.photos.none')}
+            </ThemedText>
+          )}
+          <ErrorText message={errorAt('photo')} />
+          {/* One line per photo: a small picture that opens whole when tapped, and what a customer reads under it. */}
+          {page.photos.map((photo) => (
+            <View key={photo.id} style={styles.row}>
+              <ProofPhoto uri={api.fileUrl(photo.path)} label={t(`public.photo.${photo.caption}`)} compact />
+              <View style={styles.photoText}>
+                <ThemedText type="smallBold">{t(`public.photo.${photo.caption}`)}</ThemedText>
+                <ThemedText type="small">{t('public.photos.takenOn', { date: formatDate(photo.takenOn, language) })}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {t(photo.source === 'DAILY_CHECK' ? 'public.photos.by.RESTAURANT' : 'public.photos.by.ECCS')}
+                </ThemedText>
+                {!photo.shown && (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {t('cpage.photos.notShown', { count: PUBLIC_PAGE_RULES.maxPhotos })}
+                  </ThemedText>
+                )}
+                {page.canSwitch && (
+                  <View style={styles.start}>
+                    <Button
+                      icon="trash-outline"
+                      label={t('cpage.photos.remove')}
+                      variant="link"
+                      disabled={busy !== null}
+                      onPress={() => setAsking({ what: 'photo', photo })}
+                    />
+                  </View>
+                )}
+              </View>
             </View>
           ))}
-          <ThemedText type="smallBold">{t('cpage.switch.never')}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {t('cpage.switch.lapse', { days: PUBLIC_PAGE_RULES.inspectionValidDays, photoDays: PUBLIC_PAGE_RULES.photoShownDays })}
-          </ThemedText>
         </View>
 
-        {/* The disclaimer a customer reads before any score, shown here so the Owner knows it is on the page. */}
+        {/* The code itself: black on white whatever the theme, so it scans off this screen too. */}
         <View style={card}>
-          {heading(t('cpage.disclaimer.title'))}
-          {DISCLAIMER.map((key) => (
-            <ThemedText key={key} type="small">
-              {t(key)}
-            </ThemedText>
-          ))}
+          {heading(t('cpage.qr.title'))}
           <ThemedText type="small" themeColor="textSecondary">
-            {t('cpage.disclaimer.help')}
+            {t('cpage.qr.hint')}
           </ThemedText>
+          {page.localOnly && (
+            <View style={[styles.caveat, { borderColor: theme.warning }]}>
+              <Ionicons name="warning" size={22} color={theme.warning} />
+              <ThemedText type="small" style={styles.grow}>
+                {t('cpage.local')}
+              </ThemedText>
+            </View>
+          )}
+          <View style={styles.qr}>
+            <QrCode value={page.url} size={200} label={t('cpage.qr.label')} />
+          </View>
+          {!live && (
+            <ThemedText type="smallBold" style={styles.centred}>
+              {t('cpage.qr.offNote')}
+            </ThemedText>
+          )}
+          <Button icon="share-social-outline" label={t('cpage.qr.share')} onPress={() => void shareLink()} />
+          <ErrorText message={errorAt('share')} />
+          {/* The poster is a web page with its own Print button; the phone's browser prints or saves it. */}
+          <Button icon="print-outline" label={t('cpage.qr.print')} variant="secondary" onPress={() => void Linking.openURL(`${page.url}/poster`)} />
+          {live && <Button icon="open-outline" label={t('cpage.preview.open')} variant="secondary" onPress={() => void Linking.openURL(page.url)} />}
+
+          {page.canSwitch && (
+            <>
+              <Button
+                icon="refresh"
+                label={t('cpage.newLink.button')}
+                hint={t('cpage.newLink.help')}
+                variant="link"
+                loading={busy === 'link'}
+                disabled={busy !== null && busy !== 'link'}
+                onPress={() => setAsking({ what: 'link' })}
+              />
+              <ErrorText message={errorAt('link')} />
+            </>
+          )}
         </View>
+
+        {/* From here down, explanations: one line each that opens when tapped. */}
 
         {/* What a diner sees now, or would see if the page were on. */}
-        <View style={card}>
-          {heading(t('cpage.preview.title'))}
+        <Expandable title={t('cpage.preview.title')} icon="eye-outline">
           {preview ? (
             <>
               {scorePreview(preview)}
@@ -331,107 +387,47 @@ export default function CustomerPageScreen() {
                 {t('cpage.preview.services', { count: preview.services.length })}
               </ThemedText>
               <ThemedText type="small">{t('cpage.preview.photos', { count: preview.photos.length })}</ThemedText>
-              {live && (
-                <Button icon="open-outline" label={t('cpage.preview.open')} variant="secondary" onPress={() => void Linking.openURL(page.url)} />
-              )}
             </>
           ) : (
             <ThemedText type="default" themeColor="textSecondary">
               {t('cpage.preview.none')}
             </ThemedText>
           )}
-        </View>
+        </Expandable>
 
-        {/* The code itself: black on white whatever the theme, so it scans off this screen too. */}
-        <View style={card}>
-          {heading(t('cpage.qr.title'))}
+        {/* Exactly what turning the page on publishes. The question asked before it is turned on says the same in short. */}
+        <Expandable title={t('cpage.shows.title')} icon="list-outline">
+          <ThemedText type="small">{t('cpage.switch.publishes')}</ThemedText>
+          {PUBLISHED.map((key) => (
+            <View key={key} style={styles.bullet}>
+              <ThemedText type="small">•</ThemedText>
+              <ThemedText type="small" style={styles.grow}>
+                {t(key)}
+              </ThemedText>
+            </View>
+          ))}
+          <ThemedText type="smallBold">{t('cpage.switch.never')}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {t('cpage.qr.hint')}
+            {t('cpage.switch.lapse', { days: PUBLIC_PAGE_RULES.inspectionValidDays, photoDays: PUBLIC_PAGE_RULES.photoShownDays })}
           </ThemedText>
-          <View style={styles.qr}>
-            <QrCode value={page.url} size={248} label={t('cpage.qr.label')} />
-          </View>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.centred}>
-            {ltrText(page.url)}
-          </ThemedText>
-          {!live && (
-            <ThemedText type="smallBold" style={styles.centred}>
-              {t('cpage.qr.offNote')}
-            </ThemedText>
-          )}
-          <Button icon="share-social-outline" label={t('cpage.qr.share')} onPress={() => void shareLink()} />
-          <ErrorText message={errorAt('share')} />
-          {/* The poster is a web page with its own Print button; the phone's browser prints or saves it. */}
-          <Button icon="print-outline" label={t('cpage.qr.print')} variant="secondary" onPress={() => void Linking.openURL(`${page.url}/poster`)} />
-
-          {page.canSwitch && (
-            <>
-              <Button
-                icon="refresh"
-                label={t('cpage.newLink.button')}
-                hint={t('cpage.newLink.help')}
-                variant="secondary"
-                loading={busy === 'link'}
-                disabled={busy !== null && busy !== 'link'}
-                onPress={() => setAsking({ what: 'link' })}
-              />
-              <ErrorText message={errorAt('link')} />
-            </>
-          )}
-        </View>
-
-        {/* The photos on the page. The Owner can take any of them off at any time. */}
-        <View style={card}>
-          {heading(t('cpage.photos.title'))}
           <ThemedText type="small" themeColor="textSecondary">
             {t('cpage.photos.help', { days: PUBLIC_PAGE_RULES.photoShownDays })}
           </ThemedText>
-          {/* The restaurant's own photos: chosen one by one on the next screen, never published by themselves. */}
-          {page.canPropose && (
-            <Button
-              icon="images-outline"
-              label={t('cpage.photos.add')}
-              hint={t('cpage.photos.addHint', { days: PUBLIC_PAGE_RULES.checkPhotoDays })}
-              variant="secondary"
-              onPress={() => router.push({ pathname: '/customer-page/from-checks', params: { outletId: page.outletId } })}
-            />
-          )}
-          {page.photosWaiting > 0 && <ThemedText type="smallBold">{t('cpage.photos.waiting', { count: page.photosWaiting })}</ThemedText>}
-          {page.photos.length === 0 && (
-            <ThemedText type="default" themeColor="textSecondary">
-              {t('cpage.photos.none')}
+        </Expandable>
+
+        {/* The disclaimer a customer reads with the score, shown here so the Owner knows it is on the page. */}
+        <Expandable title={t('cpage.disclaimer.title')} icon="information-circle-outline">
+          <ThemedText type="smallBold">{t('public.gov.heading')}</ThemedText>
+          <ThemedText type="small">{t('public.disclaimer.short')}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('cpage.disclaimer.help')}
+          </ThemedText>
+          {DISCLAIMER.map((key) => (
+            <ThemedText key={key} type="small">
+              {t(key)}
             </ThemedText>
-          )}
-          <ErrorText message={errorAt('photo')} />
-          {page.photos.map((photo) => (
-            <View key={photo.id} style={styles.photo}>
-              <ProofPhoto uri={api.fileUrl(photo.path)} label={t(`public.photo.${photo.caption}`)} />
-              <ThemedText type="smallBold">{t(`public.photo.${photo.caption}`)}</ThemedText>
-              {/* The same two lines a customer reads under the photo. */}
-              <ThemedText type="small">{t('public.photos.takenOn', { date: formatDate(photo.takenOn, language) })}</ThemedText>
-              <ThemedText type="small">{t(photo.source === 'DAILY_CHECK' ? 'public.photos.by.RESTAURANT' : 'public.photos.by.ECCS')}</ThemedText>
-              {!photo.shown && (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t('cpage.photos.notShown', { count: PUBLIC_PAGE_RULES.maxPhotos })}
-                </ThemedText>
-              )}
-              {page.canSwitch && (
-                <Button
-                  icon="trash-outline"
-                  label={t('cpage.photos.remove')}
-                  variant="secondary"
-                  disabled={busy !== null}
-                  onPress={() => setAsking({ what: 'photo', photo })}
-                />
-              )}
-            </View>
           ))}
-          {shownPhotos > 0 && (
-            <ThemedText type="small" themeColor="textSecondary">
-              {t('cpage.preview.photos', { count: shownPhotos })}
-            </ThemedText>
-          )}
-        </View>
+        </Expandable>
       </>
     );
   };
@@ -494,6 +490,10 @@ const styles = StyleSheet.create({
   card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   grow: { flex: 1 },
+  bold: { fontWeight: 700 },
+  // Beside a small picture: the words, and under them the button, which starts where the words start.
+  photoText: { flex: 1, gap: Spacing.half },
+  start: { alignItems: 'flex-start' },
   heading: { fontWeight: 700, fontSize: 18 },
   score: { fontWeight: 700, fontSize: 22 },
   caveat: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, borderWidth: 2, borderRadius: Spacing.two, padding: Spacing.two },
@@ -502,5 +502,4 @@ const styles = StyleSheet.create({
   bullet: { flexDirection: 'row', gap: Spacing.two, paddingStart: Spacing.one },
   qr: { alignItems: 'center', paddingVertical: Spacing.two },
   centred: { textAlign: 'center' },
-  photo: { gap: Spacing.two, marginTop: Spacing.two },
 });

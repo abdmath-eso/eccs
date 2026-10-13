@@ -2,10 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { MessageKey, Translator } from '@eccs/i18n';
 import type { AttendanceDayFactsDto, DayFlag, PunchKind, PunchMethod } from '@eccs/shared';
 import type { ComponentProps } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { MinTouchSize, Spacing, type ThemeColor } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatTimeOfDay } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -100,93 +100,7 @@ export function EnrolledMark({ enrolled }: { enrolled: boolean }) {
   );
 }
 
-/**
- * One small warning sign that stands for "something on this day needs a look",
- * however many things there are. The words for each are on the day's own
- * screen. (The way attendance apps mark exceptions on a list: one marker on the
- * row, the explanation in the detail. Jibble's timesheet indicators, greytHR's
- * "Alerts".) Read out by its label, so it never rests on colour alone.
- */
-export function LookMark() {
-  const theme = useTheme();
-  const { t } = useSession();
-  return <Ionicons name="alert-circle" size={20} color={theme.warning} accessibilityLabel={t('att.needsLook')} />;
-}
-
-export interface CountChoice<Key extends string> {
-  key: Key;
-  label: string;
-  count: number;
-  icon?: IconName;
-  tone?: ThemeColor;
-}
-
-/**
- * The day's totals in one strip that also filters the list under it: "All 9",
- * "Present 6", "Absent 2"... Each is a picture, a word and a number; the chosen
- * one has a filled background, a thicker edge and bold text, and says
- * "selected" to a screen reader. Material's filter chips, with the count in the
- * chip as staff-attendance apps show the day's totals at the top.
- */
-export function CountFilter<Key extends string>({
-  choices,
-  chosen,
-  onChoose,
-  label,
-}: {
-  choices: CountChoice<Key>[];
-  chosen: Key;
-  onChoose: (key: Key) => void;
-  label: string;
-}) {
-  const theme = useTheme();
-  return (
-    // One row that slides sideways when there are more chips than fit, so the list under it
-    // always starts in the same place (Material's filter chips scroll the same way).
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filter}
-      accessibilityRole="radiogroup"
-      accessibilityLabel={label}>
-      {choices.map((choice) => {
-        const selected = choice.key === chosen;
-        return (
-          <Pressable
-            key={choice.key}
-            accessibilityRole="radio"
-            accessibilityState={{ selected, checked: selected }}
-            accessibilityLabel={`${choice.label}: ${choice.count}`}
-            onPress={() => onChoose(choice.key)}
-            style={({ pressed }) => [
-              styles.filterChip,
-              { borderColor: selected ? theme.primary : theme.border },
-              selected && styles.filterChosen,
-              (selected || pressed) && { backgroundColor: theme.backgroundElement },
-            ]}>
-            {choice.icon && <Ionicons name={choice.icon} size={18} color={theme[choice.tone ?? 'textSecondary']} />}
-            <ThemedText type={selected ? 'smallBold' : 'small'}>{choice.label}</ThemedText>
-            <ThemedText type="smallBold">{choice.count}</ThemedText>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
-  );
-}
-
 const styles = StyleSheet.create({
-  filter: { flexDirection: 'row', gap: Spacing.two },
-  // As tall as anything else that is tapped, so a wet thumb finds it.
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    minHeight: MinTouchSize,
-    borderWidth: 1,
-    borderRadius: MinTouchSize / 2,
-    paddingHorizontal: Spacing.three,
-  },
-  filterChosen: { borderWidth: 2 },
   flags: { flexDirection: 'row', flexWrap: 'wrap', columnGap: Spacing.three, rowGap: Spacing.one },
   flag: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
 });

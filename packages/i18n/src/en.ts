@@ -785,8 +785,6 @@ export const en = {
   "att.settings.applies": "These settings are for everyone at this outlet.",
   "att.settings.ownerOnly": "Only the Owner can change these.",
   // Pay from the joining day, the days a salary is divided by, the lighter attendance screens
-  "att.filter.all": "All",
-  "att.filter.label": "Show only",
   "att.settings.hours": "Hours",
   "att.divisor.title": "Days a month's salary is divided by",
   "att.divisor.help": "This sets one day's pay for people paid by the month. One day's pay is taken off for each absence, and half for a half day. A full month with no absence always pays the full salary.",

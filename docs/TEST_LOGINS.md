@@ -234,7 +234,7 @@ First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api st
 8. The person's page > **Face for attendance** > **Remove face**: they can no longer be scanned and are clocked in by PIN instead.
 9. **As a Head Chef** (PIN `8264`): More > Attendance shows today, read-only, with no photos and no pay.
 10. **Pay:** tap a person > "Pay for this month" works from the days the clock-ins produced. For someone just added it says "Joined on ... Pay for October is counted from that day." A person with no joining date shows "Pay counted from ..., the day they were added" on their page, with **Change**.
-11. **Attendance screen:** the chips under the date (All, Present, No record, Needs a look) narrow the list; slide the row sideways if there are more. With more than one outlet, tap the outlet's name at the top to switch.
+11. **Attendance screen:** a card for each person with their status, job and times, and the day's counts at the bottom. With more than one outlet, tap the outlet's name at the top to switch.
 12. Deccan Biryani has no Manager; to try a Manager's approval, add one under "App logins and PINs" first.
 
 ## 18. Trying food labels

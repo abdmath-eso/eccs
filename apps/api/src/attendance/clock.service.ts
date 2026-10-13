@@ -7,6 +7,7 @@ import {
   clockAssistedSchema,
   decideMatch,
   nextPunchKind,
+  ownRecordLocked,
   withinRepeatGuard,
   type ClockIdentifyDto,
   type ClockPunchResultDto,
@@ -220,6 +221,16 @@ export class ClockService {
     const isManager = approver.memberships.some((membership) => membership.role === 'MANAGER' && membership.outletId === device.outletId);
     if (!isOwner && !isManager) {
       throw attendanceError(HttpStatus.FORBIDDEN, ATTENDANCE_ERROR.approverNotAllowed, 'Only the owner or a manager of this outlet can clock someone in.');
+    }
+    // Vouching is one person saying another is there. A Manager cannot vouch for themselves with their
+    // own PIN: they scan their face like everyone else, or the Owner (or another Manager) vouches.
+    const picked = await this.db.staffMember.findFirst({ where: { id: parsed.data.staffId, outletId: device.outletId }, select: { userId: true } });
+    if (picked && ownRecordLocked({ userId: approver.id, isOwner }, picked)) {
+      throw attendanceError(
+        HttpStatus.FORBIDDEN,
+        ATTENDANCE_ERROR.ownRecord,
+        'You cannot clock yourself in or out with your own PIN. Scan your face, or ask the owner.',
+      );
     }
 
     let thumbnail: Thumbnail | null = null;

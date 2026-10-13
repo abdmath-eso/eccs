@@ -86,6 +86,8 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
   const { t, api, language } = useSession();
   const notify = useSnackbar();
   const money = (paise: number) => formatMoney(Math.abs(paise), language);
+  // The reader's own pay: they read every figure, and change none of them. Only the Owner can.
+  const locked = data.selfLocked;
 
   const [ownDue, setOwnDue] = useState(data.dueOverridePaise !== null);
   const [dueText, setDueText] = useState(typedRupees(data.dueOverridePaise ?? 0));
@@ -242,13 +244,15 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
               {[formatDate(entry.date, language), entry.note].filter(Boolean).join(' · ')}
             </ThemedText>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('team.pay.removeEntry')}
-            onPress={() => setRemoving(entry)}
-            style={styles.entryRemove}>
-            <Ionicons name="trash-outline" size={22} color={theme.danger} />
-          </Pressable>
+          {!locked && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('team.pay.removeEntry')}
+              onPress={() => setRemoving(entry)}
+              style={styles.entryRemove}>
+              <Ionicons name="trash-outline" size={22} color={theme.danger} />
+            </Pressable>
+          )}
         </View>
       ));
 
@@ -268,11 +272,20 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
       footer={
         <>
           <ErrorText message={formError} />
-          {dirty && <Button label={t('team.save')} loading={busy} onPress={() => void save()} />}
-          <Button variant={dirty ? 'secondary' : 'primary'} icon="share-social-outline" label={t('team.pay.share')} disabled={busy} onPress={() => void share()} />
+          {dirty && !locked && <Button label={t('team.save')} loading={busy} onPress={() => void save()} />}
+          <Button variant={dirty && !locked ? 'secondary' : 'primary'} icon="share-social-outline" label={t('team.pay.share')} disabled={busy} onPress={() => void share()} />
         </>
       }>
       <MonthStepper month={data.month} thisMonth={thisMonth} earliest={shiftMonth(thisMonth, -MONTHS_BACK)} onChange={onMonth} />
+
+      {locked && (
+        <View style={[styles.card, styles.lockedNote, { borderColor: theme.border }]}>
+          <Ionicons name="lock-closed" size={22} color={theme.textSecondary} />
+          <ThemedText type="default" style={styles.flex}>
+            {t('team.self.locked')}
+          </ThemedText>
+        </View>
+      )}
 
       {data.beforeRecords && (
         <ThemedText type="default" themeColor="textSecondary">
@@ -351,29 +364,30 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
               onChangeText={setDueText}
               keyboardType="decimal-pad"
               hint={t('team.pay.ownFigureHint')}
+              editable={!locked}
             />
-            <Button variant="link" label={t('team.pay.useApps')} onPress={() => setOwnDue(false)} />
+            {!locked && <Button variant="link" label={t('team.pay.useApps')} onPress={() => setOwnDue(false)} />}
           </>
         ) : (
-          <Button variant="link" label={t('team.pay.useOwn')} onPress={() => setOwnDue(true)} />
+          !locked && <Button variant="link" label={t('team.pay.useOwn')} onPress={() => setOwnDue(true)} />
         )}
       </View>
 
       {/* ── Typed by hand ── */}
       <View style={styles.pair}>
         <View style={styles.flex}>
-          <TextField label={t('team.pay.overtimeHours')} value={hoursText} onChangeText={setHoursText} keyboardType="decimal-pad" />
+          <TextField label={t('team.pay.overtimeHours')} value={hoursText} onChangeText={setHoursText} keyboardType="decimal-pad" editable={!locked} />
         </View>
         <View style={styles.flex}>
-          <TextField label={t('team.pay.overtimeAmount')} value={overtimeText} onChangeText={setOvertimeText} keyboardType="decimal-pad" />
+          <TextField label={t('team.pay.overtimeAmount')} value={overtimeText} onChangeText={setOvertimeText} keyboardType="decimal-pad" editable={!locked} />
         </View>
       </View>
       <View style={styles.pair}>
         <View style={styles.flex}>
-          <TextField label={t('team.pay.bonus')} value={bonusText} onChangeText={setBonusText} keyboardType="decimal-pad" />
+          <TextField label={t('team.pay.bonus')} value={bonusText} onChangeText={setBonusText} keyboardType="decimal-pad" editable={!locked} />
         </View>
         <View style={styles.flex}>
-          <TextField label={t('team.pay.deductions')} value={deductionsText} onChangeText={setDeductionsText} keyboardType="decimal-pad" />
+          <TextField label={t('team.pay.deductions')} value={deductionsText} onChangeText={setDeductionsText} keyboardType="decimal-pad" editable={!locked} />
         </View>
       </View>
 
@@ -385,7 +399,7 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
       {adding === 'ADVANCE' ? (
         <EntryForm kind="ADVANCE" data={data} suggested={0} onDone={() => setAdding(null)} onChanged={onChanged} />
       ) : (
-        <Button variant="secondary" icon="add" label={t('team.pay.addAdvance')} onPress={() => setAdding('ADVANCE')} />
+        !locked && <Button variant="secondary" icon="add" label={t('team.pay.addAdvance')} onPress={() => setAdding('ADVANCE')} />
       )}
 
       {/* ── What came from the months before ── */}
@@ -407,8 +421,8 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
         {ownCarried ? (
           <>
             <View style={styles.options} accessibilityRole="radiogroup">
-              <OptionChip label={t('team.pay.carriedOwed')} selected={!carriedOverpaid} onPress={() => setCarriedOverpaid(false)} />
-              <OptionChip label={t('team.pay.carriedOverpaid')} selected={carriedOverpaid} onPress={() => setCarriedOverpaid(true)} />
+              <OptionChip label={t('team.pay.carriedOwed')} selected={!carriedOverpaid} disabled={locked} onPress={() => setCarriedOverpaid(false)} />
+              <OptionChip label={t('team.pay.carriedOverpaid')} selected={carriedOverpaid} disabled={locked} onPress={() => setCarriedOverpaid(true)} />
             </View>
             <TextField
               label={t('team.pay.ownFigure')}
@@ -416,11 +430,12 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
               onChangeText={setCarriedText}
               keyboardType="decimal-pad"
               hint={t('team.pay.ownFigureHint')}
+              editable={!locked}
             />
-            <Button variant="link" label={t('team.pay.useApps')} onPress={() => setOwnCarried(false)} />
+            {!locked && <Button variant="link" label={t('team.pay.useApps')} onPress={() => setOwnCarried(false)} />}
           </>
         ) : (
-          <Button variant="link" label={t('team.pay.useOwn')} onPress={() => setOwnCarried(true)} />
+          !locked && <Button variant="link" label={t('team.pay.useOwn')} onPress={() => setOwnCarried(true)} />
         )}
       </View>
 
@@ -453,10 +468,10 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
       {adding === 'PAYMENT' ? (
         <EntryForm kind="PAYMENT" data={data} suggested={Math.max(balancePaise, 0)} onDone={() => setAdding(null)} onChanged={onChanged} />
       ) : (
-        <Button variant="secondary" icon="cash-outline" label={t('team.pay.addPayment')} onPress={() => setAdding('PAYMENT')} />
+        !locked && <Button variant="secondary" icon="cash-outline" label={t('team.pay.addPayment')} onPress={() => setAdding('PAYMENT')} />
       )}
 
-      <TextField label={t('team.pay.note')} value={note} onChangeText={setNote} maxLength={300} multiline />
+      <TextField label={t('team.pay.note')} value={note} onChangeText={setNote} maxLength={300} multiline editable={!locked} />
 
       <ConfirmDialog
         visible={removing !== null}
@@ -547,6 +562,7 @@ const styles = StyleSheet.create({
   state: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   pair: { flexDirection: 'row', gap: Spacing.two },
   flex: { flex: 1 },
+  lockedNote: { flexDirection: 'row', alignItems: 'center' },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   entry: {
     flexDirection: 'row',

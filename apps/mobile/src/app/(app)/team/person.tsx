@@ -76,6 +76,16 @@ export default function PersonScreen() {
     );
   }
 
+  // Their own details, pay and login link are the Owner's to change. The button that leads here is
+  // hidden for them; this covers any other way in.
+  if (person?.selfLocked) {
+    return (
+      <Screen back title={person.name}>
+        <ThemedText type="default">{t('team.self.locked')}</ThemedText>
+      </Screen>
+    );
+  }
+
   const formOutletId = person?.outletId ?? outletId;
   return (
     <PersonForm
@@ -83,8 +93,9 @@ export default function PersonScreen() {
       key={`${person?.id ?? 'new'}|${formOutletId}`}
       person={person}
       outletId={formOutletId}
-      // Only the logins of this outlet can be linked, and the Owner is not on the staff list.
-      logins={logins.filter((login) => login.outletId === formOutletId && login.role !== 'OWNER' && login.isActive)}
+      // Only the logins of this outlet can be linked, and the Owner is not on the staff list. A Manager is not
+      // offered their own login: only the Owner links a person to the login of whoever is filling this in.
+      logins={logins.filter((login) => login.outletId === formOutletId && login.role !== 'OWNER' && login.isActive && login.id !== user?.id)}
       outletChoice={person ? null : <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />}
     />
   );

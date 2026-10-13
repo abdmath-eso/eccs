@@ -62,6 +62,7 @@ describe('Attendance by face (e2e)', () => {
   let owner: string;
   let manager: string;
   let chef: string;
+  let managerUserId: string;
   let otherManager: string;
   let managerPin: string;
   let chefPin: string;
@@ -151,7 +152,7 @@ describe('Attendance by face (e2e)', () => {
   }
   async function newLogin(name: string, role: 'MANAGER' | 'HEAD_CHEF') {
     const made = await http().post('/restaurant-users').set(bearer(owner)).send({ name, role, outletId }).expect(201);
-    return { pin: made.body.pin as string, token: await pinLogin(OUTLET_CODE, made.body.pin as string) };
+    return { pin: made.body.pin as string, token: await pinLogin(OUTLET_CODE, made.body.pin as string), userId: made.body.user.id as string };
   }
   async function addPerson(name: string, at: string, more: Record<string, unknown> = {}) {
     // Joined three weeks ago: with no date given a new person counts from today, and the days below would not be theirs.
@@ -181,7 +182,7 @@ describe('Attendance by face (e2e)', () => {
     otherOutletId = (await outlet('E2E face outlet two', OTHER_OUTLET_CODE)).id;
 
     owner = await pinLogin(CODES.kukatpally, PINS.owner);
-    ({ pin: managerPin, token: manager } = await newLogin(MANAGER_NAME, 'MANAGER'));
+    ({ pin: managerPin, token: manager, userId: managerUserId } = await newLogin(MANAGER_NAME, 'MANAGER'));
     ({ pin: chefPin, token: chef } = await newLogin(CHEF_NAME, 'HEAD_CHEF'));
     otherManager = await pinLogin(CODES.jubilee, PINS.otherManager);
     phone = await link(OUTLET_CODE);
@@ -439,6 +440,24 @@ describe('Attendance by face (e2e)', () => {
     expect((await prisma.client.attendancePunch.findUniqueOrThrow({ where: { id: byOwner.punchId } })).reviewedAt).not.toBeNull();
   });
 
+  it('does not let a Manager clock themselves in or out with their own PIN', async () => {
+    setClock(E, '18:40');
+    // The Manager is on the staff list too, and the Owner has linked that record to the Manager's login.
+    const selfId = await addPerson('E2E Face Manager Self', outletId, { userId: managerUserId });
+    // Vouching is one person saying another is there: nobody vouches for themselves.
+    expect((await assisted(phone, managerPin, selfId).expect(403)).body.code).toBe('OWN_RECORD');
+    expect(await prisma.client.attendancePunch.count({ where: { staffMemberId: selfId } })).toBe(0);
+    // The PIN was right, so this is not a failed attempt against the phone's lock.
+    expect((await prisma.client.linkedDevice.findUniqueOrThrow({ where: { tokenHash: sha256(phone) } })).failedPinAttempts).toBe(0);
+    // The Owner vouches for the Manager, as for anyone. (The Manager vouching for other people is the test above.)
+    expect((await assisted(phone, PINS.owner, selfId).expect(200)).body).toMatchObject({ result: 'RECORDED', staffId: selfId, kind: 'IN', flag: 'ASSISTED' });
+
+    // Taken off again, punch and all, so the tests after this one see the same people and punches as before.
+    const made = await prisma.client.attendancePunch.findMany({ where: { staffMemberId: selfId }, select: { id: true } });
+    await prisma.client.auditLog.deleteMany({ where: { entityId: { in: [selfId, ...made.map((punch) => punch.id)] } } });
+    await prisma.client.staffMember.delete({ where: { id: selfId } });
+  });
+
   it('limits how many scans one phone may send in a minute', async () => {
     setClock(E, '20:00');
     for (let sent = 0; sent < FACE_RULES.identifyPerMinute; sent += 1) await identify(otherPhone, face('a-stranger')).expect(200);
@@ -496,7 +515,7 @@ describe('Attendance by face (e2e)', () => {
 
   // ───────────────────────── Reading ─────────────────────────
 
-  it('shows the punches and their photos to the Owner and the Manager, and only today’s sheet to the Head Chef', async () => {
+  it('shows the punches and their photos to the Owner and the Manager, and nothing of attendance to the Head Chef', async () => {
     const month = A.slice(0, 7);
     const list = await punchesOf(manager, cookId, month);
     const dayA = list.days.find((day) => day.date === A)!;
@@ -523,13 +542,13 @@ describe('Attendance by face (e2e)', () => {
     await http().get('/attendance/review').query({ outletId }).set(bearer(chef)).expect(403);
     await http().get('/attendance/review').query({ outletId }).set(bearer(otherManager)).expect(403);
 
-    // The Head Chef sees who is in today, with no photos, and no other day.
+    // The Head Chef has no attendance page: not even today's sheet of who is in (13 Oct 2026).
     setClock(E, '19:00');
-    const forChef = await sheet(chef);
-    expect(forChef).toMatchObject({ date: E, today: E, editable: false });
-    expect(forChef.people.find((person) => person.staffId === cookId)).toMatchObject({ status: 'PRESENT', onDuty: false, hasPhoto: false, firstInAt: ist(E, '09:00').toISOString() });
+    await http().get('/staff/attendance/day').query({ outletId }).set(bearer(chef)).expect(403);
     await http().get('/staff/attendance/day').query({ outletId, date: D }).set(bearer(chef)).expect(403);
-    expect((await sheet(manager, E)).people.find((person) => person.staffId === cookId)).toMatchObject({ hasPhoto: true });
+    const forManager = await sheet(manager);
+    expect(forManager).toMatchObject({ date: E, today: E, editable: false });
+    expect(forManager.people.find((person) => person.staffId === cookId)).toMatchObject({ status: 'PRESENT', onDuty: false, hasPhoto: true, firstInAt: ist(E, '09:00').toISOString() });
     expect(await sheet(manager, D)).toMatchObject({ date: D, editable: false });
     setClock(today, '10:00');
     expect(await sheet(owner, D)).toMatchObject({ editable: true });

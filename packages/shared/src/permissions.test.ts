@@ -49,8 +49,8 @@ describe("can", () => {
     expect(can(manager, "attendance", "create", here)).toBe(false);
     expect(can(manager, "attendance", "update", here)).toBe(false);
     for (const action of ["create", "read", "update"] as const) expect(can(headChef, "attendance", action, here)).toBe(false);
-    // The Head Chef still sees who is on the staff (and so today's sheet of who is in).
-    expect(can(headChef, "staff", "read", here)).toBe(true);
+    // Since 13 Oct 2026 the Head Chef has no attendance page, and so no reason to read the staff list either.
+    for (const action of ["create", "read", "update"] as const) expect(can(headChef, "staff", action, here)).toBe(false);
   });
 
   it("gives the head chef checklists and labels only", () => {

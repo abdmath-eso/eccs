@@ -7,6 +7,7 @@ import {
   earliestCorrectableDate,
   isSalaryDivisor,
   monthPay,
+  ownRecordLocked,
   staffSalaryMonth,
   worksOn,
   type AttendanceStatus,
@@ -33,6 +34,23 @@ const typed = (values: Partial<SalaryMonthEntryInput>): SalaryMonthEntryInput =>
   bonusPaise: 0,
   deductionsPaise: 0,
   ...values,
+});
+
+describe("ownRecordLocked", () => {
+  const manager = { userId: "user-manager", isOwner: false };
+
+  it("locks a person's own record to them, and nobody else's", () => {
+    expect(ownRecordLocked(manager, { userId: "user-manager" })).toBe(true);
+    expect(ownRecordLocked(manager, { userId: "user-chef" })).toBe(false);
+  });
+
+  it("cannot tell whose a record is until it is linked to a login", () => {
+    expect(ownRecordLocked(manager, { userId: null })).toBe(false);
+  });
+
+  it("never locks the Owner, who has nobody above to make the change for them", () => {
+    expect(ownRecordLocked({ userId: "user-owner", isOwner: true }, { userId: "user-owner" })).toBe(false);
+  });
 });
 
 describe("attendanceDateVerdict", () => {

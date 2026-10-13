@@ -217,6 +217,8 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 | T10 | A Manager adds a person to the staff | O | "{name} was added at {outlet}. Pay counts from {date}." | In-app | not built |
 | T11 | The Owner changes the days a month's salary is divided by | M | "Salaries at {outlet} are now divided by {days} days." | In-app | not built |
 | T12 | A person's joining date is changed | O | "{name}'s joining date was changed to {date}." | In-app | not built |
+| T13 | A Manager login has gone a day without being linked to a person on the staff list | O | "{manager}'s login is not linked to a staff record yet. Link it in Staff." | In-app | not built |
+| T14 | A Manager tried to clock themselves in or out with their own PIN | O | "{manager} tried to clock in with their own PIN at {outlet}." | In-app | not built |
 | T2 | A month's pay still owed after a set day of the next month | O | "{count} people are still owed pay for {month}." | In-app | not built |
 | T3 | The Manager records an advance or a payment | O | "{manager} recorded {amount} for {name}." | In-app | not built |
 | T4 | A person is marked as left, or a past day's attendance is corrected | O | "{name} was marked as left." | In-app | not built |
@@ -243,6 +245,7 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | Date | Change |
 |---|---|
+| 13 Oct 2026 | Attendance roles: T13 and T14 added. |
 | 13 Oct 2026 | Customer page rebuilt: Q1, Q2, Q5 and Q6 reworded, Q7 and Q8 added. |
 | 12 Oct 2026 | Pay rules: T10 to T12 added. |
 | 11 Oct 2026 | Face attendance: T1 withdrawn, T5 to T9 added. |

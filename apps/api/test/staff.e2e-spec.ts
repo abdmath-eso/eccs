@@ -1,5 +1,5 @@
 // The restaurant's own staff: people, attendance and the salary tracker. Who may
-// do what (ECCS nothing at all, the Head Chef only today's sheet, a Manager only
+// do what (ECCS and the Head Chef nothing at all, a Manager only
 // their own outlet), the Owner's corrections, and the month's pay worked out.
 // Since face attendance nobody marks attendance by hand: only the Owner can set
 // a day, with a reason. Clocking in and out is tested in attendance-face.e2e-spec.ts.
@@ -42,6 +42,7 @@ type Person = {
   userName: string | null;
   pay: { payType: string; payPaise: number } | null;
   hasRecords: boolean;
+  selfLocked: boolean;
 };
 type Day = {
   date: string;
@@ -85,6 +86,7 @@ type Salary = {
   lastPaidOn: string | null;
   outletName: string;
   entries: { id: string; kind: string; date: string; amountPaise: number; note: string | null }[];
+  selfLocked: boolean;
 };
 
 describe('Staff, attendance and salary (e2e)', () => {
@@ -95,6 +97,7 @@ describe('Staff, attendance and salary (e2e)', () => {
   let seededOutletId: string;
   let owner: string;
   let manager: string;
+  let managerUserId: string;
   let chef: string;
   let chefUserId: string;
   let otherChefUserId: string;
@@ -197,7 +200,7 @@ describe('Staff, attendance and salary (e2e)', () => {
     otherOutletId = (await outlet('E2E staff outlet two', OTHER_OUTLET_CODE)).id;
 
     owner = await pinLogin(CODES.kukatpally, PINS.owner);
-    manager = (await newLogin(MANAGER_NAME, 'MANAGER', outletId, OUTLET_CODE)).token;
+    ({ token: manager, userId: managerUserId } = await newLogin(MANAGER_NAME, 'MANAGER', outletId, OUTLET_CODE));
     ({ token: chef, userId: chefUserId } = await newLogin(CHEF_NAME, 'HEAD_CHEF', outletId, OUTLET_CODE));
     otherChefUserId = (await newLogin(OTHER_CHEF_NAME, 'HEAD_CHEF', otherOutletId, OTHER_OUTLET_CODE)).userId;
     otherManager = await pinLogin(CODES.jubilee, PINS.otherManager);
@@ -257,10 +260,9 @@ describe('Staff, attendance and salary (e2e)', () => {
     }
   });
 
-  it('shows the Head Chef the names but no pay, and nothing of the salary tracker', async () => {
-    const list = (await people(chef).expect(200)).body as Person[];
-    expect(list).toHaveLength(2);
-    expect(list.every((person) => person.pay === null)).toBe(true);
+  it('keeps the Head Chef out of the staff list, attendance and the salary tracker altogether', async () => {
+    // Attendance is by clocking in and out, so the Head Chef has no attendance page and no staff list (13 Oct 2026).
+    await people(chef).expect(403);
 
     await addPerson(chef, { name: 'E2E Intruder', payType: 'MONTHLY', payPaise: 1 }).expect(403);
     await patchPerson(chef, cook.id, { name: 'E2E Renamed' }).expect(403);
@@ -302,18 +304,65 @@ describe('Staff, attendance and salary (e2e)', () => {
     await patchPerson(manager, helper.id, { userId: chefUserId, jobTitle: 'Kitchen helper' }).expect(200);
   });
 
+  it('lets a Manager read their own record and pay but not change them: only the Owner can', async () => {
+    const refused = async (call: request.Test) => expect((await call.expect(403)).body.code).toBe('OWN_RECORD');
+
+    // A Manager cannot put themselves on the staff list, with a salary of their own choosing.
+    await refused(addPerson(manager, { name: 'E2E Manager Self', payType: 'MONTHLY', payPaise: rupees(90000), userId: managerUserId }));
+    // The Owner adds the Manager and links the record to the Manager's login.
+    const self = (
+      await addPerson(owner, { name: 'E2E Manager Self', payType: 'MONTHLY', payPaise: rupees(40000), joinedOn: on(lastMonth, 1), userId: managerUserId }).expect(201)
+    ).body as Person;
+    // To the Owner it is a record like any other.
+    expect(self).toMatchObject({ userId: managerUserId, selfLocked: false });
+
+    // The Manager sees their own record marked as theirs, pay included, and everyone else's as not.
+    const list = (await people(manager).expect(200)).body as Person[];
+    expect(list.find((person) => person.id === self.id)).toMatchObject({ selfLocked: true, pay: { payPaise: rupees(40000) } });
+    expect(list.filter((person) => person.id !== self.id).every((person) => !person.selfLocked)).toBe(true);
+    expect(((await salary(manager, self.id).expect(200)).body as Salary).selfLocked).toBe(true);
+    expect(((await salary(manager, cook.id).expect(200)).body as Salary).selfLocked).toBe(false);
+    expect(((await salary(owner, self.id).expect(200)).body as Salary).selfLocked).toBe(false);
+    const listed = (await salaryList(manager).expect(200)).body as { people: Salary[] };
+    expect(listed.people.find((person) => person.staffId === self.id)?.selfLocked).toBe(true);
+
+    // Their own details, pay, advances and payments are refused, each with the code the app puts into words.
+    await refused(patchPerson(manager, self.id, { payPaise: rupees(90000) }));
+    await refused(patchPerson(manager, self.id, { jobTitle: 'Boss' }));
+    // Not by taking the link off first, and not by linking someone else's record to their own login.
+    await refused(patchPerson(manager, self.id, { userId: null }));
+    await refused(patchPerson(manager, cook.id, { userId: managerUserId }));
+    await refused(saveSalary(manager, self.id, thisMonth, { bonusPaise: rupees(5000) }));
+    await refused(addEntry(manager, self.id, { kind: 'PAYMENT', month: thisMonth, date: today, amountPaise: rupees(1000) }));
+    await refused(http().delete(`/staff/people/${self.id}`).set(bearer(manager)));
+    expect(((await salary(owner, self.id).expect(200)).body as Salary).bonusPaise).toBe(0);
+
+    // The Owner does these things for the Manager, and the Manager still does them for everyone else.
+    const advanced = (await addEntry(owner, self.id, { kind: 'ADVANCE', month: thisMonth, date: today, amountPaise: rupees(500) }).expect(201)).body as Salary;
+    await refused(http().delete(`/staff/pay-entries/${advanced.entries[0]!.id}`).set(bearer(manager)));
+    await http().delete(`/staff/pay-entries/${advanced.entries[0]!.id}`).set(bearer(owner)).expect(200);
+    await patchPerson(owner, self.id, { jobTitle: 'Manager' }).expect(200);
+    await patchPerson(manager, cook.id, { jobTitle: 'Tandoor cook' }).expect(200);
+
+    // Taken off the list again, so the tests after this one count the same people as before.
+    await prisma.client.staffMember.delete({ where: { id: self.id } });
+    expect((await people(manager).expect(200)).body).toHaveLength(2);
+  });
+
   // ───────────────────────── Attendance ─────────────────────────
 
-  it("shows the Head Chef today's sheet only, and lets nobody but the Owner set a day by hand", async () => {
+  it("refuses the Head Chef the day's sheet, and lets nobody but the Owner set a day by hand", async () => {
     // "Today" on the sheet is the attendance day, which runs from 4 am to 4 am.
     const sheetDay = attendanceDayOf(new Date());
-    const sheet = (await day(chef).expect(200)).body as Day;
-    expect(sheet).toMatchObject({ date: sheetDay, today: sheetDay, earliestDate: sheetDay, editable: false });
+    // Attendance is by clocking in and out: the Head Chef has no attendance page, not even today's sheet.
+    await day(chef).expect(403);
+    await day(chef, addDays(sheetDay, -1)).expect(403);
+    const sheet = (await day(manager).expect(200)).body as Day;
+    expect(sheet).toMatchObject({ date: sheetDay, today: sheetDay, earliestDate: on(lastMonth, 1), editable: false });
     expect(sheet.people.map((person) => [person.name, person.status])).toEqual([
       ['E2E Cook', null],
       ['E2E Helper', null],
     ]);
-    await day(chef, addDays(sheetDay, -1)).expect(403);
 
     // Hand-marking ended with face attendance: the Head Chef and the Manager are refused, today or any day.
     const everyone = [
@@ -341,7 +390,8 @@ describe('Staff, attendance and salary (e2e)', () => {
 
   it('refuses a day that has not come, a day too long ago, and people not on this staff', async () => {
     const tomorrow = addDays(today, 1);
-    for (const token of [owner, manager, chef]) await day(token, tomorrow).expect(400);
+    for (const token of [owner, manager]) await day(token, tomorrow).expect(400);
+    await day(chef, tomorrow).expect(403);
     await mark(owner, tomorrow, [{ staffId: cook.id, status: 'PRESENT' }]).expect(400);
     await day(owner, 'yesterday').expect(400);
 

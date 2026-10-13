@@ -59,11 +59,11 @@ export class StaffController {
   // ───────────────────────── Attendance ─────────────────────────
 
   /**
-   * The day's sheet: who is in, and each person's status. Open to everyone who can see
-   * the staff list, so the Head Chef can see today's; the service keeps them to today.
+   * The day's sheet: who is in, and each person's status. For whoever reads attendance:
+   * the Owner and the Manager. The Head Chef has no attendance page (13 Oct 2026).
    */
   @Get('attendance/day')
-  @RequirePermission('staff', 'read')
+  @RequirePermission('attendance', 'read')
   day(@CurrentUser() user: AuthUser, @Query('outletId') outletId?: string, @Query('date') date?: string) {
     if (!outletId) throw new BadRequestException('outletId is required');
     return this.staff.day(user, outletId, date || undefined);

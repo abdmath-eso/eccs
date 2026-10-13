@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { Readable } from 'node:stream';
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, HttpStatus, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { Prisma } from '@eccs/db';
 import {
   ATTENDANCE_DAY_RULES,
+  ATTENDANCE_ERROR,
   DAY_FLAGS_NEEDING_OWNER,
   FACE_RULES,
   attendanceDateVerdict,
@@ -16,6 +17,7 @@ import {
   isMonth,
   monthBounds,
   monthOfDate,
+  ownRecordLocked,
   shiftDate,
   summariseDay,
   weekdayOf,
@@ -42,6 +44,7 @@ import { env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { AttendanceClock } from './attendance-clock.js';
+import { attendanceError } from './attendance.errors.js';
 import { AuditTrailService } from './audit-trail.service.js';
 
 const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
@@ -318,6 +321,7 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
     if (!staff || !worksOn(datesOf(staff), input.date)) {
       throw new BadRequestException('That person was not on the staff of this outlet that day');
     }
+    this.requireNotOwn(user, outlet.organizationId, staff);
     const date = toDbDate(input.date);
     const before = await this.db.attendanceRecord.findUnique({ where: { staffMemberId_date: { staffMemberId: staff.id, date } } });
 
@@ -350,6 +354,7 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
     const staff = await this.db.staffMember.findUnique({ where: { id: input.staffId } });
     if (!staff) throw new NotFoundException('Not found');
     const outlet = await this.requireOutlet(user, 'create', staff.outletId, true);
+    this.requireNotOwn(user, outlet.organizationId, staff);
     const at = new Date(input.at);
     if (at > this.clock.now()) throw new BadRequestException('A punch cannot be added for a time that has not come');
     const day = attendanceDayOf(at);
@@ -372,6 +377,7 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
   /** The Owner voids a wrong punch, with a reason. It stays on record, struck out, and no longer counts. */
   async voidPunch(user: AuthUser, punchId: string, reason: string): Promise<PunchDto> {
     const { punch, staff, outlet } = await this.requirePunch(user, 'update', punchId);
+    this.requireNotOwn(user, outlet.organizationId, staff);
     if (punch.voidedAt) throw new ConflictException('That punch has already been voided');
     const day = attendanceDayOf(punch.at);
     this.requireOpenDay(day);
@@ -393,7 +399,8 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
 
   /** The Owner has looked at a marked punch (an unsure match, an assisted punch...) and lets it stand. */
   async reviewPunch(user: AuthUser, punchId: string): Promise<PunchDto> {
-    const { punch, outlet } = await this.requirePunch(user, 'update', punchId);
+    const { punch, staff, outlet } = await this.requirePunch(user, 'update', punchId);
+    this.requireNotOwn(user, outlet.organizationId, staff);
     const reviewed = punch.reviewedAt
       ? punch
       : await this.db.attendancePunch.update({ where: { id: punch.id }, data: { reviewedAt: this.clock.now(), reviewedById: user.id } });
@@ -716,6 +723,18 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
       throw asNotFound ? new NotFoundException('Not found') : new ForbiddenException('You cannot do this at this outlet');
     }
     return outlet;
+  }
+
+  /**
+   * Nobody but the Owner corrects their own attendance (see `ownRecordLocked` in @eccs/shared).
+   * Today only the Owner holds the grant to correct at all, so this cannot fire. It is here so
+   * that giving the grant to the Manager one day cannot quietly let a Manager set their own days.
+   */
+  private requireNotOwn(user: AuthUser, organizationId: string, staff: { userId: string | null }): void {
+    const isOwner = user.memberships.some((membership) => membership.role === 'OWNER' && membership.organizationId === organizationId);
+    if (ownRecordLocked({ userId: user.id, isOwner }, staff)) {
+      throw attendanceError(HttpStatus.FORBIDDEN, ATTENDANCE_ERROR.ownRecord, 'Only the owner can change your own attendance.');
+    }
   }
 
   private async requirePunch(user: AuthUser, action: Action, punchId: string) {

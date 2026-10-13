@@ -67,6 +67,11 @@ export const ATTENDANCE_ERROR = {
   reasonRequired: "REASON_REQUIRED",
   /** The person is not on this outlet's staff, or has left. */
   notOnStaff: "NOT_ON_STAFF",
+  /**
+   * A change to the person's own attendance, pay or staff record by someone who is not the Owner,
+   * including a Manager picking themselves on the assisted route (see ownRecordLocked in staff.ts).
+   */
+  ownRecord: "OWN_RECORD",
 } as const;
 
 // ───────────────────────── Consent and enrolment ─────────────────────────

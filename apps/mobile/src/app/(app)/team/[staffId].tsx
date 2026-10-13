@@ -111,6 +111,16 @@ export default function PersonRecordScreen() {
         </View>
       )}
 
+      {/* The reader's own record: theirs to read, the Owner's to change. Said first, so nothing below surprises. */}
+      {staff?.selfLocked && (
+        <View style={[styles.note, { backgroundColor: theme.backgroundElement }]}>
+          <Ionicons name="lock-closed" size={22} color={theme.textSecondary} />
+          <ThemedText type="default" style={styles.noteText}>
+            {t('team.self.locked')}
+          </ThemedText>
+        </View>
+      )}
+
       <MonthStepper month={month} thisMonth={thisMonth} earliest={shiftMonth(thisMonth, -MONTHS_BACK)} onChange={setMonth} />
       <ErrorText message={error} onRetry={() => void reload()} />
       {!data && !error && <ActivityIndicator color={theme.primary} />}
@@ -207,7 +217,7 @@ export default function PersonRecordScreen() {
               onPress={() => router.push({ pathname: '/team/pay', params: { staffId: data.staff.id, month } })}
             />
           )}
-          {can(memberships, 'staff', 'update') && (
+          {can(memberships, 'staff', 'update') && !data.staff.selfLocked && (
             <Button
               variant="secondary"
               icon="create-outline"

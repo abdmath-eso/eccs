@@ -37,9 +37,8 @@ const TAB: Record<TabHref, Tab> = {
 // tracker. The older "Staff logins" screen (app accounts and PINs) is now reached from inside it,
 // so the menu does not offer two things called "Staff".
 const STAFF: MenuItem = { label: 'tile.team', icon: 'people-outline', href: '/team' };
-// The Head Chef's only part of it: who is in today. (Nobody marks attendance by hand;
-// people clock in and out by face on the PIN screen.)
-const ATTENDANCE: MenuItem = { label: 'team.att.title', icon: 'people-outline', href: '/team/attendance' };
+// The Head Chef has no part of it (founder, 13 Oct 2026): attendance is by clocking in and out on the
+// PIN screen, so there is nothing for the Head Chef to open. Until then the menu held "Attendance".
 
 // Everything each role can open, for the "More" menu. Mirrors docs/PROPOSAL.md section 8.
 // Sections that are not built yet are left out until they are.
@@ -66,7 +65,7 @@ const ECCS_MENU: MenuItem[] = [
   { label: 'tile.inspections', icon: 'clipboard-outline', href: '/inspections' },
 ];
 const MENU: Record<Role, MenuItem[]> = {
-  HEAD_CHEF: [...HEAD_CHEF_MENU, ATTENDANCE],
+  HEAD_CHEF: HEAD_CHEF_MENU,
   MANAGER: MANAGER_MENU,
   OWNER: MANAGER_MENU,
   SUPERVISOR: ECCS_MENU,

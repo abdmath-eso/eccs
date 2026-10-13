@@ -100,7 +100,7 @@ Technicians do not get the app; the Supervisor records the visit on their behalf
 |---|---|
 | **Owner** | All outlets of the brand. Everything the Manager has, plus certificates, invoices, subscription and billing, and user management. |
 | **Manager** | One or more assigned outlets. Everything the Head Chef has, plus service reminders, dues, booking, attendance and salary, history calendar, licences, visit sign-off. |
-| **Head Chef** | Mobile only. Daily checklists with photos, food labels, raising issues, marking attendance. |
+| **Head Chef** | Mobile only. Daily checklists with photos, food labels, raising issues. No attendance page: everyone clocks in and out by face (11 and 13 Oct 2026). |
 | **Auditor / Viewer** (Phase 3) | Time-limited read-only access to the document vault, for an inspector or franchise auditor. |
 
 ### Permission matrix
@@ -150,11 +150,14 @@ Restaurant roles never see another organisation's data. Owner covers all outlets
 | History calendar (1 year) | R | R own | – (sees the last 7 days in Daily checklists) |
 | Licences and document vault | CRU | CRU own | – |
 | Hygiene score and dashboards | R all own outlets | R own | R own outlet (simple view) |
-| Staff list and attendance | CRU | CRU own | C mark attendance |
-| Salary tracker | CRU | CRU own | – |
+| Staff list | CRU | CRU own, except their own record | – |
+| Attendance (by face clock-in; nobody marks it by hand) | R, and corrects a day with a reason | R own | – |
+| Salary tracker | CRU | CRU own, except their own pay | – |
 | Dues | R, pay | R, pay | – |
 | Subscription plan, invoices, billing | CRU, pay | R | – |
 | Customer QR page | R, U settings | R | – |
+
+**Nobody but the Owner changes their own record (13 Oct 2026).** A person with an app login who is also on the staff list reads their own attendance, pay and details as their role allows, and cannot change them: not their staff record, not their pay figures, advances or payments, and not by clocking themselves in with their own PIN. The Owner does it for them. This needs the person to be linked to their login on the staff list.
 
 Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one organisation, or one outlet). One person can hold several, for example a manager of two outlets.
 
@@ -212,7 +215,7 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - **AttendancePunch**: one clock-in or clock-out: outlet, staff member, server time, IN or OUT, how it was made (face, with an Owner's or Manager's PIN, or an Owner's correction), the match score, a photo kept 35 days, a flag for the Owner, and who voided it and why. Never deleted.
 - **FaceTemplate** (an encrypted face pattern, never a photo), **FaceConsent** (the employee's own acceptance, with the notice's version and language, and its withdrawal), **AttendanceSettings** (hours for a full and a half day, per outlet).
 - **AttendanceRecord** stays the day's final status, which the salary tracker reads; it now says whether it came from the punches or from the Owner, with the minutes worked and any flags.
-- Roles: the Owner enrols faces, corrects days and reviews flags; the Manager reads; the Head Chef sees today's sheet only. Nobody marks attendance by hand.
+- Roles: the Owner enrols faces, corrects days and reviews flags; the Manager reads; the Head Chef has no attendance page (13 Oct 2026). Nobody marks attendance by hand, and a Manager cannot clock themselves in or out with their own PIN.
 - **Pay rules (added 12 Oct 2026).** A person's pay counts from the day they joined (today, when none is given). Each outlet chooses the days a month's salary is divided by: that month's own days, always 30, always 26, or another number from 20 to 31 (`AttendanceSettings.salaryDivisorDays`). A day's pay is the salary divided by that number; a part month starts from the share of the salary for the calendar days counted; an absence takes off a day's pay and a half day half; a full month with no absence always pays the whole salary. A month keeps the number it was worked out with once paid or saved (`SalaryRecord.divisorDays`).
 
 ### Food labels
@@ -513,7 +516,7 @@ The whiteboard uses three tiers, which replace the names in section 3:
 
 | Whiteboard role | Replaces | Main screens |
 |---|---|---|
-| **Head Chef** | Kitchen Staff | Daily checklists with photos, food labels, raise an issue, attendance marking |
+| **Head Chef** | Kitchen Staff | Daily checklists with photos, food labels, raise an issue (attendance marking ended with face clock-in) |
 | **Manager** | Outlet Manager | Everything the Head Chef has, plus service reminders, dues, booking, attendance and salary, history calendar |
 | **Owner** | Brand Owner | Everything the Manager has across all outlets, plus certificates, invoices, subscription and billing |
 

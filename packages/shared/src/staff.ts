@@ -578,6 +578,36 @@ export const addPayEntrySchema = z.object({
 });
 export type AddPayEntryInput = z.input<typeof addPayEntrySchema>;
 
+// ───────────────────────── Not your own record ─────────────────────────
+
+/**
+ * The own-record rule (founder, 13 Oct 2026: "the manager cannot change the status of
+ * his own attendance").
+ *
+ * A person with an app login who is also on the staff list can READ their own
+ * attendance, pay and details as their role allows, but cannot CHANGE any of it: their
+ * own staff record (pay, joining date, day off, the link to their login), their own
+ * month's pay figures, advances and payments, a correction to their own attendance, or
+ * clocking themselves in or out with their own PIN in place of the face scan. Whatever
+ * their role lets them do for other people, for themselves only the Owner can do it.
+ * The Owner is the top of the tree, with nobody above to do it for them, so the Owner
+ * is not locked; what the Owner changes is in the audit trail like everything else.
+ *
+ * This is the separation of duties that time and pay systems build in: nobody enters
+ * and approves their own time or pay, and a manager's own record goes to the level
+ * above (7shifts keeps "can manage their own punches" as a separate switch from
+ * managing the team's; greytHR and Zoho People send a correction to the reporting
+ * manager and only let the top level approve itself; payroll control guidance asks
+ * that no one person can enter, approve and review the same record).
+ *
+ * It rests on the staff record being linked to the login (`StaffMember.userId`). A
+ * person who is not linked is not recognised as themselves, so the Owner's Staff
+ * screen lists Manager logins that are not linked yet.
+ */
+export function ownRecordLocked(reader: { userId: string; isOwner: boolean }, record: { userId: string | null }): boolean {
+  return !reader.isOwner && record.userId !== null && record.userId === reader.userId;
+}
+
 // ───────────────────────── What the server answers ─────────────────────────
 
 export interface StaffMemberDto {
@@ -600,10 +630,12 @@ export interface StaffMemberDto {
   /** Their app login, where they have one, and its name. */
   userId: string | null;
   userName: string | null;
-  /** How they are paid. Null for a reader who may not see pay (the Head Chef). */
+  /** How they are paid. Null for a reader who may not see pay. */
   pay: { payType: StaffPayType; payPaise: number } | null;
   /** True once any attendance, advance, payment or pay figure exists: the person can then only be marked as left. */
   hasRecords: boolean;
+  /** True when this is the reader's own record and they are not the Owner: they may read it, not change it (see ownRecordLocked). */
+  selfLocked: boolean;
 }
 
 export interface AttendanceDayPersonDto extends AttendanceDayFactsDto {
@@ -624,7 +656,7 @@ export interface AttendanceDayDto {
   /** YYYY-MM-DD */
   date: string;
   today: string;
-  /** The earliest day this reader may open: today for the Head Chef. */
+  /** The earliest day this reader may open: as far back as a day can still be corrected. */
   earliestDate: string;
   /** Whether this reader may correct this day: the Owner only, within the correction window. */
   editable: boolean;
@@ -692,6 +724,8 @@ export interface SalaryMonthDto extends SalaryFigures {
   entries: StaffPayEntryDto[];
   /** The date of the latest payment for this month. */
   lastPaidOn: string | null;
+  /** True when this is the reader's own pay and they are not the Owner: they may read it, not change it (see ownRecordLocked). */
+  selfLocked: boolean;
 }
 
 export interface SalaryOutletMonthDto {

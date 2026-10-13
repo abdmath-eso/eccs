@@ -232,10 +232,13 @@ First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api st
 6. **As the Owner:** Staff > **To review** shows flagged scans with their photo: "Looks right" or "Void" (with a reason). Staff > **Attendance** > tap a person: add a missing clock-out, or change the day to Leave, each with a reason.
 7. Staff > **Hours and pay days**: 8 and 4 hours to begin with, and under them the days a month's salary is divided by. Choose **Always 30 days**, Save, and open someone's pay: "How this is worked out" shows the new day's pay. Record a payment for the month, change the setting to 26, and open the pay again: that month still says 30.
 8. The person's page > **Face for attendance** > **Remove face**: they can no longer be scanned and are clocked in by PIN instead.
-9. **As a Head Chef** (PIN `8264`): More > Attendance shows today, read-only, with no photos and no pay.
+9. **As a Head Chef** (PIN `8264`): the More menu has no Attendance and no Staff. The Head Chef has no attendance page (13 Oct).
 10. **Pay:** tap a person > "Pay for this month" works from the days the clock-ins produced. For someone just added it says "Joined on ... Pay for October is counted from that day." A person with no joining date shows "Pay counted from ..., the day they were added" on their page, with **Change**.
 11. **Attendance screen:** a card for each person with their status, job and times, and the day's counts at the bottom. With more than one outlet, tap the outlet's name at the top to switch.
 12. Deccan Biryani has no Manager; to try a Manager's approval, add one under "App logins and PINs" first.
+13. **A Manager and their own record** (Spice Route has Managers: `SPICE-GB4N8P`, Owner PIN `2580`, Manager PIN `1593`). **As the Owner:** More > Staff. A card at the top says "Sample Manager (Gachibowli) has a login for this app that is not linked to a person on the staff list". If the Manager is not on the list yet, add them first (Add a person). Then tap **Link Sample Manager (Gachibowli)** and choose that person. The card goes.
+14. **As that Manager** (PIN `1593`): More > Staff > tap your own name. It says "This is your own record. Only the Owner can change it." and there is no "Edit details". Open "Pay for this month": every figure can be read, nothing can be typed, and there is no Save, Add advance or Add payment. Other people's records work as before.
+15. **On the PIN screen as that Manager:** Clock in / Clock out > **Can't scan?** > pick yourself > type your own PIN: "You cannot clock yourself in or out with your own PIN. Scan your face, or ask the Owner." Pick someone else and it works. The Owner's PIN works for the Manager.
 
 ## 18. Trying food labels
 

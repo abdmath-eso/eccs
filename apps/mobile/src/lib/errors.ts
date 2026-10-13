@@ -1,5 +1,6 @@
 import { ApiError } from '@eccs/api-client';
 import type { MessageKey, Translator } from '@eccs/i18n';
+import { ATTENDANCE_ERROR } from '@eccs/shared';
 
 /**
  * Turns a failed API call into a message in the user's language.
@@ -11,6 +12,8 @@ export function errorMessage(error: unknown, t: Translator, byStatus: Partial<Re
     const key = byStatus[error.status];
     if (key) return t(key);
     // Say what kind of failure it was, where the server's answer tells us.
+    // A person's own attendance, pay or staff record, which only the Owner can change.
+    if (error.code === ATTENDANCE_ERROR.ownRecord) return t('team.self.locked');
     if (error.status === 429) return t('error.tooMany');
     if (error.status === 403) return t('error.notAllowed');
     if (error.status >= 500) return t('error.server');

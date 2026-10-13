@@ -260,6 +260,8 @@ export default function ClockScreen() {
       else if (e.code === ATTENDANCE_ERROR.approverNotAllowed) setPinError(t('clock.assist.notAllowed'));
       else if (e.code === ATTENDANCE_ERROR.tooManyScans) setPinError(t('clock.wait'));
       else if (e.code === ATTENDANCE_ERROR.notOnStaff) setPinError(t('clock.assist.notOnStaff'));
+      // A Manager picked themselves: nobody vouches for their own attendance.
+      else if (e.code === ATTENDANCE_ERROR.ownRecord) setPinError(t('clock.assist.self'));
       else if (e.status === 401) setPinError(t('error.wrongPin'));
       else if (e.status === 429) setPinError(t('error.pinLocked'));
       else setPinError(t('error.generic'));

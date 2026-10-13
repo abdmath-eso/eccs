@@ -56,11 +56,16 @@ const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A:
 // punch photos; C = add a missing punch, set leave or the weekly off;
 // U = correct a day, void a punch, change the full-day and half-day hours.
 // Only the Owner has C and U. The Manager reads. The Head Chef has no grant on
-// attendance at all: today's sheet of who is in is read under staff "R", with
-// no photos. Clocking in and out needs no grant: it is done on the outlet's
-// linked phone with nobody logged in.
+// staff, attendance or salary at all (founder, 13 Oct 2026: attendance is by
+// clocking in and out, so the Head Chef has no attendance page; until then the
+// Head Chef read today's sheet of who is in under staff "R"). Clocking in and
+// out needs no grant: it is done on the outlet's linked phone with nobody
+// logged in.
 // For staff: enrolling a person's face is the Owner's alone (checked in the
 // service), although the Manager also holds C and U on staff.
+// On top of these grants, nobody but the Owner can change their OWN staff
+// record, attendance or pay, whatever their role allows for other people: see
+// `ownRecordLocked` in staff.ts. The API's services check it.
 // ECCS roles get nothing on staff, attendance and salary: that is the
 // restaurant's private employee data.
 const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
@@ -102,7 +107,7 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
   },
   HEAD_CHEF: {
     sopTemplates: "R", checklists: "CR", foodLabels: "CR", issues: "CR",
-    scores: "R", staff: "R",
+    scores: "R",
   },
 };
 

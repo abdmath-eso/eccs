@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@eccs/db';
 import {
   ATTENDANCE_ERROR,
@@ -14,6 +14,7 @@ import {
   isMonth,
   monthBounds,
   monthOfDate,
+  ownRecordLocked,
   shiftMonth,
   staffSalaryMonth,
   weekdayOf,
@@ -36,7 +37,7 @@ import { AttendanceClock } from '../attendance/attendance-clock.js';
 import { attendanceError } from '../attendance/attendance.errors.js';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { AuditTrailService } from '../attendance/audit-trail.service.js';
-import { FaceService } from '../attendance/face.service.js';
+import { FaceService, isOwnerOf } from '../attendance/face.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -85,12 +86,17 @@ interface StaffFields {
 /**
  * The restaurant's own staff: the people, their attendance and the salary
  * tracker. A record book for the Owner and Manager; ECCS has no access, and
- * the Head Chef sees only who is in today.
+ * since 13 Oct 2026 nor has the Head Chef (until then the Head Chef saw who
+ * was in today).
  *
  * Since face attendance nobody marks attendance by hand: a day's status is
  * worked out from the clock-ins and clock-outs (see ../attendance), and only
  * the Owner can set or correct one, with a reason. This service reads the
  * result; the pay arithmetic is unchanged.
+ *
+ * Nobody but the Owner changes their OWN record here: a Manager who is on the
+ * staff list reads their own details and pay but cannot edit them (see
+ * `ownRecordLocked` in @eccs/shared, and `requireNotOwn` below).
  */
 @Injectable()
 export class StaffService {
@@ -121,6 +127,8 @@ export class StaffService {
 
   async createPerson(user: AuthUser, input: StaffFields & { outletId: string; name: string; payType: StaffPayType; payPaise: number }) {
     const outlet = await this.requireOutlet(user, 'staff', 'create', input.outletId);
+    // A Manager cannot put themselves on the staff list, with a salary of their own choosing: the Owner adds them.
+    this.requireNotOwn(user, outlet, { userId: input.userId ?? null });
     if (input.userId) await this.checkLogin(outlet.id, input.userId, null);
     const row = await this.db.staffMember.create({
       data: {
@@ -151,6 +159,10 @@ export class StaffService {
     const { row, outlet } = await this.requireStaff(user, 'staff', 'update', staffId);
     const today = this.clock.date();
 
+    // Their own pay, joining date, day off or the link to their login: the Owner's to change. Nor can
+    // anyone link somebody else's record to their own login, which would make that record theirs.
+    this.requireNotOwn(user, outlet, row);
+    this.requireNotOwn(user, outlet, { userId: input.userId ?? null });
     if (input.userId) await this.checkLogin(outlet.id, input.userId, row.id);
     const joinedOn = input.joinedOn ?? countedFrom(input.joinedOn === undefined ? row : { ...row, joinedOn: null });
     if (input.leftOn) {
@@ -204,7 +216,8 @@ export class StaffService {
    * payment or pay figure is never deleted: they are marked as having left.
    */
   async removePerson(user: AuthUser, staffId: string): Promise<void> {
-    const { row } = await this.requireStaff(user, 'staff', 'update', staffId);
+    const { row, outlet } = await this.requireStaff(user, 'staff', 'update', staffId);
+    this.requireNotOwn(user, outlet, row);
     if (row._count.attendance + row._count.salaries + row._count.payEntries + row._count.punches > 0) {
       throw new ConflictException('This person has records. Mark them as having left instead.');
     }
@@ -216,25 +229,23 @@ export class StaffService {
   /**
    * One day's sheet for the outlet: everyone who was on the staff that day, the
    * day's status, and what the punches say (first in, last out, time worked).
-   * The Owner and the Manager can open any past day; the Head Chef sees today's
-   * only, to know who is in, and never a punch photo.
+   * For the Owner and the Manager, who can open any day as far back as a day can
+   * still be corrected. The Head Chef has no attendance page (13 Oct 2026).
    */
   async day(user: AuthUser, outletId: string, date: string | undefined): Promise<AttendanceDayDto> {
-    const outlet = await this.requireOutlet(user, 'staff', 'read', outletId);
+    const outlet = await this.requireOutlet(user, 'attendance', 'read', outletId);
     // "Today" is the attendance day: before 4 am it is still yesterday's, so a late shift stays on one sheet.
     const today = this.clock.day();
     const calendarToday = this.clock.date();
     const day = date ?? today;
     if (!isCalendarDate(day)) throw new BadRequestException('Give the date as YYYY-MM-DD');
     if (day > calendarToday) throw new BadRequestException('There is no attendance yet for a day that has not come');
-    const readsPast = can(user.memberships, 'attendance', 'read', { organizationId: outlet.organizationId, outletId: outlet.id });
-    if (!readsPast && day !== today && day !== calendarToday) throw new ForbiddenException("You can see today's attendance only");
 
     await this.attendance.settle(outlet.id);
     const rows = await this.db.staffMember.findMany({ where: { outletId }, orderBy: { name: 'asc' } });
     const people = rows.filter((row) => worksOn(datesOf(row), day));
     const [cells, enrolled] = await Promise.all([
-      this.attendance.cells(outlet.id, people, day, day, readsPast),
+      this.attendance.cells(outlet.id, people, day, day, true),
       this.face.enrolledAmong(people.map((row) => row.id)),
     ]);
     const cellOf = (staffId: string) => cells.get(staffId)?.[day] ?? AttendanceService.emptyCell();
@@ -248,7 +259,7 @@ export class StaffService {
       outletId,
       date: day,
       today,
-      earliestDate: readsPast ? earliestCorrectableDate(calendarToday) : today,
+      earliestDate: earliestCorrectableDate(calendarToday),
       editable: this.mayCorrect(user, outlet) && attendanceDateVerdict(day, calendarToday, true) === 'OK',
       people: people.map((row) => {
         const { markedById, ...cell } = cellOf(row.id);
@@ -383,7 +394,7 @@ export class StaffService {
       month: wanted,
       today,
       people: rows
-        .map((row) => this.toSalaryDto(row, outlet, wanted, today, divisorDays))
+        .map((row) => this.toSalaryDto(row, outlet, wanted, today, divisorDays, this.selfLocked(user, outlet, row)))
         .filter((person) => person.totals.countedDays > 0 || person.entries.length > 0 || person.balancePaise !== 0),
     };
   }
@@ -391,7 +402,7 @@ export class StaffService {
   async personSalary(user: AuthUser, staffId: string, month: string | undefined): Promise<SalaryMonthDto> {
     const { row, outlet } = await this.requireStaff(user, 'salary', 'read', staffId);
     const today = this.clock.date();
-    return this.salaryOf(row.id, outlet, this.monthOrThis(month, today), today);
+    return this.salaryOf(user, row.id, outlet, this.monthOrThis(month, today), today);
   }
 
   /** Saves what the Owner or Manager typed for a person's month: overtime, bonus, deductions, their own figures, a note. */
@@ -410,6 +421,7 @@ export class StaffService {
     },
   ): Promise<SalaryMonthDto> {
     const { row, outlet } = await this.requireStaff(user, 'salary', 'update', staffId);
+    this.requireNotOwn(user, outlet, row);
     const today = this.clock.date();
     const wanted = this.monthOrThis(month, today);
     const typed = {
@@ -429,7 +441,7 @@ export class StaffService {
       update: typed,
     });
     await this.keepDivisor(row.id, outlet.id, wanted);
-    return this.refreshCopies(row.id, outlet, wanted, today);
+    return this.refreshCopies(user, row.id, outlet, wanted, today);
   }
 
   /** Records an advance given, or a payment of the month's pay, on its own date. */
@@ -439,6 +451,7 @@ export class StaffService {
     input: { kind: StaffPayEntryKind; month: string; date: string; amountPaise: number; note: string | null },
   ): Promise<SalaryMonthDto> {
     const { row, outlet } = await this.requireStaff(user, 'salary', 'create', staffId);
+    this.requireNotOwn(user, outlet, row);
     const today = this.clock.date();
     const wanted = this.monthOrThis(input.month, today);
     if (input.date > today) throw new BadRequestException('The date cannot be after today');
@@ -464,7 +477,7 @@ export class StaffService {
       });
       await this.keepDivisor(row.id, outlet.id, wanted);
     }
-    return this.refreshCopies(row.id, outlet, wanted, today);
+    return this.refreshCopies(user, row.id, outlet, wanted, today);
   }
 
   /** Takes back an advance or payment entered by mistake. */
@@ -472,8 +485,9 @@ export class StaffService {
     const entry = await this.db.staffPayEntry.findUnique({ where: { id: entryId } });
     if (!entry) throw new NotFoundException('Not found');
     const { row, outlet } = await this.requireStaff(user, 'salary', 'update', entry.staffMemberId);
+    this.requireNotOwn(user, outlet, row);
     await this.db.staffPayEntry.delete({ where: { id: entry.id } });
-    return this.refreshCopies(row.id, outlet, monthOfDate(fromDbDate(entry.month)), this.clock.date());
+    return this.refreshCopies(user, row.id, outlet, monthOfDate(fromDbDate(entry.month)), this.clock.date());
   }
 
   // ───────────────────────── Helpers ─────────────────────────
@@ -499,14 +513,26 @@ export class StaffService {
     return can(user.memberships, 'attendance', 'update', { organizationId: outlet.organizationId, outletId: outlet.id });
   }
 
-  private async salaryOf(staffId: string, outlet: OutletRow, month: string, today: string): Promise<SalaryMonthDto> {
+  /** True when this is the user's own record and they are not the restaurant's Owner: they read it, and cannot change it. */
+  private selfLocked(user: AuthUser, outlet: OutletRow, record: { userId: string | null }): boolean {
+    return ownRecordLocked({ userId: user.id, isOwner: isOwnerOf(user, outlet.organizationId) }, record);
+  }
+
+  /** Refuses a change to the user's own record: only the Owner can make it. The app words the refusal from its code. */
+  private requireNotOwn(user: AuthUser, outlet: OutletRow, record: { userId: string | null }): void {
+    if (this.selfLocked(user, outlet, record)) {
+      throw attendanceError(HttpStatus.FORBIDDEN, ATTENDANCE_ERROR.ownRecord, 'Only the owner can change your own attendance, pay or staff record.');
+    }
+  }
+
+  private async salaryOf(user: AuthUser, staffId: string, outlet: OutletRow, month: string, today: string): Promise<SalaryMonthDto> {
     // Days that ended since the last look are settled first, so the pay is worked out from final statuses.
     await this.attendance.settle(outlet.id);
     const [row, divisorDays] = await Promise.all([
       this.db.staffMember.findUniqueOrThrow({ where: { id: staffId }, include: salaryInclude }),
       this.divisorSetting(outlet.id),
     ]);
-    return this.toSalaryDto(row, outlet, month, today, divisorDays);
+    return this.toSalaryDto(row, outlet, month, today, divisorDays, this.selfLocked(user, outlet, row));
   }
 
   /** The outlet's setting for the days a month's salary is divided by: null means the days in that month. */
@@ -533,8 +559,8 @@ export class StaffService {
    * After a change, brings the month's stored copies of the worked-out figures
    * up to date (where the month has a record), and answers with the month.
    */
-  private async refreshCopies(staffId: string, outlet: OutletRow, month: string, today: string): Promise<SalaryMonthDto> {
-    const dto = await this.salaryOf(staffId, outlet, month, today);
+  private async refreshCopies(user: AuthUser, staffId: string, outlet: OutletRow, month: string, today: string): Promise<SalaryMonthDto> {
+    const dto = await this.salaryOf(user, staffId, outlet, month, today);
     await this.db.salaryRecord.updateMany({
       where: { staffMemberId: staffId, month: toDbDate(`${month}-01`) },
       data: {
@@ -585,7 +611,7 @@ export class StaffService {
     ]);
   }
 
-  private toSalaryDto(row: SalaryRow, outlet: OutletRow, month: string, today: string, divisorDays: number | null): SalaryMonthDto {
+  private toSalaryDto(row: SalaryRow, outlet: OutletRow, month: string, today: string, divisorDays: number | null, selfLocked: boolean): SalaryMonthDto {
     const records: Record<string, SalaryMonthEntryInput> = {};
     for (const record of row.salaries) {
       records[monthOfDate(fromDbDate(record.month))] = {
@@ -633,11 +659,12 @@ export class StaffService {
         note: entry.note,
       })),
       lastPaidOn: payments.length ? fromDbDate(payments[payments.length - 1]!.date) : null,
+      selfLocked,
     };
   }
 
   private async toDtos(user: AuthUser, outlet: OutletRow, rows: StaffRow[]): Promise<StaffMemberDto[]> {
-    // Pay is shown only to someone who may read the salary tracker here: not to the Head Chef.
+    // Pay is shown only to someone who may read the salary tracker here.
     const seesPay = can(user.memberships, 'salary', 'read', { organizationId: outlet.organizationId, outletId: outlet.id });
     const loginIds = [...new Set(rows.map((row) => row.userId).filter((id): id is string => id !== null))];
     const logins = loginIds.length ? await this.db.user.findMany({ where: { id: { in: loginIds } }, select: { id: true, name: true } }) : [];
@@ -657,6 +684,7 @@ export class StaffService {
       userName: row.userId ? (nameOf.get(row.userId) ?? null) : null,
       pay: seesPay ? { payType: row.payType, payPaise: rateOf(row) } : null,
       hasRecords: row._count.attendance + row._count.salaries + row._count.payEntries + row._count.punches > 0,
+      selfLocked: this.selfLocked(user, outlet, row),
     }));
   }
 

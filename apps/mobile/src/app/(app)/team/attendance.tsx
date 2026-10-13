@@ -21,8 +21,9 @@ import { useOutlet } from '@/lib/use-outlet';
 /**
  * One day's attendance for the outlet, to read. Nobody marks attendance here
  * any more: each person clocks in and out by face on the PIN screen, and the
- * day's status is worked out from those times. The Head Chef sees today; the
- * Manager any day; the Owner can also open a person's day and correct it.
+ * day's status is worked out from those times. The Manager sees any day; the
+ * Owner can also open a person's day and correct it. The Head Chef has no
+ * attendance page (founder, 13 Oct 2026).
  */
 export default function AttendanceDayScreen() {
   const theme = useTheme();
@@ -34,9 +35,7 @@ export default function AttendanceDayScreen() {
   const [date, setDate] = useState<string | null>(params.date ?? null);
 
   const memberships = user?.memberships ?? [];
-  const allowed = can(memberships, 'staff', 'read');
-  // The Owner and Manager also open a person's day, the month and the photos; the Head Chef only sees who is in.
-  const manages = can(memberships, 'attendance', 'read');
+  const allowed = can(memberships, 'attendance', 'read');
 
   const { data, error, reload } = useLoaded<AttendanceDayDto>(
     allowed && outletId ? `${outletId}|${date ?? 'today'}` : null,
@@ -108,9 +107,9 @@ export default function AttendanceDayScreen() {
       {data?.people.length === 0 && (
         <>
           <ThemedText type="default" themeColor="textSecondary">
-            {t(manages ? 'team.att.empty' : 'team.att.emptyChef')}
+            {t('team.att.empty')}
           </ThemedText>
-          {manages && <Button icon="person-add-outline" label={t('team.people.add')} onPress={() => router.push('/team/person')} />}
+          <Button icon="person-add-outline" label={t('team.people.add')} onPress={() => router.push('/team/person')} />
         </>
       )}
 
@@ -119,8 +118,7 @@ export default function AttendanceDayScreen() {
         return (
           <Pressable
             key={person.staffId}
-            accessibilityRole={manages ? 'button' : 'text'}
-            disabled={!manages}
+            accessibilityRole="button"
             onPress={() => router.push({ pathname: '/team/day', params: { staffId: person.staffId, date: data.date } })}
             style={({ pressed }) => [styles.card, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
             <View style={styles.nameText}>
@@ -153,12 +151,12 @@ export default function AttendanceDayScreen() {
               <FlagList flags={person.flags} />
               {!person.enrolled && <EnrolledMark enrolled={false} />}
             </View>
-            {manages && <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />}
+            <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
           </Pressable>
         );
       })}
 
-      {manages && data && data.people.length > 0 && (
+      {data && data.people.length > 0 && (
         <Button icon="calendar-outline" variant="secondary" label={t('team.att.monthSummary')} onPress={() => router.push('/team/month')} />
       )}
     </Screen>

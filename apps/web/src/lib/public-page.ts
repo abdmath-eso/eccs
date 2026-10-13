@@ -131,7 +131,8 @@ a{color:#000}
 .langs a,.langs span{display:block;min-width:3rem;padding:.55rem .8rem;border:2px solid #000;text-align:center;text-decoration:none;font-weight:600}
 .langs span{background:#000;color:#fff}
 section{border-top:2px solid #000;padding:1rem 0 .5rem;margin-top:1rem}
-.score{font-size:3.5rem;line-height:1.1;font-weight:800;margin:0}
+.score{font-size:1.5rem;line-height:1.1;font-weight:800;margin:0}
+.score .num{font-size:3.5rem}
 .grade{font-size:1.4rem;font-weight:700;margin:.2rem 0 .6rem}
 .small{font-size:.95rem;color:#333}
 ul{margin:.4rem 0;padding-inline-start:1.2rem}
@@ -246,7 +247,11 @@ export function renderPage(page: PublicPageDto, token: string, language: PublicP
     return `
 <p>${text(score.isYesterday ? "public.score.forYesterday" : "public.score.forEarlier", { date: weekday(score.date, language) })}</p>
 ${caveat}
-<p class="score">${text("public.inspection.score", { score: score.score })}</p>
+<p class="score">${t("public.inspection.score", { score: "\u0000" })
+        .split("\u0000")
+        .map(escapeHtml)
+        // The number is drawn large and the words round it smaller, so "81 out of 100" stays on one line on a narrow phone.
+        .join(`<span class="num">${ltr(String(score.score))}</span>`)}</p>
 <p class="grade">${text(`score.band.${score.band}`)}</p>
 <h3>${text("public.score.partsHeading")}</h3>
 <ul class="plain">${parts}</ul>

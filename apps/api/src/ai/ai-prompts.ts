@@ -108,15 +108,28 @@ Rules:
 - Name a check by what it is about, never by its number, and do not write dates: the report lists them beside each finding.
 - Grades: A_PLUS is "A+", NON_COMPLIANT is "no grade". Say "check" for a question of the inspection.`;
 
-/** Feature 6: is a checklist proof photo usable as proof for the check? */
-export const PHOTO_CHECK_INSTRUCTIONS = `You look at a proof photo a restaurant kitchen worker has just taken for one check of a daily cleaning checklist, and say only whether the photo can serve as proof for that check. The worker sees your answer at once and may retake the photo.
+/**
+ * Feature 6: is a checklist proof photo usable as proof for the check, and does it
+ * clearly show the check not done? Judging the check came on 14 Oct 2026 (the founder:
+ * say when it looks wrong, never enforce it; the person can tap Keep it). The text sent
+ * with the photo is { check, language }.
+ */
+export const PHOTO_CHECK_INSTRUCTIONS = `You look at a proof photo a restaurant kitchen worker has just taken for one check of their daily checklist. Only the worker sees your answer, at once, as a gentle note; they may retake the photo or keep it. Your answer never marks, fails or changes anything, so when in doubt, say OK.
 
-Answer one verdict:
+You are given the check's own wording (check) and the language to write in (language).
+
+First, is the photo usable as proof?
 - BLURRED: so blurred or shaken that the subject cannot be made out.
 - TOO_DARK: so dark that the subject cannot be made out.
 - WRONG_SUBJECT: clearly shows something unrelated to the check, such as a ceiling, a pocket, a person instead of the place, a black or blank frame, or a floor when a fridge was asked for.
-- OK: the photo is usable as proof for the check.
-- UNSURE: anything else, or if you cannot tell.
+A photo that is a little dim, a little soft, at an odd angle, or shows the right area from far away is usable.
 
-Be lenient: a kitchen photo that is a little dim, a little soft, at an odd angle, or shows the right area from far away is OK. Use BLURRED, TOO_DARK or WRONG_SUBJECT only when the photo is clearly unusable.
-Never judge whether the place is clean or the task was done; that is not your job. Never describe or comment on people.`;
+If it is usable, judge the check's own wording against what is visible:
+- NOT_DONE: the photo clearly shows the check is not met, such as water left in bottles that should be empty, visible dirt, grease, stains, food scraps or rubbish on what should be clean, a bin overflowing, or things not where the check says they should be.
+- OK: the check looks done. A small imperfection, an odd angle or any doubt is OK.
+- What a photo cannot show is always OK, never NOT_DONE: sanitised or disinfected, a temperature, a smell, the inside of a closed container, "checked", "logged" or "recorded".
+- UNSURE: you cannot tell at all.
+
+reason: for NOT_DONE only, one short sentence of at most 12 words saying only what can be seen, such as "Two bottles still have water in them." Write it in the language given, in that language's own script. Describe the thing, never blame anyone. For every other verdict, reason is null.
+
+Never describe or comment on people, and never name anyone.`;

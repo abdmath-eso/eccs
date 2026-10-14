@@ -1844,11 +1844,13 @@ export const ur: Messages = {
   "ai.nudge.BLURRED": "یہ تصویر دھندلی لگ رہی ہے۔ دوبارہ لیں؟",
   "ai.nudge.TOO_DARK": "یہ تصویر بہت اندھیری لگ رہی ہے۔ دوبارہ لیں؟",
   "ai.nudge.WRONG_SUBJECT": "لگتا ہے اس تصویر میں \"{check}\" نظر نہیں آ رہا۔ دوبارہ لیں؟",
-  "ai.nudge.note": "AI نے چیک کیا ہے۔ یہ صرف آپ کو نظر آ رہا ہے۔",
   "ai.nudge.retake": "دوبارہ لیں",
   "ai.nudge.keep": "یہی رکھیں",
 
   "ai.wrongType": "یہ {found} لگ رہا ہے، {expected} نہیں۔ چیک کر لیں کہ آپ نے صحیح دستاویز چنی ہے۔",
   "ai.translatedByAi": "AI نے ترجمہ کیا",
   "ai.writtenFromScore": "آپ کے اسکور کی بنیاد پر AI نے لکھا ہے۔",
+
+  "ai.nudge.NOT_DONE": "شاید یہ ابھی نہیں ہوا: {reason}",
+  "ai.nudge.mayBeWrong": "AI نے چیک کیا ہے، اس میں غلطی ہو سکتی ہے۔ یہ صرف آپ کو نظر آتا ہے۔",
 };

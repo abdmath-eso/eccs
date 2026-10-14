@@ -19,7 +19,7 @@ import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
 import { AI_ENGINE } from './../src/ai/ai-engine.js';
 import { AiService } from './../src/ai/ai.service.js';
-import { FakeAiEngine } from './../src/ai/fake-ai-engine.js';
+import { FAKE_NOT_DONE_REASON, FakeAiEngine } from './../src/ai/fake-ai-engine.js';
 import { indiaDate } from './../src/checklists/checklists.service.js';
 import { env } from './../src/config/env.js';
 import { PdfPrinterService } from './../src/pdf/pdf-printer.service.js';
@@ -52,6 +52,7 @@ type Digest = {
   helpful: boolean | null;
 };
 type Check = { itemId: string; number: number; answer: string | null; findingId?: string | null; note: string | null };
+type Nudge = { nudge: string | null; reason: string | null; aiRequestId: string };
 type Inspection = {
   id: string;
   status: string;
@@ -448,10 +449,11 @@ describe('AI features, part 2 (e2e)', () => {
   describe('the nudge at the camera', () => {
     let runId: string;
     let itemId: string;
-    const check = (token: string, file: Buffer, filename = 'photo.jpg') =>
+    /** The phone's call, with the language on its screen. */
+    const check = (token: string, file: Buffer, filename = 'photo.jpg', language = 'EN') =>
       http()
         .post(`/checklists/runs/${runId}/items/${itemId}/photo-check`)
-        .set(as(token))
+        .set({ ...as(token), 'X-App-Language': language })
         .attach('file', file, { filename, contentType: 'image/jpeg' });
 
     beforeAll(async () => {
@@ -474,22 +476,81 @@ describe('AI features, part 2 (e2e)', () => {
 
     it('tells someone who may answer the check when the photo is clearly unusable, with Haiku, and keeps no picture', async () => {
       const before = await prisma.client.attachment.count({ where: { outletId } });
-      const blurred = (await check(owner, photo('FAKE-AI:BLURRED')).expect(200)).body as { nudge: string | null; aiRequestId: string };
-      expect(blurred.nudge).toBe('BLURRED');
-      expect((await check(owner, photo('FAKE-AI:TOO_DARK')).expect(200)).body.nudge).toBe('TOO_DARK');
-      expect((await check(owner, photo('FAKE-AI:WRONG_SUBJECT')).expect(200)).body.nudge).toBe('WRONG_SUBJECT');
+      const blurred = (await check(owner, photo('FAKE-AI:BLURRED')).expect(200)).body as Nudge;
+      expect(blurred).toMatchObject({ nudge: 'BLURRED', reason: null });
+      expect((await check(owner, photo('FAKE-AI:TOO_DARK')).expect(200)).body).toMatchObject({ nudge: 'TOO_DARK', reason: null });
+      expect((await check(owner, photo('FAKE-AI:WRONG_SUBJECT')).expect(200)).body).toMatchObject({ nudge: 'WRONG_SUBJECT', reason: null });
       // Lenient: fine and unsure both show nothing.
-      expect((await check(owner, photo()).expect(200)).body.nudge).toBeNull();
-      expect((await check(owner, photo('FAKE-AI:UNSURE')).expect(200)).body.nudge).toBeNull();
+      const fine = (await check(owner, photo()).expect(200)).body as Nudge;
+      expect(fine).toMatchObject({ nudge: null, reason: null });
+      expect((await check(owner, photo('FAKE-AI:UNSURE')).expect(200)).body).toMatchObject({ nudge: null, reason: null });
 
       const call = callsFor('photo-check')[0]!;
-      expect(call).toMatchObject({ model: 'claude-haiku-5-5', hasFile: true, facts: { check: CHECK_LABEL } });
-      expect(await row(blurred.aiRequestId)).toMatchObject({ feature: 'photo-check', status: 'OK', outletId });
+      expect(call).toMatchObject({ model: 'claude-haiku-5-5', hasFile: true, facts: { check: CHECK_LABEL, language: 'en' } });
+      // Only the photo, the check's wording and the language are sent.
+      expect(JSON.parse(call.text)).toEqual({ check: CHECK_LABEL, language: 'English' });
+      // The verdict is kept for measuring, also when nothing was shown.
+      expect(await row(blurred.aiRequestId)).toMatchObject({ feature: 'photo-check', status: 'OK', outletId, resultCode: 'BLURRED' });
+      expect((await row(fine.aiRequestId)).resultCode).toBe('OK');
       expect(await prisma.client.attachment.count({ where: { outletId } })).toBe(before);
 
       // The phone records a retake after the nudge.
       await http().post(`/ai/requests/${blurred.aiRequestId}/outcome`).set(as(owner)).send({ outcome: 'ACCEPTED' }).expect(204);
       expect((await row(blurred.aiRequestId)).outcome).toBe('ACCEPTED');
+    });
+
+    it('says when the check looks not done, with a reason in the language on screen, and keeps the verdict but never the reason', async () => {
+      const inTelugu = (await check(owner, photo('FAKE-AI:NOT_DONE'), 'photo.jpg', 'TE').expect(200)).body as Nudge;
+      expect(inTelugu).toMatchObject({ nudge: 'NOT_DONE', reason: `[te] ${FAKE_NOT_DONE_REASON}` });
+      const call = callsFor('photo-check')[0]!;
+      expect(call).toMatchObject({ model: 'claude-haiku-5-5', facts: { check: CHECK_LABEL, language: 'te' } });
+      expect(JSON.parse(call.text)).toEqual({ check: CHECK_LABEL, language: 'Telugu' });
+      for (const name of names) expect(call.text).not.toContain(name);
+
+      const inEnglish = (await check(owner, photo('FAKE-AI:NOT_DONE')).expect(200)).body as Nudge;
+      expect(inEnglish).toMatchObject({ nudge: 'NOT_DONE', reason: `[en] ${FAKE_NOT_DONE_REASON}` });
+
+      // Stored: the verdict only. Nothing of the reason is anywhere on the row.
+      const stored = await row(inTelugu.aiRequestId);
+      expect(stored).toMatchObject({ feature: 'photo-check', status: 'OK', resultCode: 'NOT_DONE', outcome: null });
+      expect(JSON.stringify(stored)).not.toMatch(/bottles|water/i);
+
+      // NOT_DONE that comes without a reason has nothing to say, so nothing is shown.
+      fake.queue('photo-check', { verdict: 'NOT_DONE', reason: null });
+      expect((await check(owner, photo()).expect(200)).body).toMatchObject({ nudge: null, reason: null });
+      // A reason far too long is refused, and nothing is shown either.
+      fake.queue('photo-check', { verdict: 'NOT_DONE', reason: 'water '.repeat(80) });
+      expect((await check(owner, photo()).expect(503)).body.code).toBe('AI_FAILED');
+    });
+
+    it('records Keep it as DISCARDED, and /ai/usage counts each verdict with the photos retaken and kept after it', async () => {
+      type Counts = { verdict: string; requests: number; retaken: number; kept: number };
+      const counts = async () => {
+        const usage = (await http().get('/ai/usage').set(as(superAdmin)).expect(200)).body as { today: { photoCheck: Counts[] }; month: { photoCheck: Counts[] } };
+        const of = (list: Counts[], verdict: string) => list.find((entry) => entry.verdict === verdict) ?? { verdict, requests: 0, retaken: 0, kept: 0 };
+        return { notDone: of(usage.today.photoCheck, 'NOT_DONE'), ok: of(usage.today.photoCheck, 'OK'), month: of(usage.month.photoCheck, 'NOT_DONE') };
+      };
+      const before = await counts();
+
+      const kept = (await check(owner, photo('FAKE-AI:NOT_DONE')).expect(200)).body as Nudge;
+      const retaken = (await check(owner, photo('FAKE-AI:NOT_DONE')).expect(200)).body as Nudge;
+      await check(owner, photo()).expect(200);
+      // Keep it: the person keeps the photo the nudge doubted.
+      await http().post(`/ai/requests/${kept.aiRequestId}/outcome`).set(as(owner)).send({ outcome: 'DISCARDED' }).expect(204);
+      expect((await row(kept.aiRequestId)).outcome).toBe('DISCARDED');
+      await http().post(`/ai/requests/${retaken.aiRequestId}/outcome`).set(as(owner)).send({ outcome: 'ACCEPTED' }).expect(204);
+
+      const after = await counts();
+      expect(after.notDone).toEqual({
+        verdict: 'NOT_DONE',
+        requests: before.notDone.requests + 2,
+        retaken: before.notDone.retaken + 1,
+        kept: before.notDone.kept + 1,
+      });
+      expect(after.ok.requests).toBe(before.ok.requests + 1);
+      expect(after.month.requests).toBeGreaterThanOrEqual(after.notDone.requests);
+      // Only ECCS sees it.
+      await http().get('/ai/usage').set(as(owner)).expect(403);
     });
 
     it('is refused to anyone who may not answer the check', async () => {
@@ -524,6 +585,38 @@ describe('AI features, part 2 (e2e)', () => {
         .send({ passed: true, attachmentId: upload.body.id })
         .expect(200);
       expect(answered.body.items.find((item: { id: string }) => item.id === itemId).response.photoPath).toBeTruthy();
+    });
+
+    it('changes nothing when the check looks not done: the answer and the checklist stay as they are, nobody is told, and it can be submitted', async () => {
+      // The item was answered OK with its photo by the test above.
+      const saved = () =>
+        Promise.all([
+          prisma.client.checklistRun.findUniqueOrThrow({ where: { id: runId } }),
+          prisma.client.checklistResponse.findMany({ where: { runId }, include: { attachments: { select: { id: true } } } }),
+          prisma.client.attachment.count({ where: { outletId } }),
+        ]);
+      const before = await saved();
+      expect(before[1]).toHaveLength(1);
+      expect(before[1][0]).toMatchObject({ itemId, passed: true });
+      const since = new Date();
+
+      const nudged = (await check(owner, photo('FAKE-AI:NOT_DONE')).expect(200)).body as Nudge;
+      expect(nudged.nudge).toBe('NOT_DONE');
+      expect(await saved()).toEqual(before);
+      // Nobody else hears of it: no notification about this checklist or outlet since the photo was checked.
+      const told = await prisma.client.$queryRaw<{ n: bigint }[]>`
+        SELECT count(*) AS n FROM "Notification"
+        WHERE "createdAt" >= ${since} AND (data::text LIKE ${`%${runId}%`} OR data::text LIKE ${`%${outletId}%`})`;
+      expect(Number(told[0]!.n)).toBe(0);
+
+      // The person keeps the photo and hands the checklist in, exactly as without AI.
+      await http().post(`/ai/requests/${nudged.aiRequestId}/outcome`).set(as(owner)).send({ outcome: 'DISCARDED' }).expect(204);
+      const submitted = (await http().post(`/checklists/runs/${runId}/submit`).set(as(owner)).expect(200)).body as {
+        status: string;
+        items: { id: string; response: { passed: boolean } | null }[];
+      };
+      expect(submitted.status).toBe('SUBMITTED');
+      expect(submitted.items.find((item) => item.id === itemId)?.response?.passed).toBe(true);
     });
   });
 });

@@ -243,7 +243,7 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 
 ### AI (added 14 Oct 2026)
 - The Claude API, called only by the server; the key never reaches an app. One switch for all of it, one per feature, and a daily spending limit overall and per outlet. Nothing about staff, attendance, pay, faces or people's names is sent, and the AI never sets a score, mark, grade or pass/fail.
-- **AiRequest**: one row per request: the feature, the model, who and where, tokens in and out, the cost in millionths of a dollar, the result (OK, ERROR, OFF, LIMIT, INVALID), how long it took, and later the person's response (accepted, edited, discarded, helpful, not helpful). No text, answer or picture is kept. The daily limits are counted from it.
+- **AiRequest**: one row per request: the feature, the model, who and where, tokens in and out, the cost in millionths of a dollar, the result (OK, ERROR, OFF, LIMIT, INVALID), the kind of answer where it is worth counting (the photo check's verdict, never its text), how long it took, and later the person's response (accepted, edited, discarded, helpful, not helpful). No text, answer or picture is kept. The daily limits are counted from it.
 - **AiScoreExplanation**: the "Why this score?" answer kept per outlet, day and language. **AiDigest**: the monitoring board's digest, one per day.
 - Translations of support messages are kept with each message, per language. The restaurant's own checklists, items, SOPs and food items record the language they were typed in (`typedLanguage`).
 - **Inspection** gains `summary`, `fixFirst` (the findings to fix first, by id), `summaryAiDrafted` and `summaryUpdatedAt`.
@@ -324,7 +324,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Customer QR: a public web page per outlet showing the cleanliness score, timestamps of recent services and a few approved photos (grill, hood and similar)
 - ECCS support screen: call, WhatsApp, ticket
 - PIN or biometric unlock for Manager and Owner areas
-- AI help (added 14 Oct 2026): a licence read into the form, support messages and the restaurant's own checklist items, SOPs and label names translated, "Why this score?", and a nudge when a checklist proof photo is blurred, dark or of the wrong thing. A person always checks or chooses; the AI never sets a score or fails a task
+- AI help (added 14 Oct 2026): a licence read into the form, support messages and the restaurant's own checklist items, SOPs and label names translated, "Why this score?", and a nudge when a checklist proof photo is blurred, dark, of the wrong thing, or shows the check is not done (the person can always keep the photo). A person always checks or chooses; the AI never sets a score or fails a task
 
 **ECCS side**
 - Web console: organisations, outlets, users

@@ -107,7 +107,7 @@ export const AI_FEATURES = [
   "explain-score", // "Why this score?": two sentences from the score's facts, with no numbers
   "monitoring-digest", // the daily digest at the top of the ECCS console's Monitoring board
   "inspection-summary", // the draft summary and "Fix these first" of an inspection report, for the Supervisor
-  "photo-check", // a nudge at the camera when a checklist proof photo is blurred, too dark or of the wrong thing
+  "photo-check", // a nudge at the camera when a checklist proof photo is blurred, too dark, of the wrong thing, or the check looks not done
 ] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
@@ -145,6 +145,21 @@ export interface AiUsageTotalsDto {
   requests: number;
   costUsd: number;
   byFeature: { feature: string; requests: number; costUsd: number; inputTokens: number; outputTokens: number }[];
+  /**
+   * The camera nudge's answers by verdict, and what the person did after a nudge:
+   * retook the photo (ACCEPTED) or tapped Keep it (DISCARDED). This is how ECCS sees how
+   * often the AI was wrong, e.g. NOT_DONE 12, retaken 8, kept 4. Only the verdict is
+   * kept (AiRequest.resultCode), never the reason shown to the person.
+   */
+  photoCheck: PhotoCheckCountsDto[];
+}
+
+/** One verdict of the camera nudge in a period: how many answers, and how many photos were retaken or kept after it. */
+export interface PhotoCheckCountsDto {
+  verdict: string;
+  requests: number;
+  retaken: number;
+  kept: number;
 }
 
 /** ECCS's view of what AI has cost: today and this month, by feature, with the limits in force. */
@@ -514,37 +529,61 @@ export interface InspectionSummaryDraftDto {
 // ───────────────────────── Feature 6: the nudge at the camera ─────────────────────────
 
 /**
- * Feature 6: whether a checklist proof photo is usable as proof for the check's wording.
- * Never whether the place is clean or the task was done. UNSURE counts as OK.
+ * Feature 6: whether a checklist proof photo is usable as proof for the check's wording
+ * (BLURRED, TOO_DARK, WRONG_SUBJECT), and since 14 Oct 2026 also whether it clearly shows
+ * the check not done (NOT_DONE: "Water bottles empty and clean" with water left in a
+ * bottle). UNSURE counts as OK. It is only ever a note to the person who took the photo:
+ * the answer, the item and the checklist are never changed by it.
  */
-export const PHOTO_CHECK_VERDICTS = ["OK", "BLURRED", "TOO_DARK", "WRONG_SUBJECT", "UNSURE"] as const;
+export const PHOTO_CHECK_VERDICTS = ["OK", "BLURRED", "TOO_DARK", "WRONG_SUBJECT", "NOT_DONE", "UNSURE"] as const;
 export type PhotoCheckVerdict = (typeof PHOTO_CHECK_VERDICTS)[number];
 
 /** The verdicts that show a nudge. Anything else shows nothing. */
-export const PHOTO_NUDGES = ["BLURRED", "TOO_DARK", "WRONG_SUBJECT"] as const;
+export const PHOTO_NUDGES = ["BLURRED", "TOO_DARK", "WRONG_SUBJECT", "NOT_DONE"] as const;
 export type PhotoNudge = (typeof PHOTO_NUDGES)[number];
 
-/** The small copy the phone sends is about 50 to 150 KB; anything over this is refused. */
+/** The small copy the phone sends (about 1024 pixels on its long side) is about 100 to 300 KB; anything over this is refused. */
 export const PHOTO_CHECK_MAX_BYTES = 1024 * 1024;
 
-export const photoCheckSchema = z.object({ verdict: z.enum(PHOTO_CHECK_VERDICTS) });
+/**
+ * A NOT_DONE reason longer than this is refused (asked for: about 12 words; Indian
+ * scripts take more characters a word than English).
+ */
+export const PHOTO_CHECK_REASON_MAX = 300;
+
+export const photoCheckSchema = z.object({
+  verdict: z.enum(PHOTO_CHECK_VERDICTS),
+  /** NOT_DONE only: what can be seen that does not match the check, in the person's language. Otherwise null. */
+  reason: z.string().max(PHOTO_CHECK_REASON_MAX).nullable(),
+});
 export type PhotoCheckAnswer = z.infer<typeof photoCheckSchema>;
 
 export const PHOTO_CHECK_JSON_SCHEMA: AiJsonSchema = {
   type: "object",
-  properties: { verdict: { enum: [...PHOTO_CHECK_VERDICTS] } },
-  required: ["verdict"],
+  properties: { verdict: { enum: [...PHOTO_CHECK_VERDICTS] }, reason: nullableString },
+  required: ["verdict", "reason"],
   additionalProperties: false,
 };
 
-/** Lenient on purpose: only a clearly unusable photo gets a nudge; OK and UNSURE get none. */
-export function photoNudgeFor(verdict: PhotoCheckVerdict): PhotoNudge | null {
-  return (PHOTO_NUDGES as readonly string[]).includes(verdict) ? (verdict as PhotoNudge) : null;
+/**
+ * What the phone shows for an answer. Lenient on purpose: OK and UNSURE show nothing;
+ * BLURRED, TOO_DARK and WRONG_SUBJECT show their own fixed words; NOT_DONE shows its
+ * reason, and nothing at all when it came without one (there is nothing to say).
+ */
+export function photoNudgeFor(answer: PhotoCheckAnswer): Pick<PhotoCheckDto, "nudge" | "reason"> {
+  if (answer.verdict === "NOT_DONE") {
+    const reason = answer.reason?.replace(/\s+/g, " ").trim();
+    return reason ? { nudge: "NOT_DONE", reason } : { nudge: null, reason: null };
+  }
+  const nudge = (PHOTO_NUDGES as readonly string[]).includes(answer.verdict) ? (answer.verdict as PhotoNudge) : null;
+  return { nudge, reason: null };
 }
 
 /** The answer to the phone: a nudge to show under the photo, or none. */
 export interface PhotoCheckDto {
   nudge: PhotoNudge | null;
+  /** NOT_DONE only: what looks not done, in the person's language ("Two bottles still have water in them."). Never stored. */
+  reason: string | null;
   /** The AiRequest it came from: the phone records "retook it" (ACCEPTED) or "kept it" (DISCARDED). */
   aiRequestId: string;
 }

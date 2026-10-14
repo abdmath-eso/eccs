@@ -1844,11 +1844,13 @@ export const hi: Messages = {
   "ai.nudge.BLURRED": "यह फ़ोटो धुंधली लग रही है। दोबारा लें?",
   "ai.nudge.TOO_DARK": "इस फ़ोटो में बहुत अंधेरा लग रहा है। दोबारा लें?",
   "ai.nudge.WRONG_SUBJECT": "लगता है इस फ़ोटो में \"{check}\" नहीं दिख रहा। दोबारा लें?",
-  "ai.nudge.note": "AI ने जांचा। यह सिर्फ़ आपको दिखता है।",
   "ai.nudge.retake": "दोबारा लें",
   "ai.nudge.keep": "इसे रखें",
 
   "ai.wrongType": "यह {found} लग रहा है, {expected} नहीं। जांच लें कि आपने सही दस्तावेज़ चुना है।",
   "ai.translatedByAi": "AI ने अनुवाद किया",
   "ai.writtenFromScore": "AI ने आपके स्कोर के आधार पर लिखा है।",
+
+  "ai.nudge.NOT_DONE": "शायद यह अभी पूरा नहीं हुआ है: {reason}",
+  "ai.nudge.mayBeWrong": "AI ने जांचा है, उससे गलती हो सकती है। यह सिर्फ़ आपको दिखता है।",
 };

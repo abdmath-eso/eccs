@@ -37,8 +37,8 @@ import { useSession } from '@/lib/session';
 // is still waiting laid over it. So the screen never waits for the network,
 // and nothing here fails just because the signal dropped.
 
-/** How long the nudge at the camera may take before the phone stops waiting for it. */
-const NUDGE_WAIT_MS = 6000;
+/** How long the nudge at the camera may take before the phone stops waiting for it (the server also gives up at 8 seconds). */
+const NUDGE_WAIT_MS = 8000;
 
 /** The id of the photo behind a signed photo path such as /attachments/<id>/content?... */
 const photoId = (photoPath: string) => photoPath.split('/')[2] ?? '';
@@ -338,8 +338,8 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
   const [saving, setSaving] = useState(false);
   const [keeping, setKeeping] = useState(false);
   const features = useAiFeatures();
-  /** The nudge at the camera for the photo just taken, if AI found it clearly unusable as proof. */
-  const [nudge, setNudge] = useState<{ photoId: string; kind: PhotoNudge; requestId: string } | null>(null);
+  /** The nudge at the camera for the photo just taken, if AI found it clearly unusable as proof or the check looking not done. */
+  const [nudge, setNudge] = useState<{ photoId: string; kind: PhotoNudge; reason: string | null; requestId: string } | null>(null);
   const tickOnly = !item.photoRequired;
 
   // A photo taken on this phone is shown from the phone until the server has it.
@@ -424,17 +424,22 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
   }
 
   /**
-   * The nudge at the camera: a small copy goes to the server with the check's id, and
-   * if the photo is clearly blurred, too dark or of something else, a quiet notice
-   * appears under it. No answer within a few seconds, no signal, AI off or over its
-   * limit: nothing appears, and nothing else changes.
+   * The nudge at the camera: a small copy goes to the server with the check's id (and,
+   * as with every request, the language on screen), and if the photo is clearly
+   * blurred, too dark or of something else, or clearly shows the check not done, a
+   * quiet notice appears under it for this person only. It is only a note: the answer
+   * (OK or Problem) is not touched, the item is not marked, and Submit works as always.
+   * No answer within a few seconds, no signal, AI off or over its limit: nothing
+   * appears, and nothing else changes.
    */
   async function lookAtPhoto(id: string, uri: string) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), NUDGE_WAIT_MS);
     try {
       const result = await api.checklists.checkPhoto(run.id, item.id, await smallPhotoCopy(uri), controller.signal);
-      if (result.nudge && !controller.signal.aborted) setNudge({ photoId: id, kind: result.nudge, requestId: result.aiRequestId });
+      if (result.nudge && !controller.signal.aborted) {
+        setNudge({ photoId: id, kind: result.nudge, reason: result.reason, requestId: result.aiRequestId });
+      }
     } catch {
       // Nothing to show: the photo stands as taken.
     } finally {
@@ -560,6 +565,7 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
         <PhotoNudgeNotice
           nudge={shownNudge.kind}
           check={localize(item.label, language)}
+          reason={shownNudge.reason}
           onRetake={() => void takePhoto()}
           onKeep={keepNudged}
         />

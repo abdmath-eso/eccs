@@ -86,19 +86,29 @@ export async function takeEvidencePhoto(): Promise<EvidencePhoto | null> {
   return { ...photo, facts: { place: await readPlace(), source: Platform.OS === 'web' ? 'FILE' : 'CAMERA' } };
 }
 
-/** The small copy sent for the nudge at the camera: enough to see blur or darkness, cheap to send and to check. */
-const CHECK_COPY_WIDTH = 640;
+/**
+ * The small copy sent for the nudge at the camera: since 14 Oct 2026 about 1024 pixels
+ * on its long side (it was 640 wide), so the AI can see things like water left in a
+ * bottle, not only blur or darkness. About 100 to 300 KB, under the server's 1 MB limit
+ * (PHOTO_CHECK_MAX_BYTES).
+ */
+const CHECK_COPY_LONG_SIDE = 1024;
+const CHECK_COPY_QUALITY = 0.7;
 
 /**
- * A small copy (about 640 pixels wide, JPEG quality 0.6) of a proof photo already
- * taken, for the AI's quick look at whether it is usable (the nudge at the camera).
- * The photo itself is kept and sent as it is; this copy is only looked at.
+ * A small copy (about 1024 pixels on its long side, JPEG quality 0.7) of a proof photo
+ * already taken, for the AI's quick look (the nudge at the camera). The photo itself is
+ * kept and sent as it is; this copy is only looked at.
  */
 export async function smallPhotoCopy(uri: string): Promise<UploadFile> {
-  const context = ImageManipulator.manipulate(uri);
-  context.resize({ width: CHECK_COPY_WIDTH });
+  // The photo's size first, so a portrait photo is limited by its height, not its width.
+  const original = await ImageManipulator.manipulate(uri).renderAsync();
+  const context = ImageManipulator.manipulate(original);
+  if (Math.max(original.width, original.height) > CHECK_COPY_LONG_SIDE) {
+    context.resize(original.width >= original.height ? { width: CHECK_COPY_LONG_SIDE } : { height: CHECK_COPY_LONG_SIDE });
+  }
   const rendered = await context.renderAsync();
-  const saved = await rendered.saveAsync({ compress: JPEG_QUALITY, format: SaveFormat.JPEG });
+  const saved = await rendered.saveAsync({ compress: CHECK_COPY_QUALITY, format: SaveFormat.JPEG });
   // See takeProofPhoto for why a phone hands over an Expo `File`.
   return Platform.OS === 'web' ? await (await fetch(saved.uri)).blob() : (new File(saved.uri) as unknown as Blob);
 }

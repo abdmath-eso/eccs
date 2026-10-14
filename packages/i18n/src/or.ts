@@ -1844,11 +1844,13 @@ export const or: Messages = {
   "ai.nudge.BLURRED": "ଏହି ଫଟୋ ଅସ୍ପଷ୍ଟ ଲାଗୁଛି। ପୁଣି ଉଠାଇବେ?",
   "ai.nudge.TOO_DARK": "ଏହି ଫଟୋ ବହୁତ ଅନ୍ଧାର ଲାଗୁଛି। ପୁଣି ଉଠାଇବେ?",
   "ai.nudge.WRONG_SUBJECT": "ଏହି ଫଟୋରେ \"{check}\" ଦେଖାଯାଉଥିବା ପରି ଲାଗୁନାହିଁ। ପୁଣି ଉଠାଇବେ?",
-  "ai.nudge.note": "AI ଯାଞ୍ଚ କରିଛି। ଏହା କେବଳ ଆପଣଙ୍କୁ ଦେଖାଯାଉଛି।",
   "ai.nudge.retake": "ପୁଣି ଉଠାନ୍ତୁ",
   "ai.nudge.keep": "ଏହାକୁ ରଖନ୍ତୁ",
 
   "ai.wrongType": "ଏହା {found} ପରି ଲାଗୁଛି, {expected} ନୁହେଁ। ଆପଣ ଠିକ୍ ଡକ୍ୟୁମେଣ୍ଟ ବାଛିଛନ୍ତି କି ନାହିଁ ଯାଞ୍ଚ କରନ୍ତୁ।",
   "ai.translatedByAi": "AI ଅନୁବାଦ କରିଛି",
   "ai.writtenFromScore": "ଆପଣଙ୍କ ସ୍କୋର୍ ଆଧାରରେ AI ଲେଖିଛି।",
+
+  "ai.nudge.NOT_DONE": "ଏହା ବୋଧହୁଏ ଏଯାଏଁ ହୋଇନାହିଁ: {reason}",
+  "ai.nudge.mayBeWrong": "AI ଯାଞ୍ଚ କରିଛି, ଏଥିରେ ଭୁଲ୍ ଥାଇପାରେ। ଏହା କେବଳ ଆପଣଙ୍କୁ ଦେଖାଯାଉଛି।",
 };

@@ -1702,6 +1702,9 @@ model AiRequest {
   createdAt      DateTime @default(now())
   /// Set later by the feature when the person acts on the answer (AI_OUTCOMES).
   outcome        String?
+  /// The kind of answer only, for measuring how often the AI was right (the camera
+  /// nudge's verdict, e.g. "NOT_DONE"). Never the answer's words.
+  resultCode     String?
 
   @@index([createdAt])
   @@index([outletId, createdAt])

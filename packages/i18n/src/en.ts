@@ -1847,13 +1847,15 @@ export const en = {
   "ai.nudge.BLURRED": "This photo looks blurred. Retake?",
   "ai.nudge.TOO_DARK": "This photo looks too dark. Retake?",
   "ai.nudge.WRONG_SUBJECT": "This photo doesn't seem to show \"{check}\". Retake?",
-  "ai.nudge.note": "Checked by AI. Only you see this.",
   "ai.nudge.retake": "Retake",
   "ai.nudge.keep": "Keep it",
   // AI features, fixes (14 Oct 2026).
   "ai.wrongType": "This looks like the {found}, not the {expected}. Check you chose the right document.",
   "ai.translatedByAi": "Translated by AI",
   "ai.writtenFromScore": "Written by AI from your score.",
+  // Camera nudge judges the check (14 Oct 2026).
+  "ai.nudge.NOT_DONE": "This may not be done yet: {reason}",
+  "ai.nudge.mayBeWrong": "Checked by AI, which can be wrong. Only you see this.",
 } as const;
 
 export type MessageKey = keyof typeof en;

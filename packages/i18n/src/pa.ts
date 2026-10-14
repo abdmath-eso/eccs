@@ -1844,11 +1844,13 @@ export const pa: Messages = {
   "ai.nudge.BLURRED": "ਇਹ ਫੋਟੋ ਧੁੰਦਲੀ ਲੱਗਦੀ ਹੈ। ਦੁਬਾਰਾ ਖਿੱਚਣੀ ਹੈ?",
   "ai.nudge.TOO_DARK": "ਇਸ ਫੋਟੋ ਵਿੱਚ ਬਹੁਤ ਹਨੇਰਾ ਲੱਗਦਾ ਹੈ। ਦੁਬਾਰਾ ਖਿੱਚਣੀ ਹੈ?",
   "ai.nudge.WRONG_SUBJECT": "ਇਸ ਫੋਟੋ ਵਿੱਚ \"{check}\" ਦਿਖਦਾ ਨਹੀਂ ਲੱਗਦਾ। ਦੁਬਾਰਾ ਖਿੱਚਣੀ ਹੈ?",
-  "ai.nudge.note": "AI ਨੇ ਚੈੱਕ ਕੀਤਾ। ਇਹ ਸਿਰਫ਼ ਤੁਹਾਨੂੰ ਦਿਖਦਾ ਹੈ।",
   "ai.nudge.retake": "ਦੁਬਾਰਾ ਖਿੱਚੋ",
   "ai.nudge.keep": "ਇਹੀ ਰੱਖੋ",
 
   "ai.wrongType": "ਇਹ {found} ਲੱਗਦਾ ਹੈ, {expected} ਨਹੀਂ। ਚੈੱਕ ਕਰ ਲਓ ਕਿ ਤੁਸੀਂ ਸਹੀ ਦਸਤਾਵੇਜ਼ ਚੁਣਿਆ ਹੈ।",
   "ai.translatedByAi": "AI ਨੇ ਅਨੁਵਾਦ ਕੀਤਾ",
   "ai.writtenFromScore": "ਤੁਹਾਡੇ ਸਕੋਰ ਦੇ ਆਧਾਰ 'ਤੇ AI ਨੇ ਲਿਖਿਆ ਹੈ।",
+
+  "ai.nudge.NOT_DONE": "ਸ਼ਾਇਦ ਇਹ ਅਜੇ ਨਹੀਂ ਹੋਇਆ: {reason}",
+  "ai.nudge.mayBeWrong": "AI ਨੇ ਚੈੱਕ ਕੀਤਾ ਹੈ, ਇਸ ਵਿੱਚ ਗਲਤੀ ਹੋ ਸਕਦੀ ਹੈ। ਇਹ ਸਿਰਫ਼ ਤੁਹਾਨੂੰ ਦਿਖਦਾ ਹੈ।",
 };

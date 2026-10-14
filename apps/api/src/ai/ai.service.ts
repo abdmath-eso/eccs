@@ -28,6 +28,7 @@ import {
   can,
   isEccsRole,
   microUsdToUsd,
+  PHOTO_CHECK_VERDICTS,
   type AiErrorCode,
   type AiFeature,
   type AiJsonSchema,
@@ -38,6 +39,7 @@ import {
   type AiUsage,
   type AiUsageDto,
   type AiUsageTotalsDto,
+  type PhotoCheckCountsDto,
 } from '@eccs/shared';
 import type { ZodType } from 'zod';
 import type { AuthUser } from '../auth/auth.types.js';
@@ -69,6 +71,12 @@ export interface AiCall<T> {
   timeoutMs?: number;
   /** The facts the text was built from, for the fake engine (see AiEngineRequest.facts). */
   facts?: unknown;
+  /**
+   * The kind of answer, kept on the request row for measuring how often the AI was
+   * right (the camera nudge's verdict, e.g. "NOT_DONE"). Only a short code: never any
+   * of the answer's words.
+   */
+  resultCode?: (answer: T) => string;
 }
 
 export type AiResult<T> =
@@ -162,7 +170,8 @@ export class AiService {
         this.logger.warn(`AI ${call.feature} on ${call.model}: the answer did not have the expected shape`);
         return { ok: false, code: AI_ERROR.failed, requestId: await this.record({ ...facts, status: 'INVALID', errorCode: 'SHAPE' }) };
       }
-      return { ok: true, value: checked.data, requestId: (await this.record({ ...facts, status: 'OK' }))! };
+      const resultCode = call.resultCode?.(checked.data);
+      return { ok: true, value: checked.data, requestId: (await this.record({ ...facts, status: 'OK', resultCode }))! };
     } catch (error) {
       const code = error instanceof AiEngineError ? error.code : 'UNEXPECTED';
       usage ??= error instanceof AiEngineError ? error.usage : undefined;
@@ -223,9 +232,10 @@ export class AiService {
   }
 
   private async totals(from: string): Promise<AiUsageTotalsDto> {
+    const since = indiaMidnight(from);
     const groups = await this.db.aiRequest.groupBy({
       by: ['feature'],
-      where: { createdAt: { gte: indiaMidnight(from) } },
+      where: { createdAt: { gte: since } },
       _count: { _all: true },
       _sum: { costMicroUsd: true, inputTokens: true, outputTokens: true },
       orderBy: { feature: 'asc' },
@@ -242,7 +252,38 @@ export class AiService {
       requests: byFeature.reduce((total, entry) => total + entry.requests, 0),
       costUsd: usd(groups.reduce((total, group) => total + (group._sum.costMicroUsd ?? 0), 0)),
       byFeature,
+      photoCheck: await this.photoCheckCounts(since),
     };
+  }
+
+  /**
+   * The camera nudge's answers since a moment, by verdict, with how many photos were
+   * retaken (ACCEPTED) or kept with "Keep it" (DISCARDED) after a nudge: how ECCS sees
+   * how often the AI was wrong. Requests that never got an answer have no verdict and
+   * are not counted here.
+   */
+  private async photoCheckCounts(since: Date): Promise<PhotoCheckCountsDto[]> {
+    const feature: AiFeature = 'photo-check';
+    const groups = await this.db.aiRequest.groupBy({
+      by: ['resultCode', 'outcome'],
+      where: { feature, resultCode: { not: null }, createdAt: { gte: since } },
+      _count: { _all: true },
+    });
+    const counts = new Map<string, PhotoCheckCountsDto>();
+    for (const group of groups) {
+      const verdict = group.resultCode ?? '';
+      const entry = counts.get(verdict) ?? { verdict, requests: 0, retaken: 0, kept: 0 };
+      entry.requests += group._count._all;
+      if (group.outcome === 'ACCEPTED') entry.retaken += group._count._all;
+      if (group.outcome === 'DISCARDED') entry.kept += group._count._all;
+      counts.set(verdict, entry);
+    }
+    // In the order the verdicts are listed (OK first, NOT_DONE near the end).
+    const rank = (verdict: string) => {
+      const at = (PHOTO_CHECK_VERDICTS as readonly string[]).indexOf(verdict);
+      return at < 0 ? PHOTO_CHECK_VERDICTS.length : at;
+    };
+    return [...counts.values()].sort((a, b) => rank(a.verdict) - rank(b.verdict));
   }
 
   /** Why no request may be made now, or null: today's spending (India time) is at a limit. */
@@ -263,6 +304,7 @@ export class AiService {
     errorCode?: string;
     usage?: AiUsage | undefined;
     durationMs?: number;
+    resultCode?: string | undefined;
   }): Promise<string> {
     const usage = entry.usage;
     const row = await this.db.aiRequest.create({
@@ -278,6 +320,7 @@ export class AiService {
         status: entry.status,
         errorCode: entry.errorCode ?? null,
         durationMs: entry.durationMs ?? 0,
+        resultCode: entry.resultCode ?? null,
       },
       select: { id: true },
     });

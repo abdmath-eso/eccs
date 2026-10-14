@@ -1844,11 +1844,13 @@ export const gu: Messages = {
   "ai.nudge.BLURRED": "આ ફોટો ઝાંખો લાગે છે. ફરી લેવો છે?",
   "ai.nudge.TOO_DARK": "આ ફોટામાં બહુ અંધારું લાગે છે. ફરી લેવો છે?",
   "ai.nudge.WRONG_SUBJECT": "આ ફોટામાં \"{check}\" દેખાતું હોય એવું લાગતું નથી. ફરી લેવો છે?",
-  "ai.nudge.note": "AI એ તપાસ્યું. આ ફક્ત તમને દેખાય છે.",
   "ai.nudge.retake": "ફરી લો",
   "ai.nudge.keep": "આ જ રાખો",
 
   "ai.wrongType": "આ {found} લાગે છે, {expected} નહીં. તમે સાચો દસ્તાવેજ પસંદ કર્યો છે કે નહીં તે તપાસી લો.",
   "ai.translatedByAi": "AI એ અનુવાદ કર્યો",
   "ai.writtenFromScore": "તમારા સ્કોરના આધારે AI એ લખ્યું છે.",
+
+  "ai.nudge.NOT_DONE": "કદાચ આ હજી થયું નથી: {reason}",
+  "ai.nudge.mayBeWrong": "AI એ તપાસ્યું છે, તેમાં ભૂલ હોઈ શકે. આ ફક્ત તમને જ દેખાય છે.",
 };

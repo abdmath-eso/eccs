@@ -15,7 +15,9 @@ import { AiEngineError, type AiEngine, type AiEngineAnswer, type AiEngineRequest
 // thing with no numbers. The daily digest has a point for
 // each of the first six outlets it is given; an inspection summary gives the score
 // and picks the first findings. A proof photo is fine unless its bytes carry a marker
-// ("FAKE-AI:BLURRED", "FAKE-AI:TOO_DARK", "FAKE-AI:WRONG_SUBJECT", "FAKE-AI:UNSURE").
+// ("FAKE-AI:BLURRED", "FAKE-AI:TOO_DARK", "FAKE-AI:WRONG_SUBJECT", "FAKE-AI:NOT_DONE",
+// "FAKE-AI:UNSURE"); NOT_DONE's reason is FAKE_NOT_DONE_REASON with the language code in
+// front, as translations have.
 // A test can queue an answer (or an error) for a feature's next call, and read every
 // call made.
 
@@ -33,6 +35,9 @@ export const FAKE_FIRE_NOC: LicenceAnswer = {
   issuedOn: '2026-06-12',
   expiresOn: '2027-06-11',
 };
+
+/** The camera nudge's fixed NOT_DONE reason, given as "[te] ..." in the language asked for. */
+export const FAKE_NOT_DONE_REASON = 'Two bottles still have water in them.';
 
 /** What a fake call was asked, for tests to look at. */
 export interface FakeAiCall {
@@ -142,9 +147,12 @@ export class FakeAiEngine implements AiEngine {
       }
       case 'photo-check': {
         // A test chooses the verdict with a marker in the picture's bytes, e.g. "FAKE-AI:BLURRED".
+        // NOT_DONE comes with a fixed reason in the language asked for, marked like a translation ("[te] ...").
+        const facts = request.facts as { language: string };
         const bytes = request.file ? request.file.data.toString('latin1') : '';
-        const marked = /FAKE-AI:(BLURRED|TOO_DARK|WRONG_SUBJECT|UNSURE)/.exec(bytes);
-        return { verdict: marked ? marked[1] : 'OK' };
+        const marked = /FAKE-AI:(BLURRED|TOO_DARK|WRONG_SUBJECT|NOT_DONE|UNSURE)/.exec(bytes);
+        const verdict = marked ? marked[1] : 'OK';
+        return { verdict, reason: verdict === 'NOT_DONE' ? `[${facts.language}] ${FAKE_NOT_DONE_REASON}` : null };
       }
       // A new feature adds its fixed answer above.
       default:

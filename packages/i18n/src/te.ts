@@ -1844,11 +1844,13 @@ export const te: Messages = {
   "ai.nudge.BLURRED": "ఈ ఫోటో మసకగా కనిపిస్తోంది. మళ్లీ తీయాలా?",
   "ai.nudge.TOO_DARK": "ఈ ఫోటో చాలా చీకటిగా కనిపిస్తోంది. మళ్లీ తీయాలా?",
   "ai.nudge.WRONG_SUBJECT": "ఈ ఫోటోలో \"{check}\" కనిపించడం లేదనిపిస్తోంది. మళ్లీ తీయాలా?",
-  "ai.nudge.note": "AI సరిచూసింది. ఇది మీకు మాత్రమే కనిపిస్తుంది.",
   "ai.nudge.retake": "మళ్లీ తీయండి",
   "ai.nudge.keep": "ఇదే ఉంచండి",
 
   "ai.wrongType": "ఇది {found} అనిపిస్తోంది, {expected} కాదు. మీరు సరైన పత్రం ఎంచుకున్నారో లేదో సరిచూడండి.",
   "ai.translatedByAi": "AI అనువదించింది",
   "ai.writtenFromScore": "మీ స్కోర్ ఆధారంగా AI రాసింది.",
+
+  "ai.nudge.NOT_DONE": "ఇది ఇంకా పూర్తి కాలేదేమో: {reason}",
+  "ai.nudge.mayBeWrong": "AI సరిచూసింది, అది పొరపాటు పడవచ్చు. ఇది మీకు మాత్రమే కనిపిస్తుంది.",
 };

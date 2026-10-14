@@ -228,19 +228,47 @@ describe("the answer shapes of the digest, the inspection write-up and the camer
     expect(inspectionSummaryAnswerSchema.safeParse({ summary: " ", fixFirst: [] }).success).toBe(false);
   });
 
-  it("accept only the five photo verdicts", () => {
-    expect(photoCheckSchema.safeParse({ verdict: "BLURRED" }).success).toBe(true);
-    expect(photoCheckSchema.safeParse({ verdict: "DIRTY" }).success).toBe(false);
+  it("accept only the six photo verdicts, each with a reason or null", () => {
+    expect(PHOTO_CHECK_VERDICTS).toEqual(["OK", "BLURRED", "TOO_DARK", "WRONG_SUBJECT", "NOT_DONE", "UNSURE"]);
+    expect(photoCheckSchema.safeParse({ verdict: "BLURRED", reason: null }).success).toBe(true);
+    expect(photoCheckSchema.safeParse({ verdict: "NOT_DONE", reason: "Two bottles still have water in them." }).success).toBe(true);
+    expect(photoCheckSchema.safeParse({ verdict: "DIRTY", reason: null }).success).toBe(false);
+    // The reason is always there in the answer's shape, even when it is null.
+    expect(photoCheckSchema.safeParse({ verdict: "OK" }).success).toBe(false);
+    // A reason far longer than about 12 words is refused, so nothing is shown.
+    expect(photoCheckSchema.safeParse({ verdict: "NOT_DONE", reason: "water ".repeat(60) }).success).toBe(false);
+    expect((PHOTO_CHECK_JSON_SCHEMA.properties as Record<string, object>).reason).toEqual({ type: ["string", "null"] });
   });
 });
 
 describe("the camera nudge", () => {
   it("shows only for a photo that is clearly unusable, and treats unsure as fine", () => {
-    expect(photoNudgeFor("BLURRED")).toBe("BLURRED");
-    expect(photoNudgeFor("TOO_DARK")).toBe("TOO_DARK");
-    expect(photoNudgeFor("WRONG_SUBJECT")).toBe("WRONG_SUBJECT");
-    expect(photoNudgeFor("OK")).toBeNull();
-    expect(photoNudgeFor("UNSURE")).toBeNull();
+    expect(photoNudgeFor({ verdict: "BLURRED", reason: null })).toEqual({ nudge: "BLURRED", reason: null });
+    expect(photoNudgeFor({ verdict: "TOO_DARK", reason: null })).toEqual({ nudge: "TOO_DARK", reason: null });
+    expect(photoNudgeFor({ verdict: "WRONG_SUBJECT", reason: null })).toEqual({ nudge: "WRONG_SUBJECT", reason: null });
+    expect(photoNudgeFor({ verdict: "OK", reason: null })).toEqual({ nudge: null, reason: null });
+    expect(photoNudgeFor({ verdict: "UNSURE", reason: null })).toEqual({ nudge: null, reason: null });
+  });
+
+  it("says what looks not done, in the AI's words, tidied", () => {
+    expect(photoNudgeFor({ verdict: "NOT_DONE", reason: "  Two bottles still\nhave water in them. " })).toEqual({
+      nudge: "NOT_DONE",
+      reason: "Two bottles still have water in them.",
+    });
+    expect(photoNudgeFor({ verdict: "NOT_DONE", reason: "రెండు సీసాల్లో ఇంకా నీళ్లు ఉన్నాయి." })).toEqual({
+      nudge: "NOT_DONE",
+      reason: "రెండు సీసాల్లో ఇంకా నీళ్లు ఉన్నాయి.",
+    });
+  });
+
+  it("shows nothing for NOT_DONE without a reason: there is nothing to say", () => {
+    expect(photoNudgeFor({ verdict: "NOT_DONE", reason: null })).toEqual({ nudge: null, reason: null });
+    expect(photoNudgeFor({ verdict: "NOT_DONE", reason: "   " })).toEqual({ nudge: null, reason: null });
+  });
+
+  it("never passes on a reason with another verdict", () => {
+    expect(photoNudgeFor({ verdict: "OK", reason: "Looks clean." })).toEqual({ nudge: null, reason: null });
+    expect(photoNudgeFor({ verdict: "BLURRED", reason: "Shaken." })).toEqual({ nudge: "BLURRED", reason: null });
   });
 });
 

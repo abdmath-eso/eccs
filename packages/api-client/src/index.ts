@@ -438,7 +438,8 @@ export function createApiClient(options: ApiClientOptions) {
       review: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/review`),
       /**
        * The nudge at the camera (AI): is this small copy of a proof photo usable as proof
-       * for the check? Fails with code AI_OFF, AI_LIMIT or AI_FAILED when AI steps aside.
+       * for the check, and does it clearly show the check not done (with a reason in the
+       * language on screen)? Fails with code AI_OFF, AI_LIMIT or AI_FAILED when AI steps aside.
        * `signal` lets the phone give up after a few seconds.
        */
       checkPhoto(runId: string, itemId: string, file: UploadFile, signal?: AbortSignal) {

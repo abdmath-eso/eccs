@@ -74,7 +74,9 @@ export class ChecklistsController {
 
   /**
    * The nudge at the camera: is this proof photo (a small copy of it) usable as proof
-   * for the check? Answers with a nudge to show, or none. The photo is not stored here.
+   * for the check, and does it clearly show the check not done? Answers with a nudge to
+   * show to the person who took it (and a reason for "not done"), or none. It never
+   * changes the answer or the checklist. The photo is not stored here.
    * Fails with code AI_OFF, AI_LIMIT or AI_FAILED when AI steps aside; the phone then
    * shows nothing, and answering and uploading work as always.
    */

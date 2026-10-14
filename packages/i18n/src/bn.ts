@@ -1844,11 +1844,13 @@ export const bn: Messages = {
   "ai.nudge.BLURRED": "এই ছবিটা ঝাপসা লাগছে। আবার তুলবেন?",
   "ai.nudge.TOO_DARK": "এই ছবিটা খুব অন্ধকার লাগছে। আবার তুলবেন?",
   "ai.nudge.WRONG_SUBJECT": "এই ছবিতে \"{check}\" দেখা যাচ্ছে বলে মনে হচ্ছে না। আবার তুলবেন?",
-  "ai.nudge.note": "AI দিয়ে দেখা হয়েছে। এটা শুধু আপনিই দেখতে পাচ্ছেন।",
   "ai.nudge.retake": "আবার তুলুন",
   "ai.nudge.keep": "এটাই রাখুন",
 
   "ai.wrongType": "এটা {found} বলে মনে হচ্ছে, {expected} নয়। ঠিক ডকুমেন্ট বেছে নিয়েছেন কি না মিলিয়ে নিন।",
   "ai.translatedByAi": "AI দিয়ে অনুবাদ করা",
   "ai.writtenFromScore": "আপনার স্কোরের ভিত্তিতে AI দিয়ে লেখা।",
+
+  "ai.nudge.NOT_DONE": "এটা হয়তো এখনও হয়নি: {reason}",
+  "ai.nudge.mayBeWrong": "AI দিয়ে যাচাই করা হয়েছে, এতে ভুল থাকতে পারে। এটা শুধু আপনিই দেখতে পাচ্ছেন।",
 };

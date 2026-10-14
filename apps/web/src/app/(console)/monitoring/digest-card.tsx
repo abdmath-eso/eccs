@@ -11,10 +11,24 @@ const timeOf = (iso: string) =>
 
 type Shown = { status: "loading" } | { status: "hidden" } | { status: "shown"; digest: MonitoringDigestDto };
 
+const words = (text: string) => text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const startsWithWords = (text: string[], start: string[]) => start.length > 0 && start.every((word, index) => text[index] === word);
+
+/**
+ * True when the outlet's name already says which restaurant it is, so "(restaurant)"
+ * after it would only repeat it: "Deccan Biryani House, Kukatpally" begins with
+ * "Deccan Biryani House", and "Spice Route, Gachibowli" begins with the first words of
+ * "Spice Route Kitchens" (its name before the comma).
+ */
+function namesRestaurant(outletName: string, restaurantName: string): boolean {
+  const restaurant = words(restaurantName);
+  return startsWithWords(words(outletName), restaurant) || startsWithWords(restaurant, words(outletName.split(",")[0] ?? ""));
+}
+
 /**
  * Today's digest at the top of the Monitoring board (14 Oct 2026), for the Super Admin
  * and the Operations Manager: one line on the day, then up to six short points, each
- * about one outlet that needs attention, most urgent first. Written by AI from the
+ * about one outlet that needs attention, in the board's own order. Written by AI from the
  * board's own facts on the first opening of the day and kept for the day.
  *
  * The pattern is the AI summary card at the top of an operations dashboard, refreshed
@@ -119,7 +133,8 @@ export function DigestCard({
               <a {...outletLink(point.outletId)} className="font-semibold text-primary hover:underline">
                 {point.outletName}
               </a>
-              <span className="text-muted"> ({point.organizationName})</span>: {point.text}
+              {!namesRestaurant(point.outletName, point.organizationName) && <span className="text-muted"> ({point.organizationName})</span>}:{" "}
+              {point.text}
             </li>
           ))}
         </ul>

@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LANGUAGE_NAMES, type LanguageCode } from '@eccs/i18n';
 import type { AiTranslationDto } from '@eccs/shared';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -30,20 +29,38 @@ export function AiNote({ text }: { text: string }) {
 }
 
 /**
- * "Other languages filled in by AI." Shown once on the screens where the restaurant
- * writes its own checklist items, SOPs and label names, while that feature is on.
+ * The small sparkles mark beside a field the AI filled in, with no words: the one line
+ * at the top of the form says what it means ("Read by AI. Check each field before
+ * saving."), so the note is not repeated under every field. Screen readers hear
+ * `label`. The same pattern as the AI marks design systems put beside a field's label
+ * (ServiceTitan's Anvil "AI marks", Cloudscape's generative-AI icon).
  */
-export function OtherLanguagesNote() {
+export function AiMark({ label }: { label: string }) {
+  const theme = useTheme();
+  return (
+    <Ionicons name="sparkles" size={16} color={theme.primary} accessible accessibilityRole="image" accessibilityLabel={label} />
+  );
+}
+
+/**
+ * "Other languages filled in by AI." Shown on the screens where the restaurant writes
+ * its own checklist items, SOPs and label names, while that feature is on: directly
+ * under the box where they type, and only once something is typed (`typed`), so it
+ * sits beside what it is about and not at the top of an empty screen.
+ */
+export function OtherLanguagesNote({ typed }: { typed: boolean }) {
   const { t } = useSession();
   const features = useAiFeatures();
-  return features['translate-content'] ? <AiNote text={t('ai.otherLanguages')} /> : null;
+  return features['translate-content'] && typed ? <AiNote text={t('ai.otherLanguages')} /> : null;
 }
 
 /**
  * A message shown in the reader's language when it was translated, the way messaging
- * apps do it (Microsoft Teams' inline translation): the translation, a "Translated
- * from English" mark, and "See original" to switch to the words as written (and "See
- * translation" back). With no translation, the message as written and nothing else.
+ * apps do it (Microsoft Teams' inline translation, LinkedIn's "See translation"): the
+ * translation, a "Translated by AI" mark, and "See original" to switch to the words as
+ * written (and "See translation" back). With no translation, the message as written and
+ * nothing else. The mark does not name the language it came from: an English language
+ * name inside Telugu text read oddly on the first pictures.
  */
 export function TranslatableText({ original, translation }: { original: string; translation?: AiTranslationDto | null }) {
   const theme = useTheme();
@@ -51,7 +68,6 @@ export function TranslatableText({ original, translation }: { original: string; 
   const [showOriginal, setShowOriginal] = useState(false);
 
   if (!translation) return <ThemedText type="default">{original}</ThemedText>;
-  const from = translation.from === 'other' ? null : LANGUAGE_NAMES[translation.from.toUpperCase() as LanguageCode];
   return (
     <View style={styles.translatable}>
       <ThemedText type="default">{showOriginal ? original : translation.text}</ThemedText>
@@ -60,7 +76,7 @@ export function TranslatableText({ original, translation }: { original: string; 
           <>
             <Ionicons name="language-outline" size={16} color={theme.textSecondary} />
             <ThemedText type="small" themeColor="textSecondary">
-              {from ? t('ai.translatedFrom', { language: from }) : t('ai.translated')}
+              {t('ai.translatedByAi')}
             </ThemedText>
           </>
         )}

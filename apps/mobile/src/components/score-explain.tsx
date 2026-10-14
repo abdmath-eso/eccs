@@ -18,10 +18,11 @@ type Shown =
 
 /**
  * "Why this score?" (14 Oct 2026): for the Owner and the Manager, a quiet button
- * that opens three short sentences written by AI from the score's own numbers: what
- * pulled it down most, and the one or two things to do first. It follows Microsoft's
- * guidelines for human-AI interaction: it says it was written by AI and that the
- * numbers are the app's (G2, G11), and asks "Helpful?" with a thumb up or down
+ * that opens two short sentences written by AI from the score's facts: what is costing
+ * the most, and the one or two things to do first. No numbers: the score card around it
+ * shows them, and an answer's own numbers disagreed with the cards on the first
+ * pictures. It follows Microsoft's guidelines for human-AI interaction: it says it was
+ * written by AI from the score (G2, G11), and asks "Helpful?" with a thumb up or down
  * (G15). If AI cannot answer, it says so and points to the plain list of what is
  * costing points, which is always on screen. Without signal it says "Needs signal".
  * Hidden when AI is off, for the Head Chef (no breakdown), and when nothing is
@@ -101,7 +102,7 @@ export function ScoreExplain({ score }: { score: HygieneScoreDto }) {
               {sentence}
             </ThemedText>
           ))}
-          <AiNote text={t('ai.writtenNote')} />
+          <AiNote text={t('ai.writtenFromScore')} />
           <View style={styles.helpful}>
             <ThemedText type="small" themeColor="textSecondary">
               {helpful === null ? t('ai.helpful') : t('ai.thanks')}

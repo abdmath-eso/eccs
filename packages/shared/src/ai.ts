@@ -9,7 +9,7 @@ import { SOP_LANGUAGES, type SopLanguage } from "./sops.js";
 //
 // The server does the calling (apps/api/src/ai). AI only ever suggests: a person
 // checks a filled-in form, a translation keeps its original, and an explanation of
-// the score uses the app's own numbers.
+// the score has no numbers of its own (the score card shows the app's).
 
 // ───────────────────────── Models and prices ─────────────────────────
 
@@ -104,7 +104,7 @@ export const AI_FEATURES = [
   "licence-reader", // reads a licence photo or PDF into the licence form
   "translate-support", // translates the messages of a support thread for the reader
   "translate-content", // fills in the other languages of the restaurant's own checklist items, SOPs and label names
-  "explain-score", // "Why this score?": three sentences from the score's own numbers
+  "explain-score", // "Why this score?": two sentences from the score's facts, with no numbers
   "monitoring-digest", // the daily digest at the top of the ECCS console's Monitoring board
   "inspection-summary", // the draft summary and "Fix these first" of an inspection report, for the Supervisor
   "photo-check", // a nudge at the camera when a checklist proof photo is blurred, too dark or of the wrong thing
@@ -369,25 +369,26 @@ export function contentTranslationJsonSchema(languages: readonly AiLanguage[]): 
   };
 }
 
-/** Feature 3: "Why this score?" in three short sentences. */
+/**
+ * Feature 3: "Why this score?" in two short sentences with no numbers at all (14 Oct
+ * 2026, after the first pictures: numbers in the answer repeated the list above it and
+ * did not match the cards below). The numbers stay on the score card.
+ */
 export const scoreExplanationSchema = z.object({
-  /** What pulled the score down most. */
-  pulledDown: z.string().trim().min(1).max(400),
-  /** The first thing to do. */
+  /** What is costing the most, in plain words. */
+  costingMost: z.string().trim().min(1).max(400),
+  /** The one or two things to do first. */
   doFirst: z.string().trim().min(1).max(400),
-  /** The second thing to do, or empty when there is only one. */
-  doNext: z.string().trim().max(400),
 });
 export type ScoreExplanationAnswer = z.infer<typeof scoreExplanationSchema>;
 
 export const SCORE_EXPLANATION_JSON_SCHEMA: AiJsonSchema = {
   type: "object",
   properties: {
-    pulledDown: { type: "string" },
+    costingMost: { type: "string" },
     doFirst: { type: "string" },
-    doNext: { type: "string" },
   },
-  required: ["pulledDown", "doFirst", "doNext"],
+  required: ["costingMost", "doFirst"],
   additionalProperties: false,
 };
 
@@ -396,7 +397,7 @@ export interface ScoreExplanationDto {
   outletId: string;
   /** The India date it was written for. */
   date: string;
-  /** Up to three short sentences, in the reader's language. */
+  /** Two short sentences with no numbers, in the reader's language. */
   sentences: string[];
   /** The AiRequest it came from, for "Helpful?". */
   aiRequestId: string;
@@ -587,10 +588,26 @@ export function numbersIn(text: string): number[] {
 }
 
 /**
- * The numbers in `text` that are not among `allowed`. An explanation of the score
- * must use only the app's own numbers; one that writes any other number is
- * rejected and the plain list of what is costing points is shown instead.
+ * The numbers in `text` that are not among `allowed`. The digest and the inspection
+ * write-up must use only the app's own numbers; an answer that writes any other
+ * number is rejected.
  */
 export function unknownNumbers(text: string, allowed: readonly number[]): number[] {
   return numbersIn(text).filter((value) => !allowed.some((known) => Math.abs(known - value) < 1e-9));
 }
+
+/**
+ * True when the text has a digit in any script (Unicode's decimal digits: 0 to 9,
+ * Devanagari, Telugu, Arabic-Indic and every other). "Why this score?" must have no
+ * numbers at all, so an answer with any digit is rejected.
+ */
+export const hasDigit = (text: string) => /\p{Nd}/u.test(text);
+
+/**
+ * True when an English text writes a count in words ("six sections", "twelve checks").
+ * The digest and the inspection summary are in English and must write numbers as
+ * digits, so the number check can test them: a real draft said "Six sections scored
+ * 100" when five had. "One" is left out: it is everyday English ("no one", "one of").
+ */
+export const hasNumberWord = (text: string) =>
+  /\b(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|dozen)\b/i.test(text);

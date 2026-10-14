@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { StyleSheet, TextInput, type TextInputProps } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
@@ -15,9 +15,11 @@ interface TextFieldProps extends TextInputProps {
   hint?: string | null;
   /** What is wrong with what was typed, shown under the field. */
   error?: string | null;
+  /** A small mark after the label, such as the sparkles on a field AI filled in. */
+  labelMark?: ReactNode;
 }
 
-export function TextField({ label, hint, error, style, onFocus, onBlur, ...rest }: TextFieldProps) {
+export function TextField({ label, hint, error, labelMark, style, onFocus, onBlur, ...rest }: TextFieldProps) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
   const { isRtl } = useDirection();
@@ -37,9 +39,12 @@ export function TextField({ label, hint, error, style, onFocus, onBlur, ...rest 
     // left to right (the phone number row) still has its label and messages the Urdu way.
     <DirectionView style={styles.wrapper}>
       {label && (
-        <ThemedText type="smallBold" themeColor="textSecondary">
-          {label}
-        </ThemedText>
+        <View style={styles.labelRow}>
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.labelText}>
+            {label}
+          </ThemedText>
+          {labelMark}
+        </View>
       )}
       <TextInput
         accessibilityLabel={label}
@@ -74,6 +79,8 @@ export function TextField({ label, hint, error, style, onFocus, onBlur, ...rest 
 
 const styles = StyleSheet.create({
   wrapper: { gap: Spacing.two },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  labelText: { flexShrink: 1 },
   input: {
     minHeight: MinTouchSize,
     borderWidth: 1,

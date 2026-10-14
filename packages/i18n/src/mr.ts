@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const mr: Partial<Messages> = {
+export const mr: Messages = {
   "app.name": "ECCS",
   "app.tagline": "स्वच्छ जागा. सुरक्षित कामकाज. मजबूत व्यवसाय.",
 
@@ -1814,15 +1814,12 @@ export const mr: Partial<Messages> = {
   "ai.issuedTo": "कोणाच्या नावे जारी: {name}",
   "ai.issuedOn": "जारी केल्याची तारीख (ऐच्छिक)",
   "ai.documentPhoto": "कागदपत्राचा फोटो",
-  "ai.translatedFrom": "{language} भाषेतून अनुवादित",
-  "ai.translated": "अनुवादित",
   "ai.seeOriginal": "मूळ पाहा",
   "ai.seeTranslation": "अनुवाद पाहा",
   "ai.otherLanguages": "इतर भाषा AI ने भरल्या आहेत.",
   "ai.whyScore": "हा स्कोअर का?",
   "ai.hide": "लपवा",
   "ai.working": "तयार होत आहे…",
-  "ai.writtenNote": "तुमच्या स्कोअरवरून AI ने लिहिले आहे. आकडे ॲपचे आहेत.",
   "ai.helpful": "उपयोगी वाटले?",
   "ai.helpfulYes": "होय, उपयोगी",
   "ai.helpfulNo": "उपयोगी नाही",
@@ -1850,4 +1847,8 @@ export const mr: Partial<Messages> = {
   "ai.nudge.note": "AI ने तपासले. हे फक्त तुम्हालाच दिसते.",
   "ai.nudge.retake": "पुन्हा काढा",
   "ai.nudge.keep": "हाच ठेवा",
+
+  "ai.wrongType": "हे {found} दिसत आहे, {expected} नाही. तुम्ही योग्य कागदपत्र निवडले आहे का ते तपासा.",
+  "ai.translatedByAi": "AI ने अनुवाद केला",
+  "ai.writtenFromScore": "तुमच्या स्कोअरच्या आधारे AI ने लिहिले आहे.",
 };

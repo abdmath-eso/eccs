@@ -8,9 +8,10 @@ import {
   type LicenceType,
 } from '@eccs/shared';
 import { useEffect, useState, useRef } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 
-import { AiNote } from '@/components/ai-parts';
+import { AiMark, AiNote } from '@/components/ai-parts';
+import { DocumentPhoto } from '@/components/document-photo';
 import { FileChooser } from '@/components/file-chooser';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -35,12 +36,13 @@ const VAULT_CATEGORIES = DOCUMENT_CATEGORIES.filter((category): category is Vaul
 type Removal = { kind: 'licence'; licence: LicenceDto } | { kind: 'document'; document: DocumentDto };
 
 /**
- * What the AI read off the chosen document (14 Oct 2026), kept so each field can be
- * marked "Filled by AI: check it" while it still holds what was read, or "Could not
- * read: type it in" while it is empty, and so the app can tell the server afterwards
- * whether the person kept what was filled in or changed it. The pattern is the one
- * expense apps use for receipts (Expensify SmartScan, Zoho Expense Autoscan): the
- * photo, the fields filled in, the person checks and corrects, then saves.
+ * What the AI read off the chosen document (14 Oct 2026), kept so each field can carry
+ * a small sparkles mark while it still holds what was read (one line at the top says
+ * "Read by AI. Check each field before saving."), or "Could not read: type it in" while
+ * it is empty, and so the app can tell the server afterwards whether the person kept
+ * what was filled in or changed it. The pattern is the one expense apps use for
+ * receipts (Expensify SmartScan, Zoho Expense Autoscan): the photo, the fields filled
+ * in, the person checks and corrects, then saves.
  */
 interface AiFill {
   requestId: string;
@@ -259,12 +261,13 @@ export default function DocumentsScreen() {
   const issuedOn = issuedDigits === 8 ? parseTypedDate(issued) : null;
   const issuedError = issuedDigits > 0 && !issuedOn ? t('docs.dateNotReal') : null;
 
-  /** Field notes while AI's reading is in the form: still what AI read, or still empty because it could not. */
-  const aiHint = (read: string | null | undefined, current: string | null): string | null => {
-    if (!aiFill || read === undefined) return null;
-    if (read === null) return current ? null : t('ai.couldNotRead');
-    return current === read ? t('ai.filledCheck') : null;
-  };
+  /** The note under a field AI could not read, while it is still empty: the person must type it. */
+  const aiHint = (read: string | null | undefined, current: string | null): string | null =>
+    aiFill && read === null && !current ? t('ai.couldNotRead') : null;
+
+  /** The sparkles beside a field's label while it still holds what AI read. */
+  const aiMark = (read: string | null | undefined, current: string | null) =>
+    aiFill && read && current === read ? <AiMark label={t('ai.filledCheck')} /> : null;
 
   /** Tells the server whether the person saved what AI filled in as it was, or changed some of it. */
   function reportAiOutcome(saved: { type: LicenceType | null; number: string | undefined; issuedOn: string | undefined; expiresOn: string }) {
@@ -379,20 +382,14 @@ export default function DocumentsScreen() {
       </ThemedText>
     ) : null;
 
-  /** The chosen photo, above the fields, so what was read can be checked against it. */
-  const chosenPhoto = file?.imageUri ? (
-    <Image
-      source={{ uri: file.imageUri }}
-      style={[styles.photo, { backgroundColor: theme.backgroundElement }]}
-      resizeMode="contain"
-      accessibilityLabel={t('ai.documentPhoto')}
-    />
-  ) : null;
+  /** The chosen photo, above the fields, so what was read can be checked against it; tapping it shows it full size. */
+  const chosenPhoto = file?.imageUri ? <DocumentPhoto uri={file.imageUri} /> : null;
 
   /** The number field, marked while it holds what AI read. */
   const numberField = (
     <TextField
       label={t('docs.number')}
+      labelMark={aiMark(aiFill?.number, number.trim() || null)}
       value={number}
       onChangeText={setNumber}
       maxLength={60}
@@ -405,6 +402,7 @@ export default function DocumentsScreen() {
   const issuedField = aiFill ? (
     <TextField
       label={t('ai.issuedOn')}
+      labelMark={aiMark(aiFill.issuedOn, issuedOn)}
       value={issued}
       onChangeText={(next) => setIssued((current) => maskTypedDate(next, current))}
       placeholder={t('docs.datePlaceholder')}
@@ -420,6 +418,7 @@ export default function DocumentsScreen() {
   const expiryField = (label: string) => (
     <TextField
       label={label}
+      labelMark={aiMark(aiFill?.expiresOn, expiresOn)}
       value={expiry}
       onChangeText={(next) => setExpiry((current) => maskTypedDate(next, current))}
       placeholder={t('docs.datePlaceholder')}
@@ -508,6 +507,12 @@ export default function DocumentsScreen() {
                 <FileChooser value={file} onChange={(chosen) => void licenceFileChosen(chosen)} />
                 {chosenPhoto}
                 {readingNote}
+                {/* AI read another kind of licence: perhaps the wrong document was chosen. Saving is still allowed. */}
+                {aiFill?.type && aiFill.type !== 'OTHER' && aiFill.type !== licence.type && (
+                  <ThemedText type="small" themeColor="warning">
+                    {t('ai.wrongType', { found: t(`licenceType.${aiFill.type}`), expected: licenceName(licence) })}
+                  </ThemedText>
+                )}
                 {numberField}
                 {issuedField}
                 {expiryField(t('docs.newExpiry'))}
@@ -572,9 +577,12 @@ export default function DocumentsScreen() {
             <FileChooser value={file} onChange={(chosen) => void licenceFileChosen(chosen)} />
             {chosenPhoto}
             {readingNote}
-            <ThemedText type="smallBold" themeColor="textSecondary">
-              {t('docs.licenceType')}
-            </ThemedText>
+            <View style={styles.labelRow}>
+              <ThemedText type="smallBold" themeColor="textSecondary">
+                {t('docs.licenceType')}
+              </ThemedText>
+              {aiMark(aiFill?.type, type)}
+            </View>
             <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('docs.licenceType')}>
               {LICENCE_TYPES.map((value) => (
                 <OptionChip
@@ -585,11 +593,6 @@ export default function DocumentsScreen() {
                 />
               ))}
             </View>
-            {aiFill?.type && aiFill.type === type && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {t('ai.filledCheck')}
-              </ThemedText>
-            )}
             {type === 'OTHER' && (
               <TextField
                 label={t('docs.licenceName')}
@@ -729,7 +732,7 @@ const styles = StyleSheet.create({
   sectionGap: { marginTop: Spacing.four },
   reading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   aiSummary: { gap: Spacing.half },
-  photo: { width: '100%', height: 200, borderRadius: Spacing.two },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },

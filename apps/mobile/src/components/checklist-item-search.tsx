@@ -3,6 +3,7 @@ import { localize, type ChecklistSuggestionDto, type OutletChecklistDto } from '
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { OtherLanguagesNote } from '@/components/ai-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
@@ -116,6 +117,8 @@ export function ChecklistItemSearch({ outletChecklistId, onAdded }: ChecklistIte
       </View>
       {/* Under the search box, where the person is looking when an add fails. */}
       <ErrorText message={addError} />
+      {/* What they type as their own item is put into the other languages by AI, when it is on. */}
+      <OtherLanguagesNote typed={searchable} />
 
       {searchable && (
         <View style={styles.proof}>

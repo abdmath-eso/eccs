@@ -4,6 +4,7 @@ import {
   AI_ERROR,
   AI_MODELS,
   firstDistinct,
+  hasNumberWord,
   isEccsRole,
   MONITORING_AREAS,
   MONITORING_DIGEST_JSON_SCHEMA,
@@ -74,7 +75,7 @@ export interface DigestFacts {
  * The daily digest at the top of the ECCS console's Monitoring board (feature 4,
  * 14 Oct 2026), for the Super Admin and the Operations Manager, who see every outlet.
  * One line on the day, then at most six short points, each about one outlet that
- * needs attention and why, the most urgent first.
+ * needs attention and why, in the board's own order (worst first).
  *
  * The pattern is the AI summary card at the top of an operations dashboard,
  * refreshed daily, labelled as AI-written, short first with the detail one click away,
@@ -161,7 +162,7 @@ export class MonitoringDigestService {
     const problem =
       unknownIds(named, facts.outlets.map((outlet) => outlet.id)).length > 0
         ? 'IDS'
-        : unknownNumbers(words, numbersIn(JSON.stringify(withoutIds(facts)))).length > 0
+        : unknownNumbers(words, numbersIn(JSON.stringify(withoutIds(facts)))).length > 0 || hasNumberWord(words)
           ? 'NUMBERS'
           : null;
     if (problem) {
@@ -169,9 +170,13 @@ export class MonitoringDigestService {
       throw aiUnavailable(AI_ERROR.failed, failed);
     }
 
-    // One point per outlet, at most six.
+    // One point per outlet, at most six, in the board's own order (worst first), whatever
+    // order the AI wrote them in: the digest must never rank outlets differently from the board.
     const kept = new Set(firstDistinct(named, MONITORING_DIGEST_MAX_POINTS));
-    const points = answer.value.points.filter((point) => kept.delete(point.outletId));
+    const points = inBoardOrder(
+      answer.value.points.filter((point) => kept.delete(point.outletId)),
+      facts.outlets.map((outlet) => outlet.id),
+    );
     const data = { overview: answer.value.overview, points, aiRequestId: answer.requestId, madeAt: new Date() };
     const row = await this.db.aiDigest.upsert({ where: { date: toDbDate(today) }, create: { date: toDbDate(today), ...data }, update: data });
     return this.toDto(row, false);
@@ -310,6 +315,17 @@ export function digestFacts(board: MonitoringBoardDto): DigestFacts {
     })),
     notListed: Math.max(0, flagged.length - MAX_OUTLETS_SENT),
   };
+}
+
+/**
+ * The points in the order of `boardOrder` (the board's outlet ids, worst first: the
+ * worst level, then the most areas needing attention, then the most to watch). The
+ * first pictures showed the AI ranking a different outlet first from the board.
+ */
+export function inBoardOrder<T extends { outletId: string }>(points: readonly T[], boardOrder: readonly string[]): T[] {
+  const place = new Map(boardOrder.map((id, index) => [id, index]));
+  const at = (point: T) => place.get(point.outletId) ?? boardOrder.length;
+  return [...points].sort((a, b) => at(a) - at(b));
 }
 
 /** The facts without the outlets' ids, whose letters and digits are not numbers anyone could write. */

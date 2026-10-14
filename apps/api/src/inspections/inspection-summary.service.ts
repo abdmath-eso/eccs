@@ -3,6 +3,7 @@ import {
   AI_ERROR,
   AI_MODELS,
   firstDistinct,
+  hasNumberWord,
   INSPECTION_FIX_FIRST_MAX,
   INSPECTION_SUMMARY_JSON_SCHEMA,
   inspectionSummaryAnswerSchema,
@@ -36,7 +37,15 @@ export interface SummaryFacts {
   score: number;
   outOf: 100;
   grade: string | null;
-  counts: { compliant: number; notCompliant: number; notApplicable: number; criticalChecksFailed: number };
+  counts: {
+    compliant: number;
+    notCompliant: number;
+    notApplicable: number;
+    criticalChecksFailed: number;
+    /** Worked out here so the model never counts sections itself (a real draft miscounted them). */
+    sections: number;
+    sectionsScoring100: number;
+  };
   sections: { section: string; scoreOutOf100: number | null; checks: { number: number; check: string; critical?: true; answer: string }[] }[];
   findings: {
     id: string;
@@ -104,7 +113,7 @@ export class InspectionSummaryService {
     const problem =
       unknownIds(answer.value.fixFirst, facts.findings.map((finding) => finding.id)).length > 0
         ? 'IDS'
-        : unknownNumbers(summary, numbersIn(JSON.stringify(numbersThatCount(facts)))).length > 0
+        : unknownNumbers(summary, numbersIn(JSON.stringify(numbersThatCount(facts)))).length > 0 || hasNumberWord(summary)
           ? 'NUMBERS'
           : null;
     if (problem) {
@@ -165,6 +174,8 @@ export function summaryFacts(inspection: DetailRow, checks: readonly (Inspection
       notCompliant: score.nonCompliant,
       notApplicable: score.notApplicable,
       criticalChecksFailed: score.criticalFailed,
+      sections: score.sections.length,
+      sectionsScoring100: score.sections.filter((section) => section.score === 100).length,
     },
     sections: score.sections.map((section) => ({
       section: section.section,

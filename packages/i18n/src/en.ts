@@ -1817,15 +1817,12 @@ export const en = {
   "ai.issuedTo": "Issued to: {name}",
   "ai.issuedOn": "Issued on (optional)",
   "ai.documentPhoto": "Photo of the document",
-  "ai.translatedFrom": "Translated from {language}",
-  "ai.translated": "Translated",
   "ai.seeOriginal": "See original",
   "ai.seeTranslation": "See translation",
   "ai.otherLanguages": "Other languages filled in by AI.",
   "ai.whyScore": "Why this score?",
   "ai.hide": "Hide",
   "ai.working": "Working it out…",
-  "ai.writtenNote": "Written by AI from your score. The numbers are the app's.",
   "ai.helpful": "Helpful?",
   "ai.helpfulYes": "Yes, helpful",
   "ai.helpfulNo": "Not helpful",
@@ -1853,6 +1850,10 @@ export const en = {
   "ai.nudge.note": "Checked by AI. Only you see this.",
   "ai.nudge.retake": "Retake",
   "ai.nudge.keep": "Keep it",
+  // AI features, fixes (14 Oct 2026).
+  "ai.wrongType": "This looks like the {found}, not the {expected}. Check you chose the right document.",
+  "ai.translatedByAi": "Translated by AI",
+  "ai.writtenFromScore": "Written by AI from your score.",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ta: Partial<Messages> = {
+export const ta: Messages = {
   "app.name": "ECCS",
   "app.tagline": "சுத்தமான இடங்கள். பாதுகாப்பான செயல்பாடுகள். வலுவான தொழில்கள்.",
 
@@ -1814,15 +1814,12 @@ export const ta: Partial<Messages> = {
   "ai.issuedTo": "யார் பெயரில் வழங்கப்பட்டது: {name}",
   "ai.issuedOn": "வழங்கிய தேதி (விரும்பினால்)",
   "ai.documentPhoto": "ஆவணத்தின் போட்டோ",
-  "ai.translatedFrom": "{language} மொழியிலிருந்து மொழிபெயர்க்கப்பட்டது",
-  "ai.translated": "மொழிபெயர்க்கப்பட்டது",
   "ai.seeOriginal": "மூலத்தைப் பார்",
   "ai.seeTranslation": "மொழிபெயர்ப்பைப் பார்",
   "ai.otherLanguages": "மற்ற மொழிகளை AI நிரப்பியது.",
   "ai.whyScore": "ஏன் இந்த ஸ்கோர்?",
   "ai.hide": "மறை",
   "ai.working": "தயாராகிறது…",
-  "ai.writtenNote": "உங்கள் ஸ்கோரை வைத்து AI எழுதியது. எண்கள் ஆப்பிலிருந்து வந்தவை.",
   "ai.helpful": "பயனுள்ளதா?",
   "ai.helpfulYes": "ஆம், பயனுள்ளது",
   "ai.helpfulNo": "பயனில்லை",
@@ -1850,4 +1847,8 @@ export const ta: Partial<Messages> = {
   "ai.nudge.note": "AI சரிபார்த்தது. இது உங்களுக்கு மட்டுமே தெரியும்.",
   "ai.nudge.retake": "மீண்டும் எடு",
   "ai.nudge.keep": "இதையே வை",
+
+  "ai.wrongType": "இது {found} போலத் தெரிகிறது, {expected} அல்ல. சரியான ஆவணத்தைத் தேர்ந்தெடுத்தீர்களா என்று சரிபார்க்கவும்.",
+  "ai.translatedByAi": "AI மொழிபெயர்த்தது",
+  "ai.writtenFromScore": "உங்கள் ஸ்கோரின் அடிப்படையில் AI எழுதியது.",
 };

@@ -102,8 +102,15 @@ export class IssuesService {
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
+    // Each row carries the English (or app-language) translation of its text when one is
+    // already kept, so the office can read its own list. A list never asks AI for one: it
+    // is made when someone opens the issue, at most once per language.
+    const target = readerLanguage(user);
     return issues
-      .map(toSummary)
+      .map((issue) => {
+        const kept = needsTranslation(descriptionMessage(issue), user, target);
+        return { ...toSummary(issue), descriptionTranslation: kept === 'missing' ? null : kept };
+      })
       .sort((a, b) => Number(isIssueOpen(b.status)) - Number(isIssueOpen(a.status)));
   }
 
@@ -290,10 +297,18 @@ export class IssuesService {
 /** The language the reader's screen is in: the app's language in the app, English in the console. */
 const readerLanguage = (user: AuthUser) => user.contentLanguage.toLowerCase() as AiLanguage;
 
+/** The issue's own text (its description) as translation sees it. */
+const descriptionMessage = (issue: IssueRow): ThreadMessage => ({
+  id: 'issue',
+  text: issue.description ?? issue.title,
+  authorId: issue.raisedById,
+  stored: issue.translations as StoredTranslations | null,
+});
+
 /** The description first, then the replies in order. */
 function threadMessages(issue: IssueDetailRow): ThreadMessage[] {
   return [
-    { id: 'issue', text: issue.description ?? issue.title, authorId: issue.raisedById, stored: issue.translations as StoredTranslations | null },
+    descriptionMessage(issue),
     ...issue.comments.map((comment) => ({
       id: comment.id,
       text: comment.body,

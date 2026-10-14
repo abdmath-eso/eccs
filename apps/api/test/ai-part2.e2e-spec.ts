@@ -250,6 +250,25 @@ describe('AI features, part 2 (e2e)', () => {
       expect(callsFor('monitoring-digest')).toHaveLength(1);
     });
 
+    it("puts the points in the board's own order (worst first), whatever order the AI wrote them in", async () => {
+      await prisma.client.aiDigest.deleteMany({ where: { date: dbToday() } });
+      const board = (await http().get('/monitoring').set(as(superAdmin)).expect(200)).body as {
+        outlets: { outletId: string; level: string }[];
+      };
+      const flagged = board.outlets.filter((outlet) => outlet.level === 'ATTENTION' || outlet.level === 'WATCH').map((outlet) => outlet.outletId);
+      const chosen = flagged.slice(0, 4);
+      expect(chosen.length).toBeGreaterThan(0);
+      // The AI ranks them backwards.
+      fake.queue('monitoring-digest', {
+        overview: 'Some outlets need attention.',
+        points: [...chosen].reverse().map((id) => ({ outletId: id, text: 'Checklists were missed.' })),
+      });
+      const made = (await digest(superAdmin).expect(200)).body as Digest;
+      expect(made.points.map((point) => point.outletId)).toEqual(chosen);
+      // Kept in that order, so later openings show the same.
+      expect(((await digest(opsManager).expect(200)).body as Digest).points.map((point) => point.outletId)).toEqual(chosen);
+    });
+
     it('refuses an answer naming an outlet that is not on the board, or a number that is not in the facts, and keeps nothing', async () => {
       await prisma.client.aiDigest.deleteMany({ where: { date: dbToday() } });
       fake.queue('monitoring-digest', { overview: 'Busy day.', points: [{ outletId: 'made-up-outlet', text: 'Call them.' }] });

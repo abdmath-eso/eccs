@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const te: Partial<Messages> = {
+export const te: Messages = {
   "app.name": "ECCS",
   "app.tagline": "శుభ్రమైన ప్రదేశాలు. సురక్షితమైన కార్యకలాపాలు. బలమైన వ్యాపారాలు.",
 
@@ -1814,15 +1814,12 @@ export const te: Partial<Messages> = {
   "ai.issuedTo": "ఎవరి పేరున జారీ అయింది: {name}",
   "ai.issuedOn": "జారీ తేదీ (ఐచ్ఛికం)",
   "ai.documentPhoto": "పత్రం యొక్క ఫోటో",
-  "ai.translatedFrom": "{language} నుండి అనువదించబడింది",
-  "ai.translated": "అనువదించబడింది",
   "ai.seeOriginal": "అసలుది చూడండి",
   "ai.seeTranslation": "అనువాదం చూడండి",
   "ai.otherLanguages": "ఇతర భాషలను AI నింపింది.",
   "ai.whyScore": "ఈ స్కోర్ ఎందుకు?",
   "ai.hide": "దాచు",
   "ai.working": "తయారవుతోంది…",
-  "ai.writtenNote": "మీ స్కోర్ ఆధారంగా AI రాసింది. సంఖ్యలు యాప్ ఇచ్చినవే.",
   "ai.helpful": "ఉపయోగపడిందా?",
   "ai.helpfulYes": "అవును, ఉపయోగపడింది",
   "ai.helpfulNo": "ఉపయోగపడలేదు",
@@ -1850,4 +1847,8 @@ export const te: Partial<Messages> = {
   "ai.nudge.note": "AI సరిచూసింది. ఇది మీకు మాత్రమే కనిపిస్తుంది.",
   "ai.nudge.retake": "మళ్లీ తీయండి",
   "ai.nudge.keep": "ఇదే ఉంచండి",
+
+  "ai.wrongType": "ఇది {found} అనిపిస్తోంది, {expected} కాదు. మీరు సరైన పత్రం ఎంచుకున్నారో లేదో సరిచూడండి.",
+  "ai.translatedByAi": "AI అనువదించింది",
+  "ai.writtenFromScore": "మీ స్కోర్ ఆధారంగా AI రాసింది.",
 };

@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ur: Partial<Messages> = {
+export const ur: Messages = {
   "app.name": "ECCS",
   "app.tagline": "صاف جگہیں۔ محفوظ کام۔ مضبوط کاروبار۔",
 
@@ -1814,15 +1814,12 @@ export const ur: Partial<Messages> = {
   "ai.issuedTo": "{name} کے نام پر جاری",
   "ai.issuedOn": "جاری ہونے کی تاریخ (اختیاری)",
   "ai.documentPhoto": "دستاویز کی تصویر",
-  "ai.translatedFrom": "{language} سے ترجمہ کیا گیا",
-  "ai.translated": "ترجمہ کیا گیا",
   "ai.seeOriginal": "اصل متن دیکھیں",
   "ai.seeTranslation": "ترجمہ دیکھیں",
   "ai.otherLanguages": "دوسری زبانیں AI نے بھری ہیں۔",
   "ai.whyScore": "یہ اسکور کیوں؟",
   "ai.hide": "چھپائیں",
   "ai.working": "جواب تیار ہو رہا ہے…",
-  "ai.writtenNote": "آپ کے اسکور سے AI نے لکھا ہے۔ نمبر ایپ کے نکالے ہوئے ہیں۔",
   "ai.helpful": "کیا یہ مددگار تھا؟",
   "ai.helpfulYes": "ہاں، مددگار",
   "ai.helpfulNo": "مددگار نہیں",
@@ -1850,4 +1847,8 @@ export const ur: Partial<Messages> = {
   "ai.nudge.note": "AI نے چیک کیا ہے۔ یہ صرف آپ کو نظر آ رہا ہے۔",
   "ai.nudge.retake": "دوبارہ لیں",
   "ai.nudge.keep": "یہی رکھیں",
+
+  "ai.wrongType": "یہ {found} لگ رہا ہے، {expected} نہیں۔ چیک کر لیں کہ آپ نے صحیح دستاویز چنی ہے۔",
+  "ai.translatedByAi": "AI نے ترجمہ کیا",
+  "ai.writtenFromScore": "آپ کے اسکور کی بنیاد پر AI نے لکھا ہے۔",
 };

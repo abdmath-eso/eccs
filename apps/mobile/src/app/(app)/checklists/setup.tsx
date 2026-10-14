@@ -5,7 +5,6 @@ import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { OtherLanguagesNote } from '@/components/ai-parts';
 import { ChecklistItemSearch } from '@/components/checklist-item-search';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -178,8 +177,6 @@ export default function ChecklistSetupScreen() {
     <Screen back title={t('setup.title')} subtitle={t('setup.help')} onRefresh={load}>
       <ErrorText message={failedAt('load')} onRetry={() => void load()} />
       {lists === null && !failedAt('load') && <ActivityIndicator color={theme.primary} />}
-      {/* Items and checklist names typed here are put into the other languages by AI, when it is on. */}
-      {lists !== null && <OtherLanguagesNote />}
 
       {lists?.map((list) => {
         const timeDraft = timeDrafts[list.id];

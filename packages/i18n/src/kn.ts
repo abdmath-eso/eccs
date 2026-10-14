@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const kn: Partial<Messages> = {
+export const kn: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ಸ್ವಚ್ಛ ಜಾಗಗಳು. ಸುರಕ್ಷಿತ ಕೆಲಸ. ಬಲವಾದ ವ್ಯಾಪಾರ.",
 
@@ -1814,15 +1814,12 @@ export const kn: Partial<Messages> = {
   "ai.issuedTo": "ಯಾರ ಹೆಸರಿಗೆ ನೀಡಲಾಗಿದೆ: {name}",
   "ai.issuedOn": "ನೀಡಿದ ದಿನಾಂಕ (ಬೇಕಿದ್ದರೆ)",
   "ai.documentPhoto": "ದಾಖಲೆಯ ಫೋಟೋ",
-  "ai.translatedFrom": "{language} ಭಾಷೆಯಿಂದ ಅನುವಾದಿಸಲಾಗಿದೆ",
-  "ai.translated": "ಅನುವಾದಿಸಲಾಗಿದೆ",
   "ai.seeOriginal": "ಮೂಲ ನೋಡಿ",
   "ai.seeTranslation": "ಅನುವಾದ ನೋಡಿ",
   "ai.otherLanguages": "ಇತರ ಭಾಷೆಗಳನ್ನು AI ತುಂಬಿದೆ.",
   "ai.whyScore": "ಈ ಸ್ಕೋರ್ ಯಾಕೆ?",
   "ai.hide": "ಮರೆಮಾಡಿ",
   "ai.working": "ತಯಾರಾಗುತ್ತಿದೆ…",
-  "ai.writtenNote": "ನಿಮ್ಮ ಸ್ಕೋರ್ ಆಧರಿಸಿ AI ಬರೆದಿದೆ. ಸಂಖ್ಯೆಗಳನ್ನು ಆ್ಯಪ್ ಕೊಟ್ಟಿದೆ.",
   "ai.helpful": "ಉಪಯೋಗವಾಯಿತೇ?",
   "ai.helpfulYes": "ಹೌದು, ಉಪಯೋಗವಾಯಿತು",
   "ai.helpfulNo": "ಉಪಯೋಗವಾಗಲಿಲ್ಲ",
@@ -1850,4 +1847,8 @@ export const kn: Partial<Messages> = {
   "ai.nudge.note": "AI ಪರಿಶೀಲಿಸಿದೆ. ಇದು ನಿಮಗೆ ಮಾತ್ರ ಕಾಣಿಸುತ್ತದೆ.",
   "ai.nudge.retake": "ಮತ್ತೆ ತೆಗೆಯಿರಿ",
   "ai.nudge.keep": "ಇದನ್ನೇ ಇಡಿ",
+
+  "ai.wrongType": "ಇದು {found} ಆಗಿರುವಂತೆ ಕಾಣುತ್ತಿದೆ, {expected} ಅಲ್ಲ. ಸರಿಯಾದ ದಾಖಲೆ ಆರಿಸಿದ್ದೀರಾ ಎಂದು ಪರಿಶೀಲಿಸಿ.",
+  "ai.translatedByAi": "AI ಅನುವಾದಿಸಿದೆ",
+  "ai.writtenFromScore": "ನಿಮ್ಮ ಸ್ಕೋರ್ ಆಧರಿಸಿ AI ಬರೆದಿದೆ.",
 };

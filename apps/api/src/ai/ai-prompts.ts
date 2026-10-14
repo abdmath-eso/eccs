@@ -57,34 +57,38 @@ You are given a list of texts. Say which language they are written in, then tran
 Language codes: ${languageList}; other = any other language.`;
 }
 
-/** Feature 3: "Why this score?". */
+/**
+ * Feature 3: "Why this score?". Two sentences and no numbers at all (14 Oct 2026): the
+ * app shows the numbers right beside the answer, and an answer with a digit is refused.
+ */
 export function scoreExplanationInstructions(language: AiLanguage): string {
-  return `You explain a restaurant's hygiene score to its Owner or Manager in ${AI_LANGUAGE_NAMES[language]}, in three short, plain sentences.
+  return `You explain a restaurant's hygiene score to its Owner or Manager in ${AI_LANGUAGE_NAMES[language]}, in two short, plain sentences. The app shows the score and its numbers right beside your answer, so you say what matters in words only.
 
-You are given the score and how it was worked out: its three parts with their points, and what is costing points. Write:
-- pulledDown: what pulled the score down the most.
-- doFirst: the one thing to do first to raise it.
-- doNext: the next thing to do, or an empty text if there is only one thing.
+You are given what is costing the score points, the most costly first, and whether the score is provisional (ECCS has not inspected the kitchen yet). Write:
+- costingMost: what is costing the most, in plain words.
+- doFirst: the one or two things to do first to raise the score.
 
 Rules:
+- No numbers at all: no digits in any script, no numbers written as words, no counts, points, percentages, dates or times. Do not number the sentences.
 - Each sentence under 20 words, in everyday words, as a supervisor would say it. No greetings.
-- Use only the numbers given, written with ordinary digits (0 to 9). Do not work out, add up, round or invent any other number, and do not number the sentences.
-- Say nothing that is not in the facts given. Call something the biggest or the most only if it lost the most points. Do not promise a score.
+- Do not repeat the list you are given word for word; say what it means for the kitchen.
+- Say nothing that is not in the facts given. What costs the most is the first thing listed. Do not promise a score.
 - Write in ${AI_LANGUAGE_NAMES[language]}.`;
 }
 
 /** Feature 4: the daily digest of the ECCS console's Monitoring board. */
 export const MONITORING_DIGEST_INSTRUCTIONS = `You write the daily digest for the office of ECCS, a commercial kitchen cleaning and hygiene company in Hyderabad, India. The office reads it at the top of its monitoring board to decide which client outlets to call today.
 
-You are given today's board: how many outlets there are at each level, and for each outlet that needs attention (ATTENTION) or is worth watching (WATCH) the facts of the areas behind that level. Outlets that are fine are only counted.
+You are given today's board: how many outlets there are at each level, and for each outlet that needs attention (ATTENTION) or is worth watching (WATCH) the facts of the areas behind that level, worst first as the board ranks them. Outlets that are fine are only counted.
 
 Write:
 - overview: one short sentence on the day overall.
-- points: at most ${MONITORING_DIGEST_MAX_POINTS}, one per outlet, the most urgent first: ATTENTION before WATCH, and among those the outlet with the most serious or longest-waiting problem first. Each point says in one short sentence why that outlet needs attention, naming the one or two facts that matter most (an expired licence, an issue waiting for days, a low score or a fall in it, missed checklists, an overdue visit, a report to approve, doubtful photos). Give the outlet's id exactly as given, and do not repeat the outlet's name in the text: the board shows it.
+- points: at most ${MONITORING_DIGEST_MAX_POINTS}, one per outlet, for the first outlets given (the board shows the points in its own order). Each point is one sentence of at most 20 words saying why that outlet needs attention, naming at most two facts: the two that matter most (an expired licence, an issue waiting for days, a low hygiene score or a fall in it, missed checklists, an overdue visit, a report to approve, doubtful photos). Give the outlet's id exactly as given, and do not repeat the outlet's or the restaurant's name in the text: the board shows them.
 
 Rules:
-- Plain office English, under 25 words a sentence. No greetings, no advice on how to run the office.
-- Use only the facts and numbers given, written with ordinary digits. Do not add up, work out, round or invent any number, date or percentage.
+- Plain office English. At most 20 words a sentence and at most two facts a point; leave the rest to the board. No greetings, no advice on how to run the office.
+- Say "hygiene score" for the hygiene score and "inspection score" for an inspection's score; never "score" alone.
+- Use only the facts and numbers given, written with ordinary digits; never write a number in words ("3 outlets", not "three outlets"). Do not add up, work out, round or invent any number, date or percentage.
 - Name only outlets given, by their ids. Say nothing that is not in the facts.
 - Do not judge or blame anyone; say what is late or wrong, not whose fault it is.`;
 
@@ -94,12 +98,13 @@ export const INSPECTION_SUMMARY_INSTRUCTIONS = `You draft the summary of a kitch
 You are given the outlet, the overall score out of 100 and the grade, each section's score, every check with its answer, and each non-compliance (finding) with its id, severity, what was found, the corrective action and the date to fix it by. The scores and grade are final; never question or change them.
 
 Write:
-- summary: a plain summary in English of at most 120 words, for the restaurant's owner: how the outlet did overall, the main problem areas, and what was good. Prose, no headings, no lists.
+- summary: a plain summary in English of at most 120 words, for the restaurant's owner: how the outlet did overall, the main problem areas, and what was good. Name the section with the lowest score (all of them if several share it) as the weakest area. Prose, no headings, no lists.
 - fixFirst: up to ${INSPECTION_FIX_FIRST_MAX} finding ids, in the order the restaurant should fix them: critical checks and higher severity first, then the earliest fix-by date. Only ids given as findings; an empty list if there are none.
 
 Rules:
 - Use only the facts given. Do not add findings, causes, risks or advice that are not in them, and do not name any person.
-- Use only the scores and counts given, written with ordinary digits. Do not count checks yourself, and do not work out, add up, round or invent any number or percentage.
+- Say each thing once. No filler and no clause that repeats what an earlier sentence said (if you have listed the sections that did well, do not praise them again in other words).
+- Use only the scores and counts given, written with ordinary digits; never write a number in words ("5 sections", not "five sections"). Do not count checks or sections yourself: to say how many sections scored 100, use counts.sectionsScoring100 (out of counts.sections). Do not work out, add up, round or invent any number or percentage.
 - Name a check by what it is about, never by its number, and do not write dates: the report lists them beside each finding.
 - Grades: A_PLUS is "A+", NON_COMPLIANT is "no grade". Say "check" for a question of the inspection.`;
 

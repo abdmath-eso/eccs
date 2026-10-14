@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const bn: Partial<Messages> = {
+export const bn: Messages = {
   "app.name": "ECCS",
   "app.tagline": "পরিষ্কার জায়গা। নিরাপদ কাজ। মজবুত ব্যবসা।",
 
@@ -1814,15 +1814,12 @@ export const bn: Partial<Messages> = {
   "ai.issuedTo": "{name}-এর নামে জারি",
   "ai.issuedOn": "জারির তারিখ (না দিলেও চলবে)",
   "ai.documentPhoto": "ডকুমেন্টের ছবি",
-  "ai.translatedFrom": "{language} থেকে অনুবাদ করা হয়েছে",
-  "ai.translated": "অনুবাদ করা হয়েছে",
   "ai.seeOriginal": "মূল লেখা দেখুন",
   "ai.seeTranslation": "অনুবাদ দেখুন",
   "ai.otherLanguages": "অন্য ভাষাগুলো AI দিয়ে ভরা হয়েছে।",
   "ai.whyScore": "এই স্কোর কেন?",
   "ai.hide": "লুকান",
   "ai.working": "উত্তর তৈরি হচ্ছে…",
-  "ai.writtenNote": "আপনার স্কোর দেখে AI লিখেছে। নম্বরগুলো অ্যাপের হিসেব।",
   "ai.helpful": "কাজে লাগল?",
   "ai.helpfulYes": "হ্যাঁ, কাজে লেগেছে",
   "ai.helpfulNo": "কাজে লাগেনি",
@@ -1850,4 +1847,8 @@ export const bn: Partial<Messages> = {
   "ai.nudge.note": "AI দিয়ে দেখা হয়েছে। এটা শুধু আপনিই দেখতে পাচ্ছেন।",
   "ai.nudge.retake": "আবার তুলুন",
   "ai.nudge.keep": "এটাই রাখুন",
+
+  "ai.wrongType": "এটা {found} বলে মনে হচ্ছে, {expected} নয়। ঠিক ডকুমেন্ট বেছে নিয়েছেন কি না মিলিয়ে নিন।",
+  "ai.translatedByAi": "AI দিয়ে অনুবাদ করা",
+  "ai.writtenFromScore": "আপনার স্কোরের ভিত্তিতে AI দিয়ে লেখা।",
 };

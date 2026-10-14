@@ -11,7 +11,8 @@ import { AiEngineError, type AiEngine, type AiEngineAnswer, type AiEngineRequest
 // Haiku, so the step up to Sonnet can be tested; any other PDF reads as a fire NOC
 // and any other picture as an FSSAI licence. Translations are the text with the
 // language code in front ("[te] ..."); text in Telugu or Devanagari letters counts
-// as Telugu or Hindi, anything else as English. The daily digest has a point for
+// as Telugu or Hindi, anything else as English. "Why this score?" names the costliest
+// thing with no numbers. The daily digest has a point for
 // each of the first six outlets it is given; an inspection summary gives the score
 // and picks the first findings. A proof photo is fine unless its bytes carry a marker
 // ("FAKE-AI:BLURRED", "FAKE-AI:TOO_DARK", "FAKE-AI:WRONG_SUBJECT", "FAKE-AI:UNSURE").
@@ -111,14 +112,12 @@ export class FakeAiEngine implements AiEngine {
         };
       }
       case 'explain-score': {
-        const facts = request.facts as { score: number; costingPoints: { what: string; part: string; pointsLost: number }[] };
+        // Two sentences with no numbers, as the real answer must be.
+        const facts = request.facts as { costingPoints: { what: string; part: string }[] };
         const [first, second] = facts.costingPoints;
         return {
-          pulledDown: first
-            ? `Your score is ${facts.score}. ${first.what} cost ${first.pointsLost} points, the most.`
-            : `Your score is ${facts.score}.`,
-          doFirst: first ? `Start with the ${first.part}.` : 'Keep doing what you do.',
-          doNext: second ? `Then look at the ${second.part}.` : '',
+          costingMost: first ? `${first.what} cost the most.` : 'Nothing is costing much.',
+          doFirst: first ? `Start with the ${first.part}${second ? `, then the ${second.part}` : ''}.` : 'Keep doing what you do.',
         };
       }
       case 'monitoring-digest': {

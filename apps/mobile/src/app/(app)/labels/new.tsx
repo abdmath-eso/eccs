@@ -110,7 +110,7 @@ export default function NewLabelScreen() {
         maxLength={60}
         autoFocus={!params.name}
       />
-      <OtherLanguagesNote />
+      <OtherLanguagesNote typed={name.trim() !== ''} />
 
       {/* A few common lengths to tap, and any other as a number of hours or days. */}
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>

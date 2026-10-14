@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const ml: Partial<Messages> = {
+export const ml: Messages = {
   "app.name": "ECCS",
   "app.tagline": "വൃത്തിയുള്ള ഇടങ്ങൾ. സുരക്ഷിതമായ പ്രവർത്തനം. കരുത്തുള്ള ബിസിനസ്.",
 
@@ -1814,15 +1814,12 @@ export const ml: Partial<Messages> = {
   "ai.issuedTo": "ആരുടെ പേരിൽ നൽകിയത്: {name}",
   "ai.issuedOn": "നൽകിയ തീയതി (നിർബന്ധമില്ല)",
   "ai.documentPhoto": "രേഖയുടെ ഫോട്ടോ",
-  "ai.translatedFrom": "{language} ഭാഷയിൽ നിന്ന് വിവർത്തനം ചെയ്തത്",
-  "ai.translated": "വിവർത്തനം ചെയ്തത്",
   "ai.seeOriginal": "ഒറിജിനൽ കാണുക",
   "ai.seeTranslation": "വിവർത്തനം കാണുക",
   "ai.otherLanguages": "മറ്റ് ഭാഷകൾ AI പൂരിപ്പിച്ചതാണ്.",
   "ai.whyScore": "എന്തുകൊണ്ട് ഈ സ്കോർ?",
   "ai.hide": "മറയ്ക്കുക",
   "ai.working": "തയ്യാറാക്കുന്നു…",
-  "ai.writtenNote": "നിങ്ങളുടെ സ്കോർ വച്ച് AI എഴുതിയത്. സംഖ്യകൾ ആപ്പിന്റേതാണ്.",
   "ai.helpful": "ഉപകാരപ്പെട്ടോ?",
   "ai.helpfulYes": "അതെ, ഉപകാരപ്പെട്ടു",
   "ai.helpfulNo": "ഉപകാരപ്പെട്ടില്ല",
@@ -1850,4 +1847,8 @@ export const ml: Partial<Messages> = {
   "ai.nudge.note": "AI പരിശോധിച്ചത്. ഇത് നിങ്ങൾ മാത്രമേ കാണൂ.",
   "ai.nudge.retake": "വീണ്ടും എടുക്കുക",
   "ai.nudge.keep": "ഇത് മതി",
+
+  "ai.wrongType": "ഇത് {found} ആണെന്ന് തോന്നുന്നു, {expected} അല്ല. ശരിയായ രേഖയാണോ തിരഞ്ഞെടുത്തതെന്ന് പരിശോധിക്കുക.",
+  "ai.translatedByAi": "AI വിവർത്തനം ചെയ്തത്",
+  "ai.writtenFromScore": "നിങ്ങളുടെ സ്കോർ അടിസ്ഥാനമാക്കി AI എഴുതിയത്.",
 };

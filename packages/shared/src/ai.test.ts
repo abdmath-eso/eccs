@@ -9,6 +9,8 @@ import {
   contentTranslationJsonSchema,
   contentTranslationSchema,
   firstDistinct,
+  hasDigit,
+  hasNumberWord,
   hasWords,
   INSPECTION_SUMMARY_JSON_SCHEMA,
   inspectionSummaryAnswerSchema,
@@ -134,9 +136,11 @@ describe("the answer shapes", () => {
     expect(supportTranslationSchema.safeParse({ items: [{ id: "1", text: "x" }] }).success).toBe(false);
   });
 
-  it("need the first two sentences of an explanation", () => {
-    expect(scoreExplanationSchema.safeParse({ pulledDown: "a", doFirst: "b", doNext: "" }).success).toBe(true);
-    expect(scoreExplanationSchema.safeParse({ pulledDown: "", doFirst: "b", doNext: "" }).success).toBe(false);
+  it("need both sentences of an explanation", () => {
+    expect(scoreExplanationSchema.safeParse({ costingMost: "a", doFirst: "b" }).success).toBe(true);
+    expect(scoreExplanationSchema.safeParse({ costingMost: "", doFirst: "b" }).success).toBe(false);
+    expect(scoreExplanationSchema.safeParse({ costingMost: "a", doFirst: " " }).success).toBe(false);
+    expect(Object.keys(SCORE_EXPLANATION_JSON_SCHEMA.properties as object).sort()).toEqual(Object.keys(scoreExplanationSchema.shape).sort());
   });
 
   it("list four features under unique names", () => {
@@ -270,5 +274,23 @@ describe("checking the numbers in an explanation", () => {
     expect(unknownNumbers("Your score is 72 out of 100. The inspection cost 16.8 points.", allowed)).toEqual([]);
     expect(unknownNumbers("Your score is 72; fixing this adds 15 points.", allowed)).toEqual([15]);
     expect(unknownNumbers("स्कोर ७२ है, ४२ नहीं", allowed)).toEqual([42]);
+  });
+
+  it("finds a digit in any script, for answers that must have none", () => {
+    expect(hasDigit("Checklists not handed in today cost the most.")).toBe(false);
+    expect(hasDigit("ఈ రోజు చెక్‌లిస్ట్‌లు ఇవ్వలేదు.")).toBe(false);
+    expect(hasDigit("Only 1 checklist was handed in.")).toBe(true);
+    expect(hasDigit("स्कोर ७२ है")).toBe(true);
+    expect(hasDigit("స్కోరు ౧౩")).toBe(true);
+    expect(hasDigit("۱۳ پوائنٹس")).toBe(true);
+    expect(hasDigit("১৩")).toBe(true);
+  });
+
+  it("finds a count written in words, for English answers whose numbers are checked", () => {
+    expect(hasNumberWord("Six sections scored 100.")).toBe(true);
+    expect(hasNumberWord("Twenty-one checks were not applicable.")).toBe(true);
+    expect(hasNumberWord("5 sections scored 100; no one check failed.")).toBe(false);
+    expect(hasNumberWord("Both the hood and the drain need cleaning.")).toBe(false);
+    expect(hasNumberWord("The kitchen often missed its closing checklist.")).toBe(false);
   });
 });

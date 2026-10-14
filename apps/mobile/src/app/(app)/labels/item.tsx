@@ -156,7 +156,7 @@ export default function FoodItemScreen() {
         error={nameError}
         maxLength={60}
       />
-      <OtherLanguagesNote />
+      <OtherLanguagesNote typed={name.trim() !== ''} />
 
       <ThemedText type="smallBold" themeColor="textSecondary">
         {t('labels.items.storage')}

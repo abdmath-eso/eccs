@@ -61,6 +61,13 @@ export interface IssueSummaryDto {
   updatedAt: string;
   commentCount: number;
   photoCount: number;
+  /**
+   * The description in the reader's language, when AI has translated it; null or absent
+   * otherwise. In a list it is only ever a translation already kept: a list never asks
+   * for one (14 Oct 2026), so the office can read its own list of Telugu issues once
+   * someone has opened them.
+   */
+  descriptionTranslation?: AiTranslationDto | null;
 }
 
 /** One issue with its photos and the conversation. */
@@ -69,8 +76,6 @@ export interface IssueDto extends IssueSummaryDto {
   photoPaths: string[];
   comments: IssueCommentDto[];
   resolvedAt: string | null;
-  /** The description in the reader's language, when AI has translated it; null or absent otherwise. */
-  descriptionTranslation?: AiTranslationDto | null;
   /**
    * True when some messages in another language have not been translated into the
    * reader's language yet and AI translation is on: the app then asks for them once

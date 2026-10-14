@@ -357,6 +357,21 @@ describe('AI features (e2e)', () => {
       expect(callsFor('translate-support')).toHaveLength(1);
     });
 
+    it("shows the kept English in the office's issue list, and the list never asks for a translation", async () => {
+      type Row = { id: string; description: string; descriptionTranslation?: Translation };
+      const listed = async (token: string, language: string) =>
+        ((await http().get('/issues').set(as(token, language)).expect(200)).body as Row[]).find((entry) => entry.id === issueId)!;
+      // ECCS reads English: the translation kept when the issue was opened.
+      const forEccs = await listed(admin, 'EN');
+      expect(forEccs.description).toBe('ఫ్రిజ్ పని చేయడం లేదు, దయచేసి సహాయం చేయండి');
+      expect(forEccs.descriptionTranslation).toEqual({ text: '[en] ఫ్రిజ్ పని చేయడం లేదు, దయచేసి సహాయం చేయండి', from: 'te' });
+      // Nobody has opened it in Hindi, so a Hindi reader's list shows it as written.
+      expect((await listed(owner, 'HI')).descriptionTranslation ?? null).toBeNull();
+      // The Head Chef wrote it: nothing to translate for them.
+      expect((await listed(chef, 'TE')).descriptionTranslation ?? null).toBeNull();
+      expect(fake.calls).toHaveLength(0);
+    });
+
     it('shows the original only, with nothing pending, when translation is off or fails', async () => {
       await http().post(`/issues/${issueId}/comments`).set(as(admin)).send({ body: 'E2E The technician is on the way.' }).expect(200);
       ai.setForTest({ disabled: ['translate-support'] });
@@ -478,17 +493,18 @@ describe('AI features (e2e)', () => {
       });
     });
 
-    it('gives the Owner three short sentences from the score, using only its numbers', async () => {
-      const score = (await http().get(`/scores/${outletId}`).set(as(owner)).expect(200)).body as { score: number };
+    it('gives the Owner two short sentences from the score, with no numbers at all', async () => {
       first = (await explain(owner).expect(200)).body as Explanation;
       expect(first.stored).toBe(false);
       expect(first.helpful).toBeNull();
-      expect(first.sentences.length).toBeGreaterThanOrEqual(2);
-      expect(first.sentences[0]).toContain(`Your score is ${score.score}.`);
+      expect(first.sentences).toHaveLength(2);
+      expect(first.sentences[0]).toMatch(/ cost the most\.$/);
+      expect(first.sentences.join(' ')).not.toMatch(/\p{Nd}/u);
       const call = callsFor('explain-score')[0]!;
       expect(call.model).toBe('claude-haiku-5-5');
-      // Only the score facts were sent: the score and its parts, nothing about people.
-      expect(Object.keys(call.facts as object).sort()).toEqual(['band', 'checklistsDay', 'costingPoints', 'notes', 'outOf', 'parts', 'provisional', 'score']);
+      // Only the score facts were sent, in words: no numbers to repeat, and nothing about people.
+      expect(Object.keys(call.facts as object).sort()).toEqual(['band', 'checklistsDay', 'costingPoints', 'notes', 'provisional']);
+      expect(call.text).not.toMatch(/\p{Nd}/u);
     });
 
     it('serves a second opening, and the Manager in the same language, from the store at no cost', async () => {
@@ -511,15 +527,43 @@ describe('AI features (e2e)', () => {
       expect(((await explain(owner).expect(200)).body as Explanation).helpful).toBe(true);
     });
 
-    it('rejects an answer with a number the app did not give, and keeps nothing', async () => {
-      fake.queue('explain-score', { pulledDown: 'Your score is 97531 because of the inspection.', doFirst: 'Fix the inspection points.', doNext: '' });
-      const refused = await explain(manager, 'TE').expect(503);
-      expect(refused.body.code).toBe('AI_FAILED');
-      const rejected = await prisma.client.aiRequest.findFirstOrThrow({
-        where: { id: { in: ai.recordedForTest() }, feature: 'explain-score', status: 'INVALID' },
+    it('rejects an answer with any digit, in any script, and keeps nothing', async () => {
+      const before = new Set(ai.recordedForTest());
+      // Even a number the score really has is refused: the answer must have none at all.
+      fake.queue('explain-score', { costingMost: 'The inspection cost the most, 1 check at a time.', doFirst: 'Fix the inspection points.' });
+      expect((await explain(manager, 'TE').expect(503)).body.code).toBe('AI_FAILED');
+      // Telugu digits are digits too.
+      fake.queue('explain-score', { costingMost: 'తనిఖీ ౧౬ పాయింట్లు తగ్గించింది.', doFirst: 'తనిఖీ పాయింట్లు సరిచేయండి.' });
+      expect((await explain(manager, 'TE').expect(503)).body.code).toBe('AI_FAILED');
+      const rejected = await prisma.client.aiRequest.findMany({
+        where: { id: { in: ai.recordedForTest().filter((id) => !before.has(id)) }, feature: 'explain-score' },
       });
-      expect(rejected.errorCode).toBe('NUMBERS');
+      expect(rejected.map((entry) => [entry.status, entry.errorCode])).toEqual([
+        ['INVALID', 'NUMBERS'],
+        ['INVALID', 'NUMBERS'],
+      ]);
       expect(await prisma.client.aiScoreExplanation.count({ where: { outletId, language: 'te' } })).toBe(0);
+    });
+
+    it('never serves an answer kept under the old wording (three sentences with numbers)', async () => {
+      // An answer kept before 14 Oct's change, for today in Marathi, under the facts' old fingerprint.
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+      const old = await prisma.client.aiScoreExplanation.create({
+        data: {
+          outletId,
+          date: new Date(`${today}T00:00:00.000Z`),
+          language: 'mr',
+          factsHash: 'old-fingerprint',
+          sentences: ['Your score is 72; 16.8 points went on the inspection.', 'Fix the inspection points.', ''],
+          aiRequestId: first.aiRequestId,
+        },
+      });
+      const fresh = (await explain(owner, 'MR').expect(200)).body as Explanation;
+      expect(fresh.stored).toBe(false);
+      expect(fresh.aiRequestId).not.toBe(first.aiRequestId);
+      expect(fresh.sentences).toHaveLength(2);
+      expect(callsFor('explain-score')).toHaveLength(1);
+      expect((await prisma.client.aiScoreExplanation.findUniqueOrThrow({ where: { id: old.id } })).factsHash).not.toBe('old-fingerprint');
     });
 
     it('steps aside with AI_LIMIT over the outlet’s daily limit, and AI_OFF when switched off', async () => {

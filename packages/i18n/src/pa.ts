@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const pa: Partial<Messages> = {
+export const pa: Messages = {
   "app.name": "ECCS",
   "app.tagline": "ਸਾਫ਼ ਥਾਵਾਂ। ਸੁਰੱਖਿਅਤ ਕੰਮਕਾਜ। ਮਜ਼ਬੂਤ ਕਾਰੋਬਾਰ।",
 
@@ -1814,15 +1814,12 @@ export const pa: Partial<Messages> = {
   "ai.issuedTo": "{name} ਦੇ ਨਾਮ 'ਤੇ ਜਾਰੀ",
   "ai.issuedOn": "ਜਾਰੀ ਹੋਣ ਦੀ ਤਾਰੀਖ (ਜ਼ਰੂਰੀ ਨਹੀਂ)",
   "ai.documentPhoto": "ਦਸਤਾਵੇਜ਼ ਦੀ ਫੋਟੋ",
-  "ai.translatedFrom": "{language} ਤੋਂ ਅਨੁਵਾਦ ਕੀਤਾ ਗਿਆ",
-  "ai.translated": "ਅਨੁਵਾਦ ਕੀਤਾ ਗਿਆ",
   "ai.seeOriginal": "ਅਸਲ ਲਿਖਤ ਦੇਖੋ",
   "ai.seeTranslation": "ਅਨੁਵਾਦ ਦੇਖੋ",
   "ai.otherLanguages": "ਹੋਰ ਭਾਸ਼ਾਵਾਂ AI ਨੇ ਭਰੀਆਂ ਹਨ।",
   "ai.whyScore": "ਇਹ ਸਕੋਰ ਕਿਉਂ?",
   "ai.hide": "ਲੁਕਾਓ",
   "ai.working": "ਜਵਾਬ ਤਿਆਰ ਹੋ ਰਿਹਾ ਹੈ…",
-  "ai.writtenNote": "ਤੁਹਾਡੇ ਸਕੋਰ ਤੋਂ AI ਨੇ ਲਿਖਿਆ ਹੈ। ਨੰਬਰ ਐਪ ਦੇ ਕੱਢੇ ਹੋਏ ਹਨ।",
   "ai.helpful": "ਮਦਦਗਾਰ ਲੱਗਿਆ?",
   "ai.helpfulYes": "ਹਾਂ, ਮਦਦਗਾਰ",
   "ai.helpfulNo": "ਮਦਦਗਾਰ ਨਹੀਂ",
@@ -1850,4 +1847,8 @@ export const pa: Partial<Messages> = {
   "ai.nudge.note": "AI ਨੇ ਚੈੱਕ ਕੀਤਾ। ਇਹ ਸਿਰਫ਼ ਤੁਹਾਨੂੰ ਦਿਖਦਾ ਹੈ।",
   "ai.nudge.retake": "ਦੁਬਾਰਾ ਖਿੱਚੋ",
   "ai.nudge.keep": "ਇਹੀ ਰੱਖੋ",
+
+  "ai.wrongType": "ਇਹ {found} ਲੱਗਦਾ ਹੈ, {expected} ਨਹੀਂ। ਚੈੱਕ ਕਰ ਲਓ ਕਿ ਤੁਸੀਂ ਸਹੀ ਦਸਤਾਵੇਜ਼ ਚੁਣਿਆ ਹੈ।",
+  "ai.translatedByAi": "AI ਨੇ ਅਨੁਵਾਦ ਕੀਤਾ",
+  "ai.writtenFromScore": "ਤੁਹਾਡੇ ਸਕੋਰ ਦੇ ਆਧਾਰ 'ਤੇ AI ਨੇ ਲਿਖਿਆ ਹੈ।",
 };

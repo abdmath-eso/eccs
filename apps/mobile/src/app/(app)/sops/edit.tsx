@@ -190,7 +190,6 @@ export default function EditSopScreen() {
             maxLength={100}
             error={showMissing && titleMissing ? t('sops.nameNeeded') : null}
           />
-          <OtherLanguagesNote />
 
           <ThemedText type="smallBold" themeColor="textSecondary">
             {t('sops.category')}
@@ -256,6 +255,8 @@ export default function EditSopScreen() {
             />
           )}
           <ErrorText message={showMissing && stepsMissing ? t('sops.stepsNeeded') : null} />
+          {/* Under the steps, once something is typed: the name and steps go into the other languages by AI. */}
+          <OtherLanguagesNote typed={steps.some((step) => step.text.trim() !== '')} />
 
           <ErrorText message={error} />
           <Button label={t('sops.save')} onPress={() => void save()} loading={saving} />

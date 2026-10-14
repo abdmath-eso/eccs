@@ -93,7 +93,16 @@ export default function IssuesScreen() {
         // Messages the restaurant wrote in another language show as written at once, then in
         // English as soon as AI has translated them (once; the translation is kept).
         const translated = issue.translationPending ? await api.issues.translate(issueId).catch(() => null) : null;
-        if (!cancelled && translated) setDetail(translated);
+        if (cancelled || !translated) return;
+        setDetail(translated);
+        // The list row shows the new translation too, without waiting for the list to load again.
+        setLoaded(
+          (current) =>
+            current && {
+              ...current,
+              list: current.list.map((row) => (row.id === translated.id ? { ...row, descriptionTranslation: translated.descriptionTranslation } : row)),
+            },
+        );
       })
       .catch((e) => !cancelled && setDetailError({ id: issueId, message: describe(e) }));
     return () => {
@@ -129,6 +138,7 @@ export default function IssuesScreen() {
       issue.outletName,
       CATEGORY[issue.category],
       issue.description,
+      issue.descriptionTranslation?.text,
       issue.raisedByName,
     ]),
   );
@@ -230,7 +240,9 @@ export default function IssuesScreen() {
                       <span className="mt-1 block text-sm">
                         {issue.organizationName} · {issue.outletName}
                       </span>
-                      <span className="mt-2 line-clamp-2 text-sm text-muted">{issue.description}</span>
+                      {/* The English translation when one is already kept (made when the issue was first opened); the list never asks for one. */}
+                      <span className="mt-2 line-clamp-2 text-sm text-muted">{issue.descriptionTranslation?.text ?? issue.description}</span>
+                      {issue.descriptionTranslation && <span className="mt-0.5 block text-xs text-muted">Translated</span>}
                       <span className="mt-2 block text-xs text-muted">
                         {issue.reference} · {issue.raisedByName} · {when(issue.createdAt)}
                         {issue.photoCount > 0 ? ` · ${issue.photoCount} photo${issue.photoCount > 1 ? "s" : ""}` : ""}

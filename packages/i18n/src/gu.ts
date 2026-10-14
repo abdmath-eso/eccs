@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const gu: Partial<Messages> = {
+export const gu: Messages = {
   "app.name": "ECCS",
   "app.tagline": "સ્વચ્છ જગ્યાઓ. સલામત કામકાજ. મજબૂત વ્યવસાય.",
 
@@ -1814,15 +1814,12 @@ export const gu: Partial<Messages> = {
   "ai.issuedTo": "{name} ના નામે જારી",
   "ai.issuedOn": "જારી થયાની તારીખ (વૈકલ્પિક)",
   "ai.documentPhoto": "દસ્તાવેજનો ફોટો",
-  "ai.translatedFrom": "{language} માંથી અનુવાદ કરેલ",
-  "ai.translated": "અનુવાદ કરેલ",
   "ai.seeOriginal": "મૂળ લખાણ જુઓ",
   "ai.seeTranslation": "અનુવાદ જુઓ",
   "ai.otherLanguages": "બીજી ભાષાઓ AI એ ભરી છે.",
   "ai.whyScore": "આ સ્કોર કેમ?",
   "ai.hide": "છુપાવો",
   "ai.working": "જવાબ તૈયાર થાય છે…",
-  "ai.writtenNote": "તમારા સ્કોર પરથી AI એ લખ્યું છે. આંકડા ઍપે ગણેલા છે.",
   "ai.helpful": "ઉપયોગી લાગ્યું?",
   "ai.helpfulYes": "હા, ઉપયોગી લાગ્યું",
   "ai.helpfulNo": "ઉપયોગી ન લાગ્યું",
@@ -1850,4 +1847,8 @@ export const gu: Partial<Messages> = {
   "ai.nudge.note": "AI એ તપાસ્યું. આ ફક્ત તમને દેખાય છે.",
   "ai.nudge.retake": "ફરી લો",
   "ai.nudge.keep": "આ જ રાખો",
+
+  "ai.wrongType": "આ {found} લાગે છે, {expected} નહીં. તમે સાચો દસ્તાવેજ પસંદ કર્યો છે કે નહીં તે તપાસી લો.",
+  "ai.translatedByAi": "AI એ અનુવાદ કર્યો",
+  "ai.writtenFromScore": "તમારા સ્કોરના આધારે AI એ લખ્યું છે.",
 };

@@ -6,8 +6,8 @@ import {
   type InspectionDto,
   type InspectionSummaryDraftDto,
 } from '@eccs/shared';
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState, type ComponentProps } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AiNote } from '@/components/ai-parts';
 import { ThemedText } from '@/components/themed-text';
@@ -144,8 +144,8 @@ export function InspectionSummarySection({
     return (
       <View style={styles.list}>
         <ThemedText type="smallBold">{t('ai.summary.fixFirst')}</ThemedText>
-        {rows.map(({ id, check }, index) => (
-          <FixRow key={id} place={index + 1} check={check} onRemove={onRemove && (() => onRemove(id))} />
+        {rows.map(({ id, check }) => (
+          <FixRow key={id} check={check} onRemove={onRemove && (() => onRemove(id))} />
         ))}
       </View>
     );
@@ -172,14 +172,15 @@ export function InspectionSummarySection({
       {open ? (
         <>
           {open.aiDrafted && <AiNote text={t('ai.summary.draftNote')} />}
-          <TextField
-            label={t('ai.summary.label')}
+          {/* No label over the box: the heading above says what it is; screen readers still hear "Summary". */}
+          <GrowingField
+            // A new draft, or "Write my own instead", starts a fresh box, so it is measured afresh.
+            key={open.draft?.aiRequestId ?? 'own'}
+            accessibilityLabel={t('ai.summary.label')}
             hint={t('ai.summary.hint')}
             value={open.text}
             onChangeText={(text) => setEditing({ ...open, text })}
             maxLength={INSPECTION_SUMMARY_MAX}
-            multiline
-            style={styles.multiline}
           />
           {fixList(open.fixFirst, (id) => setEditing({ ...open, fixFirst: open.fixFirst.filter((entry) => entry !== id) }))}
           {open.draft ? <Button variant="link" label={t('ai.summary.writeOwn')} onPress={writeOwn} disabled={busy !== null} /> : draftButton}
@@ -215,18 +216,40 @@ export function InspectionSummarySection({
 }
 
 /**
- * One finding to fix first, in the Supervisor's own words: the check, what was found
- * and the date to fix it by. Its full details and photos are with the findings below.
+ * A text box that grows with its text (at least four lines), so the Supervisor reads the
+ * whole draft without scrolling inside the box, as auto-sizing text areas do (Wikimedia
+ * Codex's text area, for one). On a phone a multiline box with no fixed height already
+ * grows; the browser's text area does not, so there its height follows the content's.
  */
-function FixRow({ place, check, onRemove }: { place: number; check: InspectionCheckDto; onRemove?: (() => void) | undefined }) {
+function GrowingField(props: Omit<ComponentProps<typeof TextField>, 'multiline' | 'style' | 'onContentSizeChange'>) {
+  const [contentHeight, setContentHeight] = useState(0);
+  return (
+    <TextField
+      {...props}
+      multiline
+      scrollEnabled={false}
+      onContentSizeChange={(event) => setContentHeight(event.nativeEvent.contentSize.height)}
+      // The box's edge (1 point each side) is outside the measured content; the thicker
+      // edge while typing would leave a 2-point scroll bar, so nothing scrolls inside it.
+      style={[
+        styles.multiline,
+        Platform.OS === 'web' && contentHeight > 0 && { height: Math.max(MIN_SUMMARY_HEIGHT, contentHeight + 2), overflow: 'hidden' },
+      ]}
+    />
+  );
+}
+
+/**
+ * One finding to fix first, in the Supervisor's own words: the check (with its own
+ * number), what was found and the date to fix it by. The list's order is the order to
+ * fix them in. Its full details and photos are with the findings below.
+ */
+function FixRow({ check, onRemove }: { check: InspectionCheckDto; onRemove?: (() => void) | undefined }) {
   const theme = useTheme();
   const { t, language } = useSession();
   const label = localize(check.label, language);
   return (
     <View style={[styles.fixRow, { borderColor: theme.border }]}>
-      <ThemedText type="smallBold" style={styles.place}>
-        {place}.
-      </ThemedText>
       <View style={styles.flex}>
         <ThemedText type="small" style={styles.bold}>
           {check.number}. {label}
@@ -256,12 +279,14 @@ function FixRow({ place, check, onRemove }: { place: number; check: InspectionCh
   );
 }
 
+/** Four lines of the box's text, with its padding: the least it shows. */
+const MIN_SUMMARY_HEIGHT = 140;
+
 const styles = StyleSheet.create({
   wrap: { gap: Spacing.two, marginTop: Spacing.two },
-  multiline: { minHeight: 140, paddingVertical: Spacing.two, textAlignVertical: 'top' },
+  multiline: { minHeight: MIN_SUMMARY_HEIGHT, paddingVertical: Spacing.two, textAlignVertical: 'top' },
   list: { gap: Spacing.one },
   fixRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, borderBottomWidth: 1, paddingVertical: Spacing.one },
-  place: { minWidth: 20 },
   flex: { flex: 1, gap: Spacing.half },
   bold: { fontWeight: 700 },
   remove: { minWidth: MinTouchSize, minHeight: MinTouchSize, alignItems: 'center', justifyContent: 'center' },

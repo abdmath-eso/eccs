@@ -2,31 +2,48 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { EMPTY_READING, parseLicenceText, type LicenceReadingDto } from '@eccs/shared';
+import {
+  AI_MODELS,
+  cleanLicenceAnswer,
+  EMPTY_READING,
+  LICENCE_ANSWER_JSON_SCHEMA,
+  licenceAnswerSchema,
+  parseLicenceText,
+  type AiModelId,
+  type LicenceAnswer,
+  type LicenceReadingDto,
+} from '@eccs/shared';
 import type { Worker } from 'tesseract.js';
+import { LICENCE_READER_INSTRUCTIONS } from '../ai/ai-prompts.js';
+import { AiService, type AiWho } from '../ai/ai.service.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { env } from '../config/env.js';
 
 const READ_TIMEOUT_MS = 45_000;
+/** Five short fields: a few hundred tokens are plenty. */
+const AI_MAX_OUTPUT_TOKENS = 600;
 
 /**
- * Reads the licence number and dates off an uploaded licence document, so
+ * Reads the licence type, number and dates off an uploaded licence document, so
  * the person adding it only has to check them.
  *
- * It works in two steps. First the file is turned into plain text: a PDF's
- * own text layer is used if it has one, and an image is put through OCR
- * (Tesseract, running here on our own server, so nothing leaves our systems).
- * Then `parseLicenceText` in @eccs/shared picks the details out of the text.
+ * Two readers, chosen by LICENCE_READER:
  *
- * Known limits of this free reader: scanned PDFs (pictures inside a PDF),
- * blurred or angled phone photos, and Telugu or Hindi text are often not
- * read, in which case the fields simply stay empty.
+ * - "ai" (the default, 14 Oct 2026): the photo or PDF goes to the AI (the Claude
+ *   API) with instructions to read only what is printed and never guess. Haiku
+ *   reads it first; if it cannot read the number or the expiry date, Sonnet tries
+ *   once. Whenever AI is off, over its limit or fails, the free reader below
+ *   answers instead. Only the restaurant's Owner and Manager get the AI reader
+ *   (the Head Chef has no licence screens; ECCS staff in the console get the free
+ *   reader). Sends to the AI: the document, nothing else.
+ * - "ocr": the free reader. The file is turned into plain text (a PDF's own text
+ *   layer, or OCR with Tesseract running on our own server for an image), then
+ *   `parseLicenceText` in @eccs/shared picks the details out. It often cannot read
+ *   scanned PDFs, blurred or angled photos, or Telugu and Hindi text; the fields
+ *   then simply stay empty.
  *
- * To switch to an AI reader later: add a second way of producing a
- * LicenceReadingDto here (for example sending the file to Claude, which can
- * return the fields directly and copes with the cases above), choose between
- * them with the LICENCE_READER setting, and leave everything else as it is.
- * The apps only ever see the LicenceReadingDto.
+ * The apps only ever see the LicenceReadingDto; the AI one also carries the
+ * business name it was issued to and the request's id.
  */
 @Injectable()
 export class LicenceReaderService implements OnModuleDestroy {
@@ -34,10 +51,26 @@ export class LicenceReaderService implements OnModuleDestroy {
   private worker: Promise<Worker> | null = null;
   // OCR jobs run one at a time: the recogniser handles a single image at once.
   private queue: Promise<unknown> = Promise.resolve();
+  private mode = env.LICENCE_READER;
 
-  /** Never throws: if the file cannot be read, every field comes back empty. */
-  async read(file: Buffer, mimeType: string): Promise<LicenceReadingDto> {
-    if (env.LICENCE_READER === 'off') return EMPTY_READING;
+  constructor(private readonly ai: AiService) {}
+
+  /** Tests only: which reader to use for this run. */
+  setReaderForTest(mode: 'ai' | 'ocr' | 'off'): void {
+    if (env.NODE_ENV !== 'test') throw new Error('The licence reader can only be switched in tests');
+    this.mode = mode;
+  }
+
+  /**
+   * Never throws: if the file cannot be read, every field comes back empty.
+   * `aiFor` says who is asking, when the AI reader may be used for them.
+   */
+  async read(file: Buffer, mimeType: string, aiFor?: AiWho): Promise<LicenceReadingDto> {
+    if (this.mode === 'off') return EMPTY_READING;
+    if (this.mode === 'ai' && aiFor && this.ai.isOn('licence-reader')) {
+      const reading = await this.readWithAi(file, mimeType, aiFor);
+      if (reading) return reading;
+    }
     try {
       const text = await withTimeout(this.textOf(file, mimeType), READ_TIMEOUT_MS);
       return parseLicenceText(text, indiaDate());
@@ -45,6 +78,59 @@ export class LicenceReaderService implements OnModuleDestroy {
       this.logger.warn(`Could not read licence document: ${String(error)}`);
       return EMPTY_READING;
     }
+  }
+
+  /**
+   * The AI reader. Null when AI stepped aside (off, over its limit, failed), so the
+   * free reader answers instead. A field the AI could not read comes back null,
+   * and the app then says "Could not read: type it in".
+   */
+  private async readWithAi(file: Buffer, mimeType: string, who: AiWho): Promise<LicenceReadingDto | null> {
+    const ask = (model: AiModelId) =>
+      this.ai.run<LicenceAnswer>({
+        feature: 'licence-reader',
+        model,
+        instructions: LICENCE_READER_INSTRUCTIONS,
+        text: 'Read the details off this document.',
+        file: { mimeType, data: file },
+        answer: { schema: LICENCE_ANSWER_JSON_SCHEMA, check: licenceAnswerSchema },
+        maxOutputTokens: AI_MAX_OUTPUT_TOKENS,
+        who,
+        timeoutMs: READ_TIMEOUT_MS,
+      });
+
+    const first = await ask(AI_MODELS.haiku);
+    if (!first.ok) return null;
+    let answer = cleanLicenceAnswer(first.value);
+    let requestId = first.requestId;
+    // The number and the expiry date are what matter most: if Haiku could not read
+    // either, the stronger model tries once, and fills in what it read.
+    if (!answer.number || !answer.expiresOn) {
+      const second = await ask(AI_MODELS.sonnet);
+      if (second.ok) {
+        const better = cleanLicenceAnswer(second.value);
+        answer = cleanLicenceAnswer({
+          type: better.type ?? answer.type,
+          number: better.number ?? answer.number,
+          issuedTo: better.issuedTo ?? answer.issuedTo,
+          // The dates are taken as a pair from whichever model read the expiry.
+          issuedOn: better.expiresOn ? better.issuedOn : (better.issuedOn ?? answer.issuedOn),
+          expiresOn: better.expiresOn ?? answer.expiresOn,
+        });
+        requestId = second.requestId;
+      }
+    }
+    const { type, number, issuedTo, issuedOn, expiresOn } = answer;
+    return {
+      type,
+      number,
+      issuedOn,
+      expiresOn,
+      textFound: [type, number, issuedTo, issuedOn, expiresOn].some((value) => value !== null),
+      source: 'ai',
+      issuedTo,
+      aiRequestId: requestId,
+    };
   }
 
   private async textOf(file: Buffer, mimeType: string): Promise<string> {

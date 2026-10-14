@@ -1,6 +1,14 @@
 "use client";
 
-import { isIssueOpen, type IssueCategory, type IssueDto, type IssueStatus, type IssueSummaryDto } from "@eccs/shared";
+import { LANGUAGE_ENGLISH_NAMES, type LanguageCode } from "@eccs/i18n";
+import {
+  isIssueOpen,
+  type AiTranslationDto,
+  type IssueCategory,
+  type IssueDto,
+  type IssueStatus,
+  type IssueSummaryDto,
+} from "@eccs/shared";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { MasterDetail } from "@/components/master-detail";
@@ -79,7 +87,14 @@ export default function IssuesScreen() {
     let cancelled = false;
     api.issues
       .get(issueId)
-      .then((issue) => !cancelled && setDetail(issue))
+      .then(async (issue) => {
+        if (cancelled) return;
+        setDetail(issue);
+        // Messages the restaurant wrote in another language show as written at once, then in
+        // English as soon as AI has translated them (once; the translation is kept).
+        const translated = issue.translationPending ? await api.issues.translate(issueId).catch(() => null) : null;
+        if (!cancelled && translated) setDetail(translated);
+      })
       .catch((e) => !cancelled && setDetailError({ id: issueId, message: describe(e) }));
     return () => {
       cancelled = true;
@@ -238,6 +253,29 @@ export default function IssuesScreen() {
   );
 }
 
+/**
+ * A message in English when AI has translated it from the restaurant's language, the
+ * way messaging apps show it (Microsoft Teams' inline translation): the translation,
+ * "Translated from Telugu", and "See original" to switch to the words as written.
+ * With no translation, the message as written and nothing else.
+ */
+function Translatable({ original, translation }: { original: string; translation?: AiTranslationDto | null }) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  if (!translation) return <p className="whitespace-pre-wrap">{original}</p>;
+  const from = translation.from === "other" ? null : LANGUAGE_ENGLISH_NAMES[translation.from.toUpperCase() as LanguageCode];
+  return (
+    <div>
+      <p className="whitespace-pre-wrap">{showOriginal ? original : translation.text}</p>
+      <p className="mt-1 text-xs text-muted">
+        {!showOriginal && <>{from ? `Translated by AI from ${from}` : "Translated by AI"} · </>}
+        <button type="button" className="font-semibold text-primary underline" onClick={() => setShowOriginal((current) => !current)}>
+          {showOriginal ? "See translation" : "See original"}
+        </button>
+      </p>
+    </div>
+  );
+}
+
 function IssueDetail({ issue, onUpdated }: { issue: IssueDto; onUpdated: (issue: IssueDto, message: string) => void }) {
   const [reply, setReply] = useState("");
   const [replyError, setReplyError] = useState<string>();
@@ -283,7 +321,7 @@ function IssueDetail({ issue, onUpdated }: { issue: IssueDto; onUpdated: (issue:
         <StatusBadge status={issue.status} />
       </div>
 
-      <p className="whitespace-pre-wrap">{issue.description}</p>
+      <Translatable original={issue.description} translation={issue.descriptionTranslation} />
       <p className="text-sm text-muted">
         Raised by {issue.raisedByName} on {when(issue.createdAt)}
       </p>
@@ -332,7 +370,7 @@ function IssueDetail({ issue, onUpdated }: { issue: IssueDto; onUpdated: (issue:
             }`}
           >
             <p className="font-semibold">{comment.fromEccs ? `ECCS · ${comment.authorName}` : comment.authorName}</p>
-            <p className="whitespace-pre-wrap">{comment.body}</p>
+            <Translatable original={comment.body} translation={comment.translation} />
             <p className="mt-1 text-xs text-muted">{when(comment.createdAt)}</p>
           </div>
         ))}

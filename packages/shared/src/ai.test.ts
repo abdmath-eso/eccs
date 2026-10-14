@@ -1,0 +1,207 @@
+import { describe, expect, it } from "vitest";
+import {
+  AI_FEATURES,
+  AI_LANGUAGES,
+  AI_MODELS,
+  AI_PRICES,
+  aiCostMicroUsd,
+  cleanLicenceAnswer,
+  contentTranslationJsonSchema,
+  contentTranslationSchema,
+  hasWords,
+  LICENCE_ANSWER_JSON_SCHEMA,
+  licenceAnswerSchema,
+  microUsdToUsd,
+  numbersIn,
+  SCORE_EXPLANATION_JSON_SCHEMA,
+  scoreExplanationSchema,
+  storedTranslationFor,
+  SUPPORT_TRANSLATION_JSON_SCHEMA,
+  supportTranslationSchema,
+  unknownNumbers,
+  westernDigits,
+  writtenInOwnScript,
+  type AiJsonSchema,
+} from "./ai.js";
+
+describe("the price table", () => {
+  it("has a price for every model the app may use", () => {
+    for (const model of Object.values(AI_MODELS)) expect(AI_PRICES[model]).toBeDefined();
+  });
+
+  it("holds the prices read on Anthropic's pricing page on 14 Oct 2026", () => {
+    expect(AI_PRICES["claude-haiku-5-5"].base).toMatchObject({ input: 0.1, output: 0.5 });
+    expect(AI_PRICES["claude-haiku-5-5"].longPrompt).toMatchObject({ overTokens: 100_000, price: { input: 0.5, output: 2.5 } });
+    expect(AI_PRICES["claude-sonnet-5-5"].base).toMatchObject({ input: 2, output: 10 });
+    expect(AI_PRICES["claude-opus-5-5"].base).toMatchObject({ input: 4, output: 20 });
+  });
+});
+
+describe("aiCostMicroUsd", () => {
+  it("is tokens times the price per million, in millionths of a dollar", () => {
+    // 1,000 in at $0.10/M = 100 µ$; 200 out at $0.50/M = 100 µ$.
+    expect(aiCostMicroUsd("claude-haiku-5-5", { inputTokens: 1000, outputTokens: 200 })).toBe(200);
+    // Sonnet: 1,000 × 2 + 500 × 10 = 7,000 µ$ = $0.007.
+    expect(aiCostMicroUsd("claude-sonnet-5-5", { inputTokens: 1000, outputTokens: 500 })).toBe(7000);
+    expect(microUsdToUsd(7000)).toBe(0.007);
+  });
+
+  it("rounds a fraction of a millionth up, never down", () => {
+    // 3 × 0.1 = 0.3 µ$, kept as 1.
+    expect(aiCostMicroUsd("claude-haiku-5-5", { inputTokens: 3, outputTokens: 0 })).toBe(1);
+    expect(aiCostMicroUsd("claude-haiku-5-5", { inputTokens: 0, outputTokens: 0 })).toBe(0);
+    // Exact sums have no floating-point leftovers: 10 × 0.1 is 1, not 2.
+    expect(aiCostMicroUsd("claude-haiku-5-5", { inputTokens: 10, outputTokens: 0 })).toBe(1);
+  });
+
+  it("charges cache writes and reads at their own prices", () => {
+    // Haiku: 1,000 written at $0.125/M = 125; 10,000 read at $0.01/M = 100.
+    expect(aiCostMicroUsd("claude-haiku-5-5", { inputTokens: 0, outputTokens: 0, cacheWriteTokens: 1000, cacheReadTokens: 10_000 })).toBe(225);
+  });
+
+  it("charges Haiku's higher prices once the whole prompt is over 100,000 tokens, cache included", () => {
+    const usage = { inputTokens: 100_000, outputTokens: 1000 };
+    // Exactly 100,000 is still the lower price: 10,000 + 500.
+    expect(aiCostMicroUsd("claude-haiku-5-5", usage)).toBe(10_500);
+    // One token more of cache read tips the whole request over: 100,000 × 0.5 + 1 × 0.05 + 1,000 × 2.5.
+    expect(aiCostMicroUsd("claude-haiku-5-5", { ...usage, cacheReadTokens: 1 })).toBe(52_501);
+    // Sonnet has one price whatever the length.
+    expect(aiCostMicroUsd("claude-sonnet-5-5", { inputTokens: 200_000, outputTokens: 0 })).toBe(400_000);
+  });
+
+  it("halves the cost for the Batch API", () => {
+    expect(aiCostMicroUsd("claude-sonnet-5-5", { inputTokens: 1000, outputTokens: 500 }, { batch: true })).toBe(3500);
+  });
+
+  it("puts a typical licence photo read by Haiku well under a rupee", () => {
+    // About 3,900 tokens for a 2000 × 1500 photo, 400 of instructions, 120 out.
+    const micro = aiCostMicroUsd("claude-haiku-5-5", { inputTokens: 4300, outputTokens: 120 });
+    expect(micro).toBe(490);
+    expect(microUsdToUsd(micro) * 88).toBeLessThan(0.05);
+  });
+});
+
+describe("the answer shapes", () => {
+  /** Structured outputs need every property required and nothing else allowed, at every level. */
+  function expectStrict(schema: AiJsonSchema) {
+    const properties = schema.properties as Record<string, AiJsonSchema>;
+    expect(schema.additionalProperties).toBe(false);
+    expect([...(schema.required as string[])].sort()).toEqual(Object.keys(properties).sort());
+    for (const property of Object.values(properties)) {
+      if (property.type === "object") expectStrict(property);
+      const items = property.items as AiJsonSchema | undefined;
+      if (items?.type === "object") expectStrict(items);
+    }
+  }
+
+  it("are strict JSON schemas whose properties match the Zod checks", () => {
+    expectStrict(LICENCE_ANSWER_JSON_SCHEMA);
+    expectStrict(SUPPORT_TRANSLATION_JSON_SCHEMA);
+    expectStrict(SCORE_EXPLANATION_JSON_SCHEMA);
+    expectStrict(contentTranslationJsonSchema(["hi", "te"]));
+    expect(Object.keys(LICENCE_ANSWER_JSON_SCHEMA.properties as object).sort()).toEqual(Object.keys(licenceAnswerSchema.shape).sort());
+    expect(Object.keys(SCORE_EXPLANATION_JSON_SCHEMA.properties as object).sort()).toEqual(Object.keys(scoreExplanationSchema.shape).sort());
+  });
+
+  it("accept 'could not read' for every licence field, and refuse anything else", () => {
+    const blank = { type: null, number: null, issuedTo: null, issuedOn: null, expiresOn: null };
+    expect(licenceAnswerSchema.safeParse(blank).success).toBe(true);
+    expect(licenceAnswerSchema.safeParse({ ...blank, type: "DRIVING_LICENCE" }).success).toBe(false);
+    expect(licenceAnswerSchema.safeParse({ ...blank, expiresOn: "31/03/2027" }).success).toBe(false);
+    expect(licenceAnswerSchema.safeParse({ ...blank, extra: 1 }).success).toBe(true);
+    expect(licenceAnswerSchema.safeParse({ type: null }).success).toBe(false);
+  });
+
+  it("make a content translation keep every language asked for", () => {
+    const schema = contentTranslationSchema(["hi", "te"]);
+    expect(schema.safeParse({ source: "en", languages: { hi: ["a"], te: ["b"] } }).success).toBe(true);
+    expect(schema.safeParse({ source: "en", languages: { hi: ["a"] } }).success).toBe(false);
+    expect(schema.safeParse({ source: "klingon", languages: { hi: ["a"], te: ["b"] } }).success).toBe(false);
+  });
+
+  it("make a support translation name its language", () => {
+    expect(supportTranslationSchema.safeParse({ items: [{ id: "1", source: "te", text: "x" }] }).success).toBe(true);
+    expect(supportTranslationSchema.safeParse({ items: [{ id: "1", text: "x" }] }).success).toBe(false);
+  });
+
+  it("need the first two sentences of an explanation", () => {
+    expect(scoreExplanationSchema.safeParse({ pulledDown: "a", doFirst: "b", doNext: "" }).success).toBe(true);
+    expect(scoreExplanationSchema.safeParse({ pulledDown: "", doFirst: "b", doNext: "" }).success).toBe(false);
+  });
+
+  it("list four features under unique names", () => {
+    expect(new Set(AI_FEATURES).size).toBe(AI_FEATURES.length);
+    expect(AI_LANGUAGES).toHaveLength(12);
+  });
+});
+
+describe("cleanLicenceAnswer", () => {
+  const read = { type: "FSSAI" as const, number: "1362 2012 0004 56", issuedTo: "  Sample  Kitchen ", issuedOn: "2026-04-01", expiresOn: "2027-03-31" };
+
+  it("takes the spaces out of a 14-digit FSSAI number and tidies the name", () => {
+    expect(cleanLicenceAnswer(read)).toEqual({ ...read, number: "13622012000456", issuedTo: "Sample Kitchen" });
+  });
+
+  it("never passes on a date that does not exist or is out of range", () => {
+    expect(cleanLicenceAnswer({ ...read, expiresOn: "2027-02-30" }).expiresOn).toBeNull();
+    expect(cleanLicenceAnswer({ ...read, expiresOn: "1975-01-01" }).expiresOn).toBeNull();
+    expect(cleanLicenceAnswer({ ...read, issuedOn: "2028-01-01" }).issuedOn).toBeNull();
+  });
+
+  it("keeps a number that is not an FSSAI number as printed, cut to the form's length", () => {
+    expect(cleanLicenceAnswer({ ...read, number: "FIRE/HYD/2026/00871" }).number).toBe("FIRE/HYD/2026/00871");
+    expect(cleanLicenceAnswer({ ...read, number: "X".repeat(80) }).number).toHaveLength(60);
+    expect(cleanLicenceAnswer({ ...read, number: "   " }).number).toBeNull();
+  });
+});
+
+describe("stored translations", () => {
+  it("say what a reader sees: the translation, nothing to translate, or not translated yet", () => {
+    const stored = { source: "en" as const, to: { te: "ఫ్రిజ్ శుభ్రం చేయండి" } };
+    expect(storedTranslationFor(stored, "te")).toEqual({ text: "ఫ్రిజ్ శుభ్రం చేయండి", from: "en" });
+    expect(storedTranslationFor(stored, "en")).toBeNull();
+    expect(storedTranslationFor(stored, "hi")).toBe("missing");
+    expect(storedTranslationFor(null, "hi")).toBe("missing");
+  });
+});
+
+describe("knowing the language from the script", () => {
+  it("is sure only for scripts one language uses", () => {
+    expect(writtenInOwnScript("ఫ్రిజ్ శుభ్రం చేయండి", "te")).toBe(true);
+    expect(writtenInOwnScript("ఫ్రిజ్ 4°C శుభ్రం చేయండి", "te")).toBe(true);
+    // Half English, half Telugu: not sure, so it is asked.
+    expect(writtenInOwnScript("Fridge cleaned ఫ్రిజ్ శుభ్రం", "te")).toBe(false);
+    expect(writtenInOwnScript("ఫ్రిజ్ శుభ్రం", "ta")).toBe(false);
+    // Devanagari is Hindi or Marathi, and English letters may be Hindi typed in English: always asked.
+    expect(writtenInOwnScript("फ्रिज साफ करें", "hi")).toBe(false);
+    expect(writtenInOwnScript("Clean the fridge", "en")).toBe(false);
+    expect(writtenInOwnScript("12345", "te")).toBe(false);
+  });
+
+  it("leaves numbers and single marks alone", () => {
+    expect(hasWords("OK thanks")).toBe(true);
+    expect(hasWords("👍")).toBe(false);
+    expect(hasWords("10:30")).toBe(false);
+    expect(hasWords("ఫ్రిజ్")).toBe(true);
+  });
+});
+
+describe("checking the numbers in an explanation", () => {
+  it("reads Indian digits as ordinary ones", () => {
+    expect(westernDigits("स्कोर ७२ है")).toBe("स्कोर 72 है");
+    expect(westernDigits("స్కోరు ౭౨")).toBe("స్కోరు 72");
+    expect(westernDigits("۷۲")).toBe("72");
+  });
+
+  it("finds whole and decimal numbers", () => {
+    expect(numbersIn("72 out of 100, 16.8 points; 7,5 more")).toEqual([72, 100, 16.8, 7.5]);
+    expect(numbersIn("no numbers here")).toEqual([]);
+  });
+
+  it("names any number that the app did not give", () => {
+    const allowed = [72, 100, 60, 43.2, 16.8, 1, 3];
+    expect(unknownNumbers("Your score is 72 out of 100. The inspection cost 16.8 points.", allowed)).toEqual([]);
+    expect(unknownNumbers("Your score is 72; fixing this adds 15 points.", allowed)).toEqual([15]);
+    expect(unknownNumbers("स्कोर ७२ है, ४२ नहीं", allowed)).toEqual([42]);
+  });
+});

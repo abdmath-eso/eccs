@@ -2,7 +2,7 @@
 
 import type { Messages } from "./en.js";
 
-export const kn: Messages = {
+export const kn: Partial<Messages> = {
   "app.name": "ECCS",
   "app.tagline": "ಸ್ವಚ್ಛ ಜಾಗಗಳು. ಸುರಕ್ಷಿತ ಕೆಲಸ. ಬಲವಾದ ವ್ಯಾಪಾರ.",
 

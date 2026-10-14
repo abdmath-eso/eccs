@@ -24,9 +24,35 @@ const schema = z
     PIN_SECRET: z.string().min(16),
     // Key for signing the short-lived links that display photos.
     FILE_URL_SECRET: z.string().min(16),
-    // Reading licence numbers and dates off uploaded documents: "ocr" uses the
-    // free reader on this server; "off" disables it. An AI reader can be added later.
-    LICENCE_READER: z.enum(['ocr', 'off']).default('ocr'),
+    // Reading licence details off uploaded documents: "ai" (the default) sends the photo
+    // or PDF to the AI and falls back to "ocr" whenever AI is off, over its limit or
+    // fails; "ocr" uses only the free reader on this server; "off" reads nothing.
+    LICENCE_READER: z.enum(['ai', 'ocr', 'off']).default('ai'),
+    // ── AI (the Claude API), 14 Oct 2026. See apps/api/src/ai. ──
+    // The key from Anthropic's console. Read here on the server only: it is never sent
+    // to the apps, never written to a file other than .env, and never logged. Without
+    // it every AI feature is off by itself and the app works as before.
+    ANTHROPIC_API_KEY: z.string().optional(),
+    // The main switch: "off" turns every AI feature off.
+    AI_FEATURES: z.enum(['on', 'off']).default('on'),
+    // "real" calls Anthropic; "fake" gives fixed answers with no network call, for the
+    // automated tests (vitest.config.e2e.ts sets it). Left unset, tests use "fake".
+    AI_ENGINE: z.enum(['real', 'fake']).optional(),
+    // The most to spend on AI in one day (India time), in US dollars, across everything,
+    // and the most for any one outlet. Over either, AI steps aside until the next day.
+    AI_DAILY_LIMIT_USD: z.coerce.number().min(0).default(2),
+    AI_OUTLET_DAILY_LIMIT_USD: z.coerce.number().min(0).default(0.25),
+    // Feature names to switch off one by one, separated by commas, e.g. "explain-score".
+    // The names are AI_FEATURES in packages/shared/src/ai.ts.
+    AI_DISABLED_FEATURES: z
+      .string()
+      .default('')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((name) => name.trim())
+          .filter(Boolean),
+      ),
     // How restaurants reach ECCS directly. Sample numbers until the real ones are supplied.
     SUPPORT_PHONE: z.string().default('+919000000000'),
     SUPPORT_WHATSAPP: z.string().default('919000000000'),
@@ -80,6 +106,9 @@ const schema = z
   })
   .refine((env) => !(env.NODE_ENV === 'production' && env.FACE_ENGINE === 'fake'), {
     message: 'FACE_ENGINE must not be "fake" in production',
+  })
+  .refine((env) => !(env.NODE_ENV === 'production' && env.AI_ENGINE === 'fake'), {
+    message: 'AI_ENGINE must not be "fake" in production',
   });
 
 export type Env = z.infer<typeof schema>;

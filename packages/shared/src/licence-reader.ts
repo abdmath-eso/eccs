@@ -15,6 +15,16 @@ export interface LicenceReadingDto {
   expiresOn: string | null;
   /** False if no text at all could be read from the file (for example a scanned PDF or a blurred photo). */
   textFound: boolean;
+  /**
+   * The next three are present only when AI read the document (LICENCE_READER=ai):
+   * the app then marks each filled field "Filled by AI: check it" and each empty
+   * one "Could not read: type it in". The free OCR reader leaves them out.
+   */
+  source?: "ai";
+  /** The name of the business the licence is issued to, as printed; null if it could not be read. Shown, not saved. */
+  issuedTo?: string | null;
+  /** The AI request this came from, so the app can say whether the person kept or changed the details. */
+  aiRequestId?: string;
 }
 
 export const EMPTY_READING: LicenceReadingDto = { type: null, number: null, issuedOn: null, expiresOn: null, textFound: false };

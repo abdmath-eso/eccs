@@ -54,6 +54,18 @@ export class IssuesController {
     return this.issues.addComment(user, id, body.body);
   }
 
+  /**
+   * Translates the thread's messages into the reader's language with AI and keeps the
+   * translations. The app calls it once after opening a thread whose
+   * `translationPending` is set. With AI off it answers the issue unchanged.
+   */
+  @Post('issues/:id/translate')
+  @HttpCode(200)
+  @RequirePermission('issues', 'read')
+  translate(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.issues.translate(user, id);
+  }
+
   @Patch('issues/:id')
   @RequirePermission('issues', 'update')
   setStatus(

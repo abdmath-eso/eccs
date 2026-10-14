@@ -11,6 +11,7 @@ import { useEffect, useState, type ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-native';
 
 import { DirectionView } from '@/components/direction-view';
+import { ScoreExplain } from '@/components/score-explain';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
 import { MinTouchSize, Spacing } from '@/constants/theme';
@@ -176,6 +177,8 @@ export function ScoreCard({ outletId, stamp }: { outletId: string; stamp: number
           ))}
         </View>
       )}
+      {/* "Why this score?" for the Owner and Manager, when AI is on and something is costing points. */}
+      <ScoreExplain score={score} />
       {score.detail && (
         <View style={styles.more}>
           <ThemedText type="smallBold" themeColor="primary" style={styles.factorText}>

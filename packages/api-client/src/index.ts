@@ -181,6 +181,8 @@ import type {
   UpdateServiceKindInput,
   UpdateServiceTaskInput,
 } from "@eccs/shared";
+// ai-types: the AI features (14 Oct 2026)
+import type { AiOutcome, AiStatusDto, AiUsageDto, ScoreExplanationDto } from "@eccs/shared";
 // inspections-types: the inspections worker imports its types from "@eccs/shared" on the next line
 import type {
   AnswerInspectionCheckInput,
@@ -406,6 +408,15 @@ export function createApiClient(options: ApiClientOptions) {
         call<IssueDto>("POST", `/issues/${id(issueId)}/comments`, input),
       setStatus: (issueId: string, status: IssueStatus) =>
         call<IssueDto>("PATCH", `/issues/${id(issueId)}`, { status }),
+      /** Translates the thread into the reader's language (AI). Call once when `translationPending` is set. */
+      translate: (issueId: string) => call<IssueDto>("POST", `/issues/${id(issueId)}/translate`),
+    },
+    /** The AI features: which are on, what the person did with an answer, and what AI has cost (ECCS). */
+    ai: {
+      status: () => call<AiStatusDto>("GET", "/ai/status"),
+      outcome: (requestId: string, outcome: AiOutcome) =>
+        call<void>("POST", `/ai/requests/${id(requestId)}/outcome`, { outcome }),
+      usage: () => call<AiUsageDto>("GET", "/ai/usage"),
     },
     checklists: {
       today: (outletId: string) => call<ChecklistRunDto[]>("GET", `/checklists/today${query({ outletId })}`),
@@ -936,6 +947,11 @@ export function createApiClient(options: ApiClientOptions) {
        * Head Chef also gets the breakdown and the last 30 days (`detail`).
        */
       get: (outletId: string) => call<HygieneScoreDto>("GET", `/scores/${id(outletId)}`),
+      /**
+       * "Why this score?" written by AI from the score's own numbers (Owner and Manager).
+       * Fails with code AI_OFF, AI_LIMIT or AI_FAILED when AI steps aside.
+       */
+      explain: (outletId: string) => call<ScoreExplanationDto>("POST", `/scores/${id(outletId)}/explain`),
     },
     // monitoring-api: the monitoring worker adds `monitoring: { ... },` on the next line
     /** The ECCS monitoring board: every outlet the person may see, worst first. ECCS staff only. */

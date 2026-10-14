@@ -11,6 +11,8 @@ export default defineConfig({
     fileParallelism: false,
     // The suites log in as sample users who have agreed to no terms, so the server's refusal
     // of such users (LEGAL_GATE) is off for the run. legal.e2e-spec.ts switches it on itself.
-    env: { LEGAL_GATE: 'off' },
+    // AI: the tests never call Anthropic. The fake engine answers (AI_ENGINE=fake), and AI is
+    // off for the run so the other suites behave as before; ai.e2e-spec.ts switches it on itself.
+    env: { LEGAL_GATE: 'off', AI_ENGINE: 'fake', AI_FEATURES: 'off' },
   },
 });

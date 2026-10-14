@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AiTranslationDto } from "./ai.js";
 
 // ECCS support: issues a restaurant raises for ECCS to act on, such as a pest
 // sighting or a smoking chimney. This is separate from problems noted on a
@@ -37,6 +38,11 @@ export interface IssueCommentDto {
   fromEccs: boolean;
   body: string;
   createdAt: string;
+  /**
+   * The message in the reader's language, when it was written in another one and has
+   * been translated by AI (14 Oct 2026). Absent or null: show `body` as it is.
+   */
+  translation?: AiTranslationDto | null;
 }
 
 /** One issue as shown in lists. */
@@ -63,6 +69,14 @@ export interface IssueDto extends IssueSummaryDto {
   photoPaths: string[];
   comments: IssueCommentDto[];
   resolvedAt: string | null;
+  /** The description in the reader's language, when AI has translated it; null or absent otherwise. */
+  descriptionTranslation?: AiTranslationDto | null;
+  /**
+   * True when some messages in another language have not been translated into the
+   * reader's language yet and AI translation is on: the app then asks for them once
+   * (POST /issues/:id/translate) and shows the originals meanwhile.
+   */
+  translationPending?: boolean;
 }
 
 /** How to reach ECCS directly. */

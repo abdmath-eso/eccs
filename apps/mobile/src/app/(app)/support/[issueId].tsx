@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type ScrollView } from 'react-native';
 
+import { TranslatableText } from '@/components/ai-parts';
 import { IssueStatusBadge } from '@/components/issue-status-badge';
 import { ProofPhoto } from '@/components/proof-photo';
 import { ThemedText } from '@/components/themed-text';
@@ -39,19 +40,32 @@ export default function IssueScreen() {
     let cancelled = false;
     api.issues
       .get(issueId)
-      .then((loaded) => !cancelled && setIssue(loaded))
+      .then(async (loaded) => {
+        if (cancelled) return;
+        setIssue(loaded);
+        // Messages in another language are shown as written at once, then in this
+        // person's language as soon as AI has translated them (once; kept after that).
+        const translated = loaded.translationPending ? await api.issues.translate(issueId).catch(() => null) : null;
+        if (!cancelled && translated) setIssue(translated);
+      })
       .catch((e) => !cancelled && setLoadError(errorMessage(e, t)));
     return () => {
       cancelled = true;
     };
+    // The thread is read again in the new language when the app's language changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, issueId]);
+  }, [api, issueId, language]);
 
   /** Loads the issue again: for pull-to-refresh and "Try again". */
   async function load() {
     try {
-      setIssue(await api.issues.get(issueId));
+      const loaded = await api.issues.get(issueId);
+      setIssue(loaded);
       setLoadError(null);
+      if (loaded.translationPending) {
+        const translated = await api.issues.translate(issueId).catch(() => null);
+        if (translated) setIssue(translated);
+      }
     } catch (e) {
       setLoadError(errorMessage(e, t));
     }
@@ -164,7 +178,7 @@ export default function IssueScreen() {
       <IssueStatusBadge status={issue.status} />
       {/* A refresh that fails leaves the conversation as it was, and says so here. */}
       <ErrorText message={loadError} onRetry={() => void load()} />
-      <ThemedText type="default">{issue.description}</ThemedText>
+      <TranslatableText original={issue.description} translation={issue.descriptionTranslation} />
       <ThemedText type="small" themeColor="textSecondary">
         {t('support.raisedBy', { name: issue.raisedByName, when: formatDateTime(issue.createdAt, language) })}
       </ThemedText>
@@ -207,7 +221,7 @@ export default function IssueScreen() {
           <ThemedText type="smallBold" themeColor={comment.fromEccs ? 'primary' : 'textSecondary'}>
             {comment.fromEccs ? `${t('support.eccs')} · ${comment.authorName}` : comment.authorName}
           </ThemedText>
-          <ThemedText type="default">{comment.body}</ThemedText>
+          <TranslatableText original={comment.body} translation={comment.translation} />
           <ThemedText type="small" themeColor="textSecondary">
             {formatDateTime(comment.createdAt, language)}
           </ThemedText>

@@ -9,6 +9,7 @@ import type { Prisma } from '@eccs/db';
 import {
   can,
   type Action,
+  type AiLanguage,
   type ChecklistRunDto,
   type ChecklistRunStatus,
   type ChecklistRunSummaryDto,
@@ -18,6 +19,7 @@ import {
   isEccsRole,
   readPhotoFlags,
 } from '@eccs/shared';
+import { ContentTranslatorService, localizedAt } from '../ai/content-translator.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -114,6 +116,7 @@ export class ChecklistsService {
     private readonly storage: StorageService,
     private readonly notify: NotifyService,
     private readonly integrity: PhotoIntegrityService,
+    private readonly translator: ContentTranslatorService,
   ) {}
 
   private get db() {
@@ -342,7 +345,7 @@ export class ChecklistsService {
     input: { outletId: string; title: string; dueTime?: string | undefined },
   ): Promise<OutletChecklistDto[]> {
     await this.requireOutlet(user, 'update', input.outletId);
-    await this.db.outletChecklist.create({
+    const created = await this.db.outletChecklist.create({
       data: {
         outlet: { connect: { id: input.outletId } },
         frequency: 'DAILY',
@@ -352,13 +355,36 @@ export class ChecklistsService {
             kind: 'DAILY',
             outletId: input.outletId,
             createdById: user.id,
-            // Typed in one language; shown as typed to everyone at the outlet.
+            // Typed in one language; the other languages are filled in by AI when it is on.
             title: { [user.contentLanguage.toLowerCase()]: input.title },
           },
         },
       },
     });
+    this.translateTitleLater(user, input.outletId, created.templateId, input.title);
     return this.outletChecklists(user, input.outletId);
+  }
+
+  /**
+   * Fills in the other languages of a checklist name the restaurant typed (AI,
+   * in the background). Skipped if the name has been changed again meanwhile.
+   */
+  private translateTitleLater(user: AuthUser, outletId: string, templateId: string, typed: string) {
+    const typedIn = user.contentLanguage.toLowerCase() as AiLanguage;
+    this.translator.later({
+      strings: [typed],
+      typedIn,
+      user,
+      outletId,
+      save: async (filled) => {
+        const template = await this.db.checklistTemplate.findUnique({ where: { id: templateId }, select: { title: true } });
+        if ((template?.title as LocalizedText | undefined)?.[typedIn] !== typed) return;
+        await this.db.checklistTemplate.update({
+          where: { id: templateId },
+          data: { title: localizedAt(filled, 0), typedLanguage: filled.source },
+        });
+      },
+    });
   }
 
   /** Changes the due time of any of the outlet's checklists, or the name of one the restaurant created. */
@@ -374,8 +400,9 @@ export class ChecklistsService {
       }
       await this.db.checklistTemplate.update({
         where: { id: list.templateId },
-        data: { title: { [user.contentLanguage.toLowerCase()]: input.title } },
+        data: { title: { [user.contentLanguage.toLowerCase()]: input.title }, typedLanguage: null },
       });
+      this.translateTitleLater(user, list.outletId, list.templateId, input.title);
     }
     if (input.dueTime !== undefined) {
       await this.db.outletChecklist.update({ where: { id: list.id }, data: { dueTime: input.dueTime } });
@@ -509,7 +536,7 @@ export class ChecklistsService {
       if (!entry) throw new NotFoundException('That suggestion is no longer available');
       label = entry.text as Prisma.InputJsonValue;
     } else {
-      // Typed in one language; shown as typed to everyone at the outlet.
+      // Typed in one language; the other languages are filled in by AI when it is on.
       label = { [user.contentLanguage.toLowerCase()]: input.label ?? '' };
     }
 
@@ -517,7 +544,7 @@ export class ChecklistsService {
       where: { templateId: list.templateId },
       _max: { position: true },
     });
-    await this.db.checklistItem.create({
+    const item = await this.db.checklistItem.create({
       data: {
         templateId: list.templateId,
         outletId: list.outletId,
@@ -529,6 +556,23 @@ export class ChecklistsService {
         photoRequired: input.photoRequired,
       },
     });
+    // A check picked from ECCS's library is translated already; only typed text is sent.
+    if (!input.libraryItemId && input.label) {
+      const typed = input.label;
+      const typedIn = user.contentLanguage.toLowerCase() as AiLanguage;
+      this.translator.later({
+        strings: [typed],
+        typedIn,
+        user,
+        outletId: list.outletId,
+        save: async (filled) => {
+          await this.db.checklistItem.update({
+            where: { id: item.id },
+            data: { label: localizedAt(filled, 0), typedLanguage: filled.source },
+          });
+        },
+      });
+    }
     return this.outletChecklists(user, list.outletId);
   }
 

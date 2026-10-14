@@ -4,6 +4,7 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { ScoreExplain } from '@/components/score-explain';
 import { ScoreHeadline, ScoreTrend, useReasonText } from '@/components/score-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -131,6 +132,7 @@ export default function ScoreScreen() {
       {score && (
         <>
           <ScoreHeadline score={score} />
+          <ScoreExplain score={score} />
           {detail && (
             <>
               {detail.possible > 0 && (

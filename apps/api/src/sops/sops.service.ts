@@ -20,6 +20,7 @@ import {
   type SopLibraryItemDto,
   type SopLibraryOverviewDto,
 } from '@eccs/shared';
+import { ContentTranslatorService, localizedAt } from '../ai/content-translator.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { alternatives, words } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -64,7 +65,10 @@ const toCategory = (value: string): SopCategory =>
  */
 @Injectable()
 export class SopsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly translator: ContentTranslatorService,
+  ) {}
 
   private get db() {
     return this.prisma.client;
@@ -132,7 +136,36 @@ export class SopsService {
       },
       include: sopInclude,
     });
+    if (sop.outletId) this.translateLater(user, sop.outletId, sop.id, language, input.title, input.steps);
     return this.toDto(user, sop);
+  }
+
+  /**
+   * Fills in the other languages of a restaurant's own SOP (AI, in the background):
+   * the title and every step, one step for one step. Skipped if the SOP has been
+   * changed again meanwhile. ECCS's standard SOPs and the library are never sent.
+   */
+  private translateLater(user: AuthUser, outletId: string, sopId: string, typedIn: SopLanguage, title: string, steps: string[]) {
+    this.translator.later({
+      strings: [title, ...steps],
+      typedIn,
+      user,
+      outletId,
+      save: async (filled) => {
+        const current = await this.db.sopTemplate.findUnique({ where: { id: sopId }, select: { title: true, body: true } });
+        const unchanged =
+          (current?.title as LocalizedText | undefined)?.[typedIn] === title &&
+          (current?.body as LocalizedText | undefined)?.[typedIn] === steps.join('\n');
+        if (!unchanged) return;
+        const body = Object.fromEntries(
+          (Object.entries(filled.texts) as [SopLanguage, string[]][]).map(([language, list]) => [language, list.slice(1).join('\n')]),
+        );
+        await this.db.sopTemplate.update({
+          where: { id: sopId },
+          data: { title: localizedAt(filled, 0), body, typedLanguage: filled.source },
+        });
+      },
+    });
   }
 
   async update(
@@ -166,10 +199,17 @@ export class SopsService {
         // Publishing is for standard SOPs only; a restaurant's own is always visible to it.
         ...(input.isPublished !== undefined &&
           sop.outletId === null && { isPublished: input.isPublished }),
-        ...(textChanged && { version: { increment: 1 } }),
+        ...(textChanged && { version: { increment: 1 }, typedLanguage: null }),
       },
       include: sopInclude,
     });
+    // A restaurant's own SOP saved in any language: the other languages are filled in
+    // again from what is now in this one, which becomes the original.
+    if (textChanged && updated.outletId) {
+      const title = (updated.title as LocalizedText)[language];
+      const steps = ((updated.body as LocalizedText)[language] ?? '').split('\n').filter(Boolean);
+      if (title && steps.length > 0) this.translateLater(user, updated.outletId, updated.id, language, title, steps);
+    }
     return this.toDto(user, updated);
   }
 

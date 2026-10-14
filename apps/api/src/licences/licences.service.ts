@@ -93,7 +93,14 @@ export class LicencesService {
     });
     if (!attachment?.outletId) throw new BadRequestException('The file could not be read. Upload it again.');
     await this.requireOutlet(user, 'licences', 'create', attachment.outletId);
-    return this.reader.read(await this.storage.getBuffer(attachment.storageKey), attachment.mimeType);
+    // The AI reader is for the restaurant's Owner and Manager, as the app's licence
+    // screens are; ECCS staff adding a licence in the console get the free reader.
+    const outlet = await this.db.outlet.findUnique({ where: { id: attachment.outletId }, select: { organizationId: true } });
+    const restaurantUser = user.memberships.every((m) => !isEccsRole(m.role));
+    const aiFor = restaurantUser
+      ? { userId: user.id, organizationId: outlet?.organizationId ?? null, outletId: attachment.outletId }
+      : undefined;
+    return this.reader.read(await this.storage.getBuffer(attachment.storageKey), attachment.mimeType, aiFor);
   }
 
   /**

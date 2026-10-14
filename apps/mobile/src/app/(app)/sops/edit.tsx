@@ -4,6 +4,7 @@ import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router
 import { useCallback, useEffect, useState, type ComponentProps } from 'react';
 import { ActivityIndicator, BackHandler, Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { OtherLanguagesNote } from '@/components/ai-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -189,6 +190,7 @@ export default function EditSopScreen() {
             maxLength={100}
             error={showMissing && titleMissing ? t('sops.nameNeeded') : null}
           />
+          <OtherLanguagesNote />
 
           <ThemedText type="smallBold" themeColor="textSecondary">
             {t('sops.category')}

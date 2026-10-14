@@ -218,6 +218,8 @@ model SopTemplate {
   createdById String?
   /// The library SOP this was copied from, if it was. Lets the app show it as already added.
   libraryItemId String?
+  /// The language the restaurant typed it in, when the other languages were filled in by AI.
+  typedLanguage String?
 
   outlet             Outlet?             @relation(fields: [outletId], references: [id])
   libraryItem        SopLibraryItem?     @relation(fields: [libraryItemId], references: [id])
@@ -275,6 +277,8 @@ model ChecklistTemplate {
   /// (for example "Mid-day checklist"). Empty for ECCS's basic checklists.
   outletId      String?
   createdById   String?
+  /// The language the restaurant typed the name in, when the other languages were filled in by AI.
+  typedLanguage String?
 
   sopTemplate      SopTemplate?      @relation(fields: [sopTemplateId], references: [id])
   outlet           Outlet?           @relation(fields: [outletId], references: [id])
@@ -301,6 +305,8 @@ model ChecklistItem {
   createdById   String?
   /// Set when the item was picked from the suggestion library rather than typed.
   libraryItemId String?
+  /// The language the restaurant typed it in, when the other languages were filled in by AI.
+  typedLanguage String?
   isActive      Boolean           @default(true)
 
   template            ChecklistTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
@@ -971,6 +977,8 @@ model Issue {
   resolvedAt          DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
+  /// The description's AI translations: { source, to: { te: "...", ... } } (StoredTranslations).
+  translations        Json?
 
   outlet            Outlet             @relation(fields: [outletId], references: [id])
   raisedBy          User               @relation("IssueRaisedBy", fields: [raisedById], references: [id])
@@ -989,6 +997,8 @@ model IssueComment {
   authorId  String
   body      String
   createdAt DateTime @default(now())
+  /// The message's AI translations: { source, to: { te: "...", ... } } (StoredTranslations).
+  translations Json?
 
   issue  Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
   author User  @relation(fields: [authorId], references: [id])
@@ -1378,6 +1388,8 @@ model FoodItem {
   note           String?
   /// Which entry of the starter list it was added from, if any.
   starterKey     String?
+  /// The language the name was typed in, when the other languages were filled in by AI.
+  typedLanguage  String?
   /// False once retired: kept for the labels already made, not offered for new ones.
   isActive       Boolean     @default(true)
   createdAt      DateTime    @default(now())
@@ -1655,6 +1667,56 @@ model LegalAcceptance {
 
   @@unique([userId, documentKey, version])
   @@index([userId])
+}
+
+/// One request to the AI (the Claude API), or one refused before it was sent
+/// (14 Oct 2026). Only facts about the request are kept: never the instructions,
+/// the text or picture sent, or the answer. The daily spending limits are counted
+/// from this table. No foreign keys: it is a record that must outlive the user or
+/// outlet it mentions, and must never stop either being removed.
+model AiRequest {
+  id             String   @id @default(uuid())
+  /// A name from AI_FEATURES in packages/shared/src/ai.ts, e.g. "licence-reader".
+  feature        String
+  /// The model asked, e.g. "claude-haiku-5-5".
+  model          String
+  userId         String?
+  organizationId String?
+  outletId       String?
+  inputTokens    Int      @default(0)
+  outputTokens   Int      @default(0)
+  /// What it cost in millionths of a US dollar, from the token counts and AI_PRICES.
+  costMicroUsd   Int      @default(0)
+  /// OK, ERROR, OFF, LIMIT or INVALID (AI_STATUSES).
+  status         String
+  /// Why it failed, e.g. "TIMEOUT", "HTTP_529", "NUMBERS".
+  errorCode      String?
+  durationMs     Int      @default(0)
+  createdAt      DateTime @default(now())
+  /// Set later by the feature when the person acts on the answer (AI_OUTCOMES).
+  outcome        String?
+
+  @@index([createdAt])
+  @@index([outletId, createdAt])
+}
+
+/// "Why this score?": the explanation written for an outlet's score, kept for the
+/// day and language so opening it again costs nothing. Replaced when the score's
+/// facts change during the day (factsHash).
+model AiScoreExplanation {
+  id          String   @id @default(uuid())
+  outletId    String
+  date        DateTime @db.Date
+  /// Lower-case language code, e.g. "te".
+  language    String
+  /// Fingerprint of the score facts it was written from.
+  factsHash   String
+  /// The sentences, in order.
+  sentences   Json
+  aiRequestId String
+  createdAt   DateTime @default(now())
+
+  @@unique([outletId, date, language])
 }
 
 model AuditLog {

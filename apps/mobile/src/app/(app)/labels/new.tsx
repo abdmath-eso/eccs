@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { OtherLanguagesNote } from '@/components/ai-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
@@ -109,6 +110,7 @@ export default function NewLabelScreen() {
         maxLength={60}
         autoFocus={!params.name}
       />
+      <OtherLanguagesNote />
 
       {/* A few common lengths to tap, and any other as a number of hours or days. */}
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>

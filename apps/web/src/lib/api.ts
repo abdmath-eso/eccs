@@ -24,5 +24,7 @@ export const setUnauthorizedHandler = (handler: (() => void) | null) => {
 export const api = createApiClient({
   baseUrl: API_URL,
   getToken: getStoredToken,
+  // The console is in English, so whatever the server words or translates for it is English too.
+  getLanguage: () => "EN",
   onUnauthorized: () => unauthorizedHandler?.(),
 });

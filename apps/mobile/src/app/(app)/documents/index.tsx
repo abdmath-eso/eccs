@@ -8,8 +8,9 @@ import {
   type LicenceType,
 } from '@eccs/shared';
 import { useEffect, useState, useRef } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 
+import { AiNote } from '@/components/ai-parts';
 import { FileChooser } from '@/components/file-chooser';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,23 @@ type VaultCategory = Exclude<DocumentCategory, 'licence'>;
 const VAULT_CATEGORIES = DOCUMENT_CATEGORIES.filter((category): category is VaultCategory => category !== 'licence');
 
 type Removal = { kind: 'licence'; licence: LicenceDto } | { kind: 'document'; document: DocumentDto };
+
+/**
+ * What the AI read off the chosen document (14 Oct 2026), kept so each field can be
+ * marked "Filled by AI: check it" while it still holds what was read, or "Could not
+ * read: type it in" while it is empty, and so the app can tell the server afterwards
+ * whether the person kept what was filled in or changed it. The pattern is the one
+ * expense apps use for receipts (Expensify SmartScan, Zoho Expense Autoscan): the
+ * photo, the fields filled in, the person checks and corrects, then saves.
+ */
+interface AiFill {
+  requestId: string;
+  type: LicenceType | null;
+  number: string | null;
+  issuedOn: string | null;
+  expiresOn: string | null;
+  issuedTo: string | null;
+}
 
 /** Licences with their expiry dates, and the document vault, for one outlet. */
 export default function DocumentsScreen() {
@@ -64,6 +82,9 @@ export default function DocumentsScreen() {
   // For licences the file is uploaded as soon as it is chosen, so its details can be read into the form.
   const [uploadedId, setUploadedId] = useState<string | null>(null);
   const [reading, setReading] = useState<'working' | 'filled' | 'nothing' | null>(null);
+  // Set when AI read the document; the issue date is shown only then, to keep the form short.
+  const [aiFill, setAiFill] = useState<AiFill | null>(null);
+  const [issued, setIssued] = useState('');
   // Counts the files chosen, so a slow answer about an earlier file is ignored.
   const latestChoice = useRef(0);
 
@@ -106,12 +127,20 @@ export default function DocumentsScreen() {
     }
   }
 
+  /** What AI filled in was thrown away (another file chosen, or the form closed without saving). */
+  function discardAiFill() {
+    if (aiFill) void api.ai.outcome(aiFill.requestId, 'DISCARDED').catch(() => undefined);
+    setAiFill(null);
+  }
+
   function openForm(next: typeof form) {
+    discardAiFill();
     setForm(next);
     setType('FSSAI');
     setName('');
     setNumber('');
     setExpiry('');
+    setIssued('');
     setCategory('certificate');
     setTitle('');
     setFile(null);
@@ -121,6 +150,11 @@ export default function DocumentsScreen() {
     setRowError(null);
     setShowMissing(false);
     latestChoice.current += 1;
+  }
+
+  function closeForm() {
+    discardAiFill();
+    setForm(null);
   }
 
   /**
@@ -133,6 +167,7 @@ export default function DocumentsScreen() {
     setFile(chosen);
     setUploadedId(null);
     setReading(null);
+    discardAiFill();
     if (!chosen || !outletId) return;
 
     setReading('working');
@@ -154,6 +189,17 @@ export default function DocumentsScreen() {
       // When renewing, the number shown is the old licence's, so the one on the new document wins.
       if (details.number) setNumber((current) => (form === 'licence' && current.trim()) || details.number!);
       if (form === 'licence' && details.type && details.type !== 'OTHER') setType(details.type);
+      if (details.source === 'ai' && details.aiRequestId) {
+        if (details.issuedOn) setIssued((current) => current.trim() || toTypedDate(details.issuedOn!));
+        setAiFill({
+          requestId: details.aiRequestId,
+          type: details.type,
+          number: details.number,
+          issuedOn: details.issuedOn,
+          expiresOn: details.expiresOn,
+          issuedTo: details.issuedTo ?? null,
+        });
+      }
       setReading(found ? 'filled' : 'nothing');
     } catch (e) {
       if (choice !== latestChoice.current) return;
@@ -207,21 +253,50 @@ export default function DocumentsScreen() {
     : null;
   const nameMissing = type === 'OTHER' && name.trim().length < 2;
   const titleMissing = title.trim().length < 2;
+  // The issue date, shown only after AI has read a document. Optional: a date that is
+  // not whole or not real is simply not sent, and said so under the field.
+  const issuedDigits = issued.replace(/\D/g, '').length;
+  const issuedOn = issuedDigits === 8 ? parseTypedDate(issued) : null;
+  const issuedError = issuedDigits > 0 && !issuedOn ? t('docs.dateNotReal') : null;
+
+  /** Field notes while AI's reading is in the form: still what AI read, or still empty because it could not. */
+  const aiHint = (read: string | null | undefined, current: string | null): string | null => {
+    if (!aiFill || read === undefined) return null;
+    if (read === null) return current ? null : t('ai.couldNotRead');
+    return current === read ? t('ai.filledCheck') : null;
+  };
+
+  /** Tells the server whether the person saved what AI filled in as it was, or changed some of it. */
+  function reportAiOutcome(saved: { type: LicenceType | null; number: string | undefined; issuedOn: string | undefined; expiresOn: string }) {
+    if (!aiFill) return;
+    const kept = (read: string | null, value: string | null | undefined) => read === null || read === (value ?? null);
+    const unchanged =
+      kept(aiFill.type, saved.type ?? aiFill.type) &&
+      kept(aiFill.number, saved.number) &&
+      kept(aiFill.issuedOn, saved.issuedOn) &&
+      kept(aiFill.expiresOn, saved.expiresOn);
+    void api.ai.outcome(aiFill.requestId, unchanged ? 'ACCEPTED' : 'EDITED').catch(() => undefined);
+    setAiFill(null);
+  }
 
   function saveLicence() {
     if (!expiresOn || nameMissing) return setShowMissing(true);
     if (!outletId) return;
+    const details = {
+      outletId,
+      type,
+      name: type === 'OTHER' ? name.trim() : undefined,
+      number: number.trim() || undefined,
+      issuedOn: issuedOn ?? undefined,
+      expiresOn,
+    };
     void save(
       'form',
-      async () =>
-        api.licences.create({
-          outletId,
-          type,
-          name: type === 'OTHER' ? name.trim() : undefined,
-          number: number.trim() || undefined,
-          expiresOn,
-          attachmentId: await uploadChosen(),
-        }),
+      async () => {
+        const saved = await api.licences.create({ ...details, attachmentId: await uploadChosen() });
+        reportAiOutcome(details);
+        return saved;
+      },
       t('common.saved'),
       setFormError,
     );
@@ -229,14 +304,15 @@ export default function DocumentsScreen() {
 
   function renewLicence(licenceId: string) {
     if (!expiresOn) return setShowMissing(true);
+    const details = { expiresOn, number: number.trim() || undefined, issuedOn: issuedOn ?? undefined };
     void save(
       'form',
-      async () =>
-        api.licences.update(licenceId, {
-          expiresOn,
-          number: number.trim() || undefined,
-          attachmentId: await uploadChosen(),
-        }),
+      async () => {
+        const saved = await api.licences.update(licenceId, { ...details, attachmentId: await uploadChosen() });
+        // The kind of licence is not chosen when renewing, so only the other fields are compared.
+        reportAiOutcome({ ...details, type: null });
+        return saved;
+      },
       t('common.saved'),
       setFormError,
     );
@@ -287,11 +363,58 @@ export default function DocumentsScreen() {
           {t('docs.reading')}
         </ThemedText>
       </View>
+    ) : aiFill && reading === 'filled' ? (
+      // AI read it: say so plainly, and who it is issued to, so the wrong document is noticed.
+      <View style={styles.aiSummary}>
+        <AiNote text={t('ai.readByAi')} />
+        {aiFill.issuedTo && (
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('ai.issuedTo', { name: aiFill.issuedTo })}
+          </ThemedText>
+        )}
+      </View>
     ) : reading ? (
       <ThemedText type="small" themeColor={reading === 'filled' ? 'primary' : 'textSecondary'}>
         {reading === 'filled' ? `✓ ${t('docs.readFilled')}` : t('docs.readNothing')}
       </ThemedText>
     ) : null;
+
+  /** The chosen photo, above the fields, so what was read can be checked against it. */
+  const chosenPhoto = file?.imageUri ? (
+    <Image
+      source={{ uri: file.imageUri }}
+      style={[styles.photo, { backgroundColor: theme.backgroundElement }]}
+      resizeMode="contain"
+      accessibilityLabel={t('ai.documentPhoto')}
+    />
+  ) : null;
+
+  /** The number field, marked while it holds what AI read. */
+  const numberField = (
+    <TextField
+      label={t('docs.number')}
+      value={number}
+      onChangeText={setNumber}
+      maxLength={60}
+      autoCapitalize="characters"
+      hint={aiHint(aiFill?.number, number.trim() || null)}
+    />
+  );
+
+  /** The issue date, only once AI has read a document (optional, so the form stays short otherwise). */
+  const issuedField = aiFill ? (
+    <TextField
+      label={t('ai.issuedOn')}
+      value={issued}
+      onChangeText={(next) => setIssued((current) => maskTypedDate(next, current))}
+      placeholder={t('docs.datePlaceholder')}
+      keyboardType="number-pad"
+      inputMode="numeric"
+      maxLength={10}
+      hint={[aiHint(aiFill.issuedOn, issuedOn), issuedOn ? `✓ ${formatDate(issuedOn, language)}` : null].filter(Boolean).join(' · ') || null}
+      error={issuedError}
+    />
+  ) : null;
 
   /** The expiry date field: a number pad, the slashes put in as it is typed, the date said back underneath. */
   const expiryField = (label: string) => (
@@ -303,7 +426,7 @@ export default function DocumentsScreen() {
       keyboardType="number-pad"
       inputMode="numeric"
       maxLength={10}
-      hint={expiryReadBack}
+      hint={[aiHint(aiFill?.expiresOn, expiresOn), expiryReadBack].filter(Boolean).join(' · ') || null}
       error={expiryError}
     />
   );
@@ -330,7 +453,7 @@ export default function DocumentsScreen() {
           setDocuments(null);
           setLoadError(null);
           setRowError(null);
-          setForm(null);
+          closeForm();
           choose(nextOutletId);
         }}
       />
@@ -383,14 +506,10 @@ export default function DocumentsScreen() {
                   {t('docs.readHint')}
                 </ThemedText>
                 <FileChooser value={file} onChange={(chosen) => void licenceFileChosen(chosen)} />
+                {chosenPhoto}
                 {readingNote}
-                <TextField
-                  label={t('docs.number')}
-                  value={number}
-                  onChangeText={setNumber}
-                  maxLength={60}
-                  autoCapitalize="characters"
-                />
+                {numberField}
+                {issuedField}
                 {expiryField(t('docs.newExpiry'))}
                 <ErrorText message={formError} />
                 <Button
@@ -400,7 +519,7 @@ export default function DocumentsScreen() {
                   loading={busy === 'form'}
                   disabled={reading === 'working'}
                 />
-                <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
+                <Button label={t('common.cancel')} variant="link" onPress={closeForm} />
               </View>
             ) : (
               // The document gets a row of its own: three buttons side by side do not fit a phone.
@@ -451,6 +570,7 @@ export default function DocumentsScreen() {
               {t('docs.readHint')}
             </ThemedText>
             <FileChooser value={file} onChange={(chosen) => void licenceFileChosen(chosen)} />
+            {chosenPhoto}
             {readingNote}
             <ThemedText type="smallBold" themeColor="textSecondary">
               {t('docs.licenceType')}
@@ -465,6 +585,11 @@ export default function DocumentsScreen() {
                 />
               ))}
             </View>
+            {aiFill?.type && aiFill.type === type && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {t('ai.filledCheck')}
+              </ThemedText>
+            )}
             {type === 'OTHER' && (
               <TextField
                 label={t('docs.licenceName')}
@@ -479,13 +604,8 @@ export default function DocumentsScreen() {
                 {t('docs.replaces', { name: licenceName(replacing) })}
               </ThemedText>
             )}
-            <TextField
-              label={t('docs.number')}
-              value={number}
-              onChangeText={setNumber}
-              maxLength={60}
-              autoCapitalize="characters"
-            />
+            {numberField}
+            {issuedField}
             {expiryField(t('docs.expiresOn'))}
             <ErrorText message={formError} />
             <Button
@@ -495,7 +615,7 @@ export default function DocumentsScreen() {
               loading={busy === 'form'}
               disabled={reading === 'working'}
             />
-            <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
+            <Button label={t('common.cancel')} variant="link" onPress={closeForm} />
           </View>
         ) : (
           <Button icon="add" label={t('docs.addLicence')} variant="secondary" onPress={() => openForm('licence')} />
@@ -608,6 +728,8 @@ const styles = StyleSheet.create({
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   sectionGap: { marginTop: Spacing.four },
   reading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  aiSummary: { gap: Spacing.half },
+  photo: { width: '100%', height: 200, borderRadius: Spacing.two },
   card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },

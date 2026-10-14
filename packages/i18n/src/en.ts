@@ -1810,6 +1810,28 @@ export const en = {
   "legal.list": "Legal documents",
   "legal.error.notAccepted": "Please agree to the Terms of Service and Privacy Policy to continue.",
   "public.privacyLink": "Privacy",
+  // AI features (14 Oct 2026).
+  "ai.readByAi": "Read by AI. Check each field before saving.",
+  "ai.filledCheck": "Filled by AI: check it",
+  "ai.couldNotRead": "Could not read: type it in",
+  "ai.issuedTo": "Issued to: {name}",
+  "ai.issuedOn": "Issued on (optional)",
+  "ai.documentPhoto": "Photo of the document",
+  "ai.translatedFrom": "Translated from {language}",
+  "ai.translated": "Translated",
+  "ai.seeOriginal": "See original",
+  "ai.seeTranslation": "See translation",
+  "ai.otherLanguages": "Other languages filled in by AI.",
+  "ai.whyScore": "Why this score?",
+  "ai.hide": "Hide",
+  "ai.working": "Working it out…",
+  "ai.writtenNote": "Written by AI from your score. The numbers are the app's.",
+  "ai.helpful": "Helpful?",
+  "ai.helpfulYes": "Yes, helpful",
+  "ai.helpfulNo": "Not helpful",
+  "ai.thanks": "Thanks for telling us.",
+  "ai.needsSignal": "Needs signal",
+  "ai.explainFailed": "No explanation right now. See what is costing points.",
 } as const;
 
 export type MessageKey = keyof typeof en;

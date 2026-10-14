@@ -18,6 +18,7 @@ import {
   looseLabelName,
   useByFor,
   type Action,
+  type AiLanguage,
   type Allergen,
   type FoodItemDto,
   type FoodItemRemovalDto,
@@ -28,6 +29,7 @@ import {
   type LocalizedText,
   type StorageType,
 } from '@eccs/shared';
+import { ContentTranslatorService, localizedAt } from '../ai/content-translator.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { PdfPrinterService } from '../pdf/pdf-printer.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -60,6 +62,7 @@ export class FoodLabelsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly printer: PdfPrinterService,
+    private readonly translator: ContentTranslatorService,
   ) {}
 
   private get db() {
@@ -122,6 +125,7 @@ export class FoodLabelsService {
       },
       include: itemInclude,
     });
+    this.translateNameLater(user, item.outletId, item.id, input.name);
     return this.toItemDto(item, user);
   }
 
@@ -151,7 +155,8 @@ export class FoodLabelsService {
       where: { id: itemId },
       data: {
         // A new name replaces the old one in every language: the kitchen's own wording is the name.
-        ...(renamed && { name: this.nameAsTyped(user, input.name!) }),
+        // AI then fills in the other languages again, when it is on.
+        ...(renamed && { name: this.nameAsTyped(user, input.name!), typedLanguage: null }),
         ...(input.storage !== undefined && { storage: input.storage }),
         ...(input.shelfLifeHours !== undefined && { shelfLifeHours: input.shelfLifeHours }),
         ...(input.allergens !== undefined && { allergens: input.allergens }),
@@ -160,7 +165,27 @@ export class FoodLabelsService {
       },
       include: itemInclude,
     });
+    if (renamed) this.translateNameLater(user, item.outletId, item.id, input.name!);
     return this.toItemDto(item, user);
+  }
+
+  /**
+   * Fills in the other languages of a label name the kitchen typed (AI, in the
+   * background), so each cook reads it in their own. Skipped if it was renamed again meanwhile.
+   */
+  private translateNameLater(user: AuthUser, outletId: string, itemId: string, typed: string) {
+    const typedIn = user.contentLanguage.toLowerCase() as AiLanguage;
+    this.translator.later({
+      strings: [typed],
+      typedIn,
+      user,
+      outletId,
+      save: async (filled) => {
+        const current = await this.db.foodItem.findUnique({ where: { id: itemId }, select: { name: true } });
+        if ((current?.name as LocalizedText | undefined)?.[typedIn] !== typed) return;
+        await this.db.foodItem.update({ where: { id: itemId }, data: { name: localizedAt(filled, 0), typedLanguage: filled.source } });
+      },
+    });
   }
 
   /**
@@ -223,24 +248,28 @@ export class FoodLabelsService {
     try {
       // The new saved label and its first label are made together or not at all,
       // so a label that fails (or arrives twice) never leaves a stray entry on the list.
-      const label = await this.db.$transaction(async (tx) => {
+      const { label, newItemId } = await this.db.$transaction(async (tx) => {
         let item = saved;
+        // A label name saved here for the first time, to fill in its other languages afterwards.
+        let created: string | null = null;
         if (!item) {
           // One at a time for each outlet, so two people typing the same new name at once get one saved label.
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${outlet.id}))`;
           const wanted = looseLabelName(input.newItem!.name);
           const active = await tx.foodItem.findMany({ where: { outletId: outlet.id, isActive: true } });
-          item =
-            active.find((other) => looseLabelName(localize(other.name as LocalizedText, user.contentLanguage)) === wanted) ??
-            (await tx.foodItem.create({
+          item = active.find((other) => looseLabelName(localize(other.name as LocalizedText, user.contentLanguage)) === wanted) ?? null;
+          if (!item) {
+            item = await tx.foodItem.create({
               data: {
                 outletId: outlet.id,
                 name: this.nameAsTyped(user, input.newItem!.name),
                 shelfLifeHours: input.newItem!.shelfLifeHours,
               },
-            }));
+            });
+            created = item.id;
+          }
         }
-        return tx.foodLabel.create({
+        const made = await tx.foodLabel.create({
           data: {
             outletId: outlet.id,
             foodItemId: item.id,
@@ -256,7 +285,9 @@ export class FoodLabelsService {
             clientId: input.clientId ?? null,
           },
         });
+        return { label: made, newItemId: created };
       });
+      if (newItemId) this.translateNameLater(user, outlet.id, newItemId, input.newItem!.name);
       return this.toLabelDto(label);
     } catch (error) {
       // The same label arriving twice at the same moment: the database let only one in.

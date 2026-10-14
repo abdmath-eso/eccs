@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { OtherLanguagesNote } from '@/components/ai-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -155,6 +156,7 @@ export default function FoodItemScreen() {
         error={nameError}
         maxLength={60}
       />
+      <OtherLanguagesNote />
 
       <ThemedText type="smallBold" themeColor="textSecondary">
         {t('labels.items.storage')}

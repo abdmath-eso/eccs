@@ -2,18 +2,42 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import type { Prisma } from '@eccs/db';
 import {
   accessScope,
+  AI_MODELS,
   can,
+  hasWords,
   isEccsRole,
   isIssueOpen,
+  storedTranslationFor,
+  SUPPORT_TRANSLATION_JSON_SCHEMA,
+  supportTranslationSchema,
+  writtenInOwnScript,
+  type AiLanguage,
+  type AiTranslationDto,
   type IssueCategory,
   type IssueDto,
   type IssueStatus,
   type IssueSummaryDto,
+  type StoredTranslations,
+  type SupportTranslationAnswer,
 } from '@eccs/shared';
+import { supportTranslationInstructions } from '../ai/ai-prompts.js';
+import { AiService } from '../ai/ai.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
+
+/** At most this many messages are translated in one go: the newest, which are read first. */
+const MAX_TRANSLATED_AT_ONCE = 30;
+
+/** A message of the thread (the description, or a reply) as translation sees it. */
+interface ThreadMessage {
+  /** "issue" for the description, otherwise the reply's id. */
+  id: string;
+  text: string;
+  authorId: string;
+  stored: StoredTranslations | null;
+}
 
 const issueInclude = {
   outlet: { select: { id: true, name: true, organizationId: true, organization: { select: { name: true } } } },
@@ -45,6 +69,7 @@ export class IssuesService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly notify: NotifyService,
+    private readonly ai: AiService,
   ) {}
 
   private get db() {
@@ -83,7 +108,51 @@ export class IssuesService {
   }
 
   async get(user: AuthUser, issueId: string): Promise<IssueDto> {
-    return this.toDto(await this.require(user, 'read', issueId));
+    return this.toDto(await this.require(user, 'read', issueId), user);
+  }
+
+  /**
+   * Translates the thread's messages into the reader's language (feature 2a, 14 Oct
+   * 2026), in one AI call, and keeps each translation on its message, so a message
+   * is translated at most once per language. The app asks for this once, after
+   * showing the thread, when `translationPending` is set; the originals show
+   * meanwhile, and stay if translation is off or fails. The language each message
+   * is in is detected in the same call. Sends to the AI: the messages' words only.
+   */
+  async translate(user: AuthUser, issueId: string): Promise<IssueDto> {
+    const issue = await this.require(user, 'read', issueId);
+    const target = readerLanguage(user);
+    const wanted = threadMessages(issue)
+      .filter((message) => needsTranslation(message, user, target) === 'missing')
+      .slice(-MAX_TRANSLATED_AT_ONCE);
+    if (wanted.length === 0 || !this.ai.isOn('translate-support')) return this.toDto(issue, user);
+
+    const messages = wanted.map(({ id, text }) => ({ id, text }));
+    const chars = messages.reduce((total, message) => total + message.text.length, 0);
+    const result = await this.ai.run<SupportTranslationAnswer>({
+      feature: 'translate-support',
+      model: AI_MODELS.haiku,
+      instructions: supportTranslationInstructions(target),
+      text: JSON.stringify({ messages }),
+      answer: { schema: SUPPORT_TRANSLATION_JSON_SCHEMA, check: supportTranslationSchema },
+      maxOutputTokens: Math.min(8000, chars * 2 + 100 * messages.length + 200),
+      who: { userId: user.id, organizationId: issue.outlet.organizationId, outletId: issue.outletId },
+      facts: { target, messages },
+    });
+    if (!result.ok) return this.toDto(issue, user);
+
+    for (const item of result.value.items) {
+      const message = wanted.find((entry) => entry.id === item.id);
+      if (!message) continue;
+      const translations: StoredTranslations = {
+        source: item.source,
+        to: { ...message.stored?.to, ...(item.source !== target && item.text.trim() && { [target]: item.text.trim() }) },
+      };
+      const data = { translations: translations as object };
+      if (message.id === 'issue') await this.db.issue.update({ where: { id: issue.id }, data });
+      else await this.db.issueComment.update({ where: { id: message.id }, data });
+    }
+    return this.get(user, issue.id);
   }
 
   /** Any restaurant user, including the Head Chef, raises an issue for their outlet. */
@@ -185,20 +254,65 @@ export class IssuesService {
     return issue;
   }
 
-  private toDto(issue: IssueDetailRow): IssueDto {
+  /**
+   * The issue as the reader sees it. Each message written in another language comes
+   * with its stored translation into the reader's language, if there is one yet.
+   */
+  private toDto(issue: IssueDetailRow, user: AuthUser): IssueDto {
+    const target = readerLanguage(user);
+    const aiOn = this.ai.isOn('translate-support');
+    let pending = false;
+    const translationOf = (message: ThreadMessage): AiTranslationDto | null => {
+      const found = needsTranslation(message, user, target);
+      if (found !== 'missing') return found;
+      if (aiOn) pending = true;
+      return null;
+    };
+    const [description, ...replies] = threadMessages(issue).map(translationOf);
     return {
       ...toSummary(issue),
       photoPaths: issue.attachments.map((photo) => this.storage.signedPath(photo.id)),
       resolvedAt: issue.resolvedAt?.toISOString() ?? null,
-      comments: issue.comments.map((comment) => ({
+      comments: issue.comments.map((comment, index) => ({
         id: comment.id,
         authorName: comment.author.name,
         fromEccs: comment.author.memberships.some((m) => isEccsRole(m.role)),
         body: comment.body,
         createdAt: comment.createdAt.toISOString(),
+        translation: replies[index] ?? null,
       })),
+      descriptionTranslation: description ?? null,
+      translationPending: pending,
     };
   }
+}
+
+/** The language the reader's screen is in: the app's language in the app, English in the console. */
+const readerLanguage = (user: AuthUser) => user.contentLanguage.toLowerCase() as AiLanguage;
+
+/** The description first, then the replies in order. */
+function threadMessages(issue: IssueDetailRow): ThreadMessage[] {
+  return [
+    { id: 'issue', text: issue.description ?? issue.title, authorId: issue.raisedById, stored: issue.translations as StoredTranslations | null },
+    ...issue.comments.map((comment) => ({
+      id: comment.id,
+      text: comment.body,
+      authorId: comment.authorId,
+      stored: comment.translations as StoredTranslations | null,
+    })),
+  ];
+}
+
+/**
+ * What a reader sees for one message: its translation, null when none is needed,
+ * or "missing" when it still has to be translated. Nothing is translated for the
+ * person who wrote it, for a message with no words (a number, a time, an emoji),
+ * or for one plainly written in the reader's own script (Telugu letters for a
+ * Telugu reader); everything else is asked once, and the language detected.
+ */
+function needsTranslation(message: ThreadMessage, user: AuthUser, target: AiLanguage): AiTranslationDto | null | 'missing' {
+  if (message.authorId === user.id || !hasWords(message.text) || writtenInOwnScript(message.text, target)) return null;
+  return storedTranslationFor(message.stored, target);
 }
 
 function toSummary(issue: IssueRow): IssueSummaryDto {

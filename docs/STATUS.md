@@ -6,7 +6,7 @@
 
 **Rule for anyone working on this repo, human or Claude:** update this file in the same session as any change that affects it: a feature started or finished, a decision made, a question answered, a tool installed. Add a line to the change log at the bottom every time, and commit.
 
-**Last updated:** 13 Oct 2026
+**Last updated:** 14 Oct 2026
 
 ---
 
@@ -25,7 +25,7 @@ The team is the founder plus Claude Code. There are no other developers, so this
 | **Code** | `packages/db`: schema (about 48 tables), migrations, sample seed. `packages/shared`: roles, permission rules, request schemas. `packages/api-client`: the one typed client web and mobile use. `packages/i18n`: English, Telugu, Hindi text. `apps/api`: login, sessions, role and scope checks, staff logins, outlets, client onboarding, daily checklists, photo storage. `apps/mobile`: login screens, role-based home, staff logins, daily checklists (today, fill in with photos, add own items, history). `apps/web`: ECCS console with login, client list and restaurant onboarding. |
 | **Local services** | Running in Docker: PostgreSQL on 5432, Redis on 6379, SeaweedFS (S3 stand-in) on 8333. Database is migrated and seeded. |
 | **Blocked** | Nothing. |
-| **Next action (Claude)** | Nothing is in progress. Waiting for the founder's testing and their answers in section 4. The likely next step for the vendor directory is a console page where ECCS adds and edits real vendors. **The newest APK (13 Oct, 4:58 pm) does not have the vendor directory: the founder said not to build one for it. Build an APK only when the founder asks.** Changes on the server need the founder to restart the API before they show. Everything up to the end of 13 Oct is pushed to GitHub. |
+| **Next action (Claude)** | Nothing is in progress. Waiting for the founder's testing and their answers in section 4. The likely next step for the vendor directory is a console page where ECCS adds and edits real vendors. The newest APK was built on 14 Oct at 11:47 am, at the founder's word, and has everything up to then, the vendor directory included. **Build an APK only when the founder asks.** Changes on the server need the founder to restart the API before they show. |
 | **Next action (founder)** | Restart the API (`pnpm build`, then `pnpm --filter @eccs/api start`) and test following `docs/TEST_LOGINS.md` section 17 (steps 13 to 15, a Manager and their own record), section 19 (the shorter customer page) and section 20 (the vendor directory, which needs a new APK or the Expo terminal). Read `docs/ECCS briefing for the BD team.pdf` before sharing it, above all page 3 (the services in plain words) and page 12 (what is not ready). Decide the points in section 4, above all: whether a Manager may correct the team's attendance; who adds real vendors and whether ECCS checks their FSSAI numbers; the customer page's wording. **Still waiting from 12 Oct:** the three questions the viability report turns on (does ECCS already trade; the founder's own history in the trade; investment and fast growth, or a profitable local business first), and Y Combinator (deadline 2 Nov 2026). Before real employees use face attendance: a lawyer on the consent notice, and a week's trial at one outlet. Still open: the ECCS logo; ECCS's real GSTIN, legal name, address and bank details; real prices and task lists; a review of the translations and of the SOPs; the real holiday list. |
 
 ## 3. Decisions made
@@ -565,6 +565,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 14 Oct 2026 | APK rebuilt at 11:47 am at the founder's word, with the vendor directory. |
 | 13 Oct 2026 | End of day: the day written up in `docs/DAILY_LOG.md`; current state brought up to date; pushed to GitHub. |
 | 13 Oct 2026 | Added `docs/ECCS briefing for the BD team.pdf`: a 15-page briefing in simple English for new business development staff, with pictures of the app. |
 | 13 Oct 2026 | Vendor directory added: a "Vendors" page for the Owner and Manager with the whole directory nearest first, search, category chips, and Call / WhatsApp / Directions; 24 invented sample vendors that the app never dials. Translated. No console page yet. |

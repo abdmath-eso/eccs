@@ -12,6 +12,16 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Wednesday 14 October 2026
+
+*In progress. To be written up at the next end of day.*
+
+**So far**
+
+- The founder asked for the APK to be built. It was ready at 11:47 am after 13 minutes, with everything up to the end of 13 Oct, the vendor directory included. The PC had about 2 GB of memory free at the start (Edge, VS Code and the founder's Expo and API terminals were open); the build was no slower for it.
+
+---
+
 ## Tuesday 13 October 2026
 
 The day the founder tested on the phone and sent things back. The customer QR page was rebuilt to the founder's design and then, after a try on the phone, shortened. The attendance page was put back as it had been, and who may see and change attendance was tightened. Two new things were added: a vendor directory and a briefing document for business development staff. 16 commits. Pushed to GitHub at the end of the day.

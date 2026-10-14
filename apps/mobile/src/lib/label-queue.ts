@@ -1,5 +1,5 @@
 import { ApiError, type ApiClient } from '@eccs/api-client';
-import type { CreateFoodLabelInput, FoodItemDto } from '@eccs/shared';
+import { LEGAL_ERROR, type CreateFoodLabelInput, type FoodItemDto } from '@eccs/shared';
 
 import { readJson, writeJson } from './offline/files';
 
@@ -68,12 +68,14 @@ export function sendQueuedLabels(api: ApiClient, userId: string): Promise<{ sent
           await api.foodLabels.create(entry.input);
           sent += 1;
         } catch (error) {
+          // Refused until the person agrees to updated terms (TERMS_NOT_ACCEPTED) is not final either.
           const final =
             error instanceof ApiError &&
             !error.isNetworkError &&
             error.status >= 400 &&
             error.status < 500 &&
-            ![401, 408, 429].includes(error.status);
+            ![401, 408, 429].includes(error.status) &&
+            error.code !== LEGAL_ERROR.notAccepted;
           if (!final) break;
           refused += 1;
         }

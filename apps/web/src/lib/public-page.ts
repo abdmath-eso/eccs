@@ -99,7 +99,7 @@ export function chooseLanguage(asked: string | null, acceptLanguage: string | nu
   return "EN";
 }
 
-const escapeHtml = (text: string) =>
+export const escapeHtml = (text: string) =>
   text.replace(/[&<>"']/g, (character) => `&#${character.charCodeAt(0)};`);
 
 /** Report numbers, phone numbers and licence numbers always read left to right, also inside Urdu. */
@@ -128,7 +128,8 @@ const weekday = (date: string, language: PublicPageLanguage) =>
 const points = (value: number, language: PublicPageLanguage) =>
   new Intl.NumberFormat(`${LOCALE[language]}-u-nu-latn`, { maximumFractionDigits: 1 }).format(value);
 
-const STYLE = `
+/** The page's own few lines of styling. The public legal pages (legal-page.ts) use them too. */
+export const STYLE = `
 *{box-sizing:border-box}
 html{color-scheme:light;-webkit-text-size-adjust:100%}
 body{margin:0;background:#fff;color:#000;font:18px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif}
@@ -400,6 +401,7 @@ ${page.fssaiNumber ? `<p>${withNumber(t("public.gov.licence", { number: "\u0000"
     time: dateFormat(language, { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(updated),
   })}</p>
 <p class="small">${text("public.footer")}</p>
+${privacyLink(t)}
 </footer>`;
 
   return shell(language, t("public.title", { restaurant: page.restaurantName }), body);
@@ -425,9 +427,12 @@ ${TOKEN_PATTERN.test(token) ? languageSwitch(token, language, t) : ""}
 <div class="notice" role="note"><p>${escapeHtml(t("public.none.about"))}</p><p>${escapeHtml(t("public.disclaimer.notGov"))}</p></div>
 <p>${escapeHtml(t("public.none.gov"))}</p>
 </section>
-<footer><p class="small">${escapeHtml(t("public.footer"))}</p></footer>`;
+<footer><p class="small">${escapeHtml(t("public.footer"))}</p>${privacyLink(t)}</footer>`;
   return shell(language, t("public.none.title"), body);
 }
+
+/** ECCS's Privacy Policy, on its public page (app/legal/[key]/route.ts). */
+const privacyLink = (t: Translator) => `<p class="small"><a href="/legal/privacy">${escapeHtml(t("public.privacyLink"))}</a></p>`;
 
 /**
  * The small poster the restaurant prints: the QR code, what scanning it shows, and

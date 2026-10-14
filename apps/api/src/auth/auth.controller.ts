@@ -12,11 +12,15 @@ import {
 } from '@eccs/shared';
 import type { z } from 'zod';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { AllowWithoutTerms } from '../legal/legal.decorators.js';
 import { CurrentUser, Public } from './auth.decorators.js';
 import { AuthService } from './auth.service.js';
 import type { AuthUser } from './auth.types.js';
 
+// Logging in and out, and the person's own login details (read at app start, and
+// their language), stay open to someone who has not agreed to the terms yet.
 @Controller('auth')
+@AllowWithoutTerms()
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 

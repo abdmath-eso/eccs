@@ -282,3 +282,17 @@ First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api st
 6. At the end of the list, "About this list" opens to say ECCS has not checked the vendors, and what FSSAI asks of a restaurant.
 7. **As the Owner of Spice Route** (`SPICE-JH2K7M`, PIN `2580`): tap the outlet's name at the top to switch between Jubilee Hills and Gachibowli; the order and the distances change.
 8. **As a Head Chef** (PIN `8264`): there is no Vendors in the menu.
+
+## 21. Trying the terms and privacy agreement
+
+First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api start`, **and use an APK built after 14 Oct 11:47 am, or the Expo terminal.** An older APK has no agreement screen and the server will refuse it. (To keep using an old APK for a while, put `LEGAL_GATE=off` in `.env` before starting the API.)
+
+**Every sample login sees this screen once.** What you agree to is recorded against that sample user.
+
+1. **App, as a Head Chef** (`SPICE-JH2K7M`, PIN `7306`): after the PIN, "Before you start" shows the Terms of Service and the Privacy Policy, two unticked boxes, and "Agree and continue", which works only when both are ticked.
+2. Tap a document's name: the full text opens, with "Back".
+3. Tick both boxes and tap **Agree and continue**: the app opens as usual.
+4. More > View my profile > **Legal**: all five documents, with "You agreed on ..." under the two you agreed to, and "How to delete your account".
+5. **Not now** logs you out to the PIN screen.
+6. **As the Owner** (`SPICE-JH2K7M`, PIN `2580`, or "I am the owner" with `9100000001` and code `123456`): four documents, and the first box reads "On behalf of Spice Route Kitchens, I agree to ...".
+7. **On the PC:** `http://localhost:3000/legal/privacy` (also `terms`, `refunds`, `dataProcessing`, `disclaimer`) with the console terminal running. The customer page's footer has a "Privacy" link.

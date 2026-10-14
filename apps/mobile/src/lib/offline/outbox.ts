@@ -1,5 +1,5 @@
 import { ApiError } from '@eccs/api-client';
-import { isVisitDone } from '@eccs/shared';
+import { isVisitDone, LEGAL_ERROR } from '@eccs/shared';
 import { useSyncExternalStore } from 'react';
 
 import { api } from '@/lib/api';
@@ -25,6 +25,9 @@ function classify(error: unknown): Failure {
   if (!(error instanceof ApiError)) return 'retry';
   if (error.isNetworkError) return 'offline';
   if (error.status === 401) return 'auth';
+  // The person must first agree to updated terms. Nothing is wrong with the answer:
+  // it waits on the phone and goes once they have agreed, never dropped.
+  if (error.code === LEGAL_ERROR.notAccepted) return 'retry';
   // The checklist was submitted by someone, or its day is over.
   if (error.status === 409) return 'conflict';
   // The server is busy or broken: nothing wrong with the answer itself.

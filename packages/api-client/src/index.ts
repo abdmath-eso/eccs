@@ -156,6 +156,9 @@ import type {
 import type { CertificateDto } from "@eccs/shared";
 // vendors-types: the vendor directory (13 Oct 2026)
 import type { VendorDirectoryDto, VendorDto } from "@eccs/shared";
+// legal-types: terms and privacy acceptance (14 Oct 2026)
+import type { AcceptLegalInput, LegalDocumentDto, LegalDocumentKey, LegalStatusDto } from "@eccs/shared";
+import { LEGAL_ERROR } from "@eccs/shared";
 // offline-visits-types: the offline worker imports any new types from "@eccs/shared" on the next line
 // scores-types: the hygiene score worker imports its types from "@eccs/shared" on the next line
 import type { HygieneScoreDto } from "@eccs/shared";
@@ -236,6 +239,12 @@ export interface ApiClientOptions {
   getLanguage?: () => string | null | undefined;
   /** Called when the server says the session is no longer valid. */
   onUnauthorized?: () => void;
+  /**
+   * Called when the server refuses a request because the person has not agreed to the
+   * current Terms of Service and Privacy Policy (403, TERMS_NOT_ACCEPTED). The app
+   * opens its acceptance screen. The call still fails with that ApiError.
+   */
+  onTermsNotAccepted?: () => void;
 }
 
 /**
@@ -307,6 +316,7 @@ export function createApiClient(options: ApiClientOptions) {
       const message = typeof details.message === "string" ? details.message : "Something went wrong. Try again.";
       const code = typeof details.code === "string" ? details.code : undefined;
       if (response.status === 401 && authenticated && token) options.onUnauthorized?.();
+      if (response.status === 403 && code === LEGAL_ERROR.notAccepted) options.onTermsNotAccepted?.();
       const body = data && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>) : undefined;
       throw new ApiError(message, response.status, code, body);
     }
@@ -902,6 +912,21 @@ export function createApiClient(options: ApiClientOptions) {
       /** One vendor, with its distance from that outlet. */
       get: (vendorId: string, outletId: string) =>
         call<VendorDto>("GET", `/vendors/${id(vendorId)}${query({ outletId })}`),
+    },
+    // legal-api: terms and privacy acceptance (14 Oct 2026)
+    /**
+     * The Terms of Service, the Privacy Policy and the other legal documents, and the
+     * person's agreement to them. Until a restaurant user agrees, the server answers most
+     * other calls with 403 and the code TERMS_NOT_ACCEPTED (`onTermsNotAccepted`).
+     */
+    legal: {
+      /** Every document, with its version and its words. Needs no login. */
+      documents: () => call<LegalDocumentDto[]>("GET", "/legal/documents", undefined, false),
+      document: (key: LegalDocumentKey | string) => call<LegalDocumentDto>("GET", `/legal/documents/${id(key)}`, undefined, false),
+      /** What the logged-in person must agree to now, and their latest agreement to each document. */
+      status: () => call<LegalStatusDto>("GET", "/legal/status"),
+      /** Records the agreement to exactly the pending documents. Answers with the new status. */
+      accept: (input: AcceptLegalInput) => call<LegalStatusDto>("POST", "/legal/accept", input),
     },
     // scores-api: the hygiene score worker adds `scores: { ... },` on the next line
     /** The hygiene score: one number out of 100 per outlet, with what it is made of. */

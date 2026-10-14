@@ -10,6 +10,7 @@ import { ChecklistsModule } from './checklists/checklists.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { InspectionsModule } from './inspections/inspections.module.js';
 import { IssuesModule } from './issues/issues.module.js';
+import { LegalModule } from './legal/legal.module.js';
 import { LicencesModule } from './licences/licences.module.js';
 import { MonitoringModule } from './monitoring/monitoring.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
@@ -57,6 +58,7 @@ import { VendorsModule } from './vendors/vendors.module.js';
     FoodLabelsModule,
     PublicPageModule,
     VendorsModule,
+    LegalModule,
   ],
   controllers: [AppController],
 })

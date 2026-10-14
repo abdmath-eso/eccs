@@ -40,8 +40,22 @@ function Mirrored({ children }: { children: ReactNode }) {
 
 // Logged-out users only ever reach the (auth) screens and logged-in users
 // only the (app) screens; logging in or out swaps between them.
+//
+// In between sits the acceptance screen (`accept`): a logged-in person with documents
+// to agree to (the Terms of Service, the Privacy Policy...) reaches nothing else until
+// they agree or choose "Not now", which logs them out. It is its own screen here
+// rather than one of the (auth) screens, which exist only while nobody is logged in,
+// or one of the (app) screens, whose layout starts push registration, the offline
+// queue and the bottom bar: all of those call the server, which refuses them until
+// the person agrees. For the Owner's first login it therefore comes before the
+// screen that shows their new PIN, which is the (app) home screen.
+//
+// The documents themselves (`legal/[key]`) can be opened in every state: from the
+// acceptance screen, and from the profile. They come last, so that a change of
+// state never lands on them.
 function RootNavigator() {
-  const { ready, user } = useSession();
+  const { ready, user, pendingTerms } = useSession();
+  const mustAgree = user !== null && pendingTerms.length > 0;
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -51,12 +65,16 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={user !== null}>
+      <Stack.Protected guard={user !== null && !mustAgree}>
         <Stack.Screen name="(app)" />
+      </Stack.Protected>
+      <Stack.Protected guard={mustAgree}>
+        <Stack.Screen name="accept" />
       </Stack.Protected>
       <Stack.Protected guard={user === null}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
+      <Stack.Screen name="legal/[key]" />
     </Stack>
   );
 }

@@ -235,6 +235,12 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - **The public page as changed on 13 Oct 2026 (the founder's design):** it shows whenever the Owner has switched it on, with or without an ECCS inspection. It opens with a disclaimer that ECCS is a private company engaged and paid by the restaurant and is not associated with FSSAI, TG-SAFE or any government body; then the hygiene score for yesterday with its three parts, the daily checklists with yesterday's result, photos, ECCS's inspection when there is a current one, and recent services. A photo is put forward either by an ECCS Supervisor from a visit or inspection, or by the Owner or Manager from the outlet's own daily-check photos; ECCS approves each, and each is shown for 90 days from the day it was taken (`PublicPhoto.source`, `PublicPhoto.takenOn`).
 - **PublicProfile**: per outlet. Random URL token for the QR, an on/off switch the restaurant controls, and the **PublicPhotos** approved for display.
 
+### Legal documents and agreements (added 14 Oct 2026)
+- Five documents, versioned by date: Terms of Service, Privacy Policy, Refund and Cancellation Policy, Data Processing Terms and a Disclaimer. Owner, Manager and Head Chef agree to the Terms and the Privacy Policy; the Owner also agrees, for the restaurant, to the Refund and Cancellation Policy and the Data Processing Terms. ECCS's own staff are not asked.
+- **LegalAcceptance**: one row per person, document and version: a fingerprint (SHA-256) of the exact text, when, the role, the organisation for the Owner, the outlet, the language, the IP address, the device and the app version. Never edited or deleted by the app.
+- The agreement is asked for right after login, before anything else, and again whenever a document gets a new version; the server refuses everything else until it is given. The documents can be read at any time in the profile and are public web pages.
+
+
 ### Cross-cutting
 - **Notification**: recipient, channel, template, status.
 - **AuditLog**: who did what to which record, when.

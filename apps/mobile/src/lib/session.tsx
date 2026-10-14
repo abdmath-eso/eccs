@@ -1,9 +1,10 @@
 import { ApiError, type ApiClient } from '@eccs/api-client';
 import { createTranslator, LANGUAGE_CODES, type LanguageCode, type Translator } from '@eccs/i18n';
-import type { CurrentUserDto, LinkedDeviceDto, SessionDto } from '@eccs/shared';
+import type { CurrentUserDto, LegalPendingDto, LinkedDeviceDto, SessionDto } from '@eccs/shared';
+import Constants from 'expo-constants';
 import { createContext, use, useEffect, useState, type ReactNode } from 'react';
 
-import { api, setAppLanguage, setSessionToken, setUnauthorizedHandler } from './api';
+import { api, setAppLanguage, setSessionToken, setTermsHandler, setUnauthorizedHandler } from './api';
 import { unregisterPush } from './push';
 import { getItem, getJson, removeItem, setItem, setJson } from './storage';
 
@@ -12,6 +13,8 @@ const KEYS = {
   // Set while a language chosen on this phone has not reached the server yet.
   languageUnsaved: 'eccs.languageUnsaved',
   linkedDevice: 'eccs.linkedDevice',
+  // The documents the person must agree to before using the app, so a restart still asks.
+  termsPending: 'eccs.termsPending',
   token: 'eccs.sessionToken',
   user: 'eccs.user',
 } as const;
@@ -33,11 +36,32 @@ interface SessionContextValue {
   /** A PIN that was just generated for this user and must be shown once. */
   newPin: string | null;
   dismissNewPin: () => void;
+  /**
+   * The documents this person must agree to before using the app (the Terms of Service,
+   * the Privacy Policy...). While it is not empty, the app shows only the acceptance screen.
+   */
+  pendingTerms: LegalPendingDto[];
+  /** Records the person's agreement to `pendingTerms`. Throws if the server did not take it. */
+  acceptTerms: () => Promise<void>;
   signIn: (session: SessionDto) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
+
+/** Asks the server what the logged-in person must agree to now. Null when it cannot answer. */
+async function fetchPending(): Promise<LegalPendingDto[] | null> {
+  try {
+    return (await api.legal.status()).pending;
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    return null;
+  }
+}
+
+/** Keeps the documents still to agree to on the phone, so that opening the app again still asks. */
+const savePending = (pending: LegalPendingDto[]) =>
+  pending.length > 0 ? setJson(KEYS.termsPending, pending) : removeItem(KEYS.termsPending);
 
 export function useSession(): SessionContextValue {
   const value = use(SessionContext);
@@ -51,6 +75,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [linkedDevice, setLinkedDevice] = useState<LinkedDeviceDto | null>(null);
   const [user, setUser] = useState<CurrentUserDto | null>(null);
   const [newPin, setNewPin] = useState<string | null>(null);
+  const [pendingTerms, setPendingTerms] = useState<LegalPendingDto[]>([]);
 
   /** Changes the language of the screens and of what the server sends back. */
   function setLanguageState(next: LanguageCode) {
@@ -58,27 +83,49 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setLanguageValue(next);
   }
 
+  /** Keeps the documents still to agree to, on screen and on the phone. */
+  async function storePending(pending: LegalPendingDto[]) {
+    setPendingTerms(pending);
+    await savePending(pending);
+  }
+
+  async function recheckTerms() {
+    const pending = await fetchPending();
+    if (!pending) return;
+    setPendingTerms(pending);
+    await savePending(pending);
+  }
+
   async function clearSession() {
     setSessionToken(null);
     setUser(null);
     setNewPin(null);
-    await Promise.all([removeItem(KEYS.token), removeItem(KEYS.user)]);
+    setPendingTerms([]);
+    await Promise.all([removeItem(KEYS.token), removeItem(KEYS.user), removeItem(KEYS.termsPending)]);
   }
 
   useEffect(() => {
     setUnauthorizedHandler(() => void clearSession());
-    return () => setUnauthorizedHandler(null);
+    // The server refused a request because the person has not agreed to the current terms
+    // (a new version came out while they were using the app). Asking what is pending now
+    // brings up the acceptance screen in place of whatever they were doing.
+    setTermsHandler(() => void recheckTerms());
+    return () => {
+      setUnauthorizedHandler(null);
+      setTermsHandler(null);
+    };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [storedLanguage, unsaved, storedDevice, storedToken, storedUser] = await Promise.all([
+      const [storedLanguage, unsaved, storedDevice, storedToken, storedUser, storedPending] = await Promise.all([
         getItem(KEYS.language),
         getItem(KEYS.languageUnsaved),
         getJson<LinkedDeviceDto>(KEYS.linkedDevice),
         getItem(KEYS.token),
         getJson<CurrentUserDto>(KEYS.user),
+        getJson<LegalPendingDto[]>(KEYS.termsPending),
       ]);
       if (cancelled) return;
 
@@ -90,6 +137,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // signal, then confirm with the server in the background.
         setSessionToken(storedToken);
         setUser(storedUser);
+        setPendingTerms(storedPending ?? []);
         if (!known) setLanguageState(storedUser.language);
       }
       setReady(true);
@@ -106,8 +154,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             await setItem(KEYS.language, fresh.language);
           }
           await removeItem(KEYS.languageUnsaved);
+          // Whether documents were updated since the person last opened the app.
+          const pending = await fetchPending();
           if (cancelled) return;
           setUser(fresh);
+          if (pending) await storePending(pending);
           await setJson(KEYS.user, fresh);
         } catch (error) {
           // A 401 is handled by onUnauthorized. Anything else (no signal) keeps the cached user.
@@ -156,8 +207,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     },
     newPin,
     dismissNewPin: () => setNewPin(null),
+    pendingTerms,
+    async acceptTerms() {
+      try {
+        const status = await api.legal.accept({
+          documents: pendingTerms.map(({ key, version }) => ({ key, version })),
+          language,
+          appVersion: Constants.expoConfig?.version,
+        });
+        await storePending(status.pending);
+      } catch (error) {
+        // A document was updated while the screen was open: show the new set, and let the screen say so.
+        if (error instanceof ApiError && error.status === 400) await recheckTerms();
+        throw error;
+      }
+    },
     async signIn(session) {
       setSessionToken(session.token);
+      // Before anything is shown: does this person have documents to agree to first? If the
+      // server cannot say just now, the app opens as usual, and the server's refusal of the
+      // first request (TERMS_NOT_ACCEPTED) brings the acceptance screen up then.
+      const pending = (await fetchPending()) ?? [];
       if (session.linkedDevice) {
         setLinkedDevice(session.linkedDevice);
         await setJson(KEYS.linkedDevice, session.linkedDevice);
@@ -170,6 +240,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setJson(KEYS.user, session.user),
         setItem(KEYS.language, session.user.language),
         removeItem(KEYS.languageUnsaved),
+        storePending(pending),
       ]);
     },
     async signOut() {

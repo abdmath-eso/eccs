@@ -29,3 +29,4 @@ export * from "./attendance.js";
 export * from "./food-labels.js";
 export * from "./public-page.js";
 export * from "./vendors.js";
+export * from "./legal/index.js";

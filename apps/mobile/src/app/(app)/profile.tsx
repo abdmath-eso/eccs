@@ -1,10 +1,11 @@
-import type { ProfileDto } from '@eccs/shared';
-import { useFocusEffect } from 'expo-router';
+import { LEGAL_DOCUMENTS, type LegalDocumentKey, type LegalStatusDto, type ProfileDto } from '@eccs/shared';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
+import { LegalDocList, LegalDocRow } from '@/components/legal-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
@@ -23,11 +24,15 @@ import { useSession } from '@/lib/session';
 /**
  * "My profile": the person's photo, name and role, their restaurant and its
  * branches, and the branches they work at. The language is chosen at the foot of the side menu.
+ * At the end, "Legal": every legal document, readable at any time, with when the person
+ * agreed to it, and how to delete the account (Google Play asks for both inside the app).
  */
 export default function ProfileScreen() {
   const theme = useTheme();
   const { t, api, language, refreshUser } = useSession();
   const [profile, setProfile] = useState<ProfileDto | null>(null);
+  // What the person has agreed to, for the "You agreed on" lines. Left out quietly if it cannot be read.
+  const [legal, setLegal] = useState<LegalStatusDto | null>(null);
   const [busy, setBusy] = useState<'photo' | 'name' | null>(null);
   const [photoSheet, setPhotoSheet] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -51,6 +56,12 @@ export default function ProfileScreen() {
           if (!cancelled) setLoadError(errorMessage(e, t));
         }
       })();
+      api.legal.status().then(
+        (status) => {
+          if (!cancelled) setLegal(status);
+        },
+        () => undefined,
+      );
       return () => {
         cancelled = true;
       };
@@ -62,12 +73,22 @@ export default function ProfileScreen() {
   /** Loads the profile again: for pulling down to refresh and for "Try again". */
   async function reload() {
     setLoadError(null);
+    api.legal.status().then(setLegal, () => undefined);
     try {
       setProfile(await api.profile.get());
     } catch (e) {
       setLoadError(errorMessage(e, t));
     }
   }
+
+  /** "You agreed on 14 Oct 2026 (version 14 Oct 2026)", for a document the person has agreed to. */
+  const agreedNote = (key: LegalDocumentKey) => {
+    const done = legal?.accepted.find((entry) => entry.key === key);
+    return done
+      ? t('legal.agreedOn', { date: formatDate(done.acceptedOn, language), version: formatDate(done.version, language) })
+      : null;
+  };
+  const openDocument = (key: LegalDocumentKey) => router.push({ pathname: '/legal/[key]', params: { key } });
 
   async function changePhoto(source: 'camera' | 'gallery') {
     setPhotoError(null);
@@ -268,6 +289,34 @@ export default function ProfileScreen() {
               </View>
             </>
           )}
+        </>
+      )}
+
+      {/* ── Legal: the documents, readable at any time, even when the profile could not load ── */}
+      {(profile || loadError) && (
+        <>
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
+            {t('legal.section')}
+          </ThemedText>
+          <LegalDocList>
+            {LEGAL_DOCUMENTS.map((document, index) => (
+              <LegalDocRow
+                key={document.key}
+                first={index === 0}
+                title={t(document.titleKey)}
+                note={agreedNote(document.key)}
+                hint={t('legal.open')}
+                onPress={() => openDocument(document.key)}
+              />
+            ))}
+            {/* The Privacy Policy says how to ask for the account to be deleted. */}
+            <LegalDocRow
+              icon="trash-outline"
+              title={t('legal.deleteAccount')}
+              hint={t('legal.open')}
+              onPress={() => openDocument('privacy')}
+            />
+          </LegalDocList>
         </>
       )}
 

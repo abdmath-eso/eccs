@@ -13,6 +13,7 @@ import {
 import { CurrentUser } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
+import { AllowWithoutTerms } from '../legal/legal.decorators.js';
 import { PushService } from './push.service.js';
 
 /**
@@ -34,9 +35,13 @@ export class PushController {
     return this.push.register(user.id, body);
   }
 
-  /** The app calls this on Lock or logout, before the login ends: stop sending mine to this phone. */
+  /**
+   * The app calls this on Lock or logout, before the login ends: stop sending mine to this phone.
+   * Allowed before agreeing to the terms too, so a shared phone never keeps someone's notifications.
+   */
   @Post('devices/unregister')
   @HttpCode(200)
+  @AllowWithoutTerms()
   unregister(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(unregisterPushDeviceSchema)) body: UnregisterPushDeviceInput,

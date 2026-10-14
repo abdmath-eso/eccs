@@ -56,6 +56,11 @@ const schema = z
     // Key the face templates are encrypted with in the database. Changing or losing it makes
     // every stored template unreadable: all enrolled staff would have to enrol again.
     FACE_TEMPLATE_KEY: z.string().min(32).optional(),
+    // Restaurant users (Owner, Manager, Head Chef) must agree to the Terms of Service and
+    // Privacy Policy before using the app. "on" (the default) makes the server refuse their
+    // other requests until they have; "off" stops the refusing (the app still asks them).
+    // The automated tests switch it off for the whole run (vitest.config.e2e.ts).
+    LEGAL_GATE: z.enum(['on', 'off']).default('on'),
     // Sample mode: every login code is this value and no SMS is sent.
     DEV_FIXED_OTP: z
       .string()

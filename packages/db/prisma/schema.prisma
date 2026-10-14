@@ -138,6 +138,7 @@ model User {
   assignedIssues Issue[]        @relation("IssueAssignee")
   issueComments  IssueComment[]
   sessions       Session[]
+  legalAcceptances LegalAcceptance[]
 
   @@unique([pinOrganizationId, pinLookup])
 }
@@ -1620,6 +1621,40 @@ model LinkedDevice {
 
   @@index([organizationId])
   @@index([outletId])
+}
+
+/// One person's agreement to one version of one legal document (the Terms of
+/// Service, the Privacy Policy...; LEGAL_DOCUMENTS in packages/shared). It is the
+/// record of the contract: the app only ever adds rows, never changes or deletes
+/// them, and a user with agreements cannot be deleted without removing them first.
+model LegalAcceptance {
+  id             String   @id @default(uuid())
+  userId         String
+  /// A key of LEGAL_DOCUMENTS: "terms", "privacy", "refunds", "dataProcessing".
+  documentKey    String
+  /// The version agreed to: the date that wording came into force.
+  version        String
+  /// SHA-256 of the exact Markdown agreed to, as proof of the words.
+  contentSha256  String
+  /// The server's time, never the phone's.
+  acceptedAt     DateTime @default(now())
+  /// The role it was agreed under.
+  role           Role
+  /// Set for the Owner, who agrees for the restaurant as a business.
+  organizationId String?
+  outletId       String?
+  /// The app's language at the time. The documents themselves are in English for now.
+  language       Language
+  ip             String?
+  userAgent      String?
+  /// The linked phone's name, when known.
+  deviceName     String?
+  appVersion     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, documentKey, version])
+  @@index([userId])
 }
 
 model AuditLog {

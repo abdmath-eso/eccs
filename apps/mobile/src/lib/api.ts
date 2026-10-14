@@ -8,6 +8,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/v1';
 // the current value. SessionProvider keeps it in step with stored state.
 let sessionToken: string | null = null;
 let unauthorizedHandler: (() => void) | null = null;
+let termsHandler: (() => void) | null = null;
 // The language the screens are in, kept here for the same reason.
 let appLanguage: string | null = null;
 
@@ -24,9 +25,18 @@ export const setUnauthorizedHandler = (handler: (() => void) | null) => {
   unauthorizedHandler = handler;
 };
 
+/**
+ * Registers what to do when the server says the person must first agree to the
+ * terms (a new version was published while they were using the app).
+ */
+export const setTermsHandler = (handler: (() => void) | null) => {
+  termsHandler = handler;
+};
+
 export const api = createApiClient({
   baseUrl: API_URL,
   getToken: () => sessionToken,
   getLanguage: () => appLanguage,
   onUnauthorized: () => unauthorizedHandler?.(),
+  onTermsNotAccepted: () => termsHandler?.(),
 });

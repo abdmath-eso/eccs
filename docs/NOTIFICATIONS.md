@@ -237,6 +237,14 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 | V2 | A vendor near an outlet was taken off the list (once ECCS can edit the list) | O, M | "{vendor} is no longer on the vendor list." | In-app | not built |
 | V3 | A restaurant reported a wrong number or a closed vendor (if reporting is added) | Adm | "{restaurant} reported a problem with {vendor}." | In-app | not built |
 
+## 16a. Terms and privacy
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| L1 | A document gets a new version (ideally a few days before it takes effect) | everyone who must agree to it again | "We have updated our {document}. You will be asked to agree to it the next time you open the app." | Push + in-app | not built |
+| L2 | The Owner agrees for the restaurant | O | "You agreed to ECCS's terms for {restaurant} on {date}. You can read them any time in your profile." (a copy of the agreement) | In-app, email once there is email | not built |
+
+
 ## 17. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
@@ -248,6 +256,7 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | Date | Change |
 |---|---|
+| 14 Oct 2026 | Terms and privacy: L1 and L2 added. |
 | 13 Oct 2026 | Vendor directory: V1 to V3 added. |
 | 13 Oct 2026 | Attendance roles: T13 and T14 added. |
 | 13 Oct 2026 | Customer page rebuilt: Q1, Q2, Q5 and Q6 reworded, Q7 and Q8 added. |

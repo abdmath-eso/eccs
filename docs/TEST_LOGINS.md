@@ -294,5 +294,5 @@ First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api st
 3. Tick both boxes and tap **Agree and continue**: the app opens as usual.
 4. More > View my profile > **Legal**: all five documents, with "You agreed on ..." under the two you agreed to, and "How to delete your account".
 5. **Not now** logs you out to the PIN screen.
-6. **As the Owner** (`SPICE-JH2K7M`, PIN `2580`, or "I am the owner" with `9100000001` and code `123456`): four documents, and the first box reads "On behalf of Spice Route Kitchens, I agree to ...".
+6. **As the Owner** (`SPICE-JH2K7M`, PIN `2580`): four documents, and the first box reads "On behalf of Spice Route Kitchens, I agree to ...". (Logging in with "I am the owner", `9100000001` and code `123456` shows the same, **but it links the phone to the whole restaurant**, and Clock in / Clock out then disappears from the PIN screen. To get it back: "Use a different restaurant" on the PIN screen, then the outlet code `SPICE-JH2K7M`.)
 7. **On the PC:** `http://localhost:3000/legal/privacy` (also `terms`, `refunds`, `dataProcessing`, `disclaimer`) with the console terminal running. The customer page's footer has a "Privacy" link.

@@ -11,8 +11,12 @@ import { AiEngineError, type AiEngine, type AiEngineAnswer, type AiEngineRequest
 // Haiku, so the step up to Sonnet can be tested; any other PDF reads as a fire NOC
 // and any other picture as an FSSAI licence. Translations are the text with the
 // language code in front ("[te] ..."); text in Telugu or Devanagari letters counts
-// as Telugu or Hindi, anything else as English. A test can queue an answer (or an
-// error) for a feature's next call, and read every call made.
+// as Telugu or Hindi, anything else as English. The daily digest has a point for
+// each of the first six outlets it is given; an inspection summary gives the score
+// and picks the first findings. A proof photo is fine unless its bytes carry a marker
+// ("FAKE-AI:BLURRED", "FAKE-AI:TOO_DARK", "FAKE-AI:WRONG_SUBJECT", "FAKE-AI:UNSURE").
+// A test can queue an answer (or an error) for a feature's next call, and read every
+// call made.
 
 export const FAKE_LICENCE: LicenceAnswer = {
   type: 'FSSAI',
@@ -116,6 +120,32 @@ export class FakeAiEngine implements AiEngine {
           doFirst: first ? `Start with the ${first.part}.` : 'Keep doing what you do.',
           doNext: second ? `Then look at the ${second.part}.` : '',
         };
+      }
+      case 'monitoring-digest': {
+        const facts = request.facts as {
+          counts: { needAttention: number; toWatch: number };
+          outlets: { id: string; level: string; areas: Record<string, unknown> }[];
+        };
+        return {
+          overview: `${facts.counts.needAttention} outlets need attention and ${facts.counts.toWatch} are worth watching.`,
+          points: facts.outlets.slice(0, 6).map((outlet) => ({
+            outletId: outlet.id,
+            text: `${outlet.level === 'ATTENTION' ? 'Needs attention' : 'Worth watching'}: ${Object.keys(outlet.areas).join(', ')}.`,
+          })),
+        };
+      }
+      case 'inspection-summary': {
+        const facts = request.facts as { outlet: string; score: number; outOf: number; findings: { id: string }[] };
+        return {
+          summary: `${facts.outlet} scored ${facts.score} out of ${facts.outOf}. The non-compliances below need putting right.`,
+          fixFirst: facts.findings.slice(0, 5).map((finding) => finding.id),
+        };
+      }
+      case 'photo-check': {
+        // A test chooses the verdict with a marker in the picture's bytes, e.g. "FAKE-AI:BLURRED".
+        const bytes = request.file ? request.file.data.toString('latin1') : '';
+        const marked = /FAKE-AI:(BLURRED|TOO_DARK|WRONG_SUBJECT|UNSURE)/.exec(bytes);
+        return { verdict: marked ? marked[1] : 'OK' };
       }
       // A new feature adds its fixed answer above.
       default:

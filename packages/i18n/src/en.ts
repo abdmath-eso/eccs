@@ -1832,6 +1832,27 @@ export const en = {
   "ai.thanks": "Thanks for telling us.",
   "ai.needsSignal": "Needs signal",
   "ai.explainFailed": "No explanation right now. See what is costing points.",
+  // AI features, part 2 (14 Oct 2026).
+  "ai.summary.title": "Summary for the report",
+  "ai.summary.draft": "Draft with AI",
+  "ai.summary.write": "Write the summary",
+  "ai.summary.writeOwn": "Write my own instead",
+  "ai.summary.label": "Summary",
+  "ai.summary.hint": "How the outlet did, the main problems, what was good. About 120 words.",
+  "ai.summary.draftNote": "Drafted with AI: check it before saving.",
+  "ai.summary.checkedNote": "Drafted with AI help and checked by the inspector.",
+  "ai.summary.draftFailed": "No draft right now. Write it yourself.",
+  "ai.summary.fixFirst": "Fix these first",
+  "ai.summary.removeItem": "Take off the list: {check}",
+  "ai.summary.save": "Save summary",
+  "ai.summary.edit": "Edit summary",
+  "ai.summary.saved": "Summary saved",
+  "ai.nudge.BLURRED": "This photo looks blurred. Retake?",
+  "ai.nudge.TOO_DARK": "This photo looks too dark. Retake?",
+  "ai.nudge.WRONG_SUBJECT": "This photo doesn't seem to show \"{check}\". Retake?",
+  "ai.nudge.note": "Checked by AI. Only you see this.",
+  "ai.nudge.retake": "Retake",
+  "ai.nudge.keep": "Keep it",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -10,11 +10,15 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   addChecklistItemSchema,
   answerChecklistItemSchema,
   createChecklistSchema,
+  PHOTO_CHECK_MAX_BYTES,
   updateChecklistItemSchema,
   updateChecklistSchema,
 } from '@eccs/shared';
@@ -23,6 +27,7 @@ import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { ChecklistsService } from './checklists.service.js';
+import { PhotoCheckService } from './photo-check.service.js';
 
 function requireOutletId(outletId: string | undefined): string {
   if (!outletId) throw new BadRequestException('outletId is required');
@@ -33,7 +38,10 @@ function requireOutletId(outletId: string | undefined): string {
 // then checks it is allowed at the specific outlet.
 @Controller('checklists')
 export class ChecklistsController {
-  constructor(private readonly checklists: ChecklistsService) {}
+  constructor(
+    private readonly checklists: ChecklistsService,
+    private readonly photoCheck: PhotoCheckService,
+  ) {}
 
   @Get('today')
   @RequirePermission('checklists', 'read')
@@ -62,6 +70,25 @@ export class ChecklistsController {
     @Body(new ZodValidationPipe(answerChecklistItemSchema)) body: z.output<typeof answerChecklistItemSchema>,
   ) {
     return this.checklists.answer(user, runId, itemId, body);
+  }
+
+  /**
+   * The nudge at the camera: is this proof photo (a small copy of it) usable as proof
+   * for the check? Answers with a nudge to show, or none. The photo is not stored here.
+   * Fails with code AI_OFF, AI_LIMIT or AI_FAILED when AI steps aside; the phone then
+   * shows nothing, and answering and uploading work as always.
+   */
+  @Post('runs/:runId/items/:itemId/photo-check')
+  @HttpCode(200)
+  @RequirePermission('checklists', 'create')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: PHOTO_CHECK_MAX_BYTES, files: 1 } }))
+  checkPhoto(
+    @CurrentUser() user: AuthUser,
+    @Param('runId') runId: string,
+    @Param('itemId') itemId: string,
+    @UploadedFile() file: { buffer: Buffer; size: number } | undefined,
+  ) {
+    return this.photoCheck.check(user, runId, itemId, file);
   }
 
   @Delete('runs/:runId/items/:itemId')

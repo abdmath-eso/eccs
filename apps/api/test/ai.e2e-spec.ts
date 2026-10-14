@@ -183,12 +183,20 @@ describe('AI features (e2e)', () => {
   describe('the shared part', () => {
     it('says which features are on, and all are off with the main switch off', async () => {
       const on = await http().get('/ai/status').set(as(chef)).expect(200);
-      expect(on.body.features).toEqual({ 'licence-reader': true, 'translate-support': true, 'translate-content': true, 'explain-score': true });
+      expect(on.body.features).toEqual({
+        'licence-reader': true,
+        'translate-support': true,
+        'translate-content': true,
+        'explain-score': true,
+        'monitoring-digest': true,
+        'inspection-summary': true,
+        'photo-check': true,
+      });
       ai.setForTest({ disabled: ['explain-score'] });
       expect((await http().get('/ai/status').set(as(chef)).expect(200)).body.features['explain-score']).toBe(false);
       ai.setForTest({ on: false });
       const off = await http().get('/ai/status').set(as(chef)).expect(200);
-      expect(Object.values(off.body.features)).toEqual([false, false, false, false]);
+      expect(Object.values(off.body.features).every((on) => on === false)).toBe(true);
     });
 
     it('shows ECCS what AI has cost today and this month, by feature, and nobody else', async () => {

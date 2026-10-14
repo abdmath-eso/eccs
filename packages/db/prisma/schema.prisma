@@ -843,6 +843,13 @@ model Inspection {
   approvedAt    DateTime?
   /// What ECCS asked the Supervisor to correct when sending the report back.
   reviewNote    String?
+  /// The summary for the report, written by the Supervisor after Finish, by hand or from an AI draft they checked (14 Oct 2026).
+  summary          String?
+  /// "Fix these first": ids of this inspection's own findings, in order (JSON list).
+  fixFirst         Json?
+  /// True when the saved summary started from an AI draft; the report then says so.
+  summaryAiDrafted Boolean   @default(false)
+  summaryUpdatedAt DateTime?
   createdById   String?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -1717,6 +1724,22 @@ model AiScoreExplanation {
   createdAt   DateTime @default(now())
 
   @@unique([outletId, date, language])
+}
+
+/// The daily digest at the top of the ECCS console's Monitoring board (14 Oct 2026):
+/// one line on the day and up to six points, each about one outlet, written by AI
+/// from the board's own facts. Kept for the India day so later openings cost
+/// nothing; "Update" replaces it, at most once an hour.
+model AiDigest {
+  id          String   @id @default(uuid())
+  /// The India date it is for: one digest a day.
+  date        DateTime @unique @db.Date
+  overview    String
+  /// The points, most urgent first: [{ outletId, text }].
+  points      Json
+  aiRequestId String
+  /// When it was made ("Made at"); also when it may next be updated.
+  madeAt      DateTime @default(now())
 }
 
 model AuditLog {

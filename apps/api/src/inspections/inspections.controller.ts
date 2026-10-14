@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
   answerInspectionCheckSchema,
   returnInspectionSchema,
+  saveInspectionSummarySchema,
   startInspectionSchema,
   updateInspectionSchema,
 } from '@eccs/shared';
@@ -25,6 +26,7 @@ import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { readPhotoFacts } from '../storage/photo-integrity.service.js';
+import { InspectionSummaryService } from './inspection-summary.service.js';
 import { InspectionsService } from './inspections.service.js';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -36,7 +38,10 @@ const finishSchema = z.object({ at: z.iso.datetime().optional() }).optional();
 
 @Controller('inspections')
 export class InspectionsController {
-  constructor(private readonly inspections: InspectionsService) {}
+  constructor(
+    private readonly inspections: InspectionsService,
+    private readonly summaries: InspectionSummaryService,
+  ) {}
 
   @Get()
   @RequirePermission('inspections', 'read')
@@ -133,6 +138,31 @@ export class InspectionsController {
     @Body(new ZodValidationPipe(finishSchema)) body: z.output<typeof finishSchema>,
   ) {
     return this.inspections.finish(user, id, body?.at);
+  }
+
+  // ───────────────────────── The summary for the report ─────────────────────────
+
+  /**
+   * An AI draft of the summary and "Fix these first", for the Supervisor to check
+   * and edit. Nothing is saved. Fails with code AI_OFF, AI_LIMIT or AI_FAILED when
+   * AI steps aside; the summary can always be written by hand.
+   */
+  @Post(':id/summary/draft')
+  @HttpCode(200)
+  @RequirePermission('inspections', 'update')
+  draftSummary(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.summaries.draft(user, id);
+  }
+
+  /** Saves the summary for the report, after Finish and before approval. */
+  @Put(':id/summary')
+  @RequirePermission('inspections', 'update')
+  saveSummary(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(saveInspectionSummarySchema)) body: z.output<typeof saveInspectionSummarySchema>,
+  ) {
+    return this.summaries.save(user, id, body);
   }
 
   // ───────────────────────── Review by ECCS ─────────────────────────

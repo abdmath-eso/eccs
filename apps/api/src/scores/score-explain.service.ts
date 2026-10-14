@@ -1,11 +1,5 @@
 import { createHash } from 'node:crypto';
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { createTranslator, type MessageKey } from '@eccs/i18n';
 import {
   AI_ERROR,
@@ -24,7 +18,7 @@ import {
   type ScoreResult,
 } from '@eccs/shared';
 import { scoreExplanationInstructions } from '../ai/ai-prompts.js';
-import { AiService } from '../ai/ai.service.js';
+import { aiUnavailable, AiService } from '../ai/ai.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -150,15 +144,7 @@ export class ScoreExplainService {
 }
 
 /** The answer when AI stepped aside: the app then shows its plain list of what is costing points. */
-function unavailable(code: AiErrorCode) {
-  const message =
-    code === AI_ERROR.limit
-      ? "Today's limit for AI has been reached"
-      : code === AI_ERROR.off
-        ? 'AI is switched off'
-        : 'The explanation could not be written just now';
-  return new ServiceUnavailableException({ message, code });
-}
+const unavailable = (code: AiErrorCode) => aiUnavailable(code, 'The explanation could not be written just now');
 
 /** The score facts the app shows, in plain words with the app's own numbers. */
 export function scoreFacts(result: ScoreResult): ScoreFacts {

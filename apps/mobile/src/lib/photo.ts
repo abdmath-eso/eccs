@@ -86,6 +86,23 @@ export async function takeEvidencePhoto(): Promise<EvidencePhoto | null> {
   return { ...photo, facts: { place: await readPlace(), source: Platform.OS === 'web' ? 'FILE' : 'CAMERA' } };
 }
 
+/** The small copy sent for the nudge at the camera: enough to see blur or darkness, cheap to send and to check. */
+const CHECK_COPY_WIDTH = 640;
+
+/**
+ * A small copy (about 640 pixels wide, JPEG quality 0.6) of a proof photo already
+ * taken, for the AI's quick look at whether it is usable (the nudge at the camera).
+ * The photo itself is kept and sent as it is; this copy is only looked at.
+ */
+export async function smallPhotoCopy(uri: string): Promise<UploadFile> {
+  const context = ImageManipulator.manipulate(uri);
+  context.resize({ width: CHECK_COPY_WIDTH });
+  const rendered = await context.renderAsync();
+  const saved = await rendered.saveAsync({ compress: JPEG_QUALITY, format: SaveFormat.JPEG });
+  // See takeProofPhoto for why a phone hands over an Expo `File`.
+  return Platform.OS === 'web' ? await (await fetch(saved.uri)).blob() : (new File(saved.uri) as unknown as Blob);
+}
+
 export async function takeProofPhoto(options: { maxWidth?: number } = {}): Promise<ProofPhoto | null> {
   // Documents are photographed at a higher width so small print stays readable.
   const maxWidth = options.maxWidth ?? MAX_WIDTH;

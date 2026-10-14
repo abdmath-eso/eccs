@@ -105,6 +105,9 @@ export const AI_FEATURES = [
   "translate-support", // translates the messages of a support thread for the reader
   "translate-content", // fills in the other languages of the restaurant's own checklist items, SOPs and label names
   "explain-score", // "Why this score?": three sentences from the score's own numbers
+  "monitoring-digest", // the daily digest at the top of the ECCS console's Monitoring board
+  "inspection-summary", // the draft summary and "Fix these first" of an inspection report, for the Supervisor
+  "photo-check", // a nudge at the camera when a checklist proof photo is blurred, too dark or of the wrong thing
 ] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
@@ -401,6 +404,164 @@ export interface ScoreExplanationDto {
   stored: boolean;
   /** What someone at the outlet answered to "Helpful?", or null. */
   helpful: boolean | null;
+}
+
+// ───────────────────────── Feature 4: the daily digest ─────────────────────────
+
+/** The digest has one line on the day, then at most this many points, one outlet each. */
+export const MONITORING_DIGEST_MAX_POINTS = 6;
+/** A new digest may be asked for ("Update") this long after the last one was made. */
+export const MONITORING_DIGEST_UPDATE_MINUTES = 60;
+
+/**
+ * Feature 4: the daily digest of the Monitoring board. Each point names its outlet
+ * by the id it was given; the server refuses an id that is not on the board. A few
+ * more points than are shown are let through the shape check and cut afterwards,
+ * so one point too many does not waste the answer.
+ */
+export const monitoringDigestSchema = z.object({
+  /** One line on the day overall. */
+  overview: z.string().trim().min(1).max(400),
+  /** The outlets that need attention and why, most urgent first. */
+  points: z
+    .array(z.object({ outletId: z.string().trim().min(1), text: z.string().trim().min(1).max(400) }))
+    .max(MONITORING_DIGEST_MAX_POINTS * 2),
+});
+export type MonitoringDigestAnswer = z.infer<typeof monitoringDigestSchema>;
+
+export const MONITORING_DIGEST_JSON_SCHEMA: AiJsonSchema = {
+  type: "object",
+  properties: {
+    overview: { type: "string" },
+    points: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { outletId: { type: "string" }, text: { type: "string" } },
+        required: ["outletId", "text"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["overview", "points"],
+  additionalProperties: false,
+};
+
+/** One point of the digest as the console shows it: the outlet's name links to its row on the board. */
+export interface MonitoringDigestPointDto {
+  outletId: string;
+  outletName: string;
+  organizationName: string;
+  text: string;
+}
+
+/** The day's digest of the Monitoring board, for ECCS's Super Admin and Operations Manager. */
+export interface MonitoringDigestDto {
+  /** The India date it was made for. */
+  date: string;
+  overview: string;
+  points: MonitoringDigestPointDto[];
+  /** When it was made (ISO), for "Made at". */
+  madeAt: string;
+  /** True when "Update" may make a fresh one now (at most once an hour). */
+  canUpdate: boolean;
+  /** The AiRequest it came from, for "Helpful?". */
+  aiRequestId: string;
+  /** True when it was kept from an earlier opening today (it cost nothing this time). */
+  stored: boolean;
+  /** What someone answered to "Helpful?", or null. */
+  helpful: boolean | null;
+}
+
+// ───────────────────────── Feature 5: the inspection write-up ─────────────────────────
+
+/** "Fix these first" lists at most this many of the inspection's own non-compliances. */
+export const INSPECTION_FIX_FIRST_MAX = 5;
+
+/**
+ * Feature 5: the draft summary of an inspection report and the findings to fix first,
+ * chosen by id from the inspection's own findings (the server refuses any other id).
+ * The report shows each chosen finding with the Supervisor's own words, never the AI's.
+ */
+export const inspectionSummaryAnswerSchema = z.object({
+  /** At most about 120 words, in English (the PDF is English). */
+  summary: z.string().trim().min(1).max(2000),
+  /** Finding ids, the one to fix first first. */
+  fixFirst: z.array(z.string().trim().min(1)).max(INSPECTION_FIX_FIRST_MAX * 4),
+});
+export type InspectionSummaryAnswer = z.infer<typeof inspectionSummaryAnswerSchema>;
+
+export const INSPECTION_SUMMARY_JSON_SCHEMA: AiJsonSchema = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    fixFirst: { type: "array", items: { type: "string" } },
+  },
+  required: ["summary", "fixFirst"],
+  additionalProperties: false,
+};
+
+/** A draft for the Supervisor to check and edit. Nothing is kept until they save. */
+export interface InspectionSummaryDraftDto {
+  summary: string;
+  /** Finding ids, in the order to fix them. */
+  fixFirst: string[];
+  /** The AiRequest it came from: sent back on saving, so what the person did with it is recorded. */
+  aiRequestId: string;
+}
+
+// ───────────────────────── Feature 6: the nudge at the camera ─────────────────────────
+
+/**
+ * Feature 6: whether a checklist proof photo is usable as proof for the check's wording.
+ * Never whether the place is clean or the task was done. UNSURE counts as OK.
+ */
+export const PHOTO_CHECK_VERDICTS = ["OK", "BLURRED", "TOO_DARK", "WRONG_SUBJECT", "UNSURE"] as const;
+export type PhotoCheckVerdict = (typeof PHOTO_CHECK_VERDICTS)[number];
+
+/** The verdicts that show a nudge. Anything else shows nothing. */
+export const PHOTO_NUDGES = ["BLURRED", "TOO_DARK", "WRONG_SUBJECT"] as const;
+export type PhotoNudge = (typeof PHOTO_NUDGES)[number];
+
+/** The small copy the phone sends is about 50 to 150 KB; anything over this is refused. */
+export const PHOTO_CHECK_MAX_BYTES = 1024 * 1024;
+
+export const photoCheckSchema = z.object({ verdict: z.enum(PHOTO_CHECK_VERDICTS) });
+export type PhotoCheckAnswer = z.infer<typeof photoCheckSchema>;
+
+export const PHOTO_CHECK_JSON_SCHEMA: AiJsonSchema = {
+  type: "object",
+  properties: { verdict: { enum: [...PHOTO_CHECK_VERDICTS] } },
+  required: ["verdict"],
+  additionalProperties: false,
+};
+
+/** Lenient on purpose: only a clearly unusable photo gets a nudge; OK and UNSURE get none. */
+export function photoNudgeFor(verdict: PhotoCheckVerdict): PhotoNudge | null {
+  return (PHOTO_NUDGES as readonly string[]).includes(verdict) ? (verdict as PhotoNudge) : null;
+}
+
+/** The answer to the phone: a nudge to show under the photo, or none. */
+export interface PhotoCheckDto {
+  nudge: PhotoNudge | null;
+  /** The AiRequest it came from: the phone records "retook it" (ACCEPTED) or "kept it" (DISCARDED). */
+  aiRequestId: string;
+}
+
+// ───────────────────────── Checking ids ─────────────────────────
+
+/**
+ * The ids in an answer that were not in the input (feature 4's outlets, feature 5's
+ * findings). An answer that names anything the app did not give it is refused.
+ */
+export function unknownIds(ids: readonly string[], known: Iterable<string>): string[] {
+  const allowed = new Set(known);
+  return ids.filter((id) => !allowed.has(id));
+}
+
+/** The first `max` ids, each once, in the order given. */
+export function firstDistinct(ids: readonly string[], max: number): string[] {
+  return [...new Set(ids)].slice(0, max);
 }
 
 // ───────────────────────── Checking numbers ─────────────────────────

@@ -19,6 +19,7 @@ import {
   type InspectionSeverity,
   type InspectionStatus,
   type InspectionSummaryDto,
+  type InspectionWriteUpDto,
   type LocalizedText,
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
@@ -66,7 +67,7 @@ const detailInclude = {
 } as const satisfies Prisma.InspectionInclude;
 
 type SummaryRow = Prisma.InspectionGetPayload<{ include: typeof summaryInclude }>;
-type DetailRow = Prisma.InspectionGetPayload<{ include: typeof detailInclude }>;
+export type DetailRow = Prisma.InspectionGetPayload<{ include: typeof detailInclude }>;
 type ResponseRow = DetailRow['responses'][number];
 type ItemRow = DetailRow['template']['items'][number];
 
@@ -457,6 +458,24 @@ export class InspectionsService {
     return this.get(user, inspection.id);
   }
 
+  // ───────────────────────── The summary for the report ─────────────────────────
+
+  /**
+   * The inspection and its checks, for writing or drafting the summary of the report
+   * (inspection-summary.service.ts): only by the Supervisor who carried it out, or an
+   * ECCS admin standing in, and only after Finish and before ECCS approves it. Once
+   * approved the summary is locked; while sent back it waits for the next Finish.
+   */
+  async forWriteUp(user: AuthUser, inspectionId: string): Promise<{ inspection: DetailRow; checks: (InspectionCheckDto & { section: string })[] }> {
+    const inspection = await this.requireInspection(user, inspectionId);
+    if (!this.mayRecord(user, inspection)) {
+      throw new ForbiddenException('Only the Supervisor who carried out the inspection, or ECCS, can write its summary');
+    }
+    if (inspection.status === 'APPROVED') throw new ConflictException('The report is approved: its summary can no longer be changed');
+    if (inspection.status !== 'SUBMITTED') throw new ConflictException('Finish the inspection before writing its summary');
+    return { inspection, checks: this.checks(inspection) };
+  }
+
   // ───────────────────────── Helpers ─────────────────────────
 
   /** Super Admin and Operations Manager: the people who plan inspections and approve reports. */
@@ -587,6 +606,7 @@ export class InspectionsService {
       correctiveAction: finding?.correctiveAction ?? null,
       dueDate: finding?.dueDate ? fromDbDate(finding.dueDate) : null,
       photos,
+      findingId: finding?.id ?? null,
       complete,
     };
   }
@@ -627,8 +647,26 @@ export class InspectionsService {
       canRecord: inspection.status === 'DRAFT' && this.mayRecord(user, inspection),
       canReview: status === 'SUBMITTED' && this.isEccsAdmin(user),
       canManage: status === 'PLANNED' && this.isEccsAdmin(user),
+      writeUp: writeUpOf(inspection, checks),
+      canWriteUp: status === 'SUBMITTED' && this.mayRecord(user, inspection),
     };
   }
+}
+
+/**
+ * The saved summary for the report. "Fix these first" keeps only findings the
+ * inspection still has: after it is sent back, a check changed to compliant drops out.
+ */
+function writeUpOf(inspection: DetailRow, checks: readonly InspectionCheckDto[]): InspectionWriteUpDto | null {
+  if (!inspection.summary) return null;
+  const findings = new Set(checks.flatMap((check) => (check.answer === 'NON_COMPLIANT' && check.findingId ? [check.findingId] : [])));
+  const stored = Array.isArray(inspection.fixFirst) ? (inspection.fixFirst as unknown[]) : [];
+  return {
+    summary: inspection.summary,
+    fixFirst: stored.filter((id): id is string => typeof id === 'string' && findings.has(id)),
+    aiDrafted: inspection.summaryAiDrafted,
+    updatedAt: (inspection.summaryUpdatedAt ?? inspection.updatedAt).toISOString(),
+  };
 }
 
 const stripSection = ({ section: _section, ...check }: InspectionCheckDto & { section: string }): InspectionCheckDto => check;

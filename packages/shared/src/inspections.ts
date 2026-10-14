@@ -185,6 +185,35 @@ export const answerInspectionCheckSchema = z.object({
 });
 export type AnswerInspectionCheckInput = z.input<typeof answerInspectionCheckSchema>;
 
+/** The longest summary a report may carry, in characters (about 250 words). */
+export const INSPECTION_SUMMARY_MAX = 1500;
+
+/**
+ * The Supervisor saves the summary for the report, after Finish and before ECCS
+ * approves it (14 Oct 2026). Written by hand, or started from an AI draft and
+ * checked. An empty summary removes it.
+ */
+export const saveInspectionSummarySchema = z.object({
+  summary: z.string().trim().max(INSPECTION_SUMMARY_MAX),
+  /** "Fix these first": ids of this inspection's own findings, in order. */
+  fixFirst: z.array(z.string().min(1)).max(5).default([]),
+  /** True when the text started from an AI draft (kept while it is edited, and across saves). */
+  aiDrafted: z.boolean().default(false),
+  /** The AI draft it started from in this sitting, so what the person did with it is recorded. */
+  draft: z.object({ requestId: z.string().min(1), edited: z.boolean() }).nullish(),
+});
+export type SaveInspectionSummaryInput = z.input<typeof saveInspectionSummarySchema>;
+
+/** The summary for the report, as saved. */
+export interface InspectionWriteUpDto {
+  summary: string;
+  /** "Fix these first": finding ids, in order (see InspectionCheckDto.findingId). */
+  fixFirst: string[];
+  /** True when the text started from an AI draft: the report then says "Drafted with AI help and checked by the inspector". */
+  aiDrafted: boolean;
+  updatedAt: string;
+}
+
 /** ECCS sends a finished inspection back to the Supervisor, saying what to correct. */
 export const returnInspectionSchema = z.object({
   note: z.string().trim().min(3, "Say what needs correcting").max(500),
@@ -249,6 +278,8 @@ export interface InspectionCheckDto {
   /** YYYY-MM-DD */
   dueDate: string | null;
   photos: InspectionPhotoDto[];
+  /** The non-compliance's own id, once the server has it ("Fix these first" names findings by it). */
+  findingId?: string | null;
   /**
    * True when nothing more is needed for this check: it is answered, and a
    * non-compliance has its note, severity, corrective action, date and a photo.
@@ -282,6 +313,10 @@ export interface InspectionDto extends InspectionSummaryDto {
   canReview: boolean;
   /** ECCS admins, before the first answer: move it, reassign it or remove it. */
   canManage: boolean;
+  /** The summary for the report and "Fix these first", once saved; null before. */
+  writeUp?: InspectionWriteUpDto | null;
+  /** True while the person may write or draft the summary: the Supervisor who did it (or an ECCS admin), after Finish and before approval. */
+  canWriteUp?: boolean;
 }
 
 /** What comes back after answering one check: just that check and the counts, to keep it light on a slow connection. */

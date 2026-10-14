@@ -9,6 +9,7 @@ import {
   type InspectionSeverity,
   type InspectionStatus,
   type InspectionSummaryDto,
+  type InspectionWriteUpDto,
   type SupervisorDto,
 } from "@eccs/shared";
 import { useEffect, useState, type FormEvent } from "react";
@@ -642,6 +643,8 @@ function InspectionDetail({
         </div>
       )}
 
+      {inspection.writeUp && <WriteUp writeUp={inspection.writeUp} checks={checks} />}
+
       {started && (
         <>
           {inspection.criticalFailed > 0 && (
@@ -700,6 +703,40 @@ function InspectionDetail({
       {/* When nothing else showed the failure (the buttons above have their own place for it). */}
       {!inspection.canReview && !inspection.canManage && <ErrorMessage message={error} />}
     </Card>
+  );
+}
+
+/**
+ * The Supervisor's summary for the report and the findings to fix first, read-only
+ * here (14 Oct 2026). Written in the app after Finish, by hand or from an AI draft the
+ * Supervisor checked; the report then says so. Each finding to fix first is the
+ * Supervisor's own, shown in full under Non-compliances below.
+ */
+function WriteUp({ writeUp, checks }: { writeUp: InspectionWriteUpDto; checks: InspectionCheckDto[] }) {
+  const toFix = writeUp.fixFirst.flatMap((id) => checks.filter((check) => check.findingId === id));
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="font-bold">Summary for the report</h3>
+      <p className="whitespace-pre-wrap">{writeUp.summary}</p>
+      {writeUp.aiDrafted && (
+        <p className="text-xs text-muted">
+          <span aria-hidden>✦ </span>Drafted with AI help and checked by the inspector.
+        </p>
+      )}
+      {toFix.length > 0 && (
+        <>
+          <h4 className="text-sm font-semibold">Fix these first</h4>
+          <ol className="list-decimal pl-5 text-sm">
+            {toFix.map((check) => (
+              <li key={check.itemId}>
+                {check.number}. {english(check.label)}
+                {check.dueDate ? ` · fix by ${shortDay(check.dueDate)}` : ""}
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+    </section>
   );
 }
 

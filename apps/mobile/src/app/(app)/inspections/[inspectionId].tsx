@@ -20,6 +20,7 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } f
 
 import { HeldNotice, SavedCopyNote } from '@/components/field-sync-parts';
 import { InspectionStatusBadge, ScoreSummary, SectionScoreRow } from '@/components/inspection-parts';
+import { InspectionSummarySection } from '@/components/inspection-summary';
 import { ProofPhoto } from '@/components/proof-photo';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -740,6 +741,14 @@ export default function InspectionScreen() {
           na: notApplicable,
         })}
       </ThemedText>
+
+      {/* The summary for the report: written by the Supervisor after Finish (by hand or from an AI draft they check). */}
+      <InspectionSummarySection
+        inspection={inspection}
+        editable={inspection.canWriteUp === true && !finishWaiting && !held}
+        online={hasSignal}
+        onSaved={(next) => fieldCache.putInspection(next)}
+      />
 
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
         {t('insp.sections')}

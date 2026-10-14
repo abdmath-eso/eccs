@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ApiError } from '@eccs/api-client';
-import { can, localize, type ChecklistItemDto, type ChecklistRunDto } from '@eccs/shared';
+import { can, localize, type ChecklistItemDto, type ChecklistRunDto, type PhotoNudge } from '@eccs/shared';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type ScrollView } from 'react-native';
 
+import { PhotoNudgeNotice } from '@/components/photo-nudge';
 import { ProofPhoto } from '@/components/proof-photo';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
@@ -17,13 +18,14 @@ import { TextField } from '@/components/ui/text-field';
 import { UnsentMark } from '@/components/unsent-mark';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useAiFeatures } from '@/lib/ai';
 import { errorMessage } from '@/lib/errors';
 import { formatDateTime, formatDayLong, formatDayShort } from '@/lib/format';
 import { checklistCache } from '@/lib/offline/checklist-cache';
 import { keepPhoto, keptPhotoUri, newId } from '@/lib/offline/files';
 import { isNoSignal, outbox, useOutbox } from '@/lib/offline/outbox';
 import { applyPending, type NewOp, type RunView } from '@/lib/offline/outbox-core';
-import { CameraPermissionError, takeEvidencePhoto } from '@/lib/photo';
+import { CameraPermissionError, smallPhotoCopy, takeEvidencePhoto } from '@/lib/photo';
 import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
 
@@ -34,6 +36,9 @@ import { useSession } from '@/lib/session';
 // checklist itself is the server's last copy, kept on the phone, with whatever
 // is still waiting laid over it. So the screen never waits for the network,
 // and nothing here fails just because the signal dropped.
+
+/** How long the nudge at the camera may take before the phone stops waiting for it. */
+const NUDGE_WAIT_MS = 6000;
 
 /** The id of the photo behind a signed photo path such as /attachments/<id>/content?... */
 const photoId = (photoPath: string) => photoPath.split('/')[2] ?? '';
@@ -332,6 +337,9 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
   const [noteError, setNoteError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [keeping, setKeeping] = useState(false);
+  const features = useAiFeatures();
+  /** The nudge at the camera for the photo just taken, if AI found it clearly unusable as proof. */
+  const [nudge, setNudge] = useState<{ photoId: string; kind: PhotoNudge; requestId: string } | null>(null);
   const tickOnly = !item.photoRequired;
 
   // A photo taken on this phone is shown from the phone until the server has it.
@@ -343,6 +351,8 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
       : null;
   // The photo an answer points at: the one waiting on this phone, or the one on the server.
   const attachmentId = localPhotoId ?? (response?.photoPath ? photoId(response.photoPath) : undefined);
+  // A nudge belongs to one photo: once that photo is replaced or removed, it goes.
+  const shownNudge = nudge && nudge.photoId === attachmentId ? nudge : null;
   const problem = response?.passed === false;
   const note = draft.note ?? response?.note ?? '';
   // "Problem" was tapped, or the reason reworded, and it is not saved yet.
@@ -377,16 +387,20 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
       return;
     }
     if (!photo) return;
+    // A new photo after a nudge: the nudge was right to ask. Recorded so ECCS can see how often it is.
+    if (shownNudge) void api.ai.outcome(shownNudge.requestId, 'ACCEPTED').catch(() => undefined);
+    setNudge(null);
     // The proof time is the moment the photo was taken, however much later it reaches the server.
     const capturedAt = new Date().toISOString();
     // The phone chooses the photo's id, so sending it twice stores it once.
     const id = newId();
     setKeeping(true);
+    let kept = false;
     try {
       // The camera saves into a folder the phone may clear; keep our own copy until it is sent.
       // With it go the facts noted at that moment (where the phone was, if allowed), sent when the photo is.
       await keepPhoto(id, photo, photo.facts);
-      await save(
+      kept = await save(
         {
           kind: 'answer',
           runId: run.id,
@@ -405,6 +419,33 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
     } finally {
       setKeeping(false);
     }
+    // The photo is saved as always; only then, and only with signal, AI takes a quick look.
+    if (kept && features['photo-check'] && hasSignal) void lookAtPhoto(id, keptPhotoUri(id) ?? photo.uri);
+  }
+
+  /**
+   * The nudge at the camera: a small copy goes to the server with the check's id, and
+   * if the photo is clearly blurred, too dark or of something else, a quiet notice
+   * appears under it. No answer within a few seconds, no signal, AI off or over its
+   * limit: nothing appears, and nothing else changes.
+   */
+  async function lookAtPhoto(id: string, uri: string) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), NUDGE_WAIT_MS);
+    try {
+      const result = await api.checklists.checkPhoto(run.id, item.id, await smallPhotoCopy(uri), controller.signal);
+      if (result.nudge && !controller.signal.aborted) setNudge({ photoId: id, kind: result.nudge, requestId: result.aiRequestId });
+    } catch {
+      // Nothing to show: the photo stands as taken.
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** "Keep it": the person keeps the photo the nudge doubted. Recorded so ECCS can see how often the nudge was wrong. */
+  function keepNudged() {
+    if (shownNudge) void api.ai.outcome(shownNudge.requestId, 'DISCARDED').catch(() => undefined);
+    setNudge(null);
   }
 
   /**
@@ -514,8 +555,17 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
         </View>
       )}
       {error?.at === 'photo' && <ErrorText message={error.message} />}
+      {/* The nudge at the camera, for the photo on screen only; its Retake stands in for the one below. */}
+      {editable && shownNudge && (
+        <PhotoNudgeNotice
+          nudge={shownNudge.kind}
+          check={localize(item.label, language)}
+          onRetake={() => void takePhoto()}
+          onKeep={keepNudged}
+        />
+      )}
 
-      {editable && !tickOnly && (
+      {editable && !tickOnly && !shownNudge && (
         <Button
           icon="camera"
           label={photoUri ? t('checklists.retakePhoto') : t('checklists.takePhoto')}

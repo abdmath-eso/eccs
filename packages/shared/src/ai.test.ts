@@ -8,16 +8,26 @@ import {
   cleanLicenceAnswer,
   contentTranslationJsonSchema,
   contentTranslationSchema,
+  firstDistinct,
   hasWords,
+  INSPECTION_SUMMARY_JSON_SCHEMA,
+  inspectionSummaryAnswerSchema,
   LICENCE_ANSWER_JSON_SCHEMA,
   licenceAnswerSchema,
   microUsdToUsd,
+  MONITORING_DIGEST_JSON_SCHEMA,
+  monitoringDigestSchema,
   numbersIn,
+  PHOTO_CHECK_JSON_SCHEMA,
+  PHOTO_CHECK_VERDICTS,
+  photoCheckSchema,
+  photoNudgeFor,
   SCORE_EXPLANATION_JSON_SCHEMA,
   scoreExplanationSchema,
   storedTranslationFor,
   SUPPORT_TRANSLATION_JSON_SCHEMA,
   supportTranslationSchema,
+  unknownIds,
   unknownNumbers,
   westernDigits,
   writtenInOwnScript,
@@ -183,6 +193,63 @@ describe("knowing the language from the script", () => {
     expect(hasWords("👍")).toBe(false);
     expect(hasWords("10:30")).toBe(false);
     expect(hasWords("ఫ్రిజ్")).toBe(true);
+  });
+});
+
+describe("the answer shapes of the digest, the inspection write-up and the camera nudge", () => {
+  it("are strict JSON schemas whose properties match the Zod checks", () => {
+    for (const [json, zod] of [
+      [MONITORING_DIGEST_JSON_SCHEMA, monitoringDigestSchema],
+      [INSPECTION_SUMMARY_JSON_SCHEMA, inspectionSummaryAnswerSchema],
+      [PHOTO_CHECK_JSON_SCHEMA, photoCheckSchema],
+    ] as const) {
+      expect(json.additionalProperties).toBe(false);
+      expect([...(json.required as string[])].sort()).toEqual(Object.keys(zod.shape).sort());
+      expect(Object.keys(json.properties as object).sort()).toEqual(Object.keys(zod.shape).sort());
+    }
+    const point = ((MONITORING_DIGEST_JSON_SCHEMA.properties as Record<string, AiJsonSchema>).points!.items as AiJsonSchema);
+    expect(point).toMatchObject({ required: ["outletId", "text"], additionalProperties: false });
+    expect((PHOTO_CHECK_JSON_SCHEMA.properties as Record<string, { enum: string[] }>).verdict!.enum).toEqual([...PHOTO_CHECK_VERDICTS]);
+  });
+
+  it("need a line on the day, and points that name an outlet", () => {
+    expect(monitoringDigestSchema.safeParse({ overview: "Two outlets need attention.", points: [{ outletId: "o1", text: "Licence expired." }] }).success).toBe(true);
+    expect(monitoringDigestSchema.safeParse({ overview: "", points: [] }).success).toBe(false);
+    expect(monitoringDigestSchema.safeParse({ overview: "Fine.", points: [{ text: "No outlet" }] }).success).toBe(false);
+  });
+
+  it("need a summary, and let a few too many findings through to be cut afterwards", () => {
+    expect(inspectionSummaryAnswerSchema.safeParse({ summary: "Good overall.", fixFirst: [] }).success).toBe(true);
+    expect(inspectionSummaryAnswerSchema.safeParse({ summary: "Good overall.", fixFirst: ["a", "b", "c", "d", "e", "f"] }).success).toBe(true);
+    expect(inspectionSummaryAnswerSchema.safeParse({ summary: " ", fixFirst: [] }).success).toBe(false);
+  });
+
+  it("accept only the five photo verdicts", () => {
+    expect(photoCheckSchema.safeParse({ verdict: "BLURRED" }).success).toBe(true);
+    expect(photoCheckSchema.safeParse({ verdict: "DIRTY" }).success).toBe(false);
+  });
+});
+
+describe("the camera nudge", () => {
+  it("shows only for a photo that is clearly unusable, and treats unsure as fine", () => {
+    expect(photoNudgeFor("BLURRED")).toBe("BLURRED");
+    expect(photoNudgeFor("TOO_DARK")).toBe("TOO_DARK");
+    expect(photoNudgeFor("WRONG_SUBJECT")).toBe("WRONG_SUBJECT");
+    expect(photoNudgeFor("OK")).toBeNull();
+    expect(photoNudgeFor("UNSURE")).toBeNull();
+  });
+});
+
+describe("checking the ids in an answer", () => {
+  it("names any id the app did not give", () => {
+    expect(unknownIds(["a", "b"], ["a", "b", "c"])).toEqual([]);
+    expect(unknownIds(["a", "made-up"], new Set(["a"]))).toEqual(["made-up"]);
+    expect(unknownIds([], [])).toEqual([]);
+  });
+
+  it("keeps the first few, each once, in order", () => {
+    expect(firstDistinct(["b", "a", "b", "c", "d"], 3)).toEqual(["b", "a", "c"]);
+    expect(firstDistinct([], 5)).toEqual([]);
   });
 });
 

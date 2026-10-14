@@ -217,6 +217,19 @@ export class ChecklistsService {
     return this.getRun(user, runId);
   }
 
+  /**
+   * The checklist and item, if the person may answer that item now: the same rule as
+   * answering (the outlet, the right to fill in checklists, the checklist still open).
+   * Used by the nudge at the camera (photo-check.service.ts).
+   */
+  async requireAnswerable(user: AuthUser, runId: string, itemId: string): Promise<{ outletId: string; organizationId: string; label: LocalizedText }> {
+    const run = await this.requireRun(user, 'create', runId);
+    this.requireOpen(run);
+    const item = itemsFor(run.outletChecklist.template.items, run.outletId).find((candidate) => candidate.id === itemId);
+    if (!item) throw new NotFoundException('That item is not on this checklist');
+    return { outletId: run.outletId, organizationId: run.outlet.organizationId, label: item.label as LocalizedText };
+  }
+
   /** Removes the answer to an item, for example a tick made by mistake. Only while the checklist is open. */
   async clearAnswer(user: AuthUser, runId: string, itemId: string): Promise<ChecklistRunDto> {
     const run = await this.requireRun(user, 'create', runId);

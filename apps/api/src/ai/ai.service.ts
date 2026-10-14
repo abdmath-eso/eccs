@@ -13,14 +13,14 @@
 // with a code (AI_OFF, AI_LIMIT, AI_FAILED) instead of throwing, and the feature
 // steps aside so saving, submitting and reading carry on as before.
 //
-// To add a feature (the daily digest, the inspection write-up, the camera nudge):
-// add its name to AI_FEATURES and its answer shape (a Zod schema plus the same JSON
+// To add a feature (as the daily digest, the inspection write-up and the camera
+// nudge were, 14 Oct 2026): add its name to AI_FEATURES and its answer shape (a Zod schema plus the same JSON
 // schema) in packages/shared/src/ai.ts, its instructions in ai-prompts.ts and a fixed
 // answer in fake-ai-engine.ts, then call `ai.run({ feature, model, ... })` and act on
 // `ok`. Set what the person did with the answer later with `setOutcome`.
 
 import { createHash } from 'node:crypto';
-import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import {
   AI_ERROR,
   AI_FEATURES,
@@ -183,7 +183,9 @@ export class AiService {
    * Records what the person did with an answer: kept it, changed it, threw it away,
    * or found it helpful or not. The person who asked may say so, and so may anyone
    * at the same restaurant outlet (an explanation of the score is shared by the
-   * Owner and the Manager). "Not found" and "not yours" look the same.
+   * Owner and the Manager), and either of ECCS's Super Admin and Ops Manager for the
+   * Monitoring board's daily digest, which they share. "Not found" and "not yours"
+   * look the same.
    */
   async setOutcome(user: AuthUser, requestId: string, outcome: AiOutcome): Promise<void> {
     const request = await this.db.aiRequest.findUnique({ where: { id: requestId } });
@@ -192,13 +194,23 @@ export class AiService {
       request.organizationId != null &&
       user.memberships.every((m) => !isEccsRole(m.role)) &&
       can(user.memberships, 'scores', 'read', { organizationId: request.organizationId, outletId: request.outletId });
-    if (!request || (request.userId !== user.id && !sameOutlet)) throw new NotFoundException('Not found');
-    await this.db.aiRequest.update({ where: { id: requestId }, data: { outcome } });
+    const sharedDigest = request?.feature === 'monitoring-digest' && isEccsAdmin(user);
+    if (!request || (request.userId !== user.id && !sameOutlet && !sharedDigest)) throw new NotFoundException('Not found');
+    await this.noteOutcome(requestId, outcome);
+  }
+
+  /**
+   * Records what was done with an answer when the feature itself knows (for example
+   * an AI draft saved as it was, or after changes). The feature has already checked
+   * who may do it.
+   */
+  async noteOutcome(requestId: string, outcome: AiOutcome): Promise<void> {
+    await this.db.aiRequest.update({ where: { id: requestId }, data: { outcome } }).catch(() => undefined);
   }
 
   /** What AI has cost today and this month, by feature, for ECCS's Super Admin and Ops Manager. */
   async usage(user: AuthUser): Promise<AiUsageDto> {
-    if (!user.memberships.some((m) => m.role === 'SUPER_ADMIN' || m.role === 'OPS_MANAGER')) {
+    if (!isEccsAdmin(user)) {
       throw new ForbiddenException('Only the Super Admin and the Ops Manager can see what AI costs');
     }
     const today = indiaDate();
@@ -291,6 +303,18 @@ export class AiService {
     return [...(this.recorded ?? [])];
   }
 }
+
+/**
+ * The answer to the app when AI stepped aside, with its code (AI_OFF, AI_LIMIT or
+ * AI_FAILED), so the screen carries on without it. `failed` is what to say when it failed.
+ */
+export function aiUnavailable(code: AiErrorCode, failed: string): ServiceUnavailableException {
+  const message = code === AI_ERROR.limit ? "Today's limit for AI has been reached" : code === AI_ERROR.off ? 'AI is switched off' : failed;
+  return new ServiceUnavailableException({ message, code });
+}
+
+/** ECCS's Super Admin or Operations Manager: they see what AI costs, and share the board's digest. */
+const isEccsAdmin = (user: AuthUser) => user.memberships.some((m) => m.role === 'SUPER_ADMIN' || m.role === 'OPS_MANAGER');
 
 /** An opaque tag for a person, so Anthropic can spot abuse without learning who anyone is. */
 function personTag(userId: string): string {

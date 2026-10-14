@@ -88,6 +88,8 @@ const STYLES = `
   .ok { color: ${REPORT_COLORS.brand}; } .bad { color: ${REPORT_COLORS.danger}; font-weight: 700; } .na { color: ${REPORT_COLORS.muted}; }
   .star { color: ${REPORT_COLORS.warning}; font-weight: 700; white-space: nowrap; }
   .answer { white-space: nowrap; }
+  .summary { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .fix { margin: 4px 0 0; padding-left: 20px; } .fix li { margin-bottom: 6px; break-inside: avoid; }
 `;
 
 /**
@@ -243,6 +245,30 @@ export class InspectionPdfService {
         </div>`;
     };
     const [firstCard = '', ...otherCards] = findings.map(findingCard);
+
+    // The Supervisor's summary and "Fix these first" (14 Oct 2026), near the top. Each
+    // finding to fix first is shown in the Supervisor's own words, never an AI's.
+    const byFinding = new Map(findings.map((check) => [check.finding?.id, check]));
+    const fixFirst = (Array.isArray(inspection.fixFirst) ? (inspection.fixFirst as unknown[]) : []).flatMap((id) => {
+      const check = typeof id === 'string' ? byFinding.get(id) : undefined;
+      return check ? [check] : [];
+    });
+    const fixItem = (check: (typeof findings)[number]) => {
+      const finding = check.finding;
+      return `<li><b>${escapeHtml(check.label)}</b> <span class="muted">(check ${check.number})</span>${
+        finding?.description ? `<br><span dir="auto">${escapeHtml(finding.description)}</span>` : ''
+      }${finding?.correctiveAction ? `<br>What to do: <span dir="auto">${escapeHtml(finding.correctiveAction)}</span>` : ''}${
+        finding?.dueDate ? `<br><b>Fix by ${day(finding.dueDate)}</b>` : ''
+      }</li>`;
+    };
+    const summaryBlock = inspection.summary
+      ? `<div class="keep">
+          <h2>Summary</h2>
+          <p class="summary" dir="auto">${escapeHtml(inspection.summary)}</p>
+          ${inspection.summaryAiDrafted ? '<p class="muted">Drafted with AI help and checked by the inspector.</p>' : ''}
+        </div>
+        ${fixFirst.length > 0 ? `<div class="keep"><h2>Fix these first</h2><ol class="fix">${fixFirst.map(fixItem).join('')}</ol></div>` : ''}`
+      : '';
     const findingsIntro =
       findings.length > 0
         ? '<p class="muted" style="margin-bottom:8px">What needs to be put right, the most serious first. Each has what was found, what to do and the date to do it by.</p>'
@@ -298,6 +324,7 @@ export class InspectionPdfService {
             } listed first under Non-compliances and marked ★.</span></div>`
           : ''
       }
+      ${summaryBlock}
 
       <h2>Section scores</h2>
       <table class="grid">

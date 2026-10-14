@@ -28,6 +28,8 @@ import { describe, english, longDay, matchesSearch, shortDay } from "@/lib/forma
 import { isPlainClick, useQuery, useQueryField } from "@/lib/query";
 import { useSession } from "@/lib/session";
 
+import { DigestCard } from "./digest-card";
+
 // ───────────────────────── Words ─────────────────────────
 
 /**
@@ -377,6 +379,16 @@ export default function MonitoringScreen() {
     },
   });
 
+  /** An outlet named in the digest: opens its row on the board, as choosing it in the table does. */
+  const linkToOutlet = (id: string) => ({
+    href: query.hrefWith({ outlet: id }),
+    onClick: (event: MouseEvent<HTMLAnchorElement>) => {
+      if (!isPlainClick(event)) return;
+      event.preventDefault();
+      if (id !== outletId) query.set({ outlet: id });
+    },
+  });
+
   const nothingMatches = board && all.length > 0 && shown.length === 0;
   const status = (
     <>
@@ -419,6 +431,8 @@ export default function MonitoringScreen() {
 
       {/* On a narrow screen an open outlet takes the place of the counts and filters as well as the list. */}
       <div className={`flex-col gap-4 ${open ? "hidden lg:flex" : "flex"}`}>
+        {/* Today's digest, written by AI: for the Super Admin and Ops Manager, whose board has every outlet. */}
+        {admin && <DigestCard outletLink={linkToOutlet} />}
         {board && (
           <div className="flex flex-wrap gap-2" role="group" aria-label="Counts. Press one to show only those outlets.">
             <CountTile label="All outlets" number={board.totals.outlets} pressed={show === "all"} onPress={() => query.set({ show: null }, "replace")} />

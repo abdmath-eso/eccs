@@ -183,6 +183,12 @@ import type {
 } from "@eccs/shared";
 // ai-types: the AI features (14 Oct 2026)
 import type { AiOutcome, AiStatusDto, AiUsageDto, ScoreExplanationDto } from "@eccs/shared";
+import type {
+  InspectionSummaryDraftDto,
+  MonitoringDigestDto,
+  PhotoCheckDto,
+  SaveInspectionSummaryInput,
+} from "@eccs/shared";
 // inspections-types: the inspections worker imports its types from "@eccs/shared" on the next line
 import type {
   AnswerInspectionCheckInput,
@@ -430,6 +436,23 @@ export function createApiClient(options: ApiClientOptions) {
         call<ChecklistRunDto>("DELETE", `/checklists/runs/${id(runId)}/items/${id(itemId)}`),
       submit: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/submit`),
       review: (runId: string) => call<ChecklistRunDto>("POST", `/checklists/runs/${id(runId)}/review`),
+      /**
+       * The nudge at the camera (AI): is this small copy of a proof photo usable as proof
+       * for the check? Fails with code AI_OFF, AI_LIMIT or AI_FAILED when AI steps aside.
+       * `signal` lets the phone give up after a few seconds.
+       */
+      checkPhoto(runId: string, itemId: string, file: UploadFile, signal?: AbortSignal) {
+        const form = new FormData();
+        form.append("file", file, "photo.jpg");
+        return send<PhotoCheckDto>(
+          "POST",
+          `/checklists/runs/${id(runId)}/items/${id(itemId)}/photo-check`,
+          form,
+          undefined,
+          true,
+          signal,
+        );
+      },
       setup: (outletId: string) => call<OutletChecklistDto[]>("GET", `/checklists/setup${query({ outletId })}`),
       /** Ready-made checks matching what was typed, leaving out ones already on the checklist. */
       suggestions: (outletChecklistId: string, search: string) =>
@@ -959,6 +982,13 @@ export function createApiClient(options: ApiClientOptions) {
       /** `days` is how far back the checklist and rating figures look; 7 when left out. */
       board: (filter: { days?: number } = {}) =>
         call<MonitoringBoardDto>("GET", `/monitoring${query(filter.days ? { days: String(filter.days) } : {})}`),
+      /**
+       * Today's digest of the board, written by AI (Super Admin and Ops Manager). Made on the
+       * first opening of the day and kept. Fails with code AI_OFF, AI_LIMIT or AI_FAILED.
+       */
+      digest: () => call<MonitoringDigestDto>("GET", "/monitoring/digest"),
+      /** "Update": a fresh digest, at most once an hour; sooner, the kept one comes back. */
+      updateDigest: () => call<MonitoringDigestDto>("POST", "/monitoring/digest"),
     },
     // catalog-api: the console-editing worker adds its calls on the next line
     /**
@@ -1066,6 +1096,15 @@ export function createApiClient(options: ApiClientOptions) {
        * limited time). May take a few seconds the first time, while the PDF is made.
        */
       reportPdf: (inspectionId: string) => call<{ path: string }>("POST", `/inspections/${id(inspectionId)}/report-pdf`),
+      /**
+       * An AI draft of the report's summary and "Fix these first", for the Supervisor to
+       * check and edit. Nothing is saved. Fails with code AI_OFF, AI_LIMIT or AI_FAILED.
+       */
+      draftSummary: (inspectionId: string) =>
+        call<InspectionSummaryDraftDto>("POST", `/inspections/${id(inspectionId)}/summary/draft`),
+      /** Saves the summary for the report (after Finish, before approval). An empty summary removes it. */
+      saveSummary: (inspectionId: string, input: SaveInspectionSummaryInput) =>
+        call<InspectionDto>("PUT", `/inspections/${id(inspectionId)}/summary`, input),
     },
     /** One month ("2026-10") of an outlet's history calendar. */
     calendar: {

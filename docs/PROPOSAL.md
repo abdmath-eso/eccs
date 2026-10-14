@@ -241,6 +241,14 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - The agreement is asked for right after login, before anything else, and again whenever a document gets a new version; the server refuses everything else until it is given. The documents can be read at any time in the profile and are public web pages.
 
 
+### AI (added 14 Oct 2026)
+- The Claude API, called only by the server; the key never reaches an app. One switch for all of it, one per feature, and a daily spending limit overall and per outlet. Nothing about staff, attendance, pay, faces or people's names is sent, and the AI never sets a score, mark, grade or pass/fail.
+- **AiRequest**: one row per request: the feature, the model, who and where, tokens in and out, the cost in millionths of a dollar, the result (OK, ERROR, OFF, LIMIT, INVALID), how long it took, and later the person's response (accepted, edited, discarded, helpful, not helpful). No text, answer or picture is kept. The daily limits are counted from it.
+- **AiScoreExplanation**: the "Why this score?" answer kept per outlet, day and language. **AiDigest**: the monitoring board's digest, one per day.
+- Translations of support messages are kept with each message, per language. The restaurant's own checklists, items, SOPs and food items record the language they were typed in (`typedLanguage`).
+- **Inspection** gains `summary`, `fixFirst` (the findings to fix first, by id), `summaryAiDrafted` and `summaryUpdatedAt`.
+
+
 ### Cross-cutting
 - **Notification**: recipient, channel, template, status.
 - **AuditLog**: who did what to which record, when.
@@ -304,7 +312,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Raise an issue with photo and category; track its status
 - Dashboard: hygiene score, today's checklist status, upcoming visits, open issues
 - My profile: photo, name, role, restaurant and branches, and preferences (language)
-- Licence tracker with expiry reminders by push at 60, 30, 15 and 7 days. One licence of each kind per outlet: a new one replaces the old one and its document. The number and expiry date are read off the uploaded document (free OCR first, an AI reader later) for the person to check
+- Licence tracker with expiry reminders by push at 60, 30, 15 and 7 days. One licence of each kind per outlet: a new one replaces the old one and its document. The type, number, holder and dates are read off the uploaded document by AI (since 14 Oct 2026, with the free reader when AI is off) for the person to check
 - Document vault: upload and view; service reports filed automatically
 - Visit history with service reports, and a one-year history calendar in the style of a phone calendar: each day shows its checklists, ECCS services, licences falling due and public holidays, and upcoming services and due dates are listed
 - Service booking from a priced catalogue: one-time or subscription
@@ -316,6 +324,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Customer QR: a public web page per outlet showing the cleanliness score, timestamps of recent services and a few approved photos (grill, hood and similar)
 - ECCS support screen: call, WhatsApp, ticket
 - PIN or biometric unlock for Manager and Owner areas
+- AI help (added 14 Oct 2026): a licence read into the form, support messages and the restaurant's own checklist items, SOPs and label names translated, "Why this score?", and a nudge when a checklist proof photo is blurred, dark or of the wrong thing. A person always checks or chooses; the AI never sets a score or fails a task
 
 **ECCS side**
 - Web console: organisations, outlets, users
@@ -329,6 +338,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Certificates generated per service (pest control, deep clean, chimney)
 - Scored inspection flow for supervisors with PDF report
 - Approval of photos shown on each outlet's customer QR page
+- AI help (added 14 Oct 2026): a daily digest of the outlets needing attention on the monitoring board, and a draft inspection summary for the Supervisor to edit and save
 - Audit log
 
 ### Deliberately left out of the MVP

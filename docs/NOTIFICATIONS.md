@@ -245,6 +245,17 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 | G2 | The Owner agrees for the restaurant | O | "You agreed to ECCS's terms for {restaurant} on {date}. You can read them any time in your profile." (a copy of the agreement) | In-app, email once there is email | not built |
 
 
+## 16b. AI features
+
+The six AI features (14 Oct 2026) send nothing of their own to restaurants: a translated support message arrives through the existing issue notifications (section 3), worded as before; a saved inspection summary reaches the restaurant with the approved report (section 7); "Why this score?" and the camera nudge are seen only on the screen that asked for them. These are for ECCS's office:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| AI1 | The day's AI spending limit is reached, overall or for one outlet | Adm | "AI features are paused until tomorrow: today's limit was reached." / "AI is paused at {outlet} until tomorrow." | In-app | not built |
+| AI2 | Anthropic refuses every request (the key is wrong or withdrawn, or the monthly limit set in Anthropic's console is reached) | Adm | "AI features are not working: {reason}." | Push + in-app | not built |
+| AI3 | Each morning, the monitoring board's digest is ready (the founder to decide) | Adm | "Today's summary of the monitoring board is ready." | Push | not built |
+
+
 ## 17. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
@@ -256,6 +267,7 @@ The existing "plan started" and "plan ended" notifications (section 1) are reuse
 
 | Date | Change |
 |---|---|
+| 14 Oct 2026 | AI features: section 16b added (AI1 to AI3), none built. |
 | 14 Oct 2026 | Terms and privacy: the two rows first numbered L1 and L2 are now G1 and G2, since L1 and L2 were already the licence reminders. |
 | 14 Oct 2026 | Terms and privacy: L1 and L2 added (renumbered G1 and G2 the same day). |
 | 13 Oct 2026 | Vendor directory: V1 to V3 added. |

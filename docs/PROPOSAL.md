@@ -340,6 +340,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Scored inspection flow for supervisors with PDF report
 - Approval of photos shown on each outlet's customer QR page
 - AI help (added 14 Oct 2026): a daily digest of the outlets needing attention on the monitoring board, and a draft inspection summary for the Supervisor to edit and save
+- Business dashboards for the founders (added 15 Oct 2026, to the founder's designs in `docs/design/`): Finance (money in and out, budget, founders' money and runway, cash book, expense book, collections, payouts, export for the CA), Sales (a CRM of leads and their stages, quotes, a daily to-do list, likely to close, targets by BDE, growth and forecast) and Team (targets, presence, stale leads). A BDE (salesperson) role on the ECCS side logs leads from the field in the app
 - Audit log: the console's Logs page (built 15 Oct 2026): everything that happens in the restaurant app, the Supervisor's app, the console, the AI and the server, with filters, a detail panel, live mode and CSV export
 
 ### Deliberately left out of the MVP

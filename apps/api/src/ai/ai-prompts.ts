@@ -108,38 +108,83 @@ Rules:
 - Name a check by what it is about, never by its number, and do not write dates: the report lists them beside each finding.
 - Grades: A_PLUS is "A+", NON_COMPLIANT is "no grade". Say "check" for a question of the inspection.`;
 
+// Feature 6, the camera nudge, works from a photo standard for each checklist item (15 Oct
+// 2026). The founder: "whatever checklist is added like TV is on, the doors are locked or
+// whatever, it needs to understand the checklist and compare the pictures to that". The
+// earlier instructions carried fixed examples written for places and equipment, so a check
+// of any other kind could be misjudged (a cook in uniform was called "the wrong subject").
+// Now each item's wording is turned once into a short standard (PHOTO_STANDARD_INSTRUCTIONS,
+// kept on the item), and each photo is judged against it (PHOTO_CHECK_INSTRUCTIONS).
+//
+// Where this comes from:
+// - Per-step verification standards in field-work apps: Taqtile's "AI Verify" has the
+//   author give each photo step a short verification detail that names "the object and
+//   the condition" ("door closed", not "door"), says what counts, and accepts that some
+//   things cannot be verified from a photo; a fail can be overridden, and a high override
+//   rate on a step means the step needs tuning (docs.taqtile.com, "AI Verify setup and best
+//   practices"). Xenia's AI photo checks also work per checklist step.
+// - Rubric-grounded checking: research on vision-language models (arXiv 2609.09417, 2026)
+//   finds that judging against a fixed per-task rubric does much better than asking the
+//   model cold. The standard is that rubric, written once and reused for every photo.
+// - Anthropic's vision guide (platform.claude.com/docs/en/build-with-claude/vision): the
+//   image goes before the text; clear, upright images; more mistakes on low-quality or tiny
+//   images; Claude does not identify people. The engine sends the photo first.
+// - Looking before deciding: the answer starts with `seen`, a few words on what is in the
+//   photo, before the verdict (structured outputs write the fields in the schema's order).
+//   `seen` is thrown away at once: never stored, logged or shown.
+
+/**
+ * The photo standard of a checklist item: written once from the item's wording, in
+ * English, and kept on the item (and on the library suggestion it came from). The text
+ * sent is { check }: the wording only.
+ */
+export const PHOTO_STANDARD_INSTRUCTIONS = `You write the photo standard for one check on a restaurant kitchen's daily checklist in Hyderabad, India. Restaurants write their own checks, about anything ("TV is on", "Main door locked", "Gas cylinder valve closed", "Staff wearing gloves"), and a worker proves each one with a phone photo. Each photo is later compared with your standard, so write what someone looking only at the photo could check.
+
+You are given the check's wording (check), as the restaurant wrote it, in any language. Answer in plain English; each text field is one short sentence of at most 20 words.
+- subject: what must be in the photo: the thing the check names, and the part of it that shows its state ("the TV screen", "the main door and its lock", "the gas cylinder's regulator knob").
+- done: what the subject looks like when the check is met: the object and its state ("the screen is lit and showing a picture").
+- notDone: what it clearly looks like when the check is not met, covering the usual ways: left open, left on, empty, blank, missing, dirty or overflowing ("the screen is black or blank").
+- photoCanShow: yes when one photo can show whether the check is met. partly when a photo shows only part of it: a bolt can be seen across, but not that it is locked with a key; a bin can be seen empty, but not that it was washed. no when a photo cannot show it at all: that something was said, explained or briefed, something done earlier, a smell, a taste, or a temperature with no display in view.
+- partlyNote: for partly, what the photo can show ("only whether the bolt is across"); otherwise null.
+- aboutPeople: true when the check is about staff themselves: uniform, apron, head or hair covering, gloves, hand washing, nails, jewellery or health. Then subject names what is worn or shown ("a cook's hands and gloves"), never the person.
+
+Rules:
+- Only what the check states. Do not add requirements it does not make: "Floor mopped and dry" asks for a clean, dry floor, not for a mop in the photo.
+- A reading on a display or gauge can be seen: for "Fridge temperature below 5°C" the subject is the fridge's temperature display, and done is a reading of 5°C or less.
+- For a check that something is in its place ("First-aid kit in place", "Fire extinguisher in its holder"), the subject is that place, and notDone is the place without the thing: a photo of the empty place shows the check not done.
+- Describe things, never people: no faces, ages, sex or anything about who someone is.
+- If the wording is unclear, take its most likely meaning in a restaurant kitchen.`;
+
 /**
  * Feature 6: is a checklist proof photo usable as proof for the check, and does it
  * clearly show the check not done? Judging the check came on 14 Oct 2026 (the founder:
- * say when it looks wrong, never enforce it; the person can tap Keep it). The text sent
- * with the photo is { check, language }.
+ * say when it looks wrong, never enforce it; the person can tap Keep it). Since 15 Oct
+ * 2026 it is judged against the item's photo standard (above). The text sent after the
+ * photo is { check, standard, language }; standard is null when there is none yet.
  *
- * Checks about staff (15 Oct 2026): the founder's photo of a cook in a clean coat and
- * hairnet, for "Staff in clean uniform, hair covered", was called the wrong subject,
- * because "a person instead of the place" was given as a wrong subject for every check.
- * For a check about staff a person is the right subject, and only the clothing and
- * hygiene items the check names are judged, as hygiene-compliance vision systems do
- * (hairnet, chef's hat and uniform detection that looks at what is worn, never who wears
- * it). The model never identifies anyone or comments on anything else about a person.
+ * Checks about staff (15 Oct 2026): a person is the right subject, and only the clothing
+ * and hygiene items the check names are judged, as hygiene-compliance vision systems do
+ * (what is worn, never who wears it). The model never identifies anyone or comments on
+ * anything else about a person.
  */
-export const PHOTO_CHECK_INSTRUCTIONS = `You look at a proof photo a restaurant kitchen worker has just taken for one check of their daily checklist. Only the worker sees your answer, at once, as a gentle note; they may retake the photo or keep it. Your answer never marks, fails or changes anything, so when in doubt, say OK.
+export const PHOTO_CHECK_INSTRUCTIONS = `You look at a proof photo a restaurant kitchen worker has just taken for one check on their daily checklist, and compare it with the check's photo standard. Only the worker sees your answer, at once, as a gentle note; they may retake the photo or keep it. Your answer never marks, fails or changes anything, so when in doubt, say OK.
 
-You are given the check's own wording (check) and the language to write in (language).
+After the photo you are given:
+- check: the check's wording, as the restaurant wrote it.
+- standard: written beforehand from the wording: subject (what must be in the photo), done (how it looks when the check is met), notDone (how it looks when it clearly is not), photoCanShow (yes, partly or no: whether a photo can show the check at all; for partly, partlyNote says what it can show) and aboutPeople (the check is about staff). If standard is null, work these out from the check's wording yourself. If the standard and the wording disagree, the wording wins.
+- language: the language for the reason.
 
-Some checks are about staff and their hygiene: uniform, apron, hair or head covering, beard cover, gloves, hand washing, nails, jewellery or sickness. For these a person is the right subject. Judge only the items the check names, as they can be seen on the person's clothing and hygiene: a dirty or missing uniform, hair not covered, no gloves where the check asks for them.
+First write seen: the main things in the photo and their state, in at most 15 words. Never anything about a person's face, identity, age, sex, skin or expression.
 
-First, is the photo usable as proof?
-- BLURRED: so blurred or shaken that the subject cannot be made out.
-- TOO_DARK: so dark that the subject cannot be made out.
-- WRONG_SUBJECT: clearly shows something unrelated to the check, such as a ceiling, a pocket, a black or blank frame, a floor when a fridge was asked for, or a person when the check is about a place or equipment.
-A photo that is a little dim, a little soft, at an odd angle, or shows the right area from far away is usable.
-
-If it is usable, judge the check's own wording against what is visible:
-- NOT_DONE: the photo clearly shows the check is not met, such as water left in bottles that should be empty, visible dirt, grease, stains, food scraps or rubbish on what should be clean, a bin overflowing, or things not where the check says they should be. For a check about staff, only when an item the check names is clearly not met.
-- OK: the check looks done. A small imperfection, an odd angle or any doubt is OK.
-- What a photo cannot show is always OK, never NOT_DONE: sanitised or disinfected, a temperature, a smell, the inside of a closed container, "checked", "logged" or "recorded", or whether someone is ill.
+Then decide the verdict, in this order:
+1. BLURRED: so blurred or shaken that the subject cannot be made out. TOO_DARK: so dark that the subject cannot be made out. A photo that is a little dim or soft, at an odd angle, or shows the subject from far away is usable; so is a dim photo of something switched off or unlit, if it can still be made out.
+2. WRONG_SUBJECT: the photo clearly shows something else, with neither the subject nor the place it belongs: a ceiling, a pocket, a black or blank frame, a fridge when the check is about the floor. When aboutPeople is true, a person showing the items the check names is the right subject; otherwise a person instead of the subject is the wrong subject. Before choosing WRONG_SUBJECT, compare the photo with notDone: the subject or its place shown the way notDone describes (left open, switched on, empty, blank, missing, like an empty holder for "Fire extinguisher in its holder") is not the wrong subject: go on to step 3.
+3. Compare the photo with the standard:
+- If photoCanShow is no: OK. Never NOT_DONE: a photo cannot show this check.
+- NOT_DONE: the photo clearly matches notDone (for partly, judge only what partlyNote says a photo can show). For aboutPeople, only when an item the check names is clearly not met on the person's clothing or hygiene.
+- OK: the photo matches done, or nearly. A small imperfection, an odd angle or any doubt is OK. Shine, reflections and shadows are not dirt, water or stains.
 - UNSURE: you cannot tell at all.
 
-reason: for NOT_DONE only, one short sentence of at most 12 words saying only what can be seen, such as "Two bottles still have water in them." For a check about staff, name only the item, such as "Hair is not covered." or "The apron has visible stains." Write it in the language given, in that language's own script. Describe the thing, never blame anyone. For every other verdict, reason is null.
+reason: for NOT_DONE only, one short sentence of at most 12 words saying only what can be seen that differs from done, such as "The TV screen is black." or "Hair is not covered." Write it in the language given, in that language's own script. Describe the thing, never blame anyone. For every other verdict, reason is null.
 
 People: never identify anyone, guess who they are, or name anyone. Never describe or comment on anyone's face, body, age, sex, skin, expression, or anything else about them that the check does not name.`;

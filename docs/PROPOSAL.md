@@ -325,7 +325,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Customer QR: a public web page per outlet showing the cleanliness score, timestamps of recent services and a few approved photos (grill, hood and similar)
 - ECCS support screen: call, WhatsApp, ticket
 - PIN or biometric unlock for Manager and Owner areas
-- AI help (added 14 Oct 2026): a licence read into the form, support messages and the restaurant's own checklist items, SOPs and label names translated, "Why this score?", and a nudge when a checklist proof photo is blurred, dark, of the wrong thing, or shows the check is not done (the person can always keep the photo). A person always checks or chooses; the AI never sets a score or fails a task
+- AI help (added 14 Oct 2026): a licence read into the form, support messages and the restaurant's own checklist items, SOPs and label names translated, "Why this score?", and a nudge when a checklist proof photo is blurred, dark, of the wrong thing, or shows the check is not done (the person can always keep the photo). Each item is judged against a photo standard written once by AI from its wording (what must be in the photo, what done and not done look like, whether a photo can show it), so it works for any item a restaurant adds. A person always checks or chooses; the AI never sets a score or fails a task
 
 **ECCS side**
 - Web console: organisations, outlets, users

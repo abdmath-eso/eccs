@@ -308,6 +308,10 @@ model ChecklistItem {
   /// The language the restaurant typed it in, when the other languages were filled in by AI.
   typedLanguage String?
   isActive      Boolean           @default(true)
+  /// What a proof photo for this item must show, written once by AI from its wording and
+  /// kept (15 Oct 2026): StoredPhotoStandard in packages/shared/src/ai.ts. Empty until
+  /// first needed, and made again when the wording changes.
+  photoStandard Json?
 
   template            ChecklistTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
   outlet              Outlet?               @relation(fields: [outletId], references: [id])
@@ -338,6 +342,9 @@ model ChecklistLibraryItem {
   text          Json
   /// Everything searchable about the item, in lower case.
   searchText    String
+  /// The photo standard made the first time any restaurant needed it for this suggestion
+  /// (15 Oct 2026), copied to every later pick with no AI call. Kept while the English is unchanged.
+  photoStandard Json?
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

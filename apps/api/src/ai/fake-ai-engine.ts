@@ -17,7 +17,11 @@ import { AiEngineError, type AiEngine, type AiEngineAnswer, type AiEngineRequest
 // and picks the first findings. A proof photo is fine unless its bytes carry a marker
 // ("FAKE-AI:BLURRED", "FAKE-AI:TOO_DARK", "FAKE-AI:WRONG_SUBJECT", "FAKE-AI:NOT_DONE",
 // "FAKE-AI:UNSURE"); NOT_DONE's reason is FAKE_NOT_DONE_REASON with the language code in
-// front, as translations have.
+// front, as translations have, and every answer carries the `seen` note FAKE_SEEN (which
+// must never reach the phone, the database or the log). A photo standard is written from
+// the check's wording: a photo cannot show it ("no") when the wording says it was logged,
+// recorded, written or briefed; it is about people when it names staff, uniform, gloves,
+// hair or an apron.
 // A test can queue an answer (or an error) for a feature's next call, and read every
 // call made.
 
@@ -38,6 +42,8 @@ export const FAKE_FIRE_NOC: LicenceAnswer = {
 
 /** The camera nudge's fixed NOT_DONE reason, given as "[te] ..." in the language asked for. */
 export const FAKE_NOT_DONE_REASON = 'Two bottles still have water in them.';
+/** The camera nudge's `seen` note: thrown away by the server, so it must never be found anywhere. */
+export const FAKE_SEEN = 'FAKE-SEEN a steel shelf and a blue cloth';
 
 /** What a fake call was asked, for tests to look at. */
 export interface FakeAiCall {
@@ -152,7 +158,20 @@ export class FakeAiEngine implements AiEngine {
         const bytes = request.file ? request.file.data.toString('latin1') : '';
         const marked = /FAKE-AI:(BLURRED|TOO_DARK|WRONG_SUBJECT|NOT_DONE|UNSURE)/.exec(bytes);
         const verdict = marked ? marked[1] : 'OK';
-        return { verdict, reason: verdict === 'NOT_DONE' ? `[${facts.language}] ${FAKE_NOT_DONE_REASON}` : null };
+        return { seen: FAKE_SEEN, verdict, reason: verdict === 'NOT_DONE' ? `[${facts.language}] ${FAKE_NOT_DONE_REASON}` : null };
+      }
+      case 'photo-standard': {
+        // Plain sentences built from the wording, with the two choices worked out from its words.
+        const { check } = request.facts as { check: string };
+        const cannotShow = /\b(logged|recorded|written|briefed|register)\b/i.test(check);
+        return {
+          subject: `what the check "${check}" is about`,
+          done: `it looks as "${check}" says`,
+          notDone: `it clearly does not look as "${check}" says`,
+          photoCanShow: cannotShow ? 'no' : 'yes',
+          partlyNote: null,
+          aboutPeople: /\b(staff|uniform|gloves|hair|apron)\b/i.test(check),
+        };
       }
       // A new feature adds its fixed answer above.
       default:

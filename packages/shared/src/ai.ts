@@ -109,6 +109,7 @@ export const AI_FEATURES = [
   "monitoring-digest", // the daily digest at the top of the ECCS console's Monitoring board
   "inspection-summary", // the draft summary and "Fix these first" of an inspection report, for the Supervisor
   "photo-check", // a nudge at the camera when a checklist proof photo is blurred, too dark, of the wrong thing, or the check looks not done
+  "photo-standard", // writes, once, what a checklist item's proof photo must show (the photo check judges against it)
 ] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
@@ -575,26 +576,54 @@ export const PHOTO_CHECK_MAX_BYTES = 1024 * 1024;
  */
 export const PHOTO_CHECK_REASON_MAX = 300;
 
+/**
+ * The most the `seen` note may be. It is asked for in about 15 words; it is only there so
+ * the model looks before it decides, and is thrown away at once.
+ */
+export const PHOTO_CHECK_SEEN_MAX = 600;
+
 export const photoCheckSchema = z.object({
+  /**
+   * A few words on the main things in the photo, written before the verdict so the model
+   * looks before it decides (15 Oct 2026). Never stored, logged, sent to the phone or shown.
+   */
+  seen: z.string().max(PHOTO_CHECK_SEEN_MAX),
   verdict: z.enum(PHOTO_CHECK_VERDICTS),
   /** NOT_DONE only: what can be seen that does not match the check, in the person's language. Otherwise null. */
   reason: z.string().max(PHOTO_CHECK_REASON_MAX).nullable(),
 });
 export type PhotoCheckAnswer = z.infer<typeof photoCheckSchema>;
 
+/**
+ * `seen` comes first: with structured outputs the answer is written in the schema's order
+ * (all three are required), so the model has said what it sees before it gives a verdict.
+ */
 export const PHOTO_CHECK_JSON_SCHEMA: AiJsonSchema = {
   type: "object",
-  properties: { verdict: { enum: [...PHOTO_CHECK_VERDICTS] }, reason: nullableString },
-  required: ["verdict", "reason"],
+  properties: { seen: { type: "string" }, verdict: { enum: [...PHOTO_CHECK_VERDICTS] }, reason: nullableString },
+  required: ["seen", "verdict", "reason"],
   additionalProperties: false,
 };
+
+/**
+ * The verdict and reason of an answer, with the item's photo standard applied: where the
+ * standard says a photo cannot show the check at all (photoCanShow "no"), NOT_DONE is never
+ * passed on and counts as OK, whatever the model said. `seen` is left behind here.
+ */
+export function photoCheckWithin(
+  answer: Pick<PhotoCheckAnswer, "verdict" | "reason">,
+  standard: Pick<PhotoStandard, "photoCanShow"> | null | undefined,
+): Pick<PhotoCheckAnswer, "verdict" | "reason"> {
+  if (answer.verdict === "NOT_DONE" && standard?.photoCanShow === "no") return { verdict: "OK", reason: null };
+  return { verdict: answer.verdict, reason: answer.reason };
+}
 
 /**
  * What the phone shows for an answer. Lenient on purpose: OK and UNSURE show nothing;
  * BLURRED, TOO_DARK and WRONG_SUBJECT show their own fixed words; NOT_DONE shows its
  * reason, and nothing at all when it came without one (there is nothing to say).
  */
-export function photoNudgeFor(answer: PhotoCheckAnswer): Pick<PhotoCheckDto, "nudge" | "reason"> {
+export function photoNudgeFor(answer: Pick<PhotoCheckAnswer, "verdict" | "reason">): Pick<PhotoCheckDto, "nudge" | "reason"> {
   if (answer.verdict === "NOT_DONE") {
     const reason = answer.reason?.replace(/\s+/g, " ").trim();
     return reason ? { nudge: "NOT_DONE", reason } : { nudge: null, reason: null };
@@ -610,6 +639,99 @@ export interface PhotoCheckDto {
   reason: string | null;
   /** The AiRequest it came from: the phone records "retook it" (ACCEPTED) or "kept it" (DISCARDED). */
   aiRequestId: string;
+}
+
+// ───────────────────────── The photo standard of a checklist item ─────────────────────────
+//
+// A restaurant can add any check it likes ("TV is on", "Main door locked", "Gas cylinder
+// valve closed"), so the photo check cannot carry examples for every kind (founder, 15 Oct
+// 2026). Instead each item gets a short standard, written once by AI from its wording and
+// kept on the item (and on the library suggestion it came from): what must be in the photo,
+// what done and not done look like, and whether a photo can show it at all. Each photo is
+// then judged against that standard. See apps/api/src/checklists/photo-standard.service.ts.
+
+/** Whether one photo can show that the check is met: yes, only partly (a latch, not "locked"), or not at all ("temperature logged"). */
+export const PHOTO_CAN_SHOW = ["yes", "partly", "no"] as const;
+export type PhotoCanShow = (typeof PHOTO_CAN_SHOW)[number];
+
+/** The longest a field of a standard may be (each is asked for as one short sentence). */
+export const PHOTO_STANDARD_FIELD_MAX = 300;
+
+const standardField = z.string().trim().min(1).max(PHOTO_STANDARD_FIELD_MAX);
+
+/** A photo standard as the AI writes it, in English. */
+export const photoStandardSchema = z.object({
+  /** What must be in the photo: "the TV screen", "a cook's uniform and head covering". */
+  subject: standardField,
+  /** What the subject looks like when the check is met: "the screen is lit and showing a picture". */
+  done: standardField,
+  /** What it looks like when the check is clearly not met: "the screen is black". */
+  notDone: standardField,
+  photoCanShow: z.enum(PHOTO_CAN_SHOW),
+  /** For "partly": what the photo can show ("whether the bolt is across"). Otherwise null. */
+  partlyNote: z.string().trim().max(PHOTO_STANDARD_FIELD_MAX).nullable(),
+  /** True when the check is about staff (uniform, gloves, hair covering): only the items it names are judged. */
+  aboutPeople: z.boolean(),
+});
+export type PhotoStandard = z.infer<typeof photoStandardSchema>;
+
+export const PHOTO_STANDARD_JSON_SCHEMA: AiJsonSchema = {
+  type: "object",
+  properties: {
+    subject: { type: "string" },
+    done: { type: "string" },
+    notDone: { type: "string" },
+    photoCanShow: { enum: [...PHOTO_CAN_SHOW] },
+    partlyNote: nullableString,
+    aboutPeople: { type: "boolean" },
+  },
+  required: ["subject", "done", "notDone", "photoCanShow", "partlyNote", "aboutPeople"],
+  additionalProperties: false,
+};
+
+/**
+ * A standard as kept on a ChecklistItem or ChecklistLibraryItem (a JSON column): the
+ * standard, the wording it was made from, and when. A new one is made when the item's
+ * wording no longer matches (see photoStandardFits).
+ */
+export interface StoredPhotoStandard extends PhotoStandard {
+  wording: string;
+  /** ISO time it was made. */
+  madeAt: string;
+}
+
+/** The wording a check is judged by: its English when it has one, otherwise whatever it was typed in. */
+export function checkWording(label: LocalizedText | null | undefined): string {
+  const english = label?.en?.trim();
+  if (english) return english;
+  return Object.values(label ?? {}).find((text): text is string => Boolean(text?.trim()))?.trim() ?? "";
+}
+
+/** A stored standard read back from the database, or null when there is none or it is not in the expected shape. */
+export function storedPhotoStandard(value: unknown): StoredPhotoStandard | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const standard = photoStandardSchema.safeParse(record);
+  if (!standard.success || typeof record.wording !== "string" || !record.wording.trim()) return null;
+  return { ...standard.data, wording: record.wording, madeAt: typeof record.madeAt === "string" ? record.madeAt : "" };
+}
+
+/**
+ * True when a stored standard was made from this item's wording. The wording may be in
+ * any of the item's languages: an item typed in Telugu keeps its Telugu exactly when the
+ * other languages are added, so filling in translations never makes a standard again.
+ * Changing the words themselves does.
+ */
+export function photoStandardFits(stored: Pick<StoredPhotoStandard, "wording"> | null | undefined, label: LocalizedText | null | undefined): boolean {
+  const wording = stored?.wording.trim();
+  if (!wording) return false;
+  return Object.values(label ?? {}).some((text) => text?.trim() === wording);
+}
+
+/** The standard as the photo check is given it: without the wording and time it was kept with. */
+export function photoStandardForCheck(stored: PhotoStandard): PhotoStandard {
+  const { subject, done, notDone, photoCanShow, partlyNote, aboutPeople } = stored;
+  return { subject, done, notDone, photoCanShow, partlyNote: photoCanShow === "partly" ? partlyNote : null, aboutPeople };
 }
 
 // ───────────────────────── Checking ids ─────────────────────────

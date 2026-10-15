@@ -17,7 +17,9 @@ import {
   type LocalizedText,
   type OutletChecklistDto,
   isEccsRole,
+  photoStandardFits,
   readPhotoFlags,
+  storedPhotoStandard,
 } from '@eccs/shared';
 import { ContentTranslatorService, localizedAt } from '../ai/content-translator.service.js';
 import { checklistItemKey, TranslationFillerService } from '../ai/translation-filler.service.js';
@@ -26,6 +28,7 @@ import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PhotoIntegrityService } from '../storage/photo-integrity.service.js';
 import { StorageService } from '../storage/storage.service.js';
+import { PhotoStandardService } from './photo-standard.service.js';
 
 const MAX_HISTORY_DAYS = 31;
 const MAX_SUGGESTIONS = 8;
@@ -119,6 +122,7 @@ export class ChecklistsService {
     private readonly integrity: PhotoIntegrityService,
     private readonly translator: ContentTranslatorService,
     private readonly filler: TranslationFillerService,
+    private readonly standards: PhotoStandardService,
   ) {}
 
   private get db() {
@@ -224,12 +228,21 @@ export class ChecklistsService {
    * answering (the outlet, the right to fill in checklists, the checklist still open).
    * Used by the nudge at the camera (photo-check.service.ts).
    */
-  async requireAnswerable(user: AuthUser, runId: string, itemId: string): Promise<{ outletId: string; organizationId: string; label: LocalizedText }> {
+  async requireAnswerable(
+    user: AuthUser,
+    runId: string,
+    itemId: string,
+  ): Promise<{ outletId: string; organizationId: string; item: { id: string; label: LocalizedText; photoStandard: unknown } }> {
     const run = await this.requireRun(user, 'create', runId);
     this.requireOpen(run);
     const item = itemsFor(run.outletChecklist.template.items, run.outletId).find((candidate) => candidate.id === itemId);
     if (!item) throw new NotFoundException('That item is not on this checklist');
-    return { outletId: run.outletId, organizationId: run.outlet.organizationId, label: item.label as LocalizedText };
+    return {
+      outletId: run.outletId,
+      organizationId: run.outlet.organizationId,
+      // With its photo standard, if it has one yet (photo-standard.service.ts).
+      item: { id: item.id, label: item.label as LocalizedText, photoStandard: item.photoStandard },
+    };
   }
 
   /** Removes the answer to an item, for example a tick made by mistake. Only while the checklist is open. */
@@ -558,6 +571,11 @@ export class ChecklistsService {
       label = { [user.contentLanguage.toLowerCase()]: input.label ?? '' };
     }
 
+    // A suggestion whose photo standard was made for an earlier pick gives the new item the
+    // same, with no AI call (photo-standard.service.ts).
+    const entryStandard = entry ? storedPhotoStandard(entry.photoStandard) : null;
+    const keptStandard = entry && entryStandard && photoStandardFits(entryStandard, entry.text as LocalizedText) ? entryStandard : null;
+
     const last = await this.db.checklistItem.aggregate({
       where: { templateId: list.templateId },
       _max: { position: true },
@@ -572,8 +590,12 @@ export class ChecklistsService {
         libraryItemId: input.libraryItemId ?? null,
         type: 'YES_NO',
         photoRequired: input.photoRequired,
+        ...(keptStandard && { photoStandard: keptStandard as unknown as Prisma.InputJsonValue }),
       },
     });
+    // An item checked by photo gets its photo standard now, in the background, so its first
+    // photo is already judged against it. Nothing happens with AI off.
+    if (input.photoRequired && !keptStandard) this.standards.later(item.id, { userId: user.id, outletId: list.outletId });
     if (entry) {
       // The suggestion library is in English only (it is not translated in advance, unlike
       // ECCS's basic checklists): a suggestion is translated the first time any restaurant
@@ -606,6 +628,11 @@ export class ChecklistsService {
     if (!item?.outletId) throw new NotFoundException('Only items your restaurant added can be changed');
     await this.requireOutlet(user, 'update', item.outletId);
     await this.db.checklistItem.update({ where: { id: itemId }, data: { photoRequired: input.photoRequired } });
+    // Now checked by photo: its photo standard, if it has none for its wording yet (in the background).
+    const kept = storedPhotoStandard(item.photoStandard);
+    if (input.photoRequired && !(kept && photoStandardFits(kept, item.label as LocalizedText))) {
+      this.standards.later(itemId, { userId: user.id, outletId: item.outletId });
+    }
     return this.outletChecklists(user, item.outletId);
   }
 

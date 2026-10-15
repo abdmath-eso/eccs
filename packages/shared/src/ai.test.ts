@@ -20,10 +20,19 @@ import {
   MONITORING_DIGEST_JSON_SCHEMA,
   monitoringDigestSchema,
   numbersIn,
+  checkWording,
+  PHOTO_CAN_SHOW,
   PHOTO_CHECK_JSON_SCHEMA,
   PHOTO_CHECK_VERDICTS,
+  PHOTO_STANDARD_FIELD_MAX,
+  PHOTO_STANDARD_JSON_SCHEMA,
   photoCheckSchema,
+  photoCheckWithin,
   photoNudgeFor,
+  photoStandardFits,
+  photoStandardForCheck,
+  photoStandardSchema,
+  storedPhotoStandard,
   SCORE_EXPLANATION_JSON_SCHEMA,
   scoreExplanationSchema,
   missingLanguages,
@@ -253,15 +262,98 @@ describe("the answer shapes of the digest, the inspection write-up and the camer
   });
 
   it("accept only the six photo verdicts, each with a reason or null", () => {
+    const seen = "a steel shelf with four bottles";
     expect(PHOTO_CHECK_VERDICTS).toEqual(["OK", "BLURRED", "TOO_DARK", "WRONG_SUBJECT", "NOT_DONE", "UNSURE"]);
-    expect(photoCheckSchema.safeParse({ verdict: "BLURRED", reason: null }).success).toBe(true);
-    expect(photoCheckSchema.safeParse({ verdict: "NOT_DONE", reason: "Two bottles still have water in them." }).success).toBe(true);
-    expect(photoCheckSchema.safeParse({ verdict: "DIRTY", reason: null }).success).toBe(false);
+    expect(photoCheckSchema.safeParse({ seen, verdict: "BLURRED", reason: null }).success).toBe(true);
+    expect(photoCheckSchema.safeParse({ seen, verdict: "NOT_DONE", reason: "Two bottles still have water in them." }).success).toBe(true);
+    expect(photoCheckSchema.safeParse({ seen, verdict: "DIRTY", reason: null }).success).toBe(false);
     // The reason is always there in the answer's shape, even when it is null.
-    expect(photoCheckSchema.safeParse({ verdict: "OK" }).success).toBe(false);
+    expect(photoCheckSchema.safeParse({ seen, verdict: "OK" }).success).toBe(false);
     // A reason far longer than about 12 words is refused, so nothing is shown.
-    expect(photoCheckSchema.safeParse({ verdict: "NOT_DONE", reason: "water ".repeat(60) }).success).toBe(false);
+    expect(photoCheckSchema.safeParse({ seen, verdict: "NOT_DONE", reason: "water ".repeat(60) }).success).toBe(false);
     expect((PHOTO_CHECK_JSON_SCHEMA.properties as Record<string, object>).reason).toEqual({ type: ["string", "null"] });
+  });
+
+  it("make the model say what it sees before its verdict", () => {
+    // Structured outputs write required properties in the schema's order.
+    expect(Object.keys(PHOTO_CHECK_JSON_SCHEMA.properties as object)).toEqual(["seen", "verdict", "reason"]);
+    expect(PHOTO_CHECK_JSON_SCHEMA.required).toEqual(["seen", "verdict", "reason"]);
+    expect(photoCheckSchema.safeParse({ verdict: "OK", reason: null }).success).toBe(false);
+  });
+});
+
+describe("the photo standard of a checklist item", () => {
+  const standard = {
+    subject: "the TV screen",
+    done: "the screen is lit and showing a picture",
+    notDone: "the screen is black or blank",
+    photoCanShow: "yes" as const,
+    partlyNote: null,
+    aboutPeople: false,
+  };
+
+  it("is a strict JSON schema whose properties match the Zod check", () => {
+    expect(PHOTO_STANDARD_JSON_SCHEMA.additionalProperties).toBe(false);
+    expect([...(PHOTO_STANDARD_JSON_SCHEMA.required as string[])].sort()).toEqual(Object.keys(photoStandardSchema.shape).sort());
+    expect(Object.keys(PHOTO_STANDARD_JSON_SCHEMA.properties as object).sort()).toEqual(Object.keys(photoStandardSchema.shape).sort());
+    expect((PHOTO_STANDARD_JSON_SCHEMA.properties as Record<string, { enum: string[] }>).photoCanShow!.enum).toEqual(["yes", "partly", "no"]);
+  });
+
+  it("needs every part, says yes, partly or no, and refuses an empty or overlong sentence", () => {
+    expect(photoStandardSchema.safeParse(standard).success).toBe(true);
+    expect(photoStandardSchema.safeParse({ ...standard, photoCanShow: "maybe" }).success).toBe(false);
+    expect(photoStandardSchema.safeParse({ ...standard, subject: "  " }).success).toBe(false);
+    expect(photoStandardSchema.safeParse({ ...standard, done: "x".repeat(PHOTO_STANDARD_FIELD_MAX + 1) }).success).toBe(false);
+    const { aboutPeople: _left, ...withoutPeople } = standard;
+    expect(photoStandardSchema.safeParse(withoutPeople).success).toBe(false);
+    expect(PHOTO_CAN_SHOW).toEqual(["yes", "partly", "no"]);
+  });
+
+  it("is read back from the database only when it is whole and says what wording it was made from", () => {
+    const stored = { ...standard, wording: "TV is on", madeAt: "2026-10-15T10:00:00.000Z" };
+    expect(storedPhotoStandard(stored)).toEqual(stored);
+    expect(storedPhotoStandard({ ...standard })).toBeNull();
+    expect(storedPhotoStandard({ ...stored, photoCanShow: "maybe" })).toBeNull();
+    expect(storedPhotoStandard(null)).toBeNull();
+    expect(storedPhotoStandard("TV is on")).toBeNull();
+    expect(storedPhotoStandard({ ...stored, madeAt: undefined })).toEqual({ ...stored, madeAt: "" });
+  });
+
+  it("fits an item while one of its languages still has the wording it was made from", () => {
+    const stored = { wording: "TV is on" };
+    expect(photoStandardFits(stored, { en: "TV is on" })).toBe(true);
+    // Translations added later do not make it again.
+    expect(photoStandardFits(stored, { en: "TV is on", te: "టీవీ ఆన్‌లో ఉంది" })).toBe(true);
+    // Typed in Telugu, made from the Telugu, then given an English translation: still fits.
+    expect(photoStandardFits({ wording: "టీవీ ఆన్‌లో ఉంది" }, { te: "టీవీ ఆన్‌లో ఉంది", en: "The TV is on" })).toBe(true);
+    // New words: made again.
+    expect(photoStandardFits(stored, { en: "TV is off" })).toBe(false);
+    expect(photoStandardFits(null, { en: "TV is on" })).toBe(false);
+    expect(photoStandardFits({ wording: " " }, { en: " " })).toBe(false);
+  });
+
+  it("judges by the English wording when there is one, else as typed", () => {
+    expect(checkWording({ en: " TV is on ", te: "టీవీ" })).toBe("TV is on");
+    expect(checkWording({ te: "టీవీ ఆన్‌లో ఉంది" })).toBe("టీవీ ఆన్‌లో ఉంది");
+    expect(checkWording({ en: "  ", hi: "टीवी चालू है" })).toBe("टीवी चालू है");
+    expect(checkWording(null)).toBe("");
+  });
+
+  it("is given to the photo check without the wording and time it was kept with", () => {
+    const stored = { ...standard, partlyNote: "left over", wording: "TV is on", madeAt: "2026-10-15T10:00:00.000Z" };
+    expect(photoStandardForCheck(stored)).toEqual(standard);
+    expect(photoStandardForCheck({ ...standard, photoCanShow: "partly", partlyNote: "whether the bolt is across" }).partlyNote).toBe("whether the bolt is across");
+  });
+
+  it("never lets NOT_DONE through where a photo cannot show the check", () => {
+    const notDone = { verdict: "NOT_DONE" as const, reason: "The register is empty." };
+    expect(photoCheckWithin(notDone, { photoCanShow: "no" })).toEqual({ verdict: "OK", reason: null });
+    expect(photoCheckWithin(notDone, { photoCanShow: "partly" })).toEqual(notDone);
+    expect(photoCheckWithin(notDone, { photoCanShow: "yes" })).toEqual(notDone);
+    expect(photoCheckWithin(notDone, null)).toEqual(notDone);
+    // The other verdicts are untouched, and `seen` is never carried on.
+    expect(photoCheckWithin({ verdict: "WRONG_SUBJECT", reason: null }, { photoCanShow: "no" })).toEqual({ verdict: "WRONG_SUBJECT", reason: null });
+    expect(photoCheckWithin({ seen: "a register", verdict: "OK", reason: null } as never, standard)).toEqual({ verdict: "OK", reason: null });
   });
 });
 

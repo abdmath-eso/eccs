@@ -201,6 +201,7 @@ describe('AI features (e2e)', () => {
         'monitoring-digest': true,
         'inspection-summary': true,
         'photo-check': true,
+        'photo-standard': true,
       });
       ai.setForTest({ disabled: ['explain-score'] });
       expect((await http().get('/ai/status').set(as(chef)).expect(200)).body.features['explain-score']).toBe(false);
@@ -474,6 +475,10 @@ describe('AI features (e2e)', () => {
     let listId: string;
     const setup = async (token: string, language = 'EN') =>
       (await http().get('/checklists/setup').query({ outletId }).set(as(token, language)).expect(200)).body as List[];
+
+    // Adding a photo item also writes its photo standard in the background; that has its own
+    // tests (photo-standard.e2e-spec.ts), so it is switched off here to count translations only.
+    beforeEach(() => ai.setForTest({ disabled: ['photo-standard'] }));
 
     it("fills in a checklist and its typed item in every language, keeping the Owner's English as typed", async () => {
       const lists = (await http().post('/checklists/setup').set(as(owner)).send({ outletId, title: 'E2E Mid-day checks' }).expect(201))

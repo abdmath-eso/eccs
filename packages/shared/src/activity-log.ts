@@ -344,6 +344,7 @@ export const ACTIVITY_ACTIONS = {
   "ai.request.monitoringDigest": ["ai", "AI wrote the Monitoring digest"],
   "ai.request.inspectionSummary": ["ai", "AI drafted an inspection summary"],
   "ai.request.photoCheck": ["ai", "AI checked a proof photo"],
+  "ai.request.photoStandard": ["ai", "AI wrote what a checklist item's proof photo must show"],
   "ai.digest.updated": ["ai", "Asked for a fresh Monitoring digest"],
   "ai.outcome.recorded": ["ai", "Said what they did with an AI answer"],
 
@@ -367,6 +368,7 @@ export const AI_FEATURE_ACTIONS: Record<AiFeature, ActivityAction> = {
   "monitoring-digest": "ai.request.monitoringDigest",
   "inspection-summary": "ai.request.inspectionSummary",
   "photo-check": "ai.request.photoCheck",
+  "photo-standard": "ai.request.photoStandard",
 };
 
 export const isActivityAction = (key: string): key is ActivityAction => Object.hasOwn(ACTIVITY_ACTIONS, key);

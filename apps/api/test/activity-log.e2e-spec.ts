@@ -392,8 +392,10 @@ describe('Activity log (e2e)', () => {
         .send({ passed: false, note: SECRET.problem, capturedAt: anHourAgo })
         .expect(200);
 
-      // The nudge at the camera (AI), while the checklist is still open.
-      ai.setForTest({ on: true, disabled: [], dailyLimitUsd: 1000, outletDailyLimitUsd: 1000 });
+      // The nudge at the camera (AI), while the checklist is still open. The item's photo
+      // standard (a second AI request, logged as ai.request.photoStandard) is left out here
+      // so this request writes one AI row; photo-standard.e2e-spec.ts logs it.
+      ai.setForTest({ on: true, disabled: ['photo-standard'], dailyLimitUsd: 1000, outletDailyLimitUsd: 1000 });
       const checked = await http()
         .post(`/checklists/runs/${runId}/items/${second!.id}/photo-check`)
         .set({ ...bearer(manager.token), ...MOBILE })

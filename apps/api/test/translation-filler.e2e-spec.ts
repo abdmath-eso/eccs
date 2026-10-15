@@ -61,7 +61,9 @@ describe('Filling in missing languages (e2e)', () => {
   /** Eleven minutes from now: past the ten minutes a fresh save is left to its own translation. */
   const later = () => new Date(Date.now() + 11 * 60_000);
   const mine = () => ({ outletIds: [outletId], now: later() });
-  const aiOn = () => ai.setForTest({ on: true, disabled: [], dailyLimitUsd: 1000, outletDailyLimitUsd: 1000 });
+  // A pick of a photo check also writes its photo standard in the background; that has its own
+  // tests (photo-standard.e2e-spec.ts), so it is switched off here to count translations only.
+  const aiOn = () => ai.setForTest({ on: true, disabled: ['photo-standard'], dailyLimitUsd: 1000, outletDailyLimitUsd: 1000 });
   const db = () => prisma.client;
   const label = async (id: string) => (await db().checklistItem.findUniqueOrThrow({ where: { id } })).label as Text;
 

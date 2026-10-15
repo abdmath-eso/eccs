@@ -12,12 +12,17 @@ import { generatePin, normalizeOutletCode, pinLookup, Prisma } from '@eccs/db';
 import {
   AUTH_ERROR,
   ECCS_ROLES,
+  isEccsRole,
+  mainRole,
+  maskPhone,
   type CurrentUserDto,
   type Language,
   type LinkedDeviceDto,
   type Role,
   type SessionDto,
 } from '@eccs/shared';
+import { noteActivity } from '../activity-log/activity-context.js';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import { env } from '../config/env.js';
 import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -91,6 +96,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notify: NotifyService,
+    private readonly activity: ActivityLogService,
   ) {}
 
   private get db() {
@@ -123,6 +129,11 @@ export class AuthService {
     }
 
     const user = await this.otpUser(phone);
+    // The activity log keeps the last four digits only, and never the code.
+    noteActivity({
+      details: { phoneLast4: maskPhone(phone) },
+      ...(user && { side: user.memberships.some((m) => isEccsRole(m.role)) ? ('eccs' as const) : ('restaurant' as const) }),
+    });
 
     let code: string;
     if (env.DEV_FIXED_OTP) {
@@ -152,21 +163,27 @@ export class AuthService {
    * time (or when resetPin is set), creates their PIN.
    */
   async verifyOtp(phone: string, code: string, deviceName?: string, resetPin = false): Promise<SessionDto> {
+    // For the activity log: the last four digits only, never the code. The full number stays in memory,
+    // only to tell an ECCS staff phone from a restaurant's when the code is wrong.
+    noteActivity({ details: { phoneLast4: maskPhone(phone) }, lookupPhone: phone });
     const challenge = await this.db.otpChallenge.findFirst({
       where: { phone, consumedAt: null, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },
     });
     if (!challenge || challenge.attempts >= OTP_MAX_ATTEMPTS) {
+      noteActivity({ action: 'auth.otp.wrong' });
       throw new UnauthorizedException(WRONG_CODE);
     }
 
     if (!safeEqualHex(otpHash(challenge.id, code), challenge.codeHash)) {
       await this.db.otpChallenge.update({ where: { id: challenge.id }, data: { attempts: { increment: 1 } } });
+      noteActivity({ action: 'auth.otp.wrong' });
       throw new UnauthorizedException(WRONG_CODE);
     }
 
     const user = await this.otpUser(phone);
     if (!user) {
+      noteActivity({ action: 'auth.otp.wrong' });
       throw new UnauthorizedException(WRONG_CODE);
     }
     await this.db.otpChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } });
@@ -177,6 +194,7 @@ export class AuthService {
     }
 
     const device = await this.createLinkedDevice(ownerOf.organizationId, null, deviceName);
+    noteActivity({ organizationId: ownerOf.organizationId, details: { deviceLinked: true, setUpAgain: !user.pinLookup || resetPin } });
     const generatedPin =
       !user.pinLookup || resetPin ? await this.assignPin(user.id, ownerOf.organizationId) : undefined;
     const session = await this.startSession(user, deviceName, device.id);
@@ -202,10 +220,13 @@ export class AuthService {
       select: { id: true, name: true, organizationId: true, organization: { select: { name: true } } },
     });
     if (!outlet) {
+      // The code typed is never logged: it is what links a phone to a kitchen.
+      noteActivity({ action: 'auth.device.wrongCode' });
       throw new NotFoundException('That restaurant code was not found. Check it and try again.');
     }
 
     const device = await this.createLinkedDevice(outlet.organizationId, outlet.id, deviceName);
+    noteActivity({ organizationId: outlet.organizationId, outletId: outlet.id, deviceId: device.id });
     await this.notify.deviceLinked(outlet.id);
     return { deviceToken: device.token, organizationName: outlet.organization.name, outletName: outlet.name };
   }
@@ -217,6 +238,8 @@ export class AuthService {
    */
   async pinLogin(deviceToken: string, pin: string): Promise<SessionDto> {
     const device = await this.requireLinkedDevice(deviceToken);
+    // The phone and its outlet, right PIN or wrong; never the PIN, and on a wrong one not who it was meant to be.
+    noteActivity({ organizationId: device.organizationId, outletId: device.outletId, deviceId: device.id });
     const live = await this.checkPin(device, pin);
     return this.startSession(live, device.name ?? undefined, device.id);
   }
@@ -244,6 +267,7 @@ export class AuthService {
    */
   async checkPin(device: { id: string; organizationId: string; outletId: string | null; failedPinAttempts: number; pinLockedUntil: Date | null }, pin: string) {
     if (device.pinLockedUntil && device.pinLockedUntil > new Date()) {
+      noteActivity({ action: 'auth.pin.whileLocked' });
       throw pinLocked(device.pinLockedUntil);
     }
 
@@ -271,8 +295,18 @@ export class AuthService {
           pinLockedUntil: lockedUntil,
         },
       });
+      noteActivity({ action: 'auth.pin.wrong', details: { wrongInARow: lockedUntil ? PIN_MAX_ATTEMPTS : attempts } });
       // The wrong PIN that causes the lock is told so at once, so the app can show the wait straight away.
       if (lockedUntil) {
+        // A row of its own in the activity log: which phone and outlet, never the PINs tried.
+        this.activity.event('auth.pin.locked', {
+          result: 'REFUSED',
+          organizationId: device.organizationId,
+          outletId: device.outletId,
+          deviceId: device.id,
+          side: 'restaurant',
+          details: { lockedMinutes: PIN_LOCK_MS / 60_000 },
+        });
         await this.notify.pinLocked(device);
         throw pinLocked(lockedUntil);
       }
@@ -338,7 +372,7 @@ export class AuthService {
       await this.db.session.update({ where: { id: session.id }, data: { lastUsedAt: new Date() } });
     }
 
-    return { ...toDto(user), sessionId: session.id, contentLanguage: user.language };
+    return { ...toDto(user), sessionId: session.id, contentLanguage: user.language, linkedDeviceId: session.linkedDeviceId };
   }
 
   async logout(sessionId: string): Promise<void> {
@@ -358,6 +392,11 @@ export class AuthService {
   }
 
   private async startSession(user: UserWithMemberships, deviceName?: string, linkedDeviceId?: string): Promise<SessionDto> {
+    // Who logged in, for the activity log (the request itself had no login yet).
+    noteActivity({
+      actor: { id: user.id, name: user.name, role: mainRole(user.memberships.map((m) => m.role)) },
+      ...(linkedDeviceId && { deviceId: linkedDeviceId }),
+    });
     const token = newToken();
     const expiresAt = new Date(Date.now() + env.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
     await this.db.session.create({

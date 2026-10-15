@@ -13,6 +13,8 @@ export default defineConfig({
     // of such users (LEGAL_GATE) is off for the run. legal.e2e-spec.ts switches it on itself.
     // AI: the tests never call Anthropic. The fake engine answers (AI_ENGINE=fake), and AI is
     // off for the run so the other suites behave as before; ai.e2e-spec.ts switches it on itself.
-    env: { LEGAL_GATE: 'off', AI_ENGINE: 'fake', AI_FEATURES: 'off' },
+    // The activity log is off for the run too, so the suites leave no log rows behind in the
+    // shared database; activity-log.e2e-spec.ts switches it on itself and removes its rows.
+    env: { LEGAL_GATE: 'off', AI_ENGINE: 'fake', AI_FEATURES: 'off', ACTIVITY_LOG: 'off' },
   },
 });

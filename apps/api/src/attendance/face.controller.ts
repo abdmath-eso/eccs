@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { FACE_RULES, type FaceStatusDto } from '@eccs/shared';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { FaceService } from './face.service.js';
@@ -24,6 +25,8 @@ export class FaceController {
    */
   @Post(':id/face')
   @RequirePermission('staff', 'update')
+  // The action, the outlet and who did it; never the person, the photos or the consent's details.
+  @Activity('staff.face.added', { staffData: true, entity: 'staffMember' })
   @UseInterceptors(FilesInterceptor('photos', FACE_RULES.enrolMaxPhotos, { limits: { fileSize: FACE_RULES.maxPhotoBytes * 2 } }))
   enrol(
     @CurrentUser() user: AuthUser,
@@ -44,6 +47,7 @@ export class FaceController {
   /** The employee withdraws consent: every template is deleted at once. */
   @Delete(':id/face')
   @RequirePermission('staff', 'update')
+  @Activity('staff.face.removed', { staffData: true, entity: 'staffMember' })
   withdraw(@CurrentUser() user: AuthUser, @Param('id') id: string): Promise<FaceStatusDto> {
     return this.face.withdraw(user, id);
   }

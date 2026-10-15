@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { LICENCE_REMINDER_DAYS, type LocalizedText, type NotificationLink } from '@eccs/shared';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import { env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from './notifications.service.js';
@@ -47,6 +48,7 @@ export class RemindersService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityLogService,
   ) {}
 
   private get db() {
@@ -59,8 +61,15 @@ export class RemindersService implements OnModuleInit, OnModuleDestroy {
     if (env.NODE_ENV === 'test') return;
     const check = () =>
       void this.run()
-        .then(({ sent }) => sent > 0 && this.logger.log(`Sent ${sent} reminders`))
-        .catch((error) => this.logger.warn(`Could not send reminders: ${String(error)}`));
+        .then(({ sent }) => {
+          // Every quarter of an hour, so the activity log has a row only when reminders went out.
+          this.activity.jobRun('notifications.reminders.ran', { sent }, { quiet: true });
+          if (sent > 0) this.logger.log(`Sent ${sent} reminders`);
+        })
+        .catch((error) => {
+          this.activity.jobRun('notifications.reminders.ran', null, { error });
+          this.logger.warn(`Could not send reminders: ${String(error)}`);
+        });
     const first = setTimeout(check, FIRST_CHECK_AFTER_MS);
     const repeat = setInterval(check, CHECK_EVERY_MS);
     // Neither keeps the server alive when it is asked to stop.

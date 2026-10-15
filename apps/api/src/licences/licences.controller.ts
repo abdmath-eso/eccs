@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { createDocumentSchema, createLicenceSchema, readLicenceSchema, updateLicenceSchema } from '@eccs/shared';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -20,6 +21,8 @@ export class LicencesController {
 
   @Post('licences')
   @RequirePermission('licences', 'create')
+  // The type of licence; never its number, holder or dates.
+  @Activity('licences.licence.added', { entity: 'licence', from: 'answer' })
   create(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createLicenceSchema)) body: z.output<typeof createLicenceSchema>,
@@ -31,6 +34,7 @@ export class LicencesController {
   @Post('licences/read')
   @HttpCode(200)
   @RequirePermission('licences', 'create')
+  @Activity('licences.document.read', { entity: 'attachment', from: 'body', key: 'attachmentId' })
   read(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(readLicenceSchema)) body: z.output<typeof readLicenceSchema>,
@@ -40,6 +44,7 @@ export class LicencesController {
 
   @Patch('licences/:id')
   @RequirePermission('licences', 'update')
+  @Activity('licences.licence.changed', { entity: 'licence' })
   update(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -51,6 +56,7 @@ export class LicencesController {
   @Delete('licences/:id')
   @HttpCode(204)
   @RequirePermission('licences', 'update')
+  @Activity('licences.licence.removed', { entity: 'licence' })
   async remove(@CurrentUser() user: AuthUser, @Param('id') id: string): Promise<void> {
     await this.licences.removeLicence(user, id);
   }
@@ -64,6 +70,7 @@ export class LicencesController {
 
   @Post('documents')
   @RequirePermission('documents', 'create')
+  @Activity('licences.document.added', { entity: 'attachment', from: 'body', key: 'attachmentId' })
   createDocument(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createDocumentSchema)) body: z.output<typeof createDocumentSchema>,
@@ -73,6 +80,7 @@ export class LicencesController {
 
   @Delete('documents/:id')
   @RequirePermission('documents', 'update')
+  @Activity('licences.document.removed', { entity: 'document' })
   removeDocument(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.licences.removeDocument(user, id);
   }

@@ -17,6 +17,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { can, type AttachmentDto } from '@eccs/shared';
 import type { Response } from 'express';
 import { z } from 'zod';
+import { noteActivity } from '../activity-log/activity-context.js';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, Public } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -72,6 +74,8 @@ export class AttachmentsController {
    */
   @Post()
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_DOCUMENT_BYTES, files: 1 } }))
+  // The kind of file and its outlet; never the file itself.
+  @Activity('files.upload.added', { entity: 'attachment', from: 'answer', facts: ['kind'] })
   async upload(
     @CurrentUser() user: AuthUser,
     @UploadedFile() file: UploadedPhoto | undefined,
@@ -140,6 +144,9 @@ export class AttachmentsController {
    */
   @Public()
   @Get(':id/content')
+  // Logged only when a document (a licence, a vault file, a visit's result document) is opened,
+  // not for every photo shown. The link carries no login, so who opened it is not known.
+  @Activity('files.document.opened', { reads: 'noted', side: 'public', entity: 'attachment' })
   async content(
     @Param('id') id: string,
     @Query('exp') exp: string,
@@ -151,6 +158,7 @@ export class AttachmentsController {
     }
     const attachment = await this.prisma.client.attachment.findUnique({ where: { id } });
     if (!attachment) throw new NotFoundException();
+    if (attachment.kind === 'DOCUMENT') noteActivity({ record: true });
 
     const body = await this.storage.get(attachment.storageKey);
     response.setHeader('Content-Type', attachment.mimeType);

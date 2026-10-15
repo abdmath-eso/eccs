@@ -6,6 +6,7 @@ import {
   type SupportContactDto,
 } from '@eccs/shared';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -30,6 +31,8 @@ export class IssuesController {
 
   @Post('issues')
   @RequirePermission('issues', 'create')
+  // The reference and the category; never the title or the message typed.
+  @Activity('issues.issue.raised', { entity: 'issue', from: 'answer' })
   create(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createIssueSchema)) body: z.output<typeof createIssueSchema>,
@@ -46,6 +49,7 @@ export class IssuesController {
   @Post('issues/:id/comments')
   @HttpCode(200)
   @RequirePermission('issues', 'read')
+  @Activity('issues.comment.added', { entity: 'issue' })
   addComment(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -62,12 +66,14 @@ export class IssuesController {
   @Post('issues/:id/translate')
   @HttpCode(200)
   @RequirePermission('issues', 'read')
+  @Activity('issues.thread.translated', { entity: 'issue' })
   translate(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.issues.translate(user, id);
   }
 
   @Patch('issues/:id')
   @RequirePermission('issues', 'update')
+  @Activity('issues.issue.statusChanged', { entity: 'issue' })
   setStatus(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,

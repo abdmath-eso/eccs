@@ -5,6 +5,8 @@ import {
   type LegalDocumentDto,
   type LegalStatusDto,
 } from '@eccs/shared';
+import { noteActivity } from '../activity-log/activity-context.js';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, Public } from '../auth/auth.decorators.js';
 import type { AuthenticatedRequest, AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -24,12 +26,14 @@ export class LegalController {
 
   @Public()
   @Get('documents')
+  @Activity('legal.documents.listed', { reads: 'failures', side: 'public' })
   documents(): LegalDocumentDto[] {
     return this.legal.list();
   }
 
   @Public()
   @Get('documents/:key')
+  @Activity('legal.document.opened', { reads: 'failures', side: 'public' })
   document(@Param('key') key: string): LegalDocumentDto {
     return this.legal.find(key);
   }
@@ -42,6 +46,7 @@ export class LegalController {
 
   @Post('accept')
   @HttpCode(200)
+  @Activity('legal.terms.accepted')
   accept(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(acceptLegalSchema)) body: AcceptLegalInput,
@@ -50,6 +55,8 @@ export class LegalController {
     // The address the request came from. The API does not trust X-Forwarded-For anywhere
     // (no "trust proxy"), so behind a proxy this is the proxy's address until that is set up.
     const userAgent = request.headers['user-agent'];
+    // Which documents and versions, for the activity log (the agreement itself is kept in LegalAcceptance).
+    noteActivity({ details: { documents: body.documents.map((document) => `${document.key} ${document.version}`) } });
     return this.legal.accept(user, body, { ip: request.ip ?? null, userAgent: typeof userAgent === 'string' ? userAgent : null });
   }
 }

@@ -7,6 +7,7 @@ import {
   updatePlanSchema,
 } from '@eccs/shared';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -39,12 +40,14 @@ export class SubscriptionsController {
 
   @Post('subscription-plans')
   @RequirePermission('catalog', 'create')
+  @Activity('subscriptions.plan.added', { facts: ['billingCycle'] })
   createPlan(@Body(new ZodValidationPipe(createPlanSchema)) body: z.output<typeof createPlanSchema>) {
     return this.subscriptions.createPlan(body);
   }
 
   @Patch('subscription-plans/:id')
   @RequirePermission('catalog', 'update')
+  @Activity('subscriptions.plan.changed', { entity: 'plan', facts: ['isActive'] })
   updatePlan(@Param('id') id: string, @Body(new ZodValidationPipe(updatePlanSchema)) body: z.output<typeof updatePlanSchema>) {
     return this.subscriptions.updatePlan(id, body);
   }
@@ -59,6 +62,7 @@ export class SubscriptionsController {
 
   @Post('outlets/:outletId/subscription')
   @RequirePermission('subscriptions', 'create')
+  @Activity('subscriptions.subscription.started', { entity: 'outlet', key: 'outletId', facts: ['planCode'] })
   start(
     @CurrentUser() user: AuthUser,
     @Param('outletId') outletId: string,
@@ -70,6 +74,7 @@ export class SubscriptionsController {
   @Post('outlets/:outletId/subscription/change-plan')
   @HttpCode(200)
   @RequirePermission('subscriptions', 'update')
+  @Activity('subscriptions.subscription.planChanged', { entity: 'outlet', key: 'outletId', facts: ['planCode'] })
   changePlan(
     @CurrentUser() user: AuthUser,
     @Param('outletId') outletId: string,
@@ -81,6 +86,7 @@ export class SubscriptionsController {
   @Post('outlets/:outletId/subscription/undo-change-plan')
   @HttpCode(200)
   @RequirePermission('subscriptions', 'update')
+  @Activity('subscriptions.subscription.planChangeUndone', { entity: 'outlet', key: 'outletId' })
   undoChangePlan(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
     return this.subscriptions.undoChangePlan(user, outletId);
   }
@@ -88,6 +94,7 @@ export class SubscriptionsController {
   @Post('outlets/:outletId/subscription/pause')
   @HttpCode(200)
   @RequirePermission('subscriptions', 'update')
+  @Activity('subscriptions.subscription.paused', { entity: 'outlet', key: 'outletId' })
   pause(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
     return this.subscriptions.pause(user, outletId);
   }
@@ -95,6 +102,7 @@ export class SubscriptionsController {
   @Post('outlets/:outletId/subscription/resume')
   @HttpCode(200)
   @RequirePermission('subscriptions', 'update')
+  @Activity('subscriptions.subscription.resumed', { entity: 'outlet', key: 'outletId' })
   resume(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
     return this.subscriptions.resume(user, outletId);
   }
@@ -102,6 +110,7 @@ export class SubscriptionsController {
   @Post('outlets/:outletId/subscription/cancel')
   @HttpCode(200)
   @RequirePermission('subscriptions', 'update')
+  @Activity('subscriptions.subscription.cancelled', { entity: 'outlet', key: 'outletId', facts: ['when'] })
   cancel(
     @CurrentUser() user: AuthUser,
     @Param('outletId') outletId: string,
@@ -114,6 +123,7 @@ export class SubscriptionsController {
   @Post('outlets/:outletId/subscription/keep')
   @HttpCode(200)
   @RequirePermission('subscriptions', 'update')
+  @Activity('subscriptions.subscription.kept', { entity: 'outlet', key: 'outletId' })
   keep(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
     return this.subscriptions.keep(user, outletId);
   }

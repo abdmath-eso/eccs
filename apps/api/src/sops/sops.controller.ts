@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { addSopFromLibrarySchema, createSopSchema, updateSopSchema } from '@eccs/shared';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -60,6 +61,7 @@ export class SopsController {
   /** Copies a library SOP into the outlet's own SOPs. */
   @Post('library/:itemId/add')
   @RequirePermission('sopTemplates', 'create')
+  @Activity('sops.sop.copiedFromLibrary', { entity: 'sop', from: 'answer' })
   addFromLibrary(
     @CurrentUser() user: AuthUser,
     @Param('itemId') itemId: string,
@@ -76,6 +78,8 @@ export class SopsController {
 
   @Post()
   @RequirePermission('sopTemplates', 'create')
+  // The SOP's title; never its steps.
+  @Activity('sops.sop.added', { entity: 'sop', from: 'answer' })
   create(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createSopSchema)) body: z.output<typeof createSopSchema>,
@@ -85,6 +89,7 @@ export class SopsController {
 
   @Patch(':id')
   @RequirePermission('sopTemplates', 'update')
+  @Activity('sops.sop.changed', { entity: 'sop', facts: ['language'] })
   update(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -96,6 +101,7 @@ export class SopsController {
   @Delete(':id')
   @HttpCode(204)
   @RequirePermission('sopTemplates', 'update')
+  @Activity('sops.sop.removed', { entity: 'sop' })
   async remove(@CurrentUser() user: AuthUser, @Param('id') id: string): Promise<void> {
     await this.sops.remove(user, id);
   }

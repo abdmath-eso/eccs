@@ -15,6 +15,7 @@ import {
   type RegisterPushDeviceInput,
   type Role,
 } from '@eccs/shared';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -67,6 +68,22 @@ const chunks = <T>(items: T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));
 
 /**
+ * Why pushes failed, as short codes for the activity log ("DeviceNotRegistered",
+ * "HTTP_503"). A message that is not a plain code (it could name a phone's token) is
+ * only counted, as REQUEST_FAILED.
+ */
+const failureCodes = (errors: string[]): string[] =>
+  [
+    ...new Set(
+      errors.map((error) => {
+        if (/^[A-Za-z]{2,40}$/.test(error)) return error;
+        const status = error.match(/^Expo answered (\d{3})$/);
+        return status ? `HTTP_${status[1]}` : 'REQUEST_FAILED';
+      }),
+    ),
+  ].slice(0, 10);
+
+/**
  * Push notifications: which phone belongs to whom, and sending to them through
  * Expo's push service. It is the delivery channel that `NotificationsService`
  * hands each new notification to, after writing it to the list inside the app.
@@ -94,7 +111,10 @@ export class PushService implements OutsideChannel, OnModuleInit, OnModuleDestro
   private readonly awaitingReceipt = new Map<string, { token: string; sentAt: number }>();
   private receiptTimer: NodeJS.Timeout | null = null;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activity: ActivityLogService,
+  ) {}
 
   private get db() {
     return this.prisma.client;
@@ -188,6 +208,13 @@ export class PushService implements OutsideChannel, OnModuleInit, OnModuleDestro
     }
     const result = await this.send(messages);
     await this.forget(result.dead);
+    if (result.errors.length > 0) {
+      // The activity log: how many and why, never the tokens or the words.
+      this.activity.system('notifications.push.failed', {
+        result: 'FAILED',
+        details: { stage: 'send', sent: messages.length, notDelivered: result.errors.length, errors: failureCodes(result.errors), devicesRemoved: result.dead.length },
+      });
+    }
     this.logger.log(
       `Push: ${notifications.length} notification(s) to ${devices.length} phone(s): ${result.accepted} accepted` +
         (result.errors.length > 0 ? `, ${result.errors.length} refused (${[...new Set(result.errors)].join('; ')})` : '') +
@@ -296,6 +323,12 @@ export class PushService implements OutsideChannel, OnModuleInit, OnModuleDestro
         }
       }
       await this.forget(dead);
+      if (problems.length > 0) {
+        this.activity.system('notifications.push.failed', {
+          result: 'FAILED',
+          details: { stage: 'receipt', checked: due.length, notDelivered: problems.length, errors: failureCodes(problems), devicesRemoved: dead.length },
+        });
+      }
       if (due.length > 0) {
         this.logger.log(
           `Push receipts: ${due.length} checked` +

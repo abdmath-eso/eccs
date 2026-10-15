@@ -7,6 +7,7 @@ import {
   voidInvoiceSchema,
   type InvoiceStatus,
 } from '@eccs/shared';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -55,6 +56,7 @@ export class BillingController {
   @Post('invoices/raise-due')
   @HttpCode(200)
   @RequirePermission('invoices', 'create')
+  @Activity('billing.invoices.raisedDue', { answerFacts: ['raised'] })
   raiseDue(@CurrentUser() user: AuthUser) {
     return this.billing.raiseDue(user);
   }
@@ -69,6 +71,7 @@ export class BillingController {
   @Post('invoices/:id/pdf')
   @HttpCode(200)
   @RequirePermission('invoices', 'read')
+  @Activity('billing.invoice.opened', { entity: 'invoice' })
   pdf(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.billing.pdf(user, id);
   }
@@ -76,6 +79,7 @@ export class BillingController {
   @Post('invoices/:id/void')
   @HttpCode(200)
   @RequirePermission('invoices', 'update')
+  @Activity('billing.invoice.voided', { entity: 'invoice' })
   void(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -88,6 +92,7 @@ export class BillingController {
   @Post('invoices/:id/raise-again')
   @HttpCode(200)
   @RequirePermission('invoices', 'create')
+  @Activity('billing.invoice.raisedAgain', { entity: 'invoice' })
   raiseAgain(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.billing.raiseAgain(user, id);
   }
@@ -96,6 +101,7 @@ export class BillingController {
   @Post('invoices/:id/payments')
   @HttpCode(200)
   @RequirePermission('payments', 'create')
+  @Activity('billing.payment.started', { entity: 'invoice', facts: ['method'] })
   startPayment(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -108,6 +114,8 @@ export class BillingController {
   @Post('invoices/:id/payments/manual')
   @HttpCode(200)
   @RequirePermission('payments', 'update')
+  // The amount and how it was paid; never the bank reference typed in.
+  @Activity('billing.payment.recorded', { entity: 'invoice', facts: ['method', 'amountPaise'] })
   recordPayment(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -121,6 +129,7 @@ export class BillingController {
   @Post('payments/:id/confirm')
   @HttpCode(200)
   @RequirePermission('payments', 'create')
+  @Activity('billing.payment.confirmed', { entity: 'payment', facts: ['outcome'] })
   confirmPayment(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,

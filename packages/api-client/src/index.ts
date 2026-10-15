@@ -245,6 +245,12 @@ export interface ApiClientOptions {
    * request so what the server words itself matches what the person is reading.
    */
   getLanguage?: () => string | null | undefined;
+  /**
+   * Which app this is and its version, sent with every request (X-ECCS-Client and
+   * X-ECCS-App-Version) so the server's activity log can tell the phone app from the
+   * console. Never anything about the person.
+   */
+  client?: { name: "mobile" | "console"; version?: string | null };
   /** Called when the server says the session is no longer valid. */
   onUnauthorized?: () => void;
   /**
@@ -301,6 +307,10 @@ export function createApiClient(options: ApiClientOptions) {
     if (token) headers["Authorization"] = `Bearer ${token}`;
     const language = options.getLanguage?.();
     if (language) headers["X-App-Language"] = language;
+    if (options.client) {
+      headers["X-ECCS-Client"] = options.client.name;
+      if (options.client.version) headers["X-ECCS-App-Version"] = options.client.version;
+    }
 
     let response: Response;
     try {

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { aiOutcomeSchema, type AiStatusDto, type AiUsageDto } from '@eccs/shared';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -29,6 +30,7 @@ export class AiController {
   /** What the person did with an answer: ACCEPTED, EDITED, DISCARDED, HELPFUL or NOT_HELPFUL. */
   @Post('requests/:id/outcome')
   @HttpCode(204)
+  @Activity('ai.outcome.recorded', { entity: 'aiRequest', facts: ['outcome'] })
   async outcome(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,

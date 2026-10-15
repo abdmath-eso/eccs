@@ -38,6 +38,7 @@ import {
   type RulePunch,
   type StaffPunchesDto,
 } from '@eccs/shared';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { env } from '../config/env.js';
@@ -98,6 +99,7 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
     private readonly storage: StorageService,
     private readonly clock: AttendanceClock,
     private readonly audit: AuditTrailService,
+    private readonly activity: ActivityLogService,
   ) {}
 
   private get db() {
@@ -107,11 +109,22 @@ export class AttendanceService implements OnModuleInit, OnModuleDestroy {
   /** Background work is off under tests: they call `closeDays` and `cleanUpPhotos` themselves. */
   onModuleInit() {
     if (env.NODE_ENV === 'test') return;
-    const safely = (name: string, work: () => Promise<unknown>) => () => {
-      work().catch((error: unknown) => this.logger.error(`${name} failed: ${String(error)}`));
+    // Each run also writes one row in the activity log, with a count only (no staff details).
+    // Settling days runs every half hour, so it has a row only when it settled something.
+    const safely = (name: string, work: () => Promise<number>, record: (count: number | null, error?: unknown) => void) => () => {
+      work()
+        .then((count) => record(count))
+        .catch((error: unknown) => {
+          record(null, error);
+          this.logger.error(`${name} failed: ${String(error)}`);
+        });
     };
-    const closeDays = safely('Settling ended attendance days', () => this.closeDays());
-    const cleanUp = safely('Deleting old punch photos', () => this.cleanUpPhotos());
+    const closeDays = safely('Settling ended attendance days', () => this.closeDays(), (count, error) =>
+      this.activity.jobRun('staff.days.settled', count === null ? null : { settled: count }, { quiet: true, ...(error !== undefined && { error }) }),
+    );
+    const cleanUp = safely('Deleting old punch photos', () => this.cleanUpPhotos(), (count, error) =>
+      this.activity.jobRun('files.punchPhotos.cleaned', count === null ? null : { deleted: count }, error !== undefined ? { error } : {}),
+    );
     this.timers = [setTimeout(closeDays, 40_000), setInterval(closeDays, CLOSE_DAYS_EVERY_MS), setTimeout(cleanUp, 70_000), setInterval(cleanUp, CLEAN_UP_EVERY_MS)];
     for (const timer of this.timers) timer.unref();
   }

@@ -1,4 +1,5 @@
 import { createApiClient } from '@eccs/api-client';
+import Constants from 'expo-constants';
 
 // Set EXPO_PUBLIC_API_URL when the API is not on this machine, for example
 // http://192.168.1.20:4000/v1 to test from a real phone on the same Wi-Fi.
@@ -37,6 +38,8 @@ export const api = createApiClient({
   baseUrl: API_URL,
   getToken: () => sessionToken,
   getLanguage: () => appLanguage,
+  // Tells the server's activity log that requests come from the phone app, and which version.
+  client: { name: 'mobile', version: Constants.expoConfig?.version ?? null },
   onUnauthorized: () => unauthorizedHandler?.(),
   onTermsNotAccepted: () => termsHandler?.(),
 });

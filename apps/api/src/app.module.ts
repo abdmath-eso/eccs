@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ActivityLogModule } from './activity-log/activity-log.module.js';
 import { AiModule } from './ai/ai.module.js';
 import { AppController } from './app.controller.js';
 import { AttendanceModule } from './attendance/attendance.module.js';
@@ -33,6 +34,8 @@ import { VendorsModule } from './vendors/vendors.module.js';
 @Module({
   imports: [
     PrismaModule,
+    // The activity log, global and early: every request passes its middleware first.
+    ActivityLogModule,
     StorageModule,
     // The shared AI part, global, before the features that ask it.
     AiModule,

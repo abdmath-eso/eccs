@@ -1,4 +1,5 @@
 import { Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { MonitoringDigestService } from './monitoring-digest.service.js';
@@ -38,6 +39,7 @@ export class MonitoringController {
   @Post('digest')
   @HttpCode(200)
   @RequirePermission('clients', 'read')
+  @Activity('ai.digest.updated')
   updateDigest(@CurrentUser() user: AuthUser) {
     return this.digests.update(user);
   }

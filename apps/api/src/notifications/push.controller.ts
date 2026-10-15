@@ -10,6 +10,7 @@ import {
   type SendTestPushInput,
   type UnregisterPushDeviceInput,
 } from '@eccs/shared';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -28,6 +29,8 @@ export class PushController {
   /** The app calls this after login: send my notifications to this phone. */
   @Post('devices')
   @HttpCode(200)
+  // Never the push token itself.
+  @Activity('notifications.push.registered', { facts: ['platform'] })
   register(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(registerPushDeviceSchema)) body: RegisterPushDeviceInput,
@@ -41,6 +44,7 @@ export class PushController {
    */
   @Post('devices/unregister')
   @HttpCode(200)
+  @Activity('notifications.push.unregistered')
   @AllowWithoutTerms()
   unregister(
     @CurrentUser() user: AuthUser,
@@ -57,6 +61,7 @@ export class PushController {
 
   @Post('test')
   @HttpCode(200)
+  @Activity('notifications.push.tested', { answerFacts: ['devices', 'accepted'] })
   test(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(sendTestPushSchema)) body: SendTestPushInput,

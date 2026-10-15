@@ -1745,6 +1745,79 @@ model AiDigest {
   madeAt      DateTime @default(now())
 }
 
+/// The activity log (15 Oct 2026): one row for everything that happens in the
+/// restaurant app, the Supervisor's app, the ECCS console, the AI and the server's own
+/// timed work, read on the console's Logs page by the Super Admin and Ops Manager only.
+/// Names are copied in as they were (`actorName`, `organizationName`, `outletName`), so
+/// a renamed or removed person, restaurant or outlet still reads. Only safe facts are
+/// kept: never a PIN, code, token, password, key, a request body, a file, free text
+/// people typed, what a checklist problem was, or anything about a staff member beyond
+/// the action itself (see packages/shared/src/activity-log.ts). No foreign keys, so it
+/// never stops anything being removed. Rows older than ACTIVITY_LOG_DAYS (365) are
+/// deleted daily. Not the same as AuditLog below, which is the restaurant's own
+/// attendance trail and is never shown to ECCS.
+model ActivityLog {
+  id               String    @id @default(uuid())
+  /// The server's time.
+  at               DateTime  @default(now())
+  /// When the phone says it happened, for work sent later from the offline outbox.
+  phoneAt          DateTime?
+  /// phoneAt is set and differs from `at` by more than five minutes.
+  offline          Boolean   @default(false)
+  /// RESTAURANT_APP, SUPERVISOR_APP, CONSOLE, SYSTEM or PUBLIC.
+  source           String
+  actorUserId      String?
+  actorName        String?
+  actorRole        String?
+  organizationId   String?
+  organizationName String?
+  outletId         String?
+  outletName       String?
+  /// A key of ACTIVITY_CATEGORIES, e.g. "checklists".
+  category         String
+  /// A key of ACTIVITY_ACTIONS, e.g. "checklists.run.submitted".
+  action           String
+  entityType       String?
+  entityId         String?
+  /// A short safe name of the record (a checklist's or service's name, a licence type).
+  entityLabel      String?
+  /// The record's own reference: ECCS-0042, IR-2026-00012, an invoice or certificate number.
+  reference        String?
+  /// SUCCESS, REFUSED, REJECTED or FAILED.
+  result           String
+  method           String?
+  /// The route's pattern, e.g. "/checklists/runs/:runId/submit", never the filled-in path.
+  route            String?
+  statusCode       Int?
+  durationMs       Int?
+  /// Safe facts chosen per action.
+  details          Json?
+  ip               String?
+  /// The linked phone, when there is one.
+  deviceId         String?
+  /// "mobile", "console" or "other".
+  client           String?
+  appVersion       String?
+  requestId        String?
+  aiFeature        String?
+  aiModel          String?
+  aiStatus         String?
+  aiOutcome        String?
+  aiCostMicroUsd   Int?
+
+  @@index([at])
+  @@index([organizationId, at])
+  @@index([outletId, at])
+  @@index([actorUserId, at])
+  @@index([category, at])
+  @@index([source, at])
+  @@index([result, at])
+  @@index([entityType, entityId])
+  @@index([reference])
+  @@index([requestId])
+  @@index([aiFeature, at])
+}
+
 model AuditLog {
   id             String   @id @default(uuid())
   actorId        String?

@@ -9,6 +9,7 @@ import {
   updateServiceTaskSchema,
 } from '@eccs/shared';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { RequirePermission } from '../auth/auth.decorators.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { CatalogService } from './catalog.service.js';
@@ -29,12 +30,14 @@ export class CatalogController {
 
   @Post('items')
   @RequirePermission('catalog', 'create')
+  @Activity('catalogue.item.added', { facts: ['serviceCode', 'priceRupees'] })
   addItem(@Body(new ZodValidationPipe(createCatalogItemSchema)) body: z.output<typeof createCatalogItemSchema>) {
     return this.catalog.addItem(body);
   }
 
   @Patch('items/:id')
   @RequirePermission('catalog', 'update')
+  @Activity('catalogue.item.changed', { entity: 'catalogItem', facts: ['priceRupees', 'isActive'] })
   updateItem(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateCatalogItemSchema)) body: z.output<typeof updateCatalogItemSchema>,
@@ -45,12 +48,14 @@ export class CatalogController {
   /** A brand-new kind of service, with its tax code. Its tasks and bookable services are added afterwards. */
   @Post('kinds')
   @RequirePermission('catalog', 'create')
+  @Activity('catalogue.kind.added', { facts: ['category', 'issuesCertificate'] })
   addKind(@Body(new ZodValidationPipe(createServiceKindSchema)) body: z.output<typeof createServiceKindSchema>) {
     return this.catalog.addKind(body);
   }
 
   @Patch('kinds/:code')
   @RequirePermission('catalog', 'update')
+  @Activity('catalogue.kind.changed', { entity: 'serviceKind', key: 'code' })
   updateKind(
     @Param('code') code: string,
     @Body(new ZodValidationPipe(updateServiceKindSchema)) body: z.output<typeof updateServiceKindSchema>,
@@ -60,6 +65,7 @@ export class CatalogController {
 
   @Post('kinds/:code/tasks')
   @RequirePermission('catalog', 'create')
+  @Activity('catalogue.task.added', { entity: 'serviceKind', key: 'code' })
   addTask(
     @Param('code') code: string,
     @Body(new ZodValidationPipe(addServiceTaskSchema)) body: z.output<typeof addServiceTaskSchema>,
@@ -69,6 +75,7 @@ export class CatalogController {
 
   @Patch('tasks/:id')
   @RequirePermission('catalog', 'update')
+  @Activity('catalogue.task.changed', { entity: 'serviceTask' })
   updateTask(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateServiceTaskSchema)) body: z.output<typeof updateServiceTaskSchema>,
@@ -79,6 +86,7 @@ export class CatalogController {
   @Post('tasks/:id/move')
   @HttpCode(200)
   @RequirePermission('catalog', 'update')
+  @Activity('catalogue.task.moved', { entity: 'serviceTask', facts: ['direction'] })
   moveTask(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(moveServiceTaskSchema)) body: z.output<typeof moveServiceTaskSchema>,

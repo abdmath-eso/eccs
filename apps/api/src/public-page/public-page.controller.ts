@@ -29,6 +29,7 @@ import {
 } from '@eccs/shared';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, Public, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -78,6 +79,8 @@ export class PublicPagesController {
 
   @Public()
   @Get(':token')
+  // Only refusals and errors are logged, never each diner's visit (and never the token).
+  @Activity('publicPage.page.opened', { reads: 'failures', side: 'public' })
   async page(@Param('token') token: string, @Req() request: Request, @Res({ passthrough: true }) response: Response): Promise<PublicPageDto> {
     this.brake(request);
     // Not for search engines either way, and never kept by a browser when there is nothing to show.
@@ -92,6 +95,7 @@ export class PublicPagesController {
   /** One of the page's photos, by its place on the page. Nothing else in the photo store can be reached from here. */
   @Public()
   @Get(':token/photos/:place')
+  @Activity('publicPage.photo.opened', { reads: 'failures', side: 'public' })
   async photo(
     @Param('token') token: string,
     @Param('place') place: string,
@@ -141,6 +145,7 @@ export class PublicPageController {
   /** A Supervisor proposes a photo from one of their own finished visits or inspections. */
   @Post('photos')
   @RequirePermission('publicPage', 'create')
+  @Activity('publicPage.photo.proposed', { entity: 'publicPhoto', from: 'answer', facts: ['caption'] })
   propose(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(proposePublicPhotoSchema)) body: z.output<typeof proposePublicPhotoSchema>,
@@ -151,6 +156,7 @@ export class PublicPageController {
   @Post('photos/:id/approve')
   @HttpCode(200)
   @RequirePermission('publicPage', 'approve')
+  @Activity('publicPage.photo.approved', { entity: 'publicPhoto' })
   approve(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.pages.approve(user, id);
   }
@@ -158,6 +164,7 @@ export class PublicPageController {
   @Post('photos/:id/reject')
   @HttpCode(200)
   @RequirePermission('publicPage', 'approve')
+  @Activity('publicPage.photo.rejected', { entity: 'publicPhoto' })
   reject(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -170,6 +177,7 @@ export class PublicPageController {
   @Delete('photos/:id')
   @HttpCode(204)
   @RequirePermission('publicPage', 'update')
+  @Activity('publicPage.photo.removed', { entity: 'publicPhoto' })
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.pages.remove(user, id);
   }
@@ -185,6 +193,7 @@ export class PublicPageController {
   /** The restaurant's own switch: the Owner only. */
   @Patch('outlets/:outletId')
   @RequirePermission('publicPage', 'update')
+  @Activity('publicPage.page.switched', { entity: 'outlet', key: 'outletId', facts: ['enabled'] })
   setEnabled(
     @CurrentUser() user: AuthUser,
     @Param('outletId') outletId: string,
@@ -197,6 +206,7 @@ export class PublicPageController {
   @Post('outlets/:outletId/new-link')
   @HttpCode(200)
   @RequirePermission('publicPage', 'update')
+  @Activity('publicPage.page.newLink', { entity: 'outlet', key: 'outletId' })
   newLink(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
     return this.pages.newLink(user, outletId);
   }
@@ -205,6 +215,7 @@ export class PublicPageController {
   @Post('outlets/:outletId/take-down')
   @HttpCode(200)
   @RequirePermission('publicPage', 'approve')
+  @Activity('publicPage.page.takenDown', { entity: 'outlet', key: 'outletId' })
   takeDown(
     @CurrentUser() user: AuthUser,
     @Param('outletId') outletId: string,
@@ -216,6 +227,7 @@ export class PublicPageController {
   @Post('outlets/:outletId/restore')
   @HttpCode(200)
   @RequirePermission('publicPage', 'approve')
+  @Activity('publicPage.page.restored', { entity: 'outlet', key: 'outletId' })
   restore(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
     return this.pages.restore(user, outletId);
   }
@@ -235,6 +247,7 @@ export class PublicPageController {
    */
   @Post('outlets/:outletId/check-photos')
   @RequirePermission('publicPage', 'read')
+  @Activity('publicPage.photo.proposedFromCheck', { entity: 'publicPhoto', from: 'answer', facts: ['caption'] })
   proposeFromCheck(
     @CurrentUser() user: AuthUser,
     @Param('outletId') outletId: string,
@@ -246,6 +259,7 @@ export class PublicPageController {
   /** A Supervisor takes a photo specially for the page. */
   @Post('outlets/:outletId/photos')
   @RequirePermission('publicPage', 'create')
+  @Activity('publicPage.photo.taken', { entity: 'publicPhoto', from: 'answer', facts: ['caption'] })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }))
   proposeNew(
     @CurrentUser() user: AuthUser,

@@ -6,6 +6,7 @@ import {
   updateFoodItemSchema,
 } from '@eccs/shared';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -33,6 +34,7 @@ export class FoodLabelsController {
 
   @Post('items')
   @RequirePermission('foodLabels', 'create')
+  @Activity('foodLabels.item.added', { entity: 'foodItem', from: 'answer', facts: ['shelfLifeHours'] })
   createItem(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createFoodItemSchema)) body: z.output<typeof createFoodItemSchema>,
@@ -42,6 +44,7 @@ export class FoodLabelsController {
 
   @Patch('items/:id')
   @RequirePermission('foodLabels', 'update')
+  @Activity('foodLabels.item.changed', { entity: 'foodItem', facts: ['shelfLifeHours', 'isActive'] })
   updateItem(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -53,6 +56,7 @@ export class FoodLabelsController {
   /** Deletes an item no label was ever made for; one with labels is retired instead and kept. */
   @Delete('items/:id')
   @RequirePermission('foodLabels', 'update')
+  @Activity('foodLabels.item.removed', { entity: 'foodItem' })
   removeItem(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.labels.removeItem(user, id);
   }
@@ -62,6 +66,7 @@ export class FoodLabelsController {
   /** Records one printing: a saved label, how many stickers, and the moment Print was pressed. */
   @Post('labels')
   @RequirePermission('foodLabels', 'create')
+  @Activity('foodLabels.label.printed', { entity: 'foodLabel', from: 'answer', facts: ['copies'] })
   create(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createFoodLabelSchema)) body: z.output<typeof createFoodLabelSchema>,
@@ -73,6 +78,7 @@ export class FoodLabelsController {
   @Post('labels/:id/printed')
   @HttpCode(200)
   @RequirePermission('foodLabels', 'create')
+  @Activity('foodLabels.label.sent', { entity: 'foodLabel' })
   printed(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.labels.markPrinted(user, id);
   }
@@ -81,6 +87,7 @@ export class FoodLabelsController {
   @Post('render')
   @HttpCode(200)
   @RequirePermission('foodLabels', 'create')
+  @Activity('foodLabels.label.drawn')
   render(@Body(new ZodValidationPipe(renderLabelSchema)) body: z.output<typeof renderLabelSchema>) {
     return this.labels.render(body);
   }

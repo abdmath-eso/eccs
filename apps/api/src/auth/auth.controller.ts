@@ -11,6 +11,8 @@ import {
   type SessionDto,
 } from '@eccs/shared';
 import type { z } from 'zod';
+import { noteActivity } from '../activity-log/activity-context.js';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AllowWithoutTerms } from '../legal/legal.decorators.js';
 import { CurrentUser, Public } from './auth.decorators.js';
@@ -27,6 +29,7 @@ export class AuthController {
   @Public()
   @Post('otp/request')
   @HttpCode(200)
+  @Activity('auth.otp.requested')
   requestOtp(@Body(new ZodValidationPipe(requestOtpSchema)) body: z.output<typeof requestOtpSchema>) {
     return this.auth.requestOtp(body.phone);
   }
@@ -34,6 +37,7 @@ export class AuthController {
   @Public()
   @Post('otp/verify')
   @HttpCode(200)
+  @Activity('auth.otp.verified')
   verifyOtp(@Body(new ZodValidationPipe(verifyOtpSchema)) body: z.output<typeof verifyOtpSchema>): Promise<SessionDto> {
     return this.auth.verifyOtp(body.phone, body.code, body.deviceName, body.resetPin);
   }
@@ -41,6 +45,7 @@ export class AuthController {
   @Public()
   @Post('device/link')
   @HttpCode(200)
+  @Activity('auth.device.linked', { side: 'restaurant' })
   linkDevice(
     @Body(new ZodValidationPipe(linkDeviceSchema)) body: z.output<typeof linkDeviceSchema>,
     @Ip() clientAddress: string,
@@ -51,17 +56,19 @@ export class AuthController {
   @Public()
   @Post('pin/login')
   @HttpCode(200)
+  @Activity('auth.pin.login', { side: 'restaurant' })
   pinLogin(@Body(new ZodValidationPipe(pinLoginSchema)) body: z.output<typeof pinLoginSchema>): Promise<SessionDto> {
     return this.auth.pinLogin(body.deviceToken, body.pin);
   }
 
   @Get('me')
   me(@CurrentUser() user: AuthUser): CurrentUserDto {
-    const { sessionId: _sessionId, contentLanguage: _contentLanguage, ...dto } = user;
+    const { sessionId: _sessionId, contentLanguage: _contentLanguage, linkedDeviceId: _linkedDeviceId, ...dto } = user;
     return dto;
   }
 
   @Patch('me')
+  @Activity('profile.details.changed', { facts: ['language'] })
   updateProfile(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(updateProfileSchema)) body: z.output<typeof updateProfileSchema>,
@@ -76,7 +83,10 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(204)
+  @Activity('auth.session.loggedOut')
   async logout(@CurrentUser() user: AuthUser): Promise<void> {
+    // Ending a login made on a linked phone is Lock: the phone goes back to its PIN pad.
+    if (user.linkedDeviceId) noteActivity({ action: 'auth.session.locked' });
     await this.auth.logout(user.sessionId);
   }
 }

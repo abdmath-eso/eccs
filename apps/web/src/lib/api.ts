@@ -26,5 +26,8 @@ export const api = createApiClient({
   getToken: getStoredToken,
   // The console is in English, so whatever the server words or translates for it is English too.
   getLanguage: () => "EN",
+  // Tells the server's activity log that requests come from the console. The console has no
+  // release numbers of its own yet, so its version is fixed.
+  client: { name: "console", version: "console-1" },
   onUnauthorized: () => unauthorizedHandler?.(),
 });

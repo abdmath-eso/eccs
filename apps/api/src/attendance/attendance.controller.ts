@@ -13,6 +13,7 @@ import {
 } from '@eccs/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, Public, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -39,6 +40,13 @@ const UPLOAD_LIMIT = { fileSize: FACE_RULES.maxPhotoBytes * 2 };
 // correcting for the Owner alone (the grants are in permissions.ts, and the
 // service checks the outlet). The Head Chef's view of who is in today is the
 // day sheet under /staff/attendance/day.
+//
+// Activity log: clocking in and out and face scans are never logged (each employee's
+// attendance, already in the restaurant's own trail). The Owner's corrections and
+// settings are logged as the action, the outlet and who did it, with no staff name,
+// time or value (`staffData`).
+const NOT_LOGGED = "An employee's own clock-in, clock-out or face scan: never logged (founder's attendance decisions).";
+
 @Controller('attendance')
 export class AttendanceController {
   constructor(
@@ -52,6 +60,7 @@ export class AttendanceController {
   @Public()
   @Post('clock/identify')
   @HttpCode(200)
+  @Activity('staff.clock.identified', { never: NOT_LOGGED })
   @UseInterceptors(FileFieldsInterceptor([{ name: 'photo', maxCount: 1 }, { name: 'photo2', maxCount: 1 }], { limits: UPLOAD_LIMIT }))
   identify(
     @UploadedFiles() files: { photo?: Upload[]; photo2?: Upload[] } | undefined,
@@ -64,6 +73,7 @@ export class AttendanceController {
   @Public()
   @Post('clock/confirm')
   @HttpCode(200)
+  @Activity('staff.clock.confirmed', { never: NOT_LOGGED })
   confirm(@Body(new ZodValidationPipe(clockConfirmSchema)) body: z.output<typeof clockConfirmSchema>): Promise<ClockPunchResultDto> {
     return this.clock.confirm(body.deviceToken, body.ticket);
   }
@@ -72,6 +82,7 @@ export class AttendanceController {
   @Public()
   @Post('clock/assisted')
   @HttpCode(200)
+  @Activity('staff.clock.assisted', { never: NOT_LOGGED })
   @UseInterceptors(FileInterceptor('photo', { limits: UPLOAD_LIMIT }))
   assisted(@UploadedFile() photo: Upload | undefined, @Body() body: unknown): Promise<ClockPunchResultDto> {
     return this.clock.assisted(body, photo?.buffer);
@@ -128,6 +139,7 @@ export class AttendanceController {
   /** What counts as a full day and a half day at this outlet. */
   @Put('settings/:outletId')
   @RequirePermission('attendance', 'update')
+  @Activity('staff.settings.changed', { staffData: true })
   saveSettings(
     @CurrentUser() user: AuthUser,
     @Param('outletId') outletId: string,
@@ -140,6 +152,7 @@ export class AttendanceController {
   @Put('day')
   @HttpCode(204)
   @RequirePermission('attendance', 'update')
+  @Activity('staff.attendance.corrected', { staffData: true, entity: 'staffMember', from: 'body', key: 'staffId' })
   async correctDay(@CurrentUser() user: AuthUser, @Body(new ZodValidationPipe(correctDaySchema)) body: z.output<typeof correctDaySchema>): Promise<void> {
     await this.attendance.correctDay(user, body);
   }
@@ -147,6 +160,7 @@ export class AttendanceController {
   /** Adds a punch the camera never recorded. */
   @Post('punches')
   @RequirePermission('attendance', 'create')
+  @Activity('staff.punch.added', { staffData: true, entity: 'staffMember', from: 'body', key: 'staffId' })
   addPunch(@CurrentUser() user: AuthUser, @Body(new ZodValidationPipe(addPunchSchema)) body: z.output<typeof addPunchSchema>) {
     return this.attendance.addPunch(user, body);
   }
@@ -155,6 +169,7 @@ export class AttendanceController {
   @Post('punches/:id/void')
   @HttpCode(200)
   @RequirePermission('attendance', 'update')
+  @Activity('staff.punch.voided', { staffData: true, entity: 'attendancePunch' })
   voidPunch(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body(new ZodValidationPipe(voidPunchSchema)) body: z.output<typeof voidPunchSchema>) {
     return this.attendance.voidPunch(user, id, body.reason);
   }
@@ -163,6 +178,7 @@ export class AttendanceController {
   @Post('punches/:id/review')
   @HttpCode(200)
   @RequirePermission('attendance', 'update')
+  @Activity('staff.punch.reviewed', { staffData: true, entity: 'attendancePunch' })
   reviewPunch(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.attendance.reviewPunch(user, id);
   }

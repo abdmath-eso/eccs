@@ -42,6 +42,7 @@ import {
   type PhotoCheckCountsDto,
 } from '@eccs/shared';
 import type { ZodType } from 'zod';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -110,6 +111,7 @@ export class AiService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
+    private readonly activity: ActivityLogService,
   ) {}
 
   private get db() {
@@ -186,6 +188,7 @@ export class AiService {
   /** A feature found the answer unusable after all (for example a number not in the facts): it is marked INVALID. */
   async reject(requestId: string, errorCode: string): Promise<void> {
     await this.db.aiRequest.update({ where: { id: requestId }, data: { status: 'INVALID', errorCode } }).catch(() => undefined);
+    this.activity.aiUpdated(requestId, { status: 'INVALID', errorCode });
   }
 
   /**
@@ -215,6 +218,8 @@ export class AiService {
    */
   async noteOutcome(requestId: string, outcome: AiOutcome): Promise<void> {
     await this.db.aiRequest.update({ where: { id: requestId }, data: { outcome } }).catch(() => undefined);
+    // The AI request's row in the activity log gets the outcome too.
+    this.activity.aiUpdated(requestId, { outcome });
   }
 
   /** What AI has cost today and this month, by feature, for ECCS's Super Admin and Ops Manager. */
@@ -322,9 +327,24 @@ export class AiService {
         durationMs: entry.durationMs ?? 0,
         resultCode: entry.resultCode ?? null,
       },
-      select: { id: true },
+      select: { id: true, inputTokens: true, outputTokens: true, costMicroUsd: true },
     });
     this.recorded?.push(row.id);
+    // Every AI request also writes a row in the activity log (category AI), after the answer has gone.
+    this.activity.aiRequest({
+      requestId: row.id,
+      feature: entry.feature,
+      model: entry.model,
+      status: entry.status,
+      errorCode: entry.errorCode ?? null,
+      inputTokens: row.inputTokens,
+      outputTokens: row.outputTokens,
+      costMicroUsd: row.costMicroUsd,
+      durationMs: entry.durationMs ?? 0,
+      userId: entry.userId,
+      organizationId: entry.organizationId,
+      outletId: entry.outletId,
+    });
     return row.id;
   }
 

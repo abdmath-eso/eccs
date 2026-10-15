@@ -11,6 +11,8 @@ export interface AuthUser extends CurrentUserDto {
    * is one setting per person and this is per phone, so the two can differ.
    */
   contentLanguage: Language;
+  /** The linked phone this login was made on (PIN or the Owner's code), for the activity log; null otherwise. */
+  linkedDeviceId?: string | null;
 }
 
 /** The request header the apps send their current language in, as a code such as "TE". */

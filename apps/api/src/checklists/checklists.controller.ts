@@ -23,6 +23,7 @@ import {
   updateChecklistSchema,
 } from '@eccs/shared';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -63,6 +64,8 @@ export class ChecklistsController {
 
   @Put('runs/:runId/items/:itemId')
   @RequirePermission('checklists', 'create')
+  // Never whether the item was fine or a problem, nor the reason: only that it was answered.
+  @Activity('checklists.item.answered', { entity: 'checklistRun', key: 'runId' })
   answer(
     @CurrentUser() user: AuthUser,
     @Param('runId') runId: string,
@@ -83,6 +86,7 @@ export class ChecklistsController {
   @Post('runs/:runId/items/:itemId/photo-check')
   @HttpCode(200)
   @RequirePermission('checklists', 'create')
+  @Activity('checklists.photo.checked', { entity: 'checklistRun', key: 'runId' })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: PHOTO_CHECK_MAX_BYTES, files: 1 } }))
   checkPhoto(
     @CurrentUser() user: AuthUser,
@@ -95,6 +99,7 @@ export class ChecklistsController {
 
   @Delete('runs/:runId/items/:itemId')
   @RequirePermission('checklists', 'create')
+  @Activity('checklists.item.cleared', { entity: 'checklistRun', key: 'runId' })
   clearAnswer(@CurrentUser() user: AuthUser, @Param('runId') runId: string, @Param('itemId') itemId: string) {
     return this.checklists.clearAnswer(user, runId, itemId);
   }
@@ -102,6 +107,8 @@ export class ChecklistsController {
   @Post('runs/:runId/submit')
   @HttpCode(200)
   @RequirePermission('checklists', 'create')
+  // How many items were answered and how many reported as problems: counts only, never which or why.
+  @Activity('checklists.run.submitted', { entity: 'checklistRun', key: 'runId' })
   submit(@CurrentUser() user: AuthUser, @Param('runId') runId: string) {
     return this.checklists.submit(user, runId);
   }
@@ -109,6 +116,7 @@ export class ChecklistsController {
   @Post('runs/:runId/review')
   @HttpCode(200)
   @RequirePermission('checklists', 'approve')
+  @Activity('checklists.run.reviewed', { entity: 'checklistRun', key: 'runId' })
   review(@CurrentUser() user: AuthUser, @Param('runId') runId: string) {
     return this.checklists.review(user, runId);
   }
@@ -121,6 +129,7 @@ export class ChecklistsController {
 
   @Post('setup')
   @RequirePermission('checklists', 'update')
+  @Activity('checklists.list.added')
   createList(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createChecklistSchema)) body: z.output<typeof createChecklistSchema>,
@@ -131,12 +140,14 @@ export class ChecklistsController {
   // Declared before the ":outletChecklistId" routes so "items" is not read as a checklist id.
   @Delete('setup/items/:itemId')
   @RequirePermission('checklists', 'update')
+  @Activity('checklists.setupItem.removed', { entity: 'checklistItem', key: 'itemId' })
   removeItem(@CurrentUser() user: AuthUser, @Param('itemId') itemId: string) {
     return this.checklists.removeItem(user, itemId);
   }
 
   @Patch('setup/items/:itemId')
   @RequirePermission('checklists', 'update')
+  @Activity('checklists.setupItem.changed', { entity: 'checklistItem', key: 'itemId', facts: ['photoRequired'] })
   updateItem(
     @CurrentUser() user: AuthUser,
     @Param('itemId') itemId: string,
@@ -147,6 +158,7 @@ export class ChecklistsController {
 
   @Patch('setup/:outletChecklistId')
   @RequirePermission('checklists', 'update')
+  @Activity('checklists.list.changed', { entity: 'outletChecklist', key: 'outletChecklistId' })
   updateList(
     @CurrentUser() user: AuthUser,
     @Param('outletChecklistId') outletChecklistId: string,
@@ -157,12 +169,14 @@ export class ChecklistsController {
 
   @Delete('setup/:outletChecklistId')
   @RequirePermission('checklists', 'update')
+  @Activity('checklists.list.removed', { entity: 'outletChecklist', key: 'outletChecklistId' })
   removeList(@CurrentUser() user: AuthUser, @Param('outletChecklistId') outletChecklistId: string) {
     return this.checklists.removeList(user, outletChecklistId);
   }
 
   @Post('setup/:outletChecklistId/items')
   @RequirePermission('checklists', 'update')
+  @Activity('checklists.setupItem.added', { entity: 'outletChecklist', key: 'outletChecklistId', facts: ['photoRequired'] })
   addItem(
     @CurrentUser() user: AuthUser,
     @Param('outletChecklistId') outletChecklistId: string,

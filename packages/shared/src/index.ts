@@ -31,3 +31,4 @@ export * from "./public-page.js";
 export * from "./vendors.js";
 export * from "./legal/index.js";
 export * from "./ai.js";
+export * from "./activity-log.js";

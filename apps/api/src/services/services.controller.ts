@@ -29,6 +29,7 @@ import {
   VISIT_PHOTO_KINDS,
 } from '@eccs/shared';
 import { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -76,6 +77,7 @@ export class ServicesController {
 
   @Put('outlets/:outletId/plan')
   @RequirePermission('subscriptions', 'create')
+  @Activity('subscriptions.outletPlan.set', { entity: 'outlet', key: 'outletId', facts: ['planCode'] })
   setOutletPlan(
     @CurrentUser() user: AuthUser,
     @Param('outletId') outletId: string,
@@ -86,6 +88,7 @@ export class ServicesController {
 
   @Delete('outlets/:outletId/plan')
   @RequirePermission('subscriptions', 'create')
+  @Activity('subscriptions.outletPlan.stopped', { entity: 'outlet', key: 'outletId' })
   stopOutletPlan(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
     return this.plansService.stopOutletPlan(user, outletId);
   }
@@ -94,6 +97,7 @@ export class ServicesController {
   @Post('visits/from-plans')
   @HttpCode(200)
   @RequirePermission('jobs', 'create')
+  @Activity('visits.diary.filled', { answerFacts: ['created'] })
   fillFromPlans() {
     return this.plansService.generateAll();
   }
@@ -128,6 +132,7 @@ export class ServicesController {
 
   @Post('bookings')
   @RequirePermission('bookings', 'create')
+  @Activity('visits.booking.requested', { entity: 'booking', from: 'answer' })
   createBooking(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createBookingSchema)) body: z.output<typeof createBookingSchema>,
@@ -138,6 +143,7 @@ export class ServicesController {
   @Post('bookings/:id/confirm')
   @HttpCode(200)
   @RequirePermission('bookings', 'update')
+  @Activity('visits.booking.confirmed', { entity: 'booking' })
   confirmBooking(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -149,6 +155,7 @@ export class ServicesController {
   @Post('bookings/:id/cancel')
   @HttpCode(200)
   @RequirePermission('bookings', 'update')
+  @Activity('visits.booking.cancelled', { entity: 'booking' })
   cancelBooking(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.services.cancelBooking(user, id);
   }
@@ -163,6 +170,7 @@ export class ServicesController {
 
   @Post('visits')
   @RequirePermission('jobs', 'create')
+  @Activity('visits.visit.added', { entity: 'visit', from: 'answer' })
   createVisit(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createVisitSchema)) body: z.output<typeof createVisitSchema>,
@@ -178,6 +186,7 @@ export class ServicesController {
 
   @Patch('visits/:id')
   @RequirePermission('jobs', 'create')
+  @Activity('visits.visit.changed', { entity: 'visit' })
   updateVisit(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -189,6 +198,7 @@ export class ServicesController {
   @Post('visits/:id/cancel')
   @HttpCode(200)
   @RequirePermission('jobs', 'create')
+  @Activity('visits.visit.cancelled', { entity: 'visit' })
   cancelVisit(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.services.cancelVisit(user, id);
   }
@@ -198,6 +208,7 @@ export class ServicesController {
   @Post('visits/:id/check-in')
   @HttpCode(200)
   @RequirePermission('jobs', 'update')
+  @Activity('visits.visit.checkedIn', { entity: 'visit' })
   checkIn(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -208,6 +219,7 @@ export class ServicesController {
 
   @Put('visits/:id/tasks/:itemId')
   @RequirePermission('jobs', 'update')
+  @Activity('visits.task.answered', { entity: 'visit', facts: ['done'] })
   answerTask(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -219,6 +231,7 @@ export class ServicesController {
 
   @Patch('visits/:id/record')
   @RequirePermission('jobs', 'update')
+  @Activity('visits.record.changed', { entity: 'visit' })
   updateRecord(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -230,6 +243,7 @@ export class ServicesController {
   @Post('visits/:id/photos')
   @HttpCode(200)
   @RequirePermission('jobs', 'update')
+  @Activity('visits.photo.added', { entity: 'visit', facts: ['kind'] })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }))
   addPhoto(
     @CurrentUser() user: AuthUser,
@@ -247,6 +261,7 @@ export class ServicesController {
   @Post('visits/:id/outlet-location')
   @HttpCode(200)
   @RequirePermission('jobs', 'update')
+  @Activity('visits.outletPlace.saved', { entity: 'visit' })
   setOutletLocation(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -257,6 +272,7 @@ export class ServicesController {
 
   @Delete('visits/:id/photos/:photoId')
   @RequirePermission('jobs', 'update')
+  @Activity('visits.photo.removed', { entity: 'visit' })
   removePhoto(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('photoId') photoId: string) {
     return this.services.removePhoto(user, id, photoId);
   }
@@ -265,6 +281,7 @@ export class ServicesController {
   @Post('visits/:id/documents')
   @HttpCode(200)
   @RequirePermission('jobs', 'update')
+  @Activity('visits.document.added', { entity: 'visit' })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }))
   addDocument(
     @CurrentUser() user: AuthUser,
@@ -280,6 +297,7 @@ export class ServicesController {
 
   @Delete('visits/:id/documents/:documentId')
   @RequirePermission('jobs', 'create')
+  @Activity('visits.document.removed', { entity: 'visit' })
   removeDocument(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('documentId') documentId: string) {
     return this.services.removeDocument(user, id, documentId);
   }
@@ -287,6 +305,7 @@ export class ServicesController {
   @Post('visits/:id/complete')
   @HttpCode(200)
   @RequirePermission('jobs', 'update')
+  @Activity('visits.visit.finished', { entity: 'visit' })
   complete(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -298,6 +317,7 @@ export class ServicesController {
   @Post('visits/:id/approve-report')
   @HttpCode(200)
   @RequirePermission('jobs', 'create')
+  @Activity('visits.report.approved', { entity: 'visit' })
   approveReport(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.services.approveReport(user, id);
   }
@@ -305,6 +325,7 @@ export class ServicesController {
   @Post('visits/:id/return-report')
   @HttpCode(200)
   @RequirePermission('jobs', 'create')
+  @Activity('visits.report.returned', { entity: 'visit' })
   returnReport(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -316,6 +337,7 @@ export class ServicesController {
   @Post('visits/:id/report-pdf')
   @HttpCode(200)
   @RequirePermission('jobs', 'read')
+  @Activity('visits.report.opened', { entity: 'visit' })
   reportPdf(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.services.reportPdf(user, id);
   }
@@ -323,6 +345,8 @@ export class ServicesController {
   @Post('visits/:id/sign-off')
   @HttpCode(200)
   @RequirePermission('jobs', 'approve')
+  // The stars, never the comment.
+  @Activity('visits.visit.signedOff', { entity: 'visit', facts: ['rating'] })
   signOff(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,

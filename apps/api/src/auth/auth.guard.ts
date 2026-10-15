@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { can, LANGUAGES } from '@eccs/shared';
+import { noteActivityHandler } from '../activity-log/activity-context.js';
 import { IS_PUBLIC, REQUIRED_PERMISSION, type RequiredPermission } from './auth.decorators.js';
 import { AuthService } from './auth.service.js';
 import { APP_LANGUAGE_HEADER, type AuthenticatedRequest } from './auth.types.js';
@@ -17,6 +18,8 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // First of all, for the activity log: which route this is, so even a refused request is recorded with its action.
+    noteActivityHandler(context);
     const targets = [context.getHandler(), context.getClass()];
     if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, targets)) {
       return true;

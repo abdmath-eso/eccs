@@ -1,5 +1,6 @@
 import { Controller, Delete, Get, HttpCode, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ProfileService } from './profile.service.js';
@@ -25,12 +26,14 @@ export class ProfileController {
 
   @Post('photo')
   @HttpCode(200)
+  @Activity('profile.photo.set')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }))
   setPhoto(@CurrentUser() user: AuthUser, @UploadedFile() file: UploadedPhoto | undefined) {
     return this.profile.setPhoto(user, file);
   }
 
   @Delete('photo')
+  @Activity('profile.photo.removed')
   removePhoto(@CurrentUser() user: AuthUser) {
     return this.profile.removePhoto(user);
   }

@@ -9,6 +9,7 @@ import {
   type LocalizedText,
   type VisitCertificateDto,
 } from '@eccs/shared';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -69,6 +70,7 @@ export class CertificatesService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly pdfs: CertificatePdfService,
+    private readonly activity: ActivityLogService,
   ) {}
 
   private get db() {
@@ -124,7 +126,8 @@ export class CertificatesService {
     const validFrom = visit.checkInAt ? indiaDate(visit.checkInAt) : fromDbDate(visit.scheduledDate);
     const validUntil = certificateValidUntil(validFrom, validDays);
 
-    return this.db.$transaction(async (tx) => {
+    let issued = false;
+    const certificateId = await this.db.$transaction(async (tx) => {
       // One at a time, until this transaction ends: see ISSUE_LOCK.
       await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${ISSUE_LOCK})`);
 
@@ -151,8 +154,12 @@ export class CertificatesService {
         },
         select: { id: true },
       });
+      issued = true;
       return created.id;
     });
+    // One row per certificate the server issues, with its number.
+    if (issued) this.activity.system('certificates.certificate.issued', { entity: { kind: 'certificate', id: certificateId } });
+    return certificateId;
   }
 
   // ───────────────────────── Reading ─────────────────────────

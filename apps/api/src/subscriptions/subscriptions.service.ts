@@ -26,6 +26,7 @@ import {
   type PlansAdminDto,
   type SubscriptionDto,
 } from '@eccs/shared';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { BillingService } from '../billing/billing.service.js';
 import { indiaDate } from '../checklists/checklists.service.js';
@@ -109,6 +110,7 @@ export class SubscriptionsService implements OnModuleInit, OnModuleDestroy {
     private readonly plans: PlansService,
     private readonly notify: NotifyService,
     private readonly billing: BillingService,
+    private readonly activity: ActivityLogService,
   ) {}
 
   private get db() {
@@ -121,11 +123,14 @@ export class SubscriptionsService implements OnModuleInit, OnModuleDestroy {
     if (env.NODE_ENV === 'test') return;
     const check = () =>
       void this.renewDue()
-        .then(
-          ({ renewed, cancelled }) =>
-            renewed + cancelled > 0 && this.logger.log(`Subscriptions: ${renewed} renewed, ${cancelled} ended at the end of their cycle`),
-        )
-        .catch((error) => this.logger.warn(`Could not renew subscriptions: ${String(error)}`));
+        .then(({ renewed, cancelled }) => {
+          this.activity.jobRun('subscriptions.renewals.ran', { renewed, cancelled });
+          if (renewed + cancelled > 0) this.logger.log(`Subscriptions: ${renewed} renewed, ${cancelled} ended at the end of their cycle`);
+        })
+        .catch((error) => {
+          this.activity.jobRun('subscriptions.renewals.ran', null, { error });
+          this.logger.warn(`Could not renew subscriptions: ${String(error)}`);
+        });
     const first = setTimeout(check, FIRST_CHECK_AFTER_MS);
     const repeat = setInterval(check, CHECK_EVERY_MS);
     // Neither keeps the server alive when it is asked to stop.

@@ -87,6 +87,14 @@ const schema = z
     // other requests until they have; "off" stops the refusing (the app still asks them).
     // The automated tests switch it off for the whole run (vitest.config.e2e.ts).
     LEGAL_GATE: z.enum(['on', 'off']).default('on'),
+    // The activity log behind the console's Logs page (15 Oct 2026, apps/api/src/activity-log).
+    // "on" (the default) records what happens in the apps, the console, the AI and the
+    // server's timed work; "off" records nothing new (what is there can still be read).
+    // The automated tests switch it off for the whole run (vitest.config.e2e.ts).
+    ACTIVITY_LOG: z.enum(['on', 'off']).default('on'),
+    // How many days log rows are kept; a daily job deletes older ones. The Privacy Policy
+    // draft promises a year, so change both together.
+    ACTIVITY_LOG_DAYS: z.coerce.number().int().min(1).max(3650).default(365),
     // Sample mode: every login code is this value and no SMS is sent.
     DEV_FIXED_OTP: z
       .string()

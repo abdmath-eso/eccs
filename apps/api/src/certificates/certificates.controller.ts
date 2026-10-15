@@ -1,4 +1,5 @@
 import { Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { CertificatesService } from './certificates.service.js';
@@ -28,6 +29,7 @@ export class CertificatesController {
   @Post(':id/pdf')
   @HttpCode(200)
   @RequirePermission('reports', 'read')
+  @Activity('certificates.pdf.opened', { entity: 'certificate' })
   pdf(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.certificates.pdf(user, id);
   }
@@ -36,6 +38,7 @@ export class CertificatesController {
   @Post(':id/pdf/remake')
   @HttpCode(200)
   @RequirePermission('reports', 'approve')
+  @Activity('certificates.pdf.remade', { entity: 'certificate' })
   remakePdf(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.certificates.remakePdf(user, id);
   }

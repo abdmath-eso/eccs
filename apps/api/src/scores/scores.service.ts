@@ -11,6 +11,7 @@ import {
   type ScoreResult,
   type ScoreSnapshotBreakdown,
 } from '@eccs/shared';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ChecklistsService, indiaDate, indiaTime } from '../checklists/checklists.service.js';
 import { env } from '../config/env.js';
@@ -79,6 +80,7 @@ export class ScoresService implements OnModuleInit, OnModuleDestroy {
     private readonly checklists: ChecklistsService,
     private readonly licences: LicencesService,
     private readonly inspections: InspectionsService,
+    private readonly activity: ActivityLogService,
   ) {}
 
   private get db() {
@@ -94,8 +96,14 @@ export class ScoresService implements OnModuleInit, OnModuleDestroy {
     const run = () =>
       void this.recalculateAll(addDays(indiaDate(), -1))
         .then(() => this.recalculateAll())
-        .then(({ outlets, scored }) => this.logger.log(`Hygiene scores worked out: ${scored} of ${outlets} outlets have one`))
-        .catch((error) => this.logger.warn(`Could not work out the hygiene scores: ${String(error)}`));
+        .then(({ outlets, scored }) => {
+          this.activity.jobRun('scores.recalculation.ran', { outlets, scored });
+          this.logger.log(`Hygiene scores worked out: ${scored} of ${outlets} outlets have one`);
+        })
+        .catch((error) => {
+          this.activity.jobRun('scores.recalculation.ran', null, { error });
+          this.logger.warn(`Could not work out the hygiene scores: ${String(error)}`);
+        });
     const first = setTimeout(run, FIRST_RECALCULATION_AFTER_MS);
     const repeat = setInterval(run, RECALCULATE_EVERY_MS);
     // Neither keeps the server alive when it is asked to stop.

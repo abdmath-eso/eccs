@@ -15,6 +15,7 @@ import {
   type NotificationType,
   type Role,
 } from '@eccs/shared';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { wordInEnglish } from './notifications.wording.js';
 import { PushService } from './push.service.js';
@@ -60,6 +61,7 @@ export class NotificationsService implements OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     push: PushService,
+    private readonly activity: ActivityLogService,
   ) {
     // Push sends nothing unless it is switched on (see `PushService.enabled`).
     this.outsideChannels = [push];
@@ -105,6 +107,8 @@ export class NotificationsService implements OnModuleDestroy {
 
     // Any console of theirs that is waiting to hear of something new is answered now.
     this.wake(written.map((row) => row.userId));
+    // The activity log: the kind and the roles of who was told, never the words.
+    this.activity.notificationSent(type, written.map((row) => row.userId), link);
 
     for (const channel of this.outsideChannels) {
       await channel

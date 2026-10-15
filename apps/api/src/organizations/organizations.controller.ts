@@ -7,6 +7,7 @@ import {
   updateOwnerSchema,
 } from '@eccs/shared';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { RequirePermission } from '../auth/auth.decorators.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { OrganizationsService } from './organizations.service.js';
@@ -26,12 +27,14 @@ export class OrganizationsController {
 
   @Post()
   @RequirePermission('clients', 'create')
+  @Activity('clients.client.added', { entity: 'organization', from: 'answer' })
   create(@Body(new ZodValidationPipe(createOrganizationSchema)) body: z.output<typeof createOrganizationSchema>) {
     return this.organizations.create(body);
   }
 
   @Post(':id/outlets')
   @RequirePermission('clients', 'create')
+  @Activity('clients.outlet.added', { entity: 'outlet', from: 'answer' })
   addOutlet(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(createOutletSchema)) body: z.output<typeof createOutletSchema>,
@@ -43,6 +46,7 @@ export class OrganizationsController {
 
   @Patch(':id')
   @RequirePermission('clients', 'update')
+  @Activity('clients.client.changed', { entity: 'organization', facts: ['isActive'] })
   update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateOrganizationSchema)) body: z.output<typeof updateOrganizationSchema>,
@@ -52,6 +56,7 @@ export class OrganizationsController {
 
   @Patch(':id/outlets/:outletId')
   @RequirePermission('clients', 'update')
+  @Activity('clients.outlet.changed', { entity: 'outlet', key: 'outletId', facts: ['isActive'] })
   updateOutlet(
     @Param('id') id: string,
     @Param('outletId') outletId: string,
@@ -63,6 +68,8 @@ export class OrganizationsController {
   @Post(':id/outlets/:outletId/new-code')
   @HttpCode(200)
   @RequirePermission('clients', 'update')
+  // Never the new code: it is what links a phone to the kitchen.
+  @Activity('clients.outlet.newCode', { entity: 'outlet', key: 'outletId' })
   newOutletCode(@Param('id') id: string, @Param('outletId') outletId: string) {
     return this.organizations.newOutletCode(id, outletId);
   }
@@ -75,12 +82,14 @@ export class OrganizationsController {
 
   @Delete(':id/phones/:phoneId')
   @RequirePermission('clients', 'update')
+  @Activity('clients.phone.unlinked', { entity: 'linkedDevice', key: 'phoneId' })
   unlinkPhone(@Param('id') id: string, @Param('phoneId') phoneId: string) {
     return this.organizations.unlinkPhone(id, phoneId);
   }
 
   @Patch(':id/owners/:userId')
   @RequirePermission('clients', 'update')
+  @Activity('clients.owner.changed', { entity: 'user', key: 'userId' })
   updateOwner(
     @Param('id') id: string,
     @Param('userId') userId: string,
@@ -92,6 +101,7 @@ export class OrganizationsController {
   @Post(':id/owners/:userId/reset-setup')
   @HttpCode(200)
   @RequirePermission('clients', 'update')
+  @Activity('clients.owner.setupReset', { entity: 'user', key: 'userId' })
   resetOwnerSetup(@Param('id') id: string, @Param('userId') userId: string) {
     return this.organizations.resetOwnerSetup(id, userId);
   }

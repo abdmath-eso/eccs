@@ -36,6 +36,7 @@ import {
   type PaymentSessionDto,
   type PaymentStatus,
 } from '@eccs/shared';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { env } from '../config/env.js';
@@ -119,6 +120,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     private readonly storage: StorageService,
     private readonly pdfs: InvoicePdfService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
+    private readonly activity: ActivityLogService,
   ) {}
 
   private get db() {
@@ -131,8 +133,14 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     if (env.NODE_ENV === 'test') return;
     const check = () =>
       void this.billDue()
-        .then(({ raised }) => raised > 0 && this.logger.log(`Raised ${raised} plan invoices`))
-        .catch((error) => this.logger.warn(`Could not raise the invoices that are due: ${String(error)}`));
+        .then(({ raised }) => {
+          this.activity.jobRun('billing.run.ran', { raised });
+          if (raised > 0) this.logger.log(`Raised ${raised} plan invoices`);
+        })
+        .catch((error) => {
+          this.activity.jobRun('billing.run.ran', null, { error });
+          this.logger.warn(`Could not raise the invoices that are due: ${String(error)}`);
+        });
     const first = setTimeout(check, FIRST_CHECK_AFTER_MS);
     const repeat = setInterval(check, CHECK_EVERY_MS);
     // Neither keeps the server alive when it is asked to stop.
@@ -386,7 +394,11 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     });
 
     // The PDF takes a few seconds, so nothing waits for it; it is made on first open if this fails.
-    if (result.created) this.pdfs.makeLater(result.id);
+    if (result.created) {
+      this.pdfs.makeLater(result.id);
+      // One row per invoice the server makes, with its number and amount.
+      this.activity.system('billing.invoice.issued', { entity: { kind: 'invoice', id: result.id } });
+    }
     return result;
   }
 

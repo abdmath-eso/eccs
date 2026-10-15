@@ -16,6 +16,7 @@ import {
   type OutletPlanDto,
   type PlanDto,
 } from '@eccs/shared';
+import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { indiaDate } from '../checklists/checklists.service.js';
 import { env } from '../config/env.js';
@@ -49,6 +50,7 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notify: NotifyService,
+    private readonly activity: ActivityLogService,
   ) {}
 
   private get db() {
@@ -61,8 +63,14 @@ export class PlansService implements OnModuleInit, OnModuleDestroy {
     if (env.NODE_ENV === 'test') return;
     const check = () =>
       void this.generateAll()
-        .then(({ created }) => created > 0 && this.logger.log(`Added ${created} plan visits to the diary`))
-        .catch((error) => this.logger.warn(`Could not fill the diary from plans: ${String(error)}`));
+        .then(({ created }) => {
+          this.activity.jobRun('visits.plans.ran', { created });
+          if (created > 0) this.logger.log(`Added ${created} plan visits to the diary`);
+        })
+        .catch((error) => {
+          this.activity.jobRun('visits.plans.ran', null, { error });
+          this.logger.warn(`Could not fill the diary from plans: ${String(error)}`);
+        });
     const first = setTimeout(check, FIRST_CHECK_AFTER_MS);
     const repeat = setInterval(check, CHECK_EVERY_MS);
     // Neither keeps the server alive when it is asked to stop.

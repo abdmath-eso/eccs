@@ -1,4 +1,5 @@
 import { Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ScoreExplainService } from './score-explain.service.js';
@@ -29,6 +30,7 @@ export class ScoresController {
   @Post(':outletId/explain')
   @HttpCode(200)
   @RequirePermission('scores', 'read')
+  @Activity('scores.score.explained', { entity: 'outlet', key: 'outletId' })
   explain(@CurrentUser() user: AuthUser, @Param('outletId') outletId: string) {
     return this.explainer.explain(user, outletId);
   }

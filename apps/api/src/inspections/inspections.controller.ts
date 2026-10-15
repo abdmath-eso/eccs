@@ -22,6 +22,7 @@ import {
   updateInspectionSchema,
 } from '@eccs/shared';
 import { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -58,6 +59,7 @@ export class InspectionsController {
 
   @Post()
   @RequirePermission('inspections', 'create')
+  @Activity('inspections.inspection.started', { entity: 'inspection', from: 'answer' })
   start(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(startInspectionSchema)) body: z.output<typeof startInspectionSchema>,
@@ -73,6 +75,7 @@ export class InspectionsController {
 
   @Patch(':id')
   @RequirePermission('inspections', 'approve')
+  @Activity('inspections.inspection.changed', { entity: 'inspection' })
   update(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -84,6 +87,7 @@ export class InspectionsController {
   @Delete(':id')
   @HttpCode(204)
   @RequirePermission('inspections', 'approve')
+  @Activity('inspections.inspection.removed', { entity: 'inspection' })
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.inspections.remove(user, id);
   }
@@ -92,6 +96,7 @@ export class InspectionsController {
 
   @Put(':id/checks/:itemId')
   @RequirePermission('inspections', 'update')
+  @Activity('inspections.check.answered', { entity: 'inspection', facts: ['answer', 'severity'] })
   answer(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -104,6 +109,7 @@ export class InspectionsController {
   @Post(':id/checks/:itemId/photos')
   @HttpCode(200)
   @RequirePermission('inspections', 'update')
+  @Activity('inspections.photo.added', { entity: 'inspection' })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }))
   addPhoto(
     @CurrentUser() user: AuthUser,
@@ -120,6 +126,7 @@ export class InspectionsController {
 
   @Delete(':id/photos/:photoId')
   @RequirePermission('inspections', 'update')
+  @Activity('inspections.photo.removed', { entity: 'inspection' })
   removePhoto(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -132,6 +139,7 @@ export class InspectionsController {
   @Post(':id/finish')
   @HttpCode(200)
   @RequirePermission('inspections', 'update')
+  @Activity('inspections.inspection.finished', { entity: 'inspection' })
   finish(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -150,6 +158,7 @@ export class InspectionsController {
   @Post(':id/summary/draft')
   @HttpCode(200)
   @RequirePermission('inspections', 'update')
+  @Activity('inspections.summary.drafted', { entity: 'inspection' })
   draftSummary(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.summaries.draft(user, id);
   }
@@ -157,6 +166,8 @@ export class InspectionsController {
   /** Saves the summary for the report, after Finish and before approval. */
   @Put(':id/summary')
   @RequirePermission('inspections', 'update')
+  // Never the summary's words: only whether it started from an AI draft.
+  @Activity('inspections.summary.saved', { entity: 'inspection', facts: ['aiDrafted'] })
   saveSummary(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -170,6 +181,7 @@ export class InspectionsController {
   @Post(':id/approve')
   @HttpCode(200)
   @RequirePermission('inspections', 'approve')
+  @Activity('inspections.inspection.approved', { entity: 'inspection' })
   approve(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.inspections.approve(user, id);
   }
@@ -178,6 +190,7 @@ export class InspectionsController {
   @Post(':id/report-pdf')
   @HttpCode(200)
   @RequirePermission('inspections', 'read')
+  @Activity('inspections.report.opened', { entity: 'inspection' })
   reportPdf(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.inspections.reportPdf(user, id);
   }
@@ -185,6 +198,7 @@ export class InspectionsController {
   @Post(':id/send-back')
   @HttpCode(200)
   @RequirePermission('inspections', 'approve')
+  @Activity('inspections.inspection.sentBack', { entity: 'inspection' })
   sendBack(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,

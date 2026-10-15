@@ -1,6 +1,7 @@
 import { Controller, Get, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
 import type { NotificationNewsDto, NotificationPageDto, UnreadCountDto } from '@eccs/shared';
 import type { Response } from 'express';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { NotificationsService } from './notifications.service.js';
@@ -51,12 +52,14 @@ export class NotificationsController {
 
   @Post('read-all')
   @HttpCode(200)
+  @Activity('notifications.all.read')
   async markAllRead(@CurrentUser() user: AuthUser): Promise<UnreadCountDto> {
     return { unreadCount: await this.notifications.markAllRead(user.id) };
   }
 
   @Post(':id/read')
   @HttpCode(200)
+  @Activity('notifications.one.read', { entity: 'notification' })
   async markRead(@CurrentUser() user: AuthUser, @Param('id') id: string): Promise<UnreadCountDto> {
     return { unreadCount: await this.notifications.markRead(user.id, id) };
   }

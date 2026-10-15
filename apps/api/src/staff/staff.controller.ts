@@ -7,6 +7,7 @@ import {
   updateStaffMemberSchema,
 } from '@eccs/shared';
 import type { z } from 'zod';
+import { Activity } from '../activity-log/activity.decorator.js';
 import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -16,6 +17,10 @@ import { StaffService } from './staff.service.js';
 // The decorators check that the role allows the action at all (ECCS roles have
 // no grant on staff, attendance or salary, so every route refuses them); the
 // service then checks the specific outlet.
+//
+// Activity log: every change here is staff data (`staffData`), logged as the action,
+// the restaurant, the outlet and who did it, never the staff member's name, times,
+// amounts or any value.
 @Controller('staff')
 export class StaffController {
   constructor(private readonly staff: StaffService) {}
@@ -31,6 +36,7 @@ export class StaffController {
 
   @Post('people')
   @RequirePermission('staff', 'create')
+  @Activity('staff.person.added', { staffData: true })
   create(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(createStaffMemberSchema)) body: z.output<typeof createStaffMemberSchema>,
@@ -40,6 +46,7 @@ export class StaffController {
 
   @Patch('people/:id')
   @RequirePermission('staff', 'update')
+  @Activity('staff.person.changed', { staffData: true, entity: 'staffMember' })
   update(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -52,6 +59,7 @@ export class StaffController {
   @Delete('people/:id')
   @HttpCode(204)
   @RequirePermission('staff', 'update')
+  @Activity('staff.person.removed', { staffData: true, entity: 'staffMember' })
   async remove(@CurrentUser() user: AuthUser, @Param('id') id: string): Promise<void> {
     await this.staff.removePerson(user, id);
   }
@@ -75,6 +83,7 @@ export class StaffController {
    */
   @Put('attendance/day')
   @RequirePermission('attendance', 'update')
+  @Activity('staff.attendance.marked', { staffData: true })
   mark(
     @CurrentUser() user: AuthUser,
     @Body(new ZodValidationPipe(markAttendanceSchema)) body: z.output<typeof markAttendanceSchema>,
@@ -112,6 +121,7 @@ export class StaffController {
 
   @Put('people/:id/salary/:month')
   @RequirePermission('salary', 'update')
+  @Activity('staff.pay.saved', { staffData: true, entity: 'staffMember' })
   saveSalary(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -123,6 +133,7 @@ export class StaffController {
 
   @Post('people/:id/pay-entries')
   @RequirePermission('salary', 'create')
+  @Activity('staff.pay.entryAdded', { staffData: true, entity: 'staffMember' })
   addPayEntry(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -133,6 +144,7 @@ export class StaffController {
 
   @Delete('pay-entries/:id')
   @RequirePermission('salary', 'update')
+  @Activity('staff.pay.entryRemoved', { staffData: true, entity: 'staffPayEntry' })
   removePayEntry(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.staff.removePayEntry(user, id);
   }

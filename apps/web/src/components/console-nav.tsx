@@ -23,6 +23,7 @@ import {
   MenuIcon,
   MonitoringIcon,
   PlansIcon,
+  SalesIcon,
   SopsIcon,
   VisitsIcon,
 } from "./icons";
@@ -49,11 +50,12 @@ interface NavItem {
 const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
   {
     label: "Daily work",
+    // Each `needs` is the grant its page reads with, so a BDE (sales only) is not shown them.
     items: [
-      { href: "/monitoring", label: "Monitoring", icon: <MonitoringIcon /> },
-      { href: "/visits", label: "Visits", icon: <VisitsIcon />, count: "visits", waiting: "waiting for a date, a Supervisor or a report check" },
-      { href: "/inspections", label: "Inspections", icon: <InspectionsIcon /> },
-      { href: "/issues", label: "Issues", icon: <IssuesIcon />, count: "issues", waiting: "open" },
+      { href: "/monitoring", label: "Monitoring", icon: <MonitoringIcon />, needs: (m) => can(m, "clients", "read") },
+      { href: "/visits", label: "Visits", icon: <VisitsIcon />, count: "visits", waiting: "waiting for a date, a Supervisor or a report check", needs: (m) => can(m, "jobs", "read") },
+      { href: "/inspections", label: "Inspections", icon: <InspectionsIcon />, needs: (m) => can(m, "inspections", "read") },
+      { href: "/issues", label: "Issues", icon: <IssuesIcon />, count: "issues", waiting: "open", needs: (m) => can(m, "issues", "read") },
     ],
   },
   {
@@ -61,22 +63,25 @@ const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
     items: [
       { href: "/", label: "Clients", icon: <ClientsIcon />, needs: (m) => can(m, "clients", "create") },
       { href: "/invoices", label: "Invoices", icon: <InvoicesIcon />, count: "invoices", waiting: "overdue", needs: (m) => can(m, "invoices", "update") },
-      { href: "/licences", label: "Licences", icon: <LicencesIcon />, count: "licences", waiting: "expired or expiring" },
-      { href: "/certificates", label: "Certificates", icon: <CertificatesIcon /> },
+      { href: "/licences", label: "Licences", icon: <LicencesIcon />, count: "licences", waiting: "expired or expiring", needs: (m) => can(m, "licences", "read") },
+      { href: "/certificates", label: "Certificates", icon: <CertificatesIcon />, needs: (m) => can(m, "reports", "read") },
       { href: "/customer-pages", label: "Customer pages", icon: <CustomerPagesIcon />, count: "publicPhotos", waiting: "photos waiting for approval", needs: (m) => can(m, "publicPage", "approve") },
     ],
   },
   {
-    // The founders' own business pages (15 Oct 2026): Finance now; Sales and Team join it in later stages.
+    // The founders' own business pages (15 Oct 2026): Finance and Sales now; Team joins them in a later stage.
     label: "Business",
-    items: [{ href: "/finance", label: "Finance", icon: <FinanceIcon />, needs: (m) => can(m, "finance", "read") }],
+    items: [
+      { href: "/finance", label: "Finance", icon: <FinanceIcon />, needs: (m) => can(m, "finance", "read") },
+      { href: "/sales", label: "Sales", icon: <SalesIcon />, count: "sales", waiting: "things to do today", needs: (m) => can(m, "sales", "read") },
+    ],
   },
   {
     label: "Set-up",
     items: [
       { href: "/catalogue", label: "Catalogue", icon: <CatalogueIcon />, needs: (m) => can(m, "catalog", "update") },
       { href: "/plans", label: "Plans", icon: <PlansIcon />, needs: (m) => can(m, "catalog", "update") },
-      { href: "/sops", label: "SOPs", icon: <SopsIcon /> },
+      { href: "/sops", label: "SOPs", icon: <SopsIcon />, needs: (m) => can(m, "sopTemplates", "read") },
     ],
   },
   {

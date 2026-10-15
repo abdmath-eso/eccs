@@ -62,6 +62,7 @@ export const gu: Messages = {
   "role.OWNER": "માલિક",
   "role.MANAGER": "મેનેજર",
   "role.HEAD_CHEF": "હેડ શેફ",
+  "role.BDE": "સેલ્સ એક્ઝિક્યુટિવ",
 
   "dash.todayChecklists": "આજની ચેકલિસ્ટ",
   "dash.checklistsDone": "પૂરી થયેલી ચેકલિસ્ટ",

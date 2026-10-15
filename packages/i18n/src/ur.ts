@@ -62,6 +62,7 @@ export const ur: Messages = {
   "role.OWNER": "مالک",
   "role.MANAGER": "مینیجر",
   "role.HEAD_CHEF": "ہیڈ شیف",
+  "role.BDE": "سیلز ایگزیکٹو",
 
   "dash.todayChecklists": "آج کی چیک لسٹ",
   "dash.checklistsDone": "مکمل چیک لسٹ",

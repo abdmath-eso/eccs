@@ -62,6 +62,7 @@ export const hi: Messages = {
   "role.OWNER": "मालिक",
   "role.MANAGER": "मैनेजर",
   "role.HEAD_CHEF": "हेड शेफ़",
+  "role.BDE": "सेल्स एग्ज़ीक्यूटिव",
 
   "dash.todayChecklists": "आज की चेकलिस्ट",
   "dash.checklistsDone": "पूरी हुई चेकलिस्ट",

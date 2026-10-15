@@ -24,6 +24,8 @@ enum Role {
   OWNER
   MANAGER
   HEAD_CHEF
+  /// A business development executive: ECCS's sales team (15 Oct 2026).
+  BDE
 }
 
 /// The languages the apps can be used in. Keep in step with LANGUAGES in @eccs/shared
@@ -61,6 +63,8 @@ model Organization {
   memberships   Membership[]
   invoices      Invoice[]
   linkedDevices LinkedDevice[]
+  /// Sales leads that became this client (the Sales page).
+  leads         Lead[]
 }
 
 model Outlet {
@@ -139,6 +143,10 @@ model User {
   issueComments  IssueComment[]
   sessions       Session[]
   legalAcceptances LegalAcceptance[]
+  /// The sales leads this person owns (a BDE, or a founder selling themselves).
+  ownedLeads     Lead[]
+  /// Their weekly sales targets set by hand.
+  salesTargets   SalesTarget[]
 
   @@unique([pinOrganizationId, pinLookup])
 }
@@ -1955,4 +1963,181 @@ model FinanceSettings {
   /// Paise per US dollar (8800 is ₹88).
   usdToInrPaise          Int      @default(8800)
   updatedAt              DateTime @updatedAt
+}
+
+// ───────────────────────── Sales and the CRM (the Sales page) ─────────────────────────
+//
+// Sales (15 Oct 2026): the BDEs' leads, the steps logged on them, quotes with a public
+// link, and the BDEs' weekly targets set by hand. A lead's stage moves right by itself as
+// steps are logged; First job and On a plan come from the app once the lead is linked to
+// the client it became (its approved jobs, payments and subscriptions), never typed in.
+// Sample rows carry `isSample` and a `sampleKey`, as the Finance books do. Rules and
+// labels: packages/shared/src/sales.ts.
+
+/// A restaurant ECCS is selling to.
+model Lead {
+  id             String    @id @default(uuid())
+  businessName   String
+  /// The locality, e.g. "Gachibowli".
+  area           String?
+  address        String?
+  contactName    String?
+  /// +91XXXXXXXXXX.
+  contactPhone   String?
+  /// How many kitchens they run.
+  kitchens       Int       @default(1)
+  /// LEAD_SOURCES: FIELD_VISIT, CHEF_REFERRAL, PARTNER_REFERRAL, DRIVE, WHATSAPP_GROUP, AGGREGATOR_HUB, OTHER.
+  source         String
+  referrerName   String?
+  /// The BDE (or founder) who owns it.
+  ownerId        String
+  createdById    String?
+  /// LEAD_STAGES, left to right: NEW, CONTACTED, CHECK_BOOKED, CHECK_DONE, QUOTED, FIRST_JOB, ON_PLAN.
+  stage          String    @default("NEW")
+  /// OPEN, PARKED or LOST. A parked or lost lead keeps its stage.
+  status         String    @default("OPEN")
+  parkedAt       DateTime?
+  /// The India date it is parked until.
+  parkedUntil    DateTime? @db.Date
+  parkedReason   String?
+  lostAt         DateTime?
+  lostReason     String?
+  /// The next step, in a few words, and when.
+  nextAction     String?
+  nextActionAt   DateTime?
+  /// A free check booked and not yet done: when, and who from ECCS goes.
+  checkAt        DateTime?
+  checkWith      String?
+  checkDoneAt    DateTime?
+  /// How many things the free check found to fix.
+  checkFindings  Int?
+  /// The client it became, once linked.
+  organizationId String?
+  /// When it became a paying customer (its first job, or a plan straight away), and when it went on a plan.
+  wonAt          DateTime?
+  planAt         DateTime?
+  /// Where the shop is, when the phone knew (B2: logged from the field).
+  latitude       Float?
+  longitude      Float?
+  /// The last step a person logged (the app's own events do not count): what "stale" is read from.
+  lastActivityAt DateTime  @default(now())
+  /// "Likely to close": the score and its signals, worked out when the lead changes and every night.
+  score          Int       @default(0)
+  scoreSignals   Json?
+  scoredAt       DateTime?
+  isSample       Boolean   @default(false)
+  sampleKey      String?   @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  activities   LeadActivity[]
+  quotes       Quote[]
+
+  @@index([ownerId, status])
+  @@index([status, stage])
+  @@index([organizationId])
+  @@index([createdAt])
+  @@index([lastActivityAt])
+}
+
+/// One thing that happened on a lead: its timeline.
+model LeadActivity {
+  id          String    @id @default(uuid())
+  leadId      String
+  /// LEAD_ACTIVITY_KINDS: CREATED, CALL, VISIT, NOTE, CHECK_BOOKED, CHECK_DONE, ASKED, QUOTE_SENT, QUOTE_OPENED, PARKED, LOST, REOPENED, LINKED, WON.
+  kind        String
+  /// When it happened.
+  at          DateTime  @default(now())
+  /// Who logged it; empty for the app's own events (WON, QUOTE_OPENED).
+  byId        String?
+  note        String?
+  /// When it moved the lead: from which stage to which.
+  fromStage   String?
+  toStage     String?
+  checkAt     DateTime?
+  checkWith   String?
+  findings    Int?
+  /// A quote's total, or a sale's value before GST (WON).
+  amountPaise Int?
+  quoteId     String?
+  /// ASKED: QUOTE or MONTHLY_PRICE.
+  signal      String?
+  /// WON (first job): the restaurant's rating and whether it signed off the day the job was done.
+  rating      Int?
+  sameDay     Boolean?
+  isSample    Boolean   @default(false)
+  sampleKey   String?   @unique
+  createdAt   DateTime  @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, at])
+  @@index([kind, at])
+  @@index([byId, at])
+}
+
+/// A quote for a lead, priced from the catalogue, with a public link the owner opens.
+model Quote {
+  id            String    @id @default(uuid())
+  leadId        String
+  /// Q-2026-0001; sample quotes are Q-S-0001.
+  number        String    @unique
+  /// [{ kind, refId, name, quantity, unitPaise, gstRatePercent, cycle, amountPaise }], as quoted.
+  lines         Json
+  subtotalPaise Int
+  gstPaise      Int
+  totalPaise    Int
+  /// DRAFT or SENT.
+  status        String    @default("DRAFT")
+  /// The public link's secret part (/q/<token>): long and random.
+  token         String    @unique
+  sentAt        DateTime?
+  validUntil    DateTime? @db.Date
+  /// Opens by the owner (one every 30 minutes at most), the first and the latest.
+  openCount     Int       @default(0)
+  firstOpenedAt DateTime?
+  lastOpenedAt  DateTime?
+  createdById   String?
+  isSample      Boolean   @default(false)
+  sampleKey     String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+/// A BDE's weekly target set by hand by the Super Admin. Figures left empty follow the
+/// suggestion worked out every Monday from the last two weeks.
+model SalesTarget {
+  id        String   @id @default(uuid())
+  userId    String
+  /// The Monday the week starts.
+  weekStart DateTime @db.Date
+  leads     Int?
+  checks    Int?
+  firstJobs Int?
+  plans     Int?
+  setById   String?
+  isSample  Boolean  @default(false)
+  sampleKey String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+}
+
+/// The Sales page's settings, one row ("default"): the lowest each weekly target can go.
+model SalesSettings {
+  id             String   @id @default("default")
+  floorLeads     Int      @default(10)
+  floorChecks    Int      @default(3)
+  floorFirstJobs Int      @default(1)
+  floorPlans     Int      @default(0)
+  updatedAt      DateTime @updatedAt
 }

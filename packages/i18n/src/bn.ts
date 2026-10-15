@@ -62,6 +62,7 @@ export const bn: Messages = {
   "role.OWNER": "মালিক",
   "role.MANAGER": "ম্যানেজার",
   "role.HEAD_CHEF": "হেড শেফ",
+  "role.BDE": "সেলস এক্সিকিউটিভ",
 
   "dash.todayChecklists": "আজকের চেকলিস্ট",
   "dash.checklistsDone": "চেকলিস্ট হয়ে গেছে",

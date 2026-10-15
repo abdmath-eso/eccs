@@ -37,6 +37,7 @@ export type EntityKind =
   | 'inspection'
   | 'invoice'
   | 'issue'
+  | 'lead'
   | 'licence'
   | 'linkedDevice'
   | 'notification'
@@ -46,6 +47,7 @@ export type EntityKind =
   | 'payment'
   | 'plan'
   | 'publicPhoto'
+  | 'quote'
   | 'serviceKind'
   | 'serviceTask'
   | 'sop'
@@ -299,6 +301,26 @@ export async function resolveEntity(db: Db, kind: EntityKind, id: string, action
     case 'cashOpening': {
       const opening = await db.cashOpening.findUnique({ where: { id }, select: { id: true } });
       return opening && { label: 'Opening cash balance' };
+    }
+    // Sales: the lead by its business name, its stage and where it came from; never the
+    // contact's name or number, a note or a reason typed in. A quote by its number.
+    case 'lead': {
+      const lead = await db.lead.findUnique({ where: { id }, select: { businessName: true, stage: true, status: true, source: true, organizationId: true } });
+      return lead && { organizationId: lead.organizationId, label: shortText(lead.businessName), details: { stage: lead.stage, status: lead.status, source: lead.source } };
+    }
+    case 'quote': {
+      const quote = await db.quote.findUnique({
+        where: { id },
+        select: { number: true, status: true, totalPaise: true, openCount: true, lead: { select: { businessName: true, organizationId: true } } },
+      });
+      return (
+        quote && {
+          organizationId: quote.lead.organizationId,
+          reference: quote.number,
+          label: shortText(quote.lead.businessName),
+          details: { status: quote.status, totalPaise: quote.totalPaise, openCount: quote.openCount },
+        }
+      );
     }
     // Staff data: which outlet, and nothing else.
     case 'staffMember': {

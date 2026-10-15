@@ -62,6 +62,7 @@ export const or: Messages = {
   "role.OWNER": "ମାଲିକ",
   "role.MANAGER": "ମ୍ୟାନେଜର",
   "role.HEAD_CHEF": "ହେଡ୍ ସେଫ୍",
+  "role.BDE": "ସେଲ୍ସ ଏକ୍ଜିକ୍ୟୁଟିଭ୍",
 
   "dash.todayChecklists": "ଆଜିର ଚେକଲିଷ୍ଟ",
   "dash.checklistsDone": "ସରିଥିବା ଚେକଲିଷ୍ଟ",

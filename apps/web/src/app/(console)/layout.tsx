@@ -19,6 +19,7 @@ const ROLE_NAMES: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
   OPS_MANAGER: "Operations Manager",
   SUPERVISOR: "Supervisor",
+  BDE: "BDE (sales)",
 };
 
 /**
@@ -34,14 +35,16 @@ export default function ConsoleLayout({ children }: LayoutProps<"/">) {
   const pathname = usePathname();
   const { status, user, signOut } = useSession();
 
-  // Clients is for Super Admins and Operations Managers. A Supervisor starts on Visits instead.
+  // Clients is for Super Admins and Operations Managers. A Supervisor starts on Visits
+  // instead, and a BDE (sales only, 15 Oct 2026) on Sales.
   const seesClients = user ? can(user.memberships, "clients", "create") : false;
+  const home = seesClients ? "/" : user && !can(user.memberships, "jobs", "read") && can(user.memberships, "sales", "read") ? "/sales" : "/visits";
   const redirectToVisits = status === "signedIn" && !seesClients && pathname === "/";
 
   useEffect(() => {
     if (status === "signedOut") router.replace("/login");
-    else if (redirectToVisits) router.replace("/visits");
-  }, [status, redirectToVisits, router]);
+    else if (redirectToVisits) router.replace(home);
+  }, [status, redirectToVisits, router, home]);
 
   if (status !== "signedIn" || !user) {
     return <Loading className="p-8" />;
@@ -62,7 +65,7 @@ export default function ConsoleLayout({ children }: LayoutProps<"/">) {
               <header className="sticky top-0 z-30 flex h-(--topbar) items-center justify-between gap-3 border-b border-border bg-surface px-3 sm:px-4">
                 <div className="flex min-w-0 items-center gap-2">
                   <MenuButton memberships={user.memberships} />
-                  <Link href={seesClients ? "/" : "/visits"} className="truncate rounded-md px-1 text-lg font-bold text-primary">
+                  <Link href={home} className="truncate rounded-md px-1 text-lg font-bold text-primary">
                     ECCS Console
                   </Link>
                 </div>

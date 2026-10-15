@@ -61,6 +61,7 @@ export const en = {
   "role.OWNER": "Owner",
   "role.MANAGER": "Manager",
   "role.HEAD_CHEF": "Head Chef",
+  "role.BDE": "Sales executive",
 
   "dash.todayChecklists": "Today's checklists",
   "dash.checklistsDone": "Checklists done",

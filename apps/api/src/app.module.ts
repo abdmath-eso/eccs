@@ -24,6 +24,7 @@ import { ScoresModule } from './scores/scores.module.js';
 import { StaffModule } from './staff/staff.module.js';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module.js';
 import { FinanceModule } from './finance/finance.module.js';
+import { SalesModule } from './sales/sales.module.js';
 import { FoodLabelsModule } from './food-labels/food-labels.module.js';
 import { PublicPageModule } from './public-page/public-page.module.js';
 import { ServicesModule } from './services/services.module.js';
@@ -67,6 +68,7 @@ import { VendorsModule } from './vendors/vendors.module.js';
     VendorsModule,
     LegalModule,
     FinanceModule,
+    SalesModule,
   ],
   controllers: [AppController],
 })

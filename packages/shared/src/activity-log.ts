@@ -111,6 +111,7 @@ export const ACTIVITY_CATEGORIES = {
   ai: "AI",
   system: "System",
   finance: "Money and budget",
+  sales: "Sales and leads",
 } as const;
 export type ActivityCategory = keyof typeof ACTIVITY_CATEGORIES;
 export const ACTIVITY_CATEGORY_KEYS = Object.keys(ACTIVITY_CATEGORIES) as ActivityCategory[];
@@ -372,6 +373,24 @@ export const ACTIVITY_ACTIONS = {
   "finance.settings.changed": ["finance", "Changed the collection target or dollar rate"],
   "finance.invoice.reminded": ["finance", "Opened a WhatsApp payment reminder"],
   "finance.books.exported": ["finance", "Exported the books for the CA"],
+
+  // Sales and leads (the Sales page and the CRM, 15 Oct 2026): the lead by its business
+  // name, its stage and the kind of step, never the contact's name or phone, a note, a
+  // reason typed in, or a quote's link.
+  "sales.lead.added": ["sales", "Logged a lead"],
+  "sales.lead.changed": ["sales", "Changed a lead's details or next step"],
+  "sales.step.logged": ["sales", "Logged a step on a lead"],
+  "sales.lead.parked": ["sales", "Parked a lead until a date"],
+  "sales.lead.lost": ["sales", "Marked a lead as lost"],
+  "sales.lead.reopened": ["sales", "Reopened a lead"],
+  "sales.lead.linked": ["sales", "Linked a lead to the client it became"],
+  "sales.quote.added": ["sales", "Made a quote"],
+  "sales.quote.sent": ["sales", "Sent a quote on WhatsApp"],
+  "sales.quote.removed": ["sales", "Removed a quote not yet sent"],
+  "sales.quote.opened": ["sales", "A quote was opened by the restaurant"],
+  "sales.target.set": ["sales", "Set a BDE's weekly target by hand"],
+  "sales.targets.floorsChanged": ["sales", "Changed the lowest weekly targets"],
+  "sales.leads.refreshed": ["sales", "Moved leads on from the app's data and scored them (timed job)"],
 } as const satisfies Record<string, ActionEntry>;
 
 export type ActivityAction = keyof typeof ACTIVITY_ACTIONS;
@@ -436,7 +455,7 @@ export function activityResultFor(statusCode: number | null | undefined): Activi
 
 // ───────────────────────── Who and where from ─────────────────────────
 
-const ROLE_ORDER: readonly Role[] = ["SUPER_ADMIN", "OPS_MANAGER", "SUPERVISOR", "OWNER", "MANAGER", "HEAD_CHEF"];
+const ROLE_ORDER: readonly Role[] = ["SUPER_ADMIN", "OPS_MANAGER", "SUPERVISOR", "BDE", "OWNER", "MANAGER", "HEAD_CHEF"];
 
 /** The role a person is shown under when they hold several: the highest. */
 export function mainRole(roles: readonly Role[]): Role | null {
@@ -447,6 +466,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   SUPER_ADMIN: "Super Admin",
   OPS_MANAGER: "Ops Manager",
   SUPERVISOR: "Supervisor",
+  BDE: "BDE (sales)",
   OWNER: "Owner",
   MANAGER: "Manager",
   HEAD_CHEF: "Head Chef",
@@ -856,6 +876,7 @@ export const ACTIVITY_ENTITY_LABELS: Record<string, string> = {
   inspection: "Inspection",
   invoice: "Invoice",
   issue: "Issue",
+  lead: "Sales lead",
   licence: "Licence",
   linkedDevice: "Linked phone",
   notification: "Notification",
@@ -865,6 +886,7 @@ export const ACTIVITY_ENTITY_LABELS: Record<string, string> = {
   payment: "Payment",
   plan: "Plan",
   publicPhoto: "Customer page photo",
+  quote: "Quote",
   serviceKind: "Kind of service",
   serviceTask: "Service task",
   sop: "SOP",

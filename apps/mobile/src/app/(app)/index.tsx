@@ -38,7 +38,8 @@ export default function HomeScreen() {
 
   const membership = user?.memberships[0];
   const eccs = isEccsUser(membership?.role);
-  const loads = membership !== undefined && !newPin;
+  // A BDE (sales) has no visits to load; their own screens come in stage B2 of the sales work.
+  const loads = membership !== undefined && !newPin && membership.role !== 'BDE';
 
   const load = useCallback(async () => {
     if (!loads) return;
@@ -85,7 +86,7 @@ export default function HomeScreen() {
   const today = indiaToday();
   // Today's visits, and any earlier ones still open, are what the Supervisor has to do now.
   const dueVisits = visits?.filter((visit) => visit.date <= today) ?? [];
-  const loading = (eccs ? visits : overview) === null && !error;
+  const loading = loads && (eccs ? visits : overview) === null && !error;
 
   return (
     <Screen onRefresh={load}>

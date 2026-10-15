@@ -337,6 +337,10 @@ export function recordLink(entry: {
     case "founderMoney":
     case "cashOpening":
       return { href: "/finance", label: "Open Finance" };
+    case "lead":
+      return entry.entityId ? { href: `/sales/leads/${encodeURIComponent(entry.entityId)}`, label: "Open the lead" } : null;
+    case "quote":
+      return { href: "/sales/leads", label: "Open the leads" };
     default:
       return null;
   }

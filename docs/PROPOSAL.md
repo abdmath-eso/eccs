@@ -94,6 +94,8 @@ Each has the assumption I have planned around. Correct any that are wrong; quest
 
 Technicians do not get the app; the Supervisor records the visit on their behalf. Finance, Sales and Technician roles are deferred and can be added later without redesign, because roles are stored as memberships.
 
+**BDE (added 15 Oct 2026):** a business development executive, ECCS's sales team. Reads and changes only their own leads, quotes and steps; nothing of clients, visits or finance. Logs in like other ECCS staff; their own screens on the phone come with stage B2. Data: **Lead** (business, area, contact, kitchens, source, owner BDE, stage New to On a plan, or Parked until a date, or Lost; next action; the client it became), **LeadActivity** (the timeline), **Quote** (lines from the catalogue, a public link, opens), **SalesTarget** and **SalesSettings**.
+
 ### Restaurant (client side)
 
 | Role | Purpose |

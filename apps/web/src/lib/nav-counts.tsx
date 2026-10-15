@@ -1,9 +1,13 @@
 "use client";
 
+import { can, type CurrentUserDto } from "@eccs/shared";
 import { usePathname } from "next/navigation";
 import { createContext, use, useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { api } from "./api";
+import { useSession } from "./session";
+
+type Memberships = CurrentUserDto["memberships"];
 
 /** How many things are waiting in each section. `null` until known, or if it could not be fetched. */
 export interface NavCounts {
@@ -17,9 +21,11 @@ export interface NavCounts {
   invoices: number | null;
   /** Photos proposed for customer pages and waiting for ECCS's approval. */
   publicPhotos: number | null;
+  /** Sales: today's to-dos for the leads the person reaches (Do today). */
+  sales: number | null;
 }
 
-const EMPTY: NavCounts = { visits: null, issues: null, licences: null, invoices: null, publicPhotos: null };
+const EMPTY: NavCounts = { visits: null, issues: null, licences: null, invoices: null, publicPhotos: null, sales: null };
 
 const NavCountsContext = createContext<{ counts: NavCounts; refresh: () => void } | null>(null);
 
@@ -29,15 +35,20 @@ export function useNavCounts() {
   return value;
 }
 
-async function fetchCounts(): Promise<NavCounts> {
+async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
+  // A BDE (sales only) reaches none of the operations pages, so only Sales is asked for.
+  const operations = can(memberships, "jobs", "read");
+  const skipped = Promise.reject(new Error("not part of this role"));
+  skipped.catch(() => undefined);
   // Each is fetched on its own, so one that fails (a Supervisor may not list requests) does not hide the others.
-  const [requests, visits, issues, licences, billing, photos] = await Promise.allSettled([
-    api.bookings.list({ requestedOnly: true }),
-    api.visits.list({ state: "open" }),
-    api.issues.list({ openOnly: true }),
-    api.licences.list({ attentionOnly: true }),
-    api.billing.totals(),
-    api.publicPage.photosWaiting(),
+  const [requests, visits, issues, licences, billing, photos, sales] = await Promise.allSettled([
+    operations ? api.bookings.list({ requestedOnly: true }) : skipped,
+    operations ? api.visits.list({ state: "open" }) : skipped,
+    operations ? api.issues.list({ openOnly: true }) : skipped,
+    operations ? api.licences.list({ attentionOnly: true }) : skipped,
+    operations ? api.billing.totals() : skipped,
+    operations ? api.publicPage.photosWaiting() : skipped,
+    can(memberships, "sales", "read") ? api.sales.doToday() : skipped,
   ]);
   const waiting = requests.status === "fulfilled" ? requests.value.length : 0;
   return {
@@ -46,6 +57,7 @@ async function fetchCounts(): Promise<NavCounts> {
     licences: licences.status === "fulfilled" ? licences.value.length : null,
     invoices: billing.status === "fulfilled" ? billing.value.overdueCount : null,
     publicPhotos: photos.status === "fulfilled" ? photos.value.waiting : null,
+    sales: sales.status === "fulfilled" ? sales.value.items.length : null,
   };
 }
 
@@ -56,16 +68,19 @@ async function fetchCounts(): Promise<NavCounts> {
  */
 export function NavCountsProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { user } = useSession();
   const [counts, setCounts] = useState<NavCounts>(EMPTY);
   const [version, setVersion] = useState(0);
+  const memberships = user?.memberships;
 
   useEffect(() => {
+    if (!memberships) return;
     let cancelled = false;
-    void fetchCounts().then((next) => !cancelled && setCounts(next));
+    void fetchCounts(memberships).then((next) => !cancelled && setCounts(next));
     return () => {
       cancelled = true;
     };
-  }, [pathname, version]);
+  }, [pathname, version, memberships]);
 
   const refresh = useCallback(() => setVersion((current) => current + 1), []);
 

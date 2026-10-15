@@ -12,6 +12,7 @@ const ROLE_NAMES: Record<Role, string> = {
   SUPER_ADMIN: "Super Admin",
   OPS_MANAGER: "Operations Manager",
   SUPERVISOR: "Supervisor",
+  BDE: "BDE (sales)",
   OWNER: "Owner",
   MANAGER: "Manager",
   HEAD_CHEF: "Head Chef",

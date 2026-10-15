@@ -1,6 +1,7 @@
 "use client";
 
-import { can, createOrganizationSchema, createOutletSchema, type OrganizationDto } from "@eccs/shared";
+import { can, createOrganizationSchema, createOutletSchema, type LeadDetailDto, type OrganizationDto } from "@eccs/shared";
+import Link from "next/link";
 import { Fragment, useEffect, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/toast";
@@ -48,10 +49,26 @@ export default function ClientsScreen() {
   const [clients, setClients] = useState<OrganizationDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const [onboarding, setOnboarding] = useState(false);
+  // "Onboard it as a new restaurant" on a sales lead opens this page with ?onboard=1&lead=<id>:
+  // the form starts open, filled in from the lead, and the new client is linked back to it.
+  const leadId = query.get("lead") || null;
+  const [onboarding, setOnboarding] = useState(() => query.get("onboard") === "1");
+  const [fromLead, setFromLead] = useState<LeadDetailDto | null>(null);
   const [justCreated, setJustCreated] = useState<OrganizationDto | null>(null);
 
   const mayManage = user ? can(user.memberships, "clients", "create") : false;
+
+  useEffect(() => {
+    if (!leadId || !mayManage) return;
+    let cancelled = false;
+    api.sales
+      .lead(leadId)
+      .then((lead) => !cancelled && setFromLead(lead))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [leadId, mayManage]);
 
   useEffect(() => {
     if (!mayManage) return;
@@ -82,6 +99,14 @@ export default function ClientsScreen() {
     setJustCreated(client);
     setOnboarding(false);
     notify(`${client.name} onboarded`);
+    // Onboarded from a sales lead: link it, so the lead's first job and plan come from this client.
+    if (leadId) {
+      api.sales
+        .linkClient(leadId, { organizationId: client.id })
+        .then(() => notify(`${client.name} linked to its sales lead`))
+        .catch((e) => notify(`Onboarded, but not linked to the lead: ${describe(e)}`));
+      query.set({ onboard: null }, "replace");
+    }
   }
 
   function outletAdded(clientId: string, outlet: Outlet) {
@@ -109,7 +134,12 @@ export default function ClientsScreen() {
       />
 
       {justCreated && <HandoverCard client={justCreated} onDismiss={() => setJustCreated(null)} />}
-      {onboarding && <OnboardForm onCreated={added} onCancel={() => setOnboarding(false)} />}
+      {justCreated && leadId && (
+        <Link href={`/sales/leads/${encodeURIComponent(leadId)}`} className="w-fit rounded-md px-1 font-semibold text-primary hover:underline">
+          ← Back to the lead
+        </Link>
+      )}
+      {onboarding && <OnboardForm key={fromLead?.id ?? "blank"} lead={fromLead} onCreated={added} onCancel={() => setOnboarding(false)} />}
 
       {error && (
         <div className="flex flex-col items-start gap-3">
@@ -261,7 +291,10 @@ function HandoverCard({ client, onDismiss }: { client: OrganizationDto; onDismis
   );
 }
 
-function OnboardForm({ onCreated, onCancel }: { onCreated: (client: OrganizationDto) => void; onCancel: () => void }) {
+function OnboardForm({ lead, onCreated, onCancel }: { lead: LeadDetailDto | null; onCreated: (client: OrganizationDto) => void; onCancel: () => void }) {
+  // Filled in from the sales lead it came from, if any; "(sample)" is left off a sample lead's name.
+  const name = lead?.businessName.replace(/\s*\(sample\)$/, "") ?? "";
+  const phone = lead?.contactPhone?.replace(/^\+91/, "") ?? "";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -305,9 +338,9 @@ function OnboardForm({ onCreated, onCancel }: { onCreated: (client: Organization
         Creates the restaurant, its first outlet with a restaurant code, and the owner&apos;s login.
       </p>
       <form onSubmit={submit} noValidate className="mt-4 grid items-start gap-4 sm:grid-cols-2">
-        <Field label="Restaurant (brand) name" name="name" required maxLength={120} error={errors.name} />
+        <Field label="Restaurant (brand) name" name="name" required maxLength={120} defaultValue={name} error={errors.name} />
         <Field label="GSTIN" name="gstin" maxLength={15} autoCapitalize="characters" hint={HINT.gstin} error={errors.gstin} />
-        <Field label="Owner's name" name="ownerName" required maxLength={100} error={errors.ownerName} />
+        <Field label="Owner's name" name="ownerName" required maxLength={100} defaultValue={lead?.contactName ?? ""} error={errors.ownerName} />
         <Field
           label="Owner's mobile number"
           name="ownerPhone"
@@ -315,6 +348,7 @@ function OnboardForm({ onCreated, onCancel }: { onCreated: (client: Organization
           inputMode="numeric"
           autoComplete="off"
           required
+          defaultValue={phone}
           hint={HINT.phone}
           error={errors.ownerPhone}
         />
@@ -325,10 +359,11 @@ function OnboardForm({ onCreated, onCancel }: { onCreated: (client: Organization
           name="outletName"
           required
           maxLength={120}
+          defaultValue={lead ? [name, lead.area].filter(Boolean).join(", ") : ""}
           hint="For example: Spice Route, Jubilee Hills"
           error={errors.outletName}
         />
-        <Field label="Outlet address" name="outletAddress" required maxLength={300} error={errors.outletAddress} />
+        <Field label="Outlet address" name="outletAddress" required maxLength={300} defaultValue={lead?.address ?? ""} error={errors.outletAddress} />
         <Field label="PIN code" name="pincode" inputMode="numeric" maxLength={6} hint={HINT.pincode} error={errors.pincode} />
         <Field label="FSSAI licence number" name="fssaiNumber" maxLength={20} error={errors.fssaiNumber} />
         <div className="flex flex-col gap-3 sm:col-span-2">

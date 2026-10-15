@@ -33,3 +33,4 @@ export * from "./legal/index.js";
 export * from "./ai.js";
 export * from "./activity-log.js";
 export * from "./finance.js";
+export * from "./sales.js";

@@ -73,6 +73,8 @@ const MENU: Record<Role, MenuItem[]> = {
   SUPERVISOR: ECCS_MENU,
   OPS_MANAGER: ECCS_MENU,
   SUPER_ADMIN: ECCS_MENU,
+  // A BDE works leads only; their phone screens come in stage B2 of the sales work.
+  BDE: [],
 };
 
 /**

@@ -62,6 +62,7 @@ export const pa: Messages = {
   "role.OWNER": "ਮਾਲਕ",
   "role.MANAGER": "ਮੈਨੇਜਰ",
   "role.HEAD_CHEF": "ਹੈੱਡ ਸ਼ੈੱਫ",
+  "role.BDE": "ਸੇਲਜ਼ ਐਗਜ਼ੀਕਿਊਟਿਵ",
 
   "dash.todayChecklists": "ਅੱਜ ਦੀਆਂ ਚੈੱਕਲਿਸਟਾਂ",
   "dash.checklistsDone": "ਪੂਰੀਆਂ ਹੋਈਆਂ ਚੈੱਕਲਿਸਟਾਂ",

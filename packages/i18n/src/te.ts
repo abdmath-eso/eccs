@@ -62,6 +62,7 @@ export const te: Messages = {
   "role.OWNER": "యజమాని",
   "role.MANAGER": "మేనేజర్",
   "role.HEAD_CHEF": "హెడ్ చెఫ్",
+  "role.BDE": "సేల్స్ ఎగ్జిక్యూటివ్",
 
   "dash.todayChecklists": "ఈ రోజు చెక్‌లిస్ట్‌లు",
   "dash.checklistsDone": "పూర్తయిన చెక్‌లిస్ట్‌లు",

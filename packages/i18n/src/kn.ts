@@ -62,6 +62,7 @@ export const kn: Messages = {
   "role.OWNER": "ಓನರ್",
   "role.MANAGER": "ಮ್ಯಾನೇಜರ್",
   "role.HEAD_CHEF": "ಹೆಡ್ ಶೆಫ್",
+  "role.BDE": "ಸೇಲ್ಸ್ ಎಕ್ಸಿಕ್ಯೂಟಿವ್",
 
   "dash.todayChecklists": "ಇಂದಿನ ಚೆಕ್‌ಲಿಸ್ಟ್‌ಗಳು",
   "dash.checklistsDone": "ಮುಗಿದ ಚೆಕ್‌ಲಿಸ್ಟ್‌ಗಳು",

@@ -66,6 +66,9 @@ Open http://localhost:3000, enter the phone number, then the code.
 | Sample Super Admin | Super Admin | `9000000001` | `123456` | Everything |
 | Sample Ops Manager | Operations Manager | `9000000002` | `123456` | Clients, issues, licences, SOPs |
 | Sample Supervisor | Supervisor | `9000000003` | `123456` | Mostly read-only |
+| Ravi (sample BDE) | BDE (sales) | `9000000004` | `123456` | Sales, own leads only |
+| Sana (sample BDE) | BDE (sales) | `9000000005` | `123456` | Sales, own leads only |
+| Imran (sample BDE) | BDE (sales) | `9000000006` | `123456` | Sales, own leads only |
 
 The same three can log in to the mobile app through **"ECCS staff login"**, but the app has nothing built for ECCS staff yet; their work is in the console.
 
@@ -336,3 +339,15 @@ First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api st
 6. An overdue invoice's **Remind** opens WhatsApp with a message ready; do not send it to the sample clients, whose numbers are invented.
 7. **Export CSV for the CA**: three files (expenses, sales, receipts); open them in Excel.
 8. **As the Ops Manager** (`9000000002`): there is no Finance in the menu.
+
+## 25. Trying Sales (the CRM)
+
+First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api start`, **when Claude says no builder is changing the code**. 167 sample leads are loaded (to load again or remove: `pnpm sales:sample` or `pnpm sales:sample:remove` in `packages/db`). Every sample name ends "(sample)" and its number is made up: never call or WhatsApp them.
+
+1. **Console, as the Super Admin** (`9000000001`): Business > **Sales**. The headline, the four cards, where the leads are, Do today, Likely to close, by BDE, growth.
+2. Filter by a BDE (Ravi, Sana, Imran). **All leads** with its filters (stale, parked, lost, stage, source, owner).
+3. Open a lead: its timeline. **Log a step** (a call, booking a free check, the check done with what it found): the stage moves on by itself. **Make a quote**, then **Send** (WhatsApp opens with the link) and **See the owner's page**.
+4. **Park** a lead until a date with a reason; **Lost** with a reason.
+5. **Became a client**: link a lead to an existing client; its First job and On a plan then come from the client's visits and plan.
+6. **Targets** (Super Admin): this week's targets per BDE, and the floors.
+7. **As Ravi** (`9000000004`, ECCS staff login, in the console): only Sales, with only his own leads.

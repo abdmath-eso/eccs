@@ -13,6 +13,8 @@ export const TAB_ROUTES: Record<Role, readonly TabHref[]> = {
   SUPERVISOR: ['/', '/services', '/inspections'],
   OPS_MANAGER: ['/', '/services'],
   SUPER_ADMIN: ['/', '/services'],
+  // A BDE (sales) has only Home until their own screens come (stage B2 of the sales work).
+  BDE: ['/'],
 };
 
 /** A path without its trailing slash, as the routes above are written. */

@@ -5,12 +5,15 @@ export const ROLES = [
   "OWNER",
   "MANAGER",
   "HEAD_CHEF",
+  // A business development executive: ECCS's sales team (15 Oct 2026). Logs leads and
+  // follows them up; sees only their own leads and nothing of the clients' records.
+  "BDE",
 ] as const;
 
 export type Role = (typeof ROLES)[number];
 
 /** Company-side roles. They are not tied to one restaurant. */
-export const ECCS_ROLES = ["SUPER_ADMIN", "OPS_MANAGER", "SUPERVISOR"] as const satisfies readonly Role[];
+export const ECCS_ROLES = ["SUPER_ADMIN", "OPS_MANAGER", "SUPERVISOR", "BDE"] as const satisfies readonly Role[];
 
 /** Restaurant-side roles. OWNER covers a whole brand; the others cover one outlet. */
 export const RESTAURANT_ROLES = ["OWNER", "MANAGER", "HEAD_CHEF"] as const satisfies readonly Role[];

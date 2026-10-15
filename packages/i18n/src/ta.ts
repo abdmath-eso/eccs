@@ -62,6 +62,7 @@ export const ta: Messages = {
   "role.OWNER": "ஓனர்",
   "role.MANAGER": "மேனேஜர்",
   "role.HEAD_CHEF": "ஹெட் செஃப்",
+  "role.BDE": "சேல்ஸ் எக்ஸிக்யூட்டிவ்",
 
   "dash.todayChecklists": "இன்றைய செக்லிஸ்ட்கள்",
   "dash.checklistsDone": "முடிந்த செக்லிஸ்ட்கள்",

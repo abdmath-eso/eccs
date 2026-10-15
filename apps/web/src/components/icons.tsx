@@ -161,6 +161,14 @@ export const FinanceIcon = () => (
   </Icon>
 );
 
+/** A line rising to the right: Sales, the leads and what they turn into. */
+export const SalesIcon = () => (
+  <Icon>
+    <path d="M3 17l6-6 4 4 8-8" />
+    <path d="M15 7h6v6" />
+  </Icon>
+);
+
 /** A framed picture on a stand: the customer pages and their photos. */
 export const CustomerPagesIcon = () => (
   <Icon>

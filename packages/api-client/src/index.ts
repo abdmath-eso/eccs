@@ -216,6 +216,29 @@ import type {
   MarkPaidInput,
   OpeningBalanceInput,
 } from "@eccs/shared";
+// sales-types: the console's Sales page and the CRM (15 Oct 2026)
+import type {
+  DoTodayItemDto,
+  LeadDetailDto,
+  LeadInput,
+  LeadListDto,
+  LeadListState,
+  LeadSource,
+  LeadStage,
+  LeadUpdateInput,
+  LinkClientInput,
+  LoseInput,
+  ParkInput,
+  QuoteDto,
+  QuoteInput,
+  QuoteOptionDto,
+  QuoteSentDto,
+  SalesOverviewDto,
+  StepInput,
+  TargetFigures,
+  TargetFloorsInput,
+  TargetInput,
+} from "@eccs/shared";
 // inspections-types: the inspections worker imports its types from "@eccs/shared" on the next line
 import type {
   AnswerInspectionCheckInput,
@@ -1204,6 +1227,33 @@ export function createApiClient(options: ApiClientOptions) {
         const named = headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1];
         return { blob, fileName: named ?? `eccs-${register}-${period.from}-to-${period.to}.csv` };
       },
+    },
+    // sales-api: the console's Sales page and the CRM (15 Oct 2026)
+    /**
+     * Leads, the steps logged on them, quotes and the BDEs' targets. A BDE reaches only
+     * their own leads. Sending a quote gives back a WhatsApp link; the server sends nothing.
+     */
+    sales: {
+      overview: (owner?: string | null) => call<SalesOverviewDto>("GET", `/sales/overview${query(owner ? { owner } : {})}`),
+      doToday: () => call<{ items: DoTodayItemDto[] }>("GET", "/sales/do-today"),
+      leads: (filter: { stage?: LeadStage | ""; owner?: string; source?: LeadSource | ""; state?: LeadListState | ""; q?: string } = {}) =>
+        call<LeadListDto>("GET", `/sales/leads${query(Object.fromEntries(Object.entries(filter).filter(([, value]) => Boolean(value))) as Record<string, string>)}`),
+      lead: (leadId: string) => call<LeadDetailDto>("GET", `/sales/leads/${id(leadId)}`),
+      quoteOptions: () => call<QuoteOptionDto[]>("GET", "/sales/quote-options"),
+      addLead: (input: LeadInput) => call<LeadDetailDto>("POST", "/sales/leads", input),
+      updateLead: (leadId: string, input: LeadUpdateInput) => call<LeadDetailDto>("PATCH", `/sales/leads/${id(leadId)}`, input),
+      /** A call, visit, note, free check booked or done, or what the owner asked: the lead moves right by itself. */
+      logStep: (leadId: string, input: StepInput) => call<LeadDetailDto>("POST", `/sales/leads/${id(leadId)}/steps`, input),
+      park: (leadId: string, input: ParkInput) => call<LeadDetailDto>("POST", `/sales/leads/${id(leadId)}/park`, input),
+      lose: (leadId: string, input: LoseInput) => call<LeadDetailDto>("POST", `/sales/leads/${id(leadId)}/lose`, input),
+      reopen: (leadId: string) => call<LeadDetailDto>("POST", `/sales/leads/${id(leadId)}/reopen`),
+      /** "Became a client" (the Super Admin and the Ops Manager); null undoes a wrong link. */
+      linkClient: (leadId: string, input: LinkClientInput) => call<LeadDetailDto>("PUT", `/sales/leads/${id(leadId)}/client`, input),
+      addQuote: (leadId: string, input: QuoteInput) => call<QuoteDto>("POST", `/sales/leads/${id(leadId)}/quotes`, input),
+      sendQuote: (quoteId: string) => call<QuoteSentDto>("POST", `/sales/quotes/${id(quoteId)}/send`),
+      removeQuote: (quoteId: string) => call<void>("DELETE", `/sales/quotes/${id(quoteId)}`),
+      setFloors: (input: TargetFloorsInput) => call<TargetFigures>("PUT", "/sales/targets/floors", input),
+      setTarget: (userId: string, input: TargetInput) => call<{ saved: boolean }>("PUT", `/sales/targets/${id(userId)}`, input),
     },
     // inspections-api: the inspections worker adds `inspections: { ... },` on the next line
     /** Scored inspections: ECCS's audit of an outlet, its scored report and the approval. */

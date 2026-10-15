@@ -281,6 +281,23 @@ The Finance page (15 Oct 2026) sends nothing itself: "Remind" opens WhatsApp on 
 | FN6 | Collections are under target at month end | Adm (Super Admin) | "{percent}% of {month}'s invoices were collected; the target is {target}%." | In-app | not built |
 
 
+## 16e. Sales
+
+The Sales pages (15 Oct 2026) send nothing themselves: sending a quote opens WhatsApp on the computer. Suggested:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| SL1 | The owner opened a quote | the lead's BDE | "{business} opened your quote." | Push + in-app | not built |
+| SL2 | Each morning, the day's to-dos | each BDE | "{count} things to do today." | Push | not built |
+| SL3 | A parked lead's date has come | the lead's BDE | "{business} was parked until today: call them." | In-app | not built |
+| SL4 | A lead has gone stale (and a weekly summary) | the lead's BDE; Adm weekly | "{business} has had nothing logged for 5 days." | In-app | not built |
+| SL5 | A lead reached First job or On a plan | the lead's BDE; Super Admin | "{business} is now a paying customer." | Push + in-app | not built |
+| SL6 | A lead was handed to another BDE | the new BDE | "{business} is now yours." | In-app | not built |
+| SL7 | A free check was booked | whoever goes | "Free check at {business}, {time}." | Push + in-app | not built |
+| SL8 | Monday's targets, and a BDE falling behind | the BDE; Super Admin | "This week's targets: {leads} leads, {checks} checks." | In-app | not built |
+| SL9 | A quote is close to its end date with no reply | the lead's BDE | "{business}'s quote ends on {date}." | In-app | not built |
+
+
 ## 17. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
@@ -293,6 +310,7 @@ The Finance page (15 Oct 2026) sends nothing itself: "Remind" opens WhatsApp on 
 | Date | Change |
 |---|---|
 | 15 Oct 2026 | Translations of library picks and the hourly filler: no notification needed. |
+| 15 Oct 2026 | Sales: section 16e added (SL1 to SL9), none built. |
 | 15 Oct 2026 | Finance: section 16d added (FN1 to FN6), none built. |
 | 15 Oct 2026 | Logs: section 16c added (LG1 to LG3), none built. |
 | 14 Oct 2026 | AI features: section 16b added (AI1 to AI3), none built. |

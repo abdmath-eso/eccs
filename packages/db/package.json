@@ -27,6 +27,8 @@
     "vendors:load": "tsx prisma/load-vendors.ts",
     "finance:sample": "tsx prisma/load-finance-sample.ts",
     "finance:sample:remove": "tsx prisma/load-finance-sample.ts --remove",
+    "sales:sample": "tsx prisma/load-sales-sample.ts",
+    "sales:sample:remove": "tsx prisma/load-sales-sample.ts --remove",
     "reset": "prisma migrate reset --force",
     "studio": "prisma studio",
     "typecheck": "prisma generate && tsc --noEmit"

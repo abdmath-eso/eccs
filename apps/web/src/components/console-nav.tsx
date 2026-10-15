@@ -18,6 +18,7 @@ import {
   InvoicesIcon,
   IssuesIcon,
   LicencesIcon,
+  LogsIcon,
   MenuIcon,
   MonitoringIcon,
   PlansIcon,
@@ -71,6 +72,11 @@ const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
       { href: "/plans", label: "Plans", icon: <PlansIcon />, needs: (m) => can(m, "catalog", "update") },
       { href: "/sops", label: "SOPs", icon: <SopsIcon /> },
     ],
+  },
+  {
+    // The record of everything that happened, for the Super Admin and Ops Manager (the auditLog grant).
+    label: "Oversight",
+    items: [{ href: "/logs", label: "Logs", icon: <LogsIcon />, needs: (m) => can(m, "auditLog", "read") }],
   },
 ];
 

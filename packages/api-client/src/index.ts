@@ -189,6 +189,14 @@ import type {
   PhotoCheckDto,
   SaveInspectionSummaryInput,
 } from "@eccs/shared";
+// activity-log-types: the console's Logs page (15 Oct 2026)
+import type {
+  ActivityLogEventDto,
+  ActivityLogFacetsDto,
+  ActivityLogPageDto,
+  ActivityLogQueryInput,
+  ActivityLogSummaryDto,
+} from "@eccs/shared";
 // inspections-types: the inspections worker imports its types from "@eccs/shared" on the next line
 import type {
   AnswerInspectionCheckInput,
@@ -286,11 +294,52 @@ function appendPhotoFacts(form: FormData, facts: PhotoFactsInput | undefined) {
   if (facts.place.mocked !== null) form.append("mocked", String(facts.place.mocked));
 }
 
+/**
+ * The filters of the console's Logs page as the API takes them (see the activity-log
+ * reading API). A list may hold several values; empty values are left out.
+ */
+export type ActivityLogFilters = Omit<ActivityLogQueryInput, "cursor" | "limit">;
+
+/** A CSV export of the activity log, ready to save. */
+export interface ActivityLogExport {
+  blob: Blob;
+  fileName: string;
+  /** Rows in the file, when the server says so (a browser on another address may not be allowed to read it). */
+  rows: number | null;
+  /** True when the file stopped at the most one export may hold; null when the server's answer could not be read. */
+  truncated: boolean | null;
+}
+
+/** The filters as query parameters: lists joined with commas, true flags as "1", empty values left out. */
+function activityLogParams(filters: ActivityLogFilters & { cursor?: string; limit?: number }): Record<string, string | number> {
+  const params: Record<string, string | number> = {};
+  for (const [key, value] of Object.entries(filters) as [string, unknown][]) {
+    if (Array.isArray(value)) {
+      if (value.length > 0) params[key] = value.join(",");
+    } else if (typeof value === "number" || (typeof value === "string" && value !== "")) params[key] = value;
+  }
+  return params;
+}
+
 export type ApiClient = ReturnType<typeof createApiClient>;
 
 /** The one way web and mobile talk to the API. */
 export function createApiClient(options: ApiClientOptions) {
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
+
+  /** The headers every request carries: the session, the language on screen, and which app this is. */
+  function commonHeaders(authenticated: boolean) {
+    const headers: Record<string, string> = {};
+    const token = authenticated ? options.getToken?.() : null;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const language = options.getLanguage?.();
+    if (language) headers["X-App-Language"] = language;
+    if (options.client) {
+      headers["X-ECCS-Client"] = options.client.name;
+      if (options.client.version) headers["X-ECCS-App-Version"] = options.client.version;
+    }
+    return { headers, token };
+  }
 
   async function send<T>(
     method: string,
@@ -301,16 +350,10 @@ export function createApiClient(options: ApiClientOptions) {
     /** Lets the caller give up on a request that is held open (see `notifications.wait`). */
     signal?: AbortSignal,
   ): Promise<T> {
-    const headers: Record<string, string> = { Accept: "application/json" };
+    const common = commonHeaders(authenticated);
+    const headers: Record<string, string> = { Accept: "application/json", ...common.headers };
     if (contentType) headers["Content-Type"] = contentType;
-    const token = authenticated ? options.getToken?.() : null;
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    const language = options.getLanguage?.();
-    if (language) headers["X-App-Language"] = language;
-    if (options.client) {
-      headers["X-ECCS-Client"] = options.client.name;
-      if (options.client.version) headers["X-ECCS-App-Version"] = options.client.version;
-    }
+    const token = common.token;
 
     let response: Response;
     try {
@@ -354,6 +397,27 @@ export function createApiClient(options: ApiClientOptions) {
     const pairs = Object.entries(params).map(([key, value]) => `${key}=${encodeURIComponent(value)}`);
     return pairs.length > 0 ? "?" + pairs.join("&") : "";
   };
+
+  /**
+   * Fetches a file the server makes (a CSV export) rather than JSON: the same
+   * headers and the same errors as every other call, with the file as a Blob.
+   */
+  async function download(path: string): Promise<{ blob: Blob; headers: Headers }> {
+    const { headers, token } = commonHeaders(true);
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}${path}`, { method: "GET", headers });
+    } catch {
+      throw new ApiError("Could not reach the server. Check your connection.", 0);
+    }
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { message?: unknown; code?: unknown } | null;
+      if (response.status === 401 && token) options.onUnauthorized?.();
+      const message = typeof data?.message === "string" ? data.message : "Something went wrong. Try again.";
+      throw new ApiError(message, response.status, typeof data?.code === "string" ? data.code : undefined);
+    }
+    return { blob: await response.blob(), headers: response.headers };
+  }
 
   const id = encodeURIComponent;
 
@@ -1044,6 +1108,39 @@ export function createApiClient(options: ApiClientOptions) {
         call<CatalogAdminDto>("PATCH", `/catalog/tasks/${id(taskId)}`, input),
       moveTask: (taskId: string, input: MoveServiceTaskInput) =>
         call<CatalogAdminDto>("POST", `/catalog/tasks/${id(taskId)}/move`, input),
+    },
+    // activity-log-api: the console's Logs page (15 Oct 2026)
+    /**
+     * Everything that happens in the restaurant app, the Supervisor's app, the console,
+     * the AI and the server. Super Admin and Ops Manager only. Every call takes the same
+     * filters, combined with AND.
+     */
+    activityLog: {
+      /** Newest first, 50 at a time; pass `nextCursor` back as `cursor` for the next (older) page. */
+      list: (filters: ActivityLogFilters & { cursor?: string; limit?: number } = {}) =>
+        call<ActivityLogPageDto>("GET", `/activity-log${query(activityLogParams(filters))}`),
+      /** The choices for each filter menu, each counted under all the other filters. */
+      facets: (filters: ActivityLogFilters = {}) =>
+        call<ActivityLogFacetsDto>("GET", `/activity-log/facets${query(activityLogParams(filters))}`),
+      /** Events, failures, people, AI calls and AI cost under the filters. */
+      summary: (filters: ActivityLogFilters = {}) =>
+        call<ActivityLogSummaryDto>("GET", `/activity-log/summary${query(activityLogParams(filters))}`),
+      /** One event in full, with the other rows written for the same request. */
+      get: (entryId: string) => call<ActivityLogEventDto>("GET", `/activity-log/${id(entryId)}`),
+      /** The filtered rows as a CSV file (newest first, at most 10,000). The export is itself logged. */
+      async exportCsv(filters: ActivityLogFilters = {}): Promise<ActivityLogExport> {
+        const { blob, headers } = await download(`/activity-log/export${query(activityLogParams(filters))}`);
+        const named = headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1];
+        const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+        const rows = headers.get("X-Export-Rows");
+        const truncated = headers.get("X-Export-Truncated");
+        return {
+          blob,
+          fileName: named ?? `eccs-activity-${day}.csv`,
+          rows: rows === null ? null : Number(rows),
+          truncated: truncated === null ? null : truncated === "true",
+        };
+      },
     },
     // inspections-api: the inspections worker adds `inspections: { ... },` on the next line
     /** Scored inspections: ECCS's audit of an outlet, its scored report and the approval. */

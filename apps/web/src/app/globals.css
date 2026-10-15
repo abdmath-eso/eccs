@@ -68,6 +68,19 @@ dialog::backdrop {
   }
 }
 
+/* A detail panel that opens from the right edge (the Logs page's event panel). */
+@media (prefers-reduced-motion: no-preference) {
+  dialog.side-sheet[open] {
+    animation: side-sheet-in 160ms ease-out;
+  }
+}
+
+@keyframes side-sheet-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
 /* The link at the very top of each page that jumps past the menu: out of sight until the keyboard reaches it. */
 .skip-link {
   position: absolute;

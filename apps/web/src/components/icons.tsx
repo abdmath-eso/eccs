@@ -105,6 +105,15 @@ export const SopsIcon = () => (
   </Icon>
 );
 
+/** A list with a clock: Logs, the record of everything that happened. */
+export const LogsIcon = () => (
+  <Icon>
+    <path d="M4 6h10M4 11h7M4 16h5" />
+    <circle cx="17" cy="15" r="4" />
+    <path d="M17 13.2V15l1.2 1" />
+  </Icon>
+);
+
 export const BellIcon = () => (
   <Icon size={22}>
     <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />

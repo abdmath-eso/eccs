@@ -136,7 +136,7 @@ There are 72 markers in the five documents; some items below cover several marke
 ## 5. Things the documents describe that must be true before you publish them
 
 - **Hosting** in India, with HTTPS on every address (Privacy 14 and 16).
-- **Deletion jobs:** export window and deletion after closure; user details after a year; logs after a year; backups after 30 days. None is built.
+- **Deletion jobs:** export window and deletion after closure; user details after a year; logs after a year (built for the activity log on 15 Oct: a daily job, `ACTIVITY_LOG_DAYS`; it keeps the IP address, phone and app of each event, which the Privacy Policy should list among what is logged); backups after 30 days. None is built.
 - **Account deletion route** (Privacy 18): the Profile row (in the SPEC), the public page at `[website address]/legal/privacy`, and a person who handles the emails within 30 days. In Play Console, give that page as the "delete account" web link and fill in the Data safety form to match the Privacy Policy.
 - **Location permission:** Google Play requires an in-app explanation before Android's own permission box when collection may surprise the user. Check the proof-photo location request has one.
 - **Credits, refunds, credit notes, late fees and interest**: none is built. STATUS (8 Oct) still lists credit notes as undecided; today invoices can only be voided.

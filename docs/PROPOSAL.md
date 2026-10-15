@@ -251,7 +251,8 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 
 ### Cross-cutting
 - **Notification**: recipient, channel, template, status.
-- **AuditLog**: who did what to which record, when.
+- **AuditLog**: who did what to which record, when. Used by face attendance as the restaurant's own trail (staff data, never shown to ECCS).
+- **ActivityLog** (added 15 Oct 2026): one row per event anywhere in the platform: when (and the phone's time if done offline), which app (restaurant app, Supervisor app, console, system, public pages), who and their role, the restaurant and outlet, the area and action, the record and its reference, the result, the route and time taken, the IP address, phone and app version, safe details, and the AI feature, model, cost and outcome for AI requests. No typed text, staff details, checklist problems, PINs or codes. Kept 365 days. Read on the console's Logs page by the Super Admin and Ops Manager.
 
 ### Key relationships
 ```
@@ -339,7 +340,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Scored inspection flow for supervisors with PDF report
 - Approval of photos shown on each outlet's customer QR page
 - AI help (added 14 Oct 2026): a daily digest of the outlets needing attention on the monitoring board, and a draft inspection summary for the Supervisor to edit and save
-- Audit log
+- Audit log: the console's Logs page (built 15 Oct 2026): everything that happens in the restaurant app, the Supervisor's app, the console, the AI and the server, with filters, a detail panel, live mode and CSV export
 
 ### Deliberately left out of the MVP
 - WhatsApp notifications (push and SMS only)

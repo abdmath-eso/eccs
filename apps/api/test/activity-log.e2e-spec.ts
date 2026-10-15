@@ -437,7 +437,8 @@ describe('Activity log (e2e)', () => {
 
       await http().post(`/ai/requests/${aiRequestId}/outcome`).set({ ...bearer(manager.token), ...MOBILE }).send({ outcome: 'ACCEPTED' }).expect(204);
       await flush();
-      const updated = await prisma.client.activityLog.findFirstOrThrow({ where: { entityType: 'aiRequest', entityId: aiRequestId } });
+      // The AI request's own row (the person's "outcome" request is a row about the same record too).
+      const updated = await prisma.client.activityLog.findFirstOrThrow({ where: { entityType: 'aiRequest', entityId: aiRequestId, action: 'ai.request.photoCheck' } });
       expect(updated.aiOutcome).toBe('ACCEPTED');
       expect(updated.details).toMatchObject({ outcome: 'ACCEPTED' });
     });

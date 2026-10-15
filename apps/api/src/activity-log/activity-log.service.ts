@@ -53,6 +53,8 @@ type Row = Prisma.ActivityLogCreateManyInput;
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const FLUSH_AFTER_MS = 250;
+/** How long `flush()` waits for requests still on their way out. */
+const OPEN_REQUEST_WAIT_MS = 1_000;
 const FLUSH_AT_ROWS = 100;
 const NAME_CACHE_MS = 60_000;
 const NAME_CACHE_MAX = 2_000;
@@ -107,6 +109,10 @@ export class ActivityLogService implements OnModuleInit, OnApplicationBootstrap,
   private settings = { on: env.ACTIVITY_LOG === 'on', failWrites: false };
   private buffer: Row[] = [];
   private readonly pending = new Set<Promise<void>>();
+  /** Requests whose answer has not finished going out yet (see `requestOpened`). */
+  private readonly open = new Set<Promise<void>>();
+  /** Writes to the database under way, each holding rows already taken off the buffer. */
+  private readonly writing = new Set<Promise<void>>();
   private flushTimer: NodeJS.Timeout | null = null;
   private timers: NodeJS.Timeout[] = [];
   private readonly places = new Map<string, { value: Place; until: number }>();
@@ -487,6 +493,8 @@ export class ActivityLogService implements OnModuleInit, OnApplicationBootstrap,
     const job = (async () => {
       await Promise.allSettled(before);
       await this.writeBuffer();
+      // The AI row may be in a write the timer started a moment ago: wait for it, or the update finds nothing.
+      while (this.writing.size > 0) await Promise.allSettled(this.writing);
       if (this.settings.failWrites) throw new Error('log writes are failing (test)');
       const rows = await this.db.activityLog.findMany({ where: { entityType: 'aiRequest', entityId: requestId }, select: { id: true, details: true } });
       for (const row of rows) {
@@ -590,10 +598,31 @@ export class ActivityLogService implements OnModuleInit, OnApplicationBootstrap,
     void job.finally(() => this.pending.delete(job));
   }
 
+  /**
+   * Marks a request as under way; the function returned marks it finished, once its row
+   * (if any) has been queued. Lets `flush()` include a request whose caller already has
+   * the answer but whose "finish" event has not fired yet.
+   */
+  requestOpened(): () => void {
+    let close!: () => void;
+    const closed = new Promise<void>((resolve) => (close = resolve));
+    this.open.add(closed);
+    return () => {
+      this.open.delete(closed);
+      close();
+    };
+  }
+
   /** Writes everything built so far. Never throws; a failed write is logged and dropped. */
   async flush(): Promise<void> {
+    // Requests still on their way out: wait for them a little (a request held open, such as the
+    // notifications wait, must not hold this up for long).
+    const open = [...this.open];
+    if (open.length > 0) await Promise.race([Promise.allSettled(open), new Promise((resolve) => setTimeout(resolve, OPEN_REQUEST_WAIT_MS).unref())]);
     while (this.pending.size > 0) await Promise.allSettled(this.pending);
     await this.writeBuffer();
+    // A write the timer started a moment ago may still be going: it holds rows taken off the buffer.
+    while (this.writing.size > 0) await Promise.allSettled(this.writing);
   }
 
   private async writeBuffer(): Promise<void> {
@@ -604,12 +633,20 @@ export class ActivityLogService implements OnModuleInit, OnApplicationBootstrap,
     const rows = this.buffer;
     this.buffer = [];
     if (rows.length === 0) return;
+    const write = (async () => {
+      try {
+        if (this.settings.failWrites) throw new Error('log writes are failing (test)');
+        await this.db.activityLog.createMany({ data: rows });
+        this.recorded?.push(...rows.map((row) => row.id as string));
+      } catch (error) {
+        this.logger.warn(`Could not write ${rows.length} activity log row(s): ${String(error)}`);
+      }
+    })();
+    this.writing.add(write);
     try {
-      if (this.settings.failWrites) throw new Error('log writes are failing (test)');
-      await this.db.activityLog.createMany({ data: rows });
-      this.recorded?.push(...rows.map((row) => row.id as string));
-    } catch (error) {
-      this.logger.warn(`Could not write ${rows.length} activity log row(s): ${String(error)}`);
+      await write;
+    } finally {
+      this.writing.delete(write);
     }
   }
 

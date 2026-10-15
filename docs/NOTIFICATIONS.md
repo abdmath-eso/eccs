@@ -256,6 +256,17 @@ The six AI features (14 Oct 2026) send nothing of their own to restaurants: a tr
 | AI3 | Each morning, the monitoring board's digest is ready (the founder to decide) | Adm | "Today's summary of the monitoring board is ready." | Push | not built |
 
 
+## 16c. Logs
+
+The Logs page (15 Oct 2026) sends nothing itself. Alerts it could feed, for ECCS's office:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| LG1 | Many wrong PINs, or a phone locked out, at one outlet within an hour | Adm | "{count} wrong PINs at {outlet} in the last hour." | In-app | not built |
+| LG2 | A run of server errors (for example 5 in 10 minutes) | Adm | "The server failed {count} requests in the last 10 minutes." | Push + in-app | not built |
+| LG3 | A timed job failed (visits from plans, billing, renewals, reminders) | Adm | "Tonight's {job} did not finish." | Push + in-app | not built |
+
+
 ## 17. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
@@ -267,6 +278,7 @@ The six AI features (14 Oct 2026) send nothing of their own to restaurants: a tr
 
 | Date | Change |
 |---|---|
+| 15 Oct 2026 | Logs: section 16c added (LG1 to LG3), none built. |
 | 14 Oct 2026 | AI features: section 16b added (AI1 to AI3), none built. |
 | 14 Oct 2026 | Terms and privacy: the two rows first numbered L1 and L2 are now G1 and G2, since L1 and L2 were already the licence reminders. |
 | 14 Oct 2026 | Terms and privacy: L1 and L2 added (renumbered G1 and G2 the same day). |

@@ -309,3 +309,17 @@ First: the key must be in `.env` as `ANTHROPIC_API_KEY=...` (it is). Stop the AP
 6. **The inspection summary** (app, as the Supervisor, ECCS staff login `9000000003`): finish an inspection as in section 7, open its report, tap **Draft with AI**, change a word, take an item off "Fix these first", then **Save summary**. Approve it in the console as the Super Admin: the PDF has the summary and "Drafted with AI help and checked by the inspector."
 7. **The daily digest** (console, as the Super Admin `9000000001` or Ops Manager): Monitoring. The card at the top names the outlets needing attention; each name jumps to its row. **Update** works at most once an hour.
 8. **Switching it off:** put `AI_FEATURES=off` in `.env` and restart the API: every screen works as before, without the AI parts. To switch off just the nudge: `AI_DISABLED_FEATURES=photo-check`.
+
+## 23. Trying the Logs page
+
+First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api start`. Nothing new is recorded until then. Events from before the restart are not there, except the AI requests, which were copied in.
+
+1. **Do a few things:** in the app, log in as a Manager (`SPICE-JH2K7M`, PIN `4821`), type one wrong PIN first, open today's checklist and answer an item; in the console as the Ops Manager (`9000000002`) open an issue and reply.
+2. **Console, as the Super Admin** (`9000000001`): Oversight > **Logs**. The newest events are at the top: the wrong PIN shows "Refused", the login, the checklist answer, the console reply.
+3. Tap the tabs: **Restaurant app**, **Supervisor app**, **Console**, **AI**, **System**. Switch on **Failures only**.
+4. Open **Restaurant** and choose Spice Route Kitchens, then **Outlet**: chips appear under the bar; **Clear all** removes them. Copy the page address into a new tab: the same view opens.
+5. Click a row: the side panel shows everything, with links. Click the person's name to see only their activity. Use ↑ and ↓ to step through events, and Esc to close.
+6. Type `ECCS-` and an issue number in the search box, or a person's name.
+7. **Export CSV**: a file with the events shown downloads; opening it in Excel shows one row per event.
+8. Switch on **Live** and log in on the phone again: the new event appears at the top within about 10 seconds.
+9. **What is never there:** PINs, codes, messages or notes, what a checklist problem was, staff names or attendance times, clock-ins.

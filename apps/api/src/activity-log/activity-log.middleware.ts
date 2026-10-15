@@ -34,6 +34,8 @@ export class ActivityLogMiddleware implements NestMiddleware {
     response.setHeader('X-Request-Id', context.requestId);
 
     let done = false;
+    // Until the answer has gone and its row is queued, `flush()` knows this request is still on its way.
+    const closed = this.activity.requestOpened();
     const finish = (finished: boolean) => {
       if (done) return;
       done = true;
@@ -41,6 +43,8 @@ export class ActivityLogMiddleware implements NestMiddleware {
         this.activity.afterResponse(request, response, context, finished);
       } catch {
         // The log never breaks a request; the writer logs its own problems.
+      } finally {
+        closed();
       }
     };
     response.once('finish', () => finish(true));

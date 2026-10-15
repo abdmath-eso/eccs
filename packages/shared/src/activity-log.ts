@@ -352,6 +352,7 @@ export const ACTIVITY_ACTIONS = {
   "system.request.failed": ["system", "A page failed with a server error"],
   "system.logs.exported": ["system", "Exported the activity log"],
   "system.logs.pruned": ["system", "Deleted log entries older than the keeping period"],
+  "system.translations.filled": ["system", "Filled in missing languages of restaurants' own text (timed job)"],
 } as const satisfies Record<string, ActionEntry>;
 
 export type ActivityAction = keyof typeof ACTIVITY_ACTIONS;

@@ -28,6 +28,8 @@ const PHONES = { admin: '+919000000001', ops: '+919000000002', supervisor: '+919
 const OUTLET_CODE = 'E2EAI-OUT001';
 const DEVICE = 'e2e-ai';
 const TEMP = { manager: 'E2E AI Manager', chef: 'E2E AI Head Chef' };
+/** A throwaway suggestion-library entry, so the real library is never changed. */
+const LIBRARY_CODE = 'E2E-AI-LIB-01';
 
 /** A clear sample licence as an image. */
 const LICENCE_IMAGE = readFileSync(new URL('./fixtures/sample-fssai-licence.png', import.meta.url));
@@ -118,6 +120,8 @@ describe('AI features (e2e)', () => {
       await db.hygieneScoreSnapshot.deleteMany({ where });
       await db.inspection.deleteMany({ where });
     }
+    // After the checklists, whose items point at it.
+    await db.checklistLibraryItem.deleteMany({ where: { code: LIBRARY_CODE } });
     await db.session.deleteMany({ where: { OR: [{ deviceName: DEVICE }, { user: { name: { in: Object.values(TEMP) } } }] } });
     await db.user.deleteMany({ where: { name: { in: Object.values(TEMP) } } });
     await db.linkedDevice.deleteMany({ where: { name: DEVICE } });
@@ -490,12 +494,46 @@ describe('AI features (e2e)', () => {
       expect(stored.typedLanguage).toBe('en');
     });
 
-    it("never sends ECCS's library checks, which are translated already", async () => {
-      const suggestions = (await http().get(`/checklists/setup/${listId}/suggestions`).query({ q: 'fridge' }).set(as(owner)).expect(200))
-        .body as { id: string }[];
-      await http().post(`/checklists/setup/${listId}/items`).set(as(owner)).send({ libraryItemId: suggestions[0]!.id }).expect(201);
+    // The suggestion library is English only (15 Oct 2026): a pick is translated once, and
+    // the translation is kept on the library entry. A throwaway entry stands in for one of
+    // the 588, so the real library is never touched.
+    it('translates a picked suggestion once and keeps the translation on the library entry', async () => {
+      const entry = await prisma.client.checklistLibraryItem.create({
+        data: { code: LIBRARY_CODE, source: 'eccs', checklistName: 'E2E', category: 'E2E', text: { en: 'E2E Check the tandoor lid seal.' }, searchText: 'e2e tandoor lid seal' },
+      });
+      const picked = (await http().post(`/checklists/setup/${listId}/items`).set(as(owner)).send({ libraryItemId: entry.id }).expect(201)).body as List[];
+      // Saved at once with what the entry has; the other languages follow in the background.
+      const item = picked.find((list) => list.id === listId)!.items.at(-1)!;
+      expect(item.label).toEqual({ en: 'E2E Check the tandoor lid seal.' });
+      await translator.settled();
+
+      // One call, for the eleven languages the entry was missing.
+      expect(callsFor('translate-content')).toHaveLength(1);
+      expect((callsFor('translate-content')[0]!.facts as { languages: string[] }).languages).toHaveLength(11);
+      const stored = (await prisma.client.checklistLibraryItem.findUniqueOrThrow({ where: { id: entry.id } })).text as Record<string, string>;
+      expect(Object.keys(stored).sort()).toEqual(['bn', 'en', 'gu', 'hi', 'kn', 'ml', 'mr', 'or', 'pa', 'ta', 'te', 'ur']);
+      expect(stored.en).toBe('E2E Check the tandoor lid seal.');
+      expect(stored.te).toBe('[te] E2E Check the tandoor lid seal.');
+      const row = await prisma.client.checklistItem.findUniqueOrThrow({ where: { id: item.id } });
+      expect(row.label).toEqual(stored);
+      // Not typed by anyone, so no typed language.
+      expect(row.typedLanguage).toBeNull();
+      const forChef = (await setup(chef, 'TE')).find((list) => list.id === listId)!.items.find((one) => one.id === item.id)!;
+      expect(forChef.label.te).toBe('[te] E2E Check the tandoor lid seal.');
+    });
+
+    it('gives a second pick of the same suggestion all twelve languages at once, with no AI call', async () => {
+      const entry = await prisma.client.checklistLibraryItem.findUniqueOrThrow({ where: { code: LIBRARY_CODE } });
+      const lists = (await http().post('/checklists/setup').set(as(owner)).send({ outletId, title: 'E2E Night checks' }).expect(201)).body as List[];
+      await translator.settled();
+      fake.reset();
+      const night = lists.find((list) => list.title.en === 'E2E Night checks')!.id;
+      const picked = (await http().post(`/checklists/setup/${night}/items`).set(as(manager)).send({ libraryItemId: entry.id }).expect(201)).body as List[];
       await translator.settled();
       expect(fake.calls).toHaveLength(0);
+      const item = picked.find((list) => list.id === night)!.items.at(-1)!;
+      expect(Object.keys(item.label)).toHaveLength(12);
+      expect(item.label).toEqual(entry.text);
     });
 
     it("fills in an SOP step by step, and the Head Chef reads it in Telugu", async () => {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { LocalizedText } from "./checklists.js";
 import { isCalendarDate, LICENCE_TYPES, type LicenceType } from "./licences.js";
 import { SOP_LANGUAGES, type SopLanguage } from "./sops.js";
 
@@ -194,6 +195,29 @@ export const AI_LANGUAGE_NAMES: Record<AiLanguage, string> = {
   or: "Odia",
   ur: "Urdu",
 };
+
+/**
+ * The app's languages a stored text does not have yet (missing, or only spaces). The
+ * restaurant's own text, and the checklist suggestion library (English only), is
+ * filled in for these languages only.
+ */
+export function missingLanguages(text: LocalizedText | null | undefined): AiLanguage[] {
+  return AI_LANGUAGES.filter((language) => !text?.[language]?.trim());
+}
+
+/**
+ * The stored text with the languages it is missing added from `filled`. A language
+ * it already has is never changed, whatever `filled` says, so the typed original and
+ * anything translated before stay exactly as they are. Null when nothing was added.
+ */
+export function addMissingLanguages(
+  text: LocalizedText | null | undefined,
+  filled: Partial<Record<AiLanguage, string>>,
+): LocalizedText | null {
+  const added = missingLanguages(text).filter((language) => filled[language]?.trim());
+  if (added.length === 0) return null;
+  return { ...text, ...Object.fromEntries(added.map((language) => [language, filled[language]!.trim()])) };
+}
 
 /** A translation the reader sees, with the language it was translated from. */
 export interface AiTranslationDto {

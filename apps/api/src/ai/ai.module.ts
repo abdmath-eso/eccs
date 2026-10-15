@@ -6,6 +6,7 @@ import { AiService } from './ai.service.js';
 import { ClaudeEngine } from './claude-engine.js';
 import { ContentTranslatorService } from './content-translator.service.js';
 import { FakeAiEngine } from './fake-ai-engine.js';
+import { TranslationFillerService } from './translation-filler.service.js';
 
 /**
  * The shared AI part (the Claude API). Global, so any feature's service can ask
@@ -22,6 +23,7 @@ import { FakeAiEngine } from './fake-ai-engine.js';
   providers: [
     AiService,
     ContentTranslatorService,
+    TranslationFillerService,
     {
       provide: AI_ENGINE,
       useFactory: (): AiEngine => {
@@ -36,6 +38,6 @@ import { FakeAiEngine } from './fake-ai-engine.js';
       },
     },
   ],
-  exports: [AiService, ContentTranslatorService],
+  exports: [AiService, ContentTranslatorService, TranslationFillerService],
 })
 export class AiModule {}

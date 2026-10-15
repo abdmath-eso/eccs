@@ -26,6 +26,8 @@ import {
   photoNudgeFor,
   SCORE_EXPLANATION_JSON_SCHEMA,
   scoreExplanationSchema,
+  missingLanguages,
+  addMissingLanguages,
   storedTranslationFor,
   SUPPORT_TRANSLATION_JSON_SCHEMA,
   supportTranslationSchema,
@@ -176,6 +178,28 @@ describe("stored translations", () => {
     expect(storedTranslationFor(stored, "en")).toBeNull();
     expect(storedTranslationFor(stored, "hi")).toBe("missing");
     expect(storedTranslationFor(null, "hi")).toBe("missing");
+  });
+});
+
+describe("filling in missing languages", () => {
+  it("lists the languages a text does not have, a blank one counting as missing", () => {
+    expect(missingLanguages({ en: "Check for water leaks." })).toEqual(AI_LANGUAGES.filter((language) => language !== "en"));
+    expect(missingLanguages({ en: "Check", te: "   " })).toContain("te");
+    expect(missingLanguages(null)).toEqual([...AI_LANGUAGES]);
+    expect(missingLanguages(Object.fromEntries(AI_LANGUAGES.map((language) => [language, "x"])))).toEqual([]);
+  });
+
+  it("adds only the missing languages, and never changes one that is there", () => {
+    const stored = { en: "Cash drawer counted", te: "క్యాష్ డ్రాయర్ లెక్కించారు" };
+    const filled = { en: "A different English", te: "వేరే", hi: " कैश ड्रॉअर गिना गया ", ta: "" };
+    expect(addMissingLanguages(stored, filled)).toEqual({ en: "Cash drawer counted", te: "క్యాష్ డ్రాయర్ లెక్కించారు", hi: "कैश ड्रॉअर गिना गया" });
+    // The stored text itself is left as it was.
+    expect(stored).toEqual({ en: "Cash drawer counted", te: "క్యాష్ డ్రాయర్ లెక్కించారు" });
+  });
+
+  it("says when there was nothing to add", () => {
+    expect(addMissingLanguages({ en: "Cash drawer counted" }, { en: "Something else" })).toBeNull();
+    expect(addMissingLanguages({ en: "Cash drawer counted" }, {})).toBeNull();
   });
 });
 

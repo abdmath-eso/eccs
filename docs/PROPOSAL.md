@@ -245,7 +245,7 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - The Claude API, called only by the server; the key never reaches an app. One switch for all of it, one per feature, and a daily spending limit overall and per outlet. Nothing about staff, attendance, pay, faces or people's names is sent, and the AI never sets a score, mark, grade or pass/fail.
 - **AiRequest**: one row per request: the feature, the model, who and where, tokens in and out, the cost in millionths of a dollar, the result (OK, ERROR, OFF, LIMIT, INVALID), the kind of answer where it is worth counting (the photo check's verdict, never its text), how long it took, and later the person's response (accepted, edited, discarded, helpful, not helpful). No text, answer or picture is kept. The daily limits are counted from it.
 - **AiScoreExplanation**: the "Why this score?" answer kept per outlet, day and language. **AiDigest**: the monitoring board's digest, one per day.
-- Translations of support messages are kept with each message, per language. The restaurant's own checklists, items, SOPs and food items record the language they were typed in (`typedLanguage`).
+- Translations of support messages are kept with each message, per language. The restaurant's own checklists, items, SOPs and food items record the language they were typed in (`typedLanguage`). A suggestion from the English-only checklist library is translated the first time it is picked, and the translations are kept on the **ChecklistLibraryItem** for every later pick (15 Oct 2026). An hourly filler gives the restaurant's own text any languages it is missing.
 - **Inspection** gains `summary`, `fixFirst` (the findings to fix first, by id), `summaryAiDrafted` and `summaryUpdatedAt`.
 
 

@@ -291,8 +291,17 @@ export class AiService {
     return [...counts.values()].sort((a, b) => rank(a.verdict) - rank(b.verdict));
   }
 
+  /**
+   * Which of today's spending limits stops a request for this outlet now, or null.
+   * For work the server does by itself (filling in missing languages), which asks
+   * before it starts and stops for the day instead of being refused call after call.
+   */
+  limitReached(outletId: string | null): Promise<'DAILY_LIMIT' | 'OUTLET_LIMIT' | null> {
+    return this.overLimit(outletId);
+  }
+
   /** Why no request may be made now, or null: today's spending (India time) is at a limit. */
-  private async overLimit(outletId: string | null): Promise<string | null> {
+  private async overLimit(outletId: string | null): Promise<'DAILY_LIMIT' | 'OUTLET_LIMIT' | null> {
     const since = indiaMidnight(indiaDate());
     const spent = async (where: { outletId?: string }) =>
       (await this.db.aiRequest.aggregate({ where: { ...where, createdAt: { gte: since } }, _sum: { costMicroUsd: true } }))._sum

@@ -278,6 +278,7 @@ The Logs page (15 Oct 2026) sends nothing itself. Alerts it could feed, for ECCS
 
 | Date | Change |
 |---|---|
+| 15 Oct 2026 | Translations of library picks and the hourly filler: no notification needed. |
 | 15 Oct 2026 | Logs: section 16c added (LG1 to LG3), none built. |
 | 14 Oct 2026 | AI features: section 16b added (AI1 to AI3), none built. |
 | 14 Oct 2026 | Terms and privacy: the two rows first numbered L1 and L2 are now G1 and G2, since L1 and L2 were already the licence reminders. |

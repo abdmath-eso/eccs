@@ -20,6 +20,7 @@ import {
   readPhotoFlags,
 } from '@eccs/shared';
 import { ContentTranslatorService, localizedAt } from '../ai/content-translator.service.js';
+import { checklistItemKey, TranslationFillerService } from '../ai/translation-filler.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { NotifyService } from '../notifications/notify.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -117,6 +118,7 @@ export class ChecklistsService {
     private readonly notify: NotifyService,
     private readonly integrity: PhotoIntegrityService,
     private readonly translator: ContentTranslatorService,
+    private readonly filler: TranslationFillerService,
   ) {}
 
   private get db() {
@@ -544,9 +546,12 @@ export class ChecklistsService {
     const list = await this.requireList(user, outletChecklistId);
 
     let label: Prisma.InputJsonValue;
+    const entry = input.libraryItemId
+      ? await this.db.checklistLibraryItem.findFirst({ where: { id: input.libraryItemId, isActive: true } })
+      : null;
     if (input.libraryItemId) {
-      const entry = await this.db.checklistLibraryItem.findFirst({ where: { id: input.libraryItemId, isActive: true } });
       if (!entry) throw new NotFoundException('That suggestion is no longer available');
+      // Every language the suggestion has so far (all twelve once it has been translated).
       label = entry.text as Prisma.InputJsonValue;
     } else {
       // Typed in one language; the other languages are filled in by AI when it is on.
@@ -569,8 +574,12 @@ export class ChecklistsService {
         photoRequired: input.photoRequired,
       },
     });
-    // A check picked from ECCS's library is translated already; only typed text is sent.
-    if (!input.libraryItemId && input.label) {
+    if (entry) {
+      // The suggestion library is in English only (it is not translated in advance, unlike
+      // ECCS's basic checklists): a suggestion is translated the first time any restaurant
+      // picks it, and the translation is kept on the library entry for every later pick.
+      this.filler.libraryPicked(user, entry, list.outletId);
+    } else if (input.label) {
       const typed = input.label;
       const typedIn = user.contentLanguage.toLowerCase() as AiLanguage;
       this.translator.later({
@@ -578,6 +587,8 @@ export class ChecklistsService {
         typedIn,
         user,
         outletId: list.outletId,
+        // Items have no time of saving: the filler of missing languages learns of this save from the key.
+        key: checklistItemKey(item.id),
         save: async (filled) => {
           await this.db.checklistItem.update({
             where: { id: item.id },

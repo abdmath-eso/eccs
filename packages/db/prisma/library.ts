@@ -8,6 +8,11 @@
 // Loading is safe to repeat: entries are matched by code, updated in place,
 // and ones no longer in the files are switched off rather than deleted, so
 // checklist items already created from them keep their link.
+//
+// The files are in English only. An entry gets its other languages from AI the first
+// time a restaurant picks it (apps/api/src/ai/translation-filler.service.ts), kept on
+// the entry's `text`. Loading again keeps them while the English is unchanged, so a
+// suggestion is never paid for twice; new English wording starts again from English.
 
 import { readFileSync } from "node:fs";
 import type { PrismaClient } from "../src/index.js";
@@ -37,9 +42,15 @@ export async function loadChecklistLibrary(prisma: PrismaClient): Promise<{ tota
     ["eccs", read("checklist-library-eccs.json")],
   ];
 
+  // The languages AI has filled in so far, by code.
+  const stored = new Map(
+    (await prisma.checklistLibraryItem.findMany({ select: { code: true, text: true } })).map((row) => [row.code, row.text as Record<string, string> | null]),
+  );
+
   const codes: string[] = [];
   for (const [source, entries] of sources) {
     for (const entry of entries) {
+      const before = stored.get(entry.code);
       const data = {
         source,
         checklistName: entry.checklistName,
@@ -48,7 +59,7 @@ export async function loadChecklistLibrary(prisma: PrismaClient): Promise<{ tota
         frequency: entry.frequency ?? null,
         role: entry.role ?? null,
         priority: entry.priority === "HIGH" ? "HIGH" : "MEDIUM",
-        text: { en: entry.text },
+        text: before?.en === entry.text ? { ...before, en: entry.text } : { en: entry.text },
         searchText: searchText(entry),
         isActive: true,
       };

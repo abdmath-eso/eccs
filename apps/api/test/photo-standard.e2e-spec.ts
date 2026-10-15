@@ -190,7 +190,7 @@ describe('The photo standard of a checklist item (e2e)', () => {
     expect(callsFor('photo-standard')).toHaveLength(0);
     expect(callsFor('photo-check')[0]).toMatchObject({ model: 'claude-haiku-5-5', hasFile: true });
     const { wording: _wording, madeAt: _madeAt, ...given } = standard!;
-    expect(sentWith()).toEqual({ check: CHECK.tv, standard: given, language: 'English' });
+    expect(sentWith()).toEqual({ check: CHECK.tv, standard: given, checklistDate: expect.any(String), language: 'English' });
     // And again: still no new standard.
     await check(runId, tv).expect(200);
     expect(callsFor('photo-standard')).toHaveLength(0);
@@ -355,7 +355,7 @@ describe('The photo standard of a checklist item (e2e)', () => {
     await settled();
     expect((await check(runId, hood).expect(200)).body).toMatchObject({ nudge: null });
     expect(callsFor('photo-standard')).toHaveLength(0);
-    expect(sentWith()).toEqual({ check: CHECK.hood, standard: null, language: 'English' });
+    expect(sentWith()).toEqual({ check: CHECK.hood, standard: null, checklistDate: expect.any(String), language: 'English' });
     expect(await standardOf(hood)).toBeNull();
   });
 

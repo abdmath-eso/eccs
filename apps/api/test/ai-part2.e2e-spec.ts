@@ -488,7 +488,12 @@ describe('AI features, part 2 (e2e)', () => {
       const call = callsFor('photo-check')[0]!;
       expect(call).toMatchObject({ model: 'claude-haiku-5-5', hasFile: true, facts: { check: CHECK_LABEL, language: 'en' } });
       // Only the photo, the check's wording, its photo standard (made from the wording, once) and the language are sent.
-      expect(JSON.parse(call.text)).toEqual({ check: CHECK_LABEL, standard: expect.objectContaining({ photoCanShow: 'yes' }), language: 'English' });
+      expect(JSON.parse(call.text)).toEqual({
+        check: CHECK_LABEL,
+        standard: expect.objectContaining({ photoCanShow: 'yes' }),
+        checklistDate: expect.stringMatching(/^\w+,? \d{1,2} \w+ \d{4} \(\d{2}\/\d{2}\/\d{4}, \d{2}-\d{2}-\d{2}\)$/),
+        language: 'English',
+      });
       expect(callsFor('photo-standard')).toHaveLength(1);
       // The verdict is kept for measuring, also when nothing was shown.
       expect(await row(blurred.aiRequestId)).toMatchObject({ feature: 'photo-check', status: 'OK', outletId, resultCode: 'BLURRED' });
@@ -505,7 +510,12 @@ describe('AI features, part 2 (e2e)', () => {
       expect(inTelugu).toMatchObject({ nudge: 'NOT_DONE', reason: `[te] ${FAKE_NOT_DONE_REASON}` });
       const call = callsFor('photo-check')[0]!;
       expect(call).toMatchObject({ model: 'claude-haiku-5-5', facts: { check: CHECK_LABEL, language: 'te' } });
-      expect(JSON.parse(call.text)).toEqual({ check: CHECK_LABEL, standard: expect.objectContaining({ subject: expect.any(String) }), language: 'Telugu' });
+      expect(JSON.parse(call.text)).toEqual({
+        check: CHECK_LABEL,
+        standard: expect.objectContaining({ subject: expect.any(String) }),
+        checklistDate: expect.any(String),
+        language: 'Telugu',
+      });
       for (const name of names) expect(call.text).not.toContain(name);
 
       const inEnglish = (await check(owner, photo('FAKE-AI:NOT_DONE')).expect(200)).body as Nudge;

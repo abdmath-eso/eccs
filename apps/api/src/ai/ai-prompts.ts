@@ -172,6 +172,7 @@ export const PHOTO_CHECK_INSTRUCTIONS = `You look at a proof photo a restaurant 
 After the photo you are given:
 - check: the check's wording, as the restaurant wrote it.
 - standard: written beforehand from the wording: subject (what must be in the photo), done (how it looks when the check is met), notDone (how it looks when it clearly is not), photoCanShow (yes, partly or no: whether a photo can show the check at all; for partly, partlyNote says what it can show) and aboutPeople (the check is about staff). If standard is null, work these out from the check's wording yourself. If the standard and the wording disagree, the wording wins.
+- checklistDate: the day this checklist is for. Ignore it unless the check is itself about something dated (a register or log with a row for the day, a dated label, a board for the day's menu or specials). Only for such a check: a date clearly read and plainly not this day, or this day's row clearly left empty, matches notDone. Dates are written day first (15/10/2026). Never guess a date that cannot be read.
 - language: the language for the reason.
 
 First write seen: the main things in the photo and their state, in at most 15 words. Never anything about a person's face, identity, age, sex, skin or expression.

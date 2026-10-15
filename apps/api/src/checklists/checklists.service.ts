@@ -232,7 +232,7 @@ export class ChecklistsService {
     user: AuthUser,
     runId: string,
     itemId: string,
-  ): Promise<{ outletId: string; organizationId: string; item: { id: string; label: LocalizedText; photoStandard: unknown } }> {
+  ): Promise<{ outletId: string; organizationId: string; date: string; item: { id: string; label: LocalizedText; photoStandard: unknown } }> {
     const run = await this.requireRun(user, 'create', runId);
     this.requireOpen(run);
     const item = itemsFor(run.outletChecklist.template.items, run.outletId).find((candidate) => candidate.id === itemId);
@@ -240,6 +240,8 @@ export class ChecklistsService {
     return {
       outletId: run.outletId,
       organizationId: run.outlet.organizationId,
+      // The day the checklist is for (YYYY-MM-DD, India): the camera check judges dated things against it.
+      date: run.date.toISOString().slice(0, 10),
       // With its photo standard, if it has one yet (photo-standard.service.ts).
       item: { id: item.id, label: item.label as LocalizedText, photoStandard: item.photoStandard },
     };

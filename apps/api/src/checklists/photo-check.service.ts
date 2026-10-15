@@ -80,7 +80,7 @@ export class PhotoCheckService {
   ) {}
 
   async check(user: AuthUser, runId: string, itemId: string, file: { buffer: Buffer; size: number } | undefined): Promise<PhotoCheckDto> {
-    const { outletId, organizationId, item } = await this.checklists.requireAnswerable(user, runId, itemId);
+    const { outletId, organizationId, date, item } = await this.checklists.requireAnswerable(user, runId, itemId);
     if (!file) throw new BadRequestException('A photo is required');
     const image = sniffFile(file.buffer, false);
     if (!image) throw new BadRequestException('Only JPEG, PNG or WebP photos are accepted');
@@ -104,17 +104,30 @@ export class PhotoCheckService {
       feature: 'photo-check',
       model: AI_MODELS.haiku,
       instructions: PHOTO_CHECK_INSTRUCTIONS,
-      text: JSON.stringify({ check: wording, standard, language: AI_LANGUAGE_NAMES[language] }),
+      text: JSON.stringify({ check: wording, standard, checklistDate: checklistDay(date), language: AI_LANGUAGE_NAMES[language] }),
       file: { mimeType: image.mimeType, data: file.buffer },
       answer: { schema: PHOTO_CHECK_JSON_SCHEMA, check: photoCheckSchema },
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       who,
       timeoutMs: Math.max(deadline - Date.now(), MIN_JUDGE_MS),
-      facts: { check: wording, language, standard },
+      facts: { check: wording, language, standard, date },
       // The verdict only, as shown (never the reason, never `seen`): for counting how often the nudge was right.
       resultCode: (value) => photoCheckWithin(value, standard).verdict,
     });
     if (!answer.ok) throw aiUnavailable(answer.code, 'The photo could not be checked just now');
     return { ...photoNudgeFor(photoCheckWithin(answer.value, standard)), aiRequestId: answer.requestId };
   }
+}
+
+/**
+ * The checklist's day written out the ways it may appear in a kitchen: "Thursday 15 October
+ * 2026 (15/10/2026, 15-10-26)". Indian registers and boards write the day first. The
+ * founder's decision (15 Oct 2026): the check is told the date, so an old date on a menu
+ * board or an empty row for the day in a register can be noticed.
+ */
+function checklistDay(date: string): string {
+  const day = new Date(`${date}T00:00:00.000Z`);
+  const written = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(day);
+  const [year, month, dayOfMonth] = date.split('-');
+  return `${written} (${dayOfMonth}/${month}/${year}, ${dayOfMonth}-${month}-${year!.slice(2)})`;
 }

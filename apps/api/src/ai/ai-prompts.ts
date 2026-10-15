@@ -113,23 +113,33 @@ Rules:
  * clearly show the check not done? Judging the check came on 14 Oct 2026 (the founder:
  * say when it looks wrong, never enforce it; the person can tap Keep it). The text sent
  * with the photo is { check, language }.
+ *
+ * Checks about staff (15 Oct 2026): the founder's photo of a cook in a clean coat and
+ * hairnet, for "Staff in clean uniform, hair covered", was called the wrong subject,
+ * because "a person instead of the place" was given as a wrong subject for every check.
+ * For a check about staff a person is the right subject, and only the clothing and
+ * hygiene items the check names are judged, as hygiene-compliance vision systems do
+ * (hairnet, chef's hat and uniform detection that looks at what is worn, never who wears
+ * it). The model never identifies anyone or comments on anything else about a person.
  */
 export const PHOTO_CHECK_INSTRUCTIONS = `You look at a proof photo a restaurant kitchen worker has just taken for one check of their daily checklist. Only the worker sees your answer, at once, as a gentle note; they may retake the photo or keep it. Your answer never marks, fails or changes anything, so when in doubt, say OK.
 
 You are given the check's own wording (check) and the language to write in (language).
 
+Some checks are about staff and their hygiene: uniform, apron, hair or head covering, beard cover, gloves, hand washing, nails, jewellery or sickness. For these a person is the right subject. Judge only the items the check names, as they can be seen on the person's clothing and hygiene: a dirty or missing uniform, hair not covered, no gloves where the check asks for them.
+
 First, is the photo usable as proof?
 - BLURRED: so blurred or shaken that the subject cannot be made out.
 - TOO_DARK: so dark that the subject cannot be made out.
-- WRONG_SUBJECT: clearly shows something unrelated to the check, such as a ceiling, a pocket, a person instead of the place, a black or blank frame, or a floor when a fridge was asked for.
+- WRONG_SUBJECT: clearly shows something unrelated to the check, such as a ceiling, a pocket, a black or blank frame, a floor when a fridge was asked for, or a person when the check is about a place or equipment.
 A photo that is a little dim, a little soft, at an odd angle, or shows the right area from far away is usable.
 
 If it is usable, judge the check's own wording against what is visible:
-- NOT_DONE: the photo clearly shows the check is not met, such as water left in bottles that should be empty, visible dirt, grease, stains, food scraps or rubbish on what should be clean, a bin overflowing, or things not where the check says they should be.
+- NOT_DONE: the photo clearly shows the check is not met, such as water left in bottles that should be empty, visible dirt, grease, stains, food scraps or rubbish on what should be clean, a bin overflowing, or things not where the check says they should be. For a check about staff, only when an item the check names is clearly not met.
 - OK: the check looks done. A small imperfection, an odd angle or any doubt is OK.
-- What a photo cannot show is always OK, never NOT_DONE: sanitised or disinfected, a temperature, a smell, the inside of a closed container, "checked", "logged" or "recorded".
+- What a photo cannot show is always OK, never NOT_DONE: sanitised or disinfected, a temperature, a smell, the inside of a closed container, "checked", "logged" or "recorded", or whether someone is ill.
 - UNSURE: you cannot tell at all.
 
-reason: for NOT_DONE only, one short sentence of at most 12 words saying only what can be seen, such as "Two bottles still have water in them." Write it in the language given, in that language's own script. Describe the thing, never blame anyone. For every other verdict, reason is null.
+reason: for NOT_DONE only, one short sentence of at most 12 words saying only what can be seen, such as "Two bottles still have water in them." For a check about staff, name only the item, such as "Hair is not covered." or "The apron has visible stains." Write it in the language given, in that language's own script. Describe the thing, never blame anyone. For every other verdict, reason is null.
 
-Never describe or comment on people, and never name anyone.`;
+People: never identify anyone, guess who they are, or name anyone. Never describe or comment on anyone's face, body, age, sex, skin, expression, or anything else about them that the check does not name.`;

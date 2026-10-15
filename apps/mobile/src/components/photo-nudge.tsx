@@ -48,12 +48,16 @@ export function PhotoNudgeNotice({
           {t(`ai.nudge.${nudge}`, { check, reason: reason ?? '' })}
         </ThemedText>
       </View>
-      <View style={styles.row}>
-        <View style={styles.text}>
-          <Button icon="camera" label={t('ai.nudge.retake')} variant="secondary" onPress={onRetake} />
+      {/* Side by side when both fit, Retake first and on a row of its own when they do not
+          (Material Design: stack the buttons, main action first, when labels are too long to
+          sit side by side). Each takes the width its label needs and they share what is left,
+          so a word never breaks ("Retak / e" on a 360-point phone, 15 Oct 2026). */}
+      <View style={styles.actions}>
+        <View style={styles.action}>
+          <Button icon="camera" label={t('ai.nudge.retake')} variant="secondary" fill onPress={onRetake} />
         </View>
-        <View style={styles.text}>
-          <Button label={t('ai.nudge.keep')} variant="link" onPress={onKeep} />
+        <View style={styles.action}>
+          <Button label={t('ai.nudge.keep')} variant="link" fill onPress={onKeep} />
         </View>
       </View>
       <ThemedText type="small" themeColor="textSecondary">
@@ -67,4 +71,6 @@ const styles = StyleSheet.create({
   box: { borderWidth: 1, borderStyle: 'dashed', borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   text: { flex: 1 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  action: { flexGrow: 1, maxWidth: '100%' },
 });

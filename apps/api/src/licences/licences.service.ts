@@ -93,13 +93,14 @@ export class LicencesService {
     });
     if (!attachment?.outletId) throw new BadRequestException('The file could not be read. Upload it again.');
     await this.requireOutlet(user, 'licences', 'create', attachment.outletId);
-    // The AI reader is for the restaurant's Owner and Manager, as the app's licence
-    // screens are; ECCS staff adding a licence in the console get the free reader.
+    // The AI reader is for everyone who may add a licence at this outlet: the
+    // restaurant's Owner and Manager in the app, and since 15 Oct 2026 ECCS's Super
+    // Admin and Ops Manager in the console (the founder's decision). A Supervisor or
+    // Head Chef was already turned away above. The cost counts against this outlet's
+    // daily AI limit whoever asks, so the office reading a restaurant's licences uses
+    // up that restaurant's share for the day, as the restaurant itself would.
     const outlet = await this.db.outlet.findUnique({ where: { id: attachment.outletId }, select: { organizationId: true } });
-    const restaurantUser = user.memberships.every((m) => !isEccsRole(m.role));
-    const aiFor = restaurantUser
-      ? { userId: user.id, organizationId: outlet?.organizationId ?? null, outletId: attachment.outletId }
-      : undefined;
+    const aiFor = { userId: user.id, organizationId: outlet?.organizationId ?? null, outletId: attachment.outletId };
     return this.reader.read(await this.storage.getBuffer(attachment.storageKey), attachment.mimeType, aiFor);
   }
 

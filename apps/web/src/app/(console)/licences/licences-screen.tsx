@@ -12,9 +12,10 @@ import {
   type LicenceType,
   type OutletSummaryDto,
 } from "@eccs/shared";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
+import { SparklesIcon } from "@/components/icons";
 import { OutletScorePanel } from "@/components/outlet-score-panel";
 import { useToast } from "@/components/toast";
 import { Button, Card, ErrorMessage, Field, Loading, PageHeader, SelectField } from "@/components/ui";
@@ -78,21 +79,78 @@ async function uploadFrom(form: HTMLFormElement, outletId: string): Promise<stri
   return uploaded.id;
 }
 
+/** The words of the sparkle beside a field the AI filled in: its hover text, and what a screen reader hears with the field. */
+const AI_FILLED = "Filled by AI: check it";
+
+/**
+ * What the AI read off the chosen document (15 Oct 2026; the app has had it since
+ * 14 Oct), kept so each field can carry a small sparkle while it still holds what was
+ * read, or "Could not read: type it in" while it is empty, and so the server can be
+ * told afterwards whether the person kept what was filled in, changed it, or threw it
+ * away. The pattern is the one expense apps use for receipts (Expensify SmartScan,
+ * Zoho Expense Autoscan): the document, the fields filled in, the person checks and
+ * corrects, then saves. Nothing is saved until Save.
+ */
+interface AiFill {
+  requestId: string;
+  type: LicenceType | null;
+  number: string | null;
+  issuedOn: string | null;
+  expiresOn: string | null;
+  issuedTo: string | null;
+}
+
+/** The chosen document, for showing beside the fields: its (signed, short-lived) address and whether it is a PDF. */
+interface ChosenDocument {
+  url: string;
+  pdf: boolean;
+}
+
+/** What became of what the AI filled in: saved as it was, saved after changes, or thrown away. */
+type AiOutcome = "ACCEPTED" | "EDITED" | "DISCARDED";
+
 /**
  * Uploads a licence document as soon as it is chosen and asks the server to
  * read the number and dates off it, so the form can be filled in for the
- * person to check. `onDetails` receives whatever could be read.
+ * person to check. `onDetails` receives whatever could be read. Since 15 Oct
+ * 2026 the Super Admin and Ops Manager get the AI reader here, as the
+ * restaurant does in the app; with AI off, over its limit or failing, the free
+ * reader answers as before.
  */
 function useLicenceFile(outletId: string, onDetails: (details: LicenceReadingDto) => void) {
   const [attachmentId, setAttachmentId] = useState<string>();
+  const [preview, setPreview] = useState<ChosenDocument | null>(null);
   const [reading, setReading] = useState<"working" | "filled" | "nothing" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aiFill, setAiFill] = useState<AiFill | null>(null);
   // Counts the files chosen, so a slow answer about an earlier file is ignored.
   const latestChoice = useRef(0);
+  // The AI request whose answer is in the form, until it is saved or thrown away; told to the server once.
+  const openRequest = useRef<string | null>(null);
+
+  function settle(outcome: AiOutcome) {
+    const requestId = openRequest.current;
+    openRequest.current = null;
+    if (requestId) void api.ai.outcome(requestId, outcome).catch(() => undefined);
+  }
+
+  // The form went away without saving (Cancel, another outlet, another licence's Renew): what AI filled in was thrown away.
+  useEffect(
+    () => () => {
+      const requestId = openRequest.current;
+      openRequest.current = null;
+      if (requestId) void api.ai.outcome(requestId, "DISCARDED").catch(() => undefined);
+    },
+    [],
+  );
 
   async function choose(file: File | undefined) {
     const choice = ++latestChoice.current;
+    // Another file replaces whatever AI read off the last one.
+    settle("DISCARDED");
+    setAiFill(null);
     setAttachmentId(undefined);
+    setPreview(null);
     setError(null);
     setReading(file ? "working" : null);
     if (!file) return;
@@ -100,9 +158,25 @@ function useLicenceFile(outletId: string, onDetails: (details: LicenceReadingDto
       const uploaded = await api.attachments.upload({ outletId, file, kind: "DOCUMENT", fileName: file.name });
       if (choice !== latestChoice.current) return;
       setAttachmentId(uploaded.id);
+      setPreview({ url: api.fileUrl(uploaded.path), pdf: file.type === "application/pdf" || /\.pdf$/i.test(file.name) });
       const details = await api.licences.read(uploaded.id);
-      if (choice !== latestChoice.current) return;
+      if (choice !== latestChoice.current) {
+        // Another file was chosen meanwhile: this answer is never shown.
+        if (details.aiRequestId) void api.ai.outcome(details.aiRequestId, "DISCARDED").catch(() => undefined);
+        return;
+      }
       onDetails(details);
+      if (details.source === "ai" && details.aiRequestId) {
+        openRequest.current = details.aiRequestId;
+        setAiFill({
+          requestId: details.aiRequestId,
+          type: details.type,
+          number: details.number,
+          issuedOn: details.issuedOn,
+          expiresOn: details.expiresOn,
+          issuedTo: details.issuedTo ?? null,
+        });
+      }
       setReading(details.expiresOn || details.number ? "filled" : "nothing");
     } catch (e) {
       if (choice !== latestChoice.current) return;
@@ -111,27 +185,123 @@ function useLicenceFile(outletId: string, onDetails: (details: LicenceReadingDto
     }
   }
 
+  /** After a save: tells the server whether the person kept what AI filled in as it was, or changed some of it. */
+  function saved(values: { type: LicenceType | null; number: string | undefined; issuedOn: string | undefined; expiresOn: string }) {
+    if (!aiFill) return;
+    const kept = (read: string | null, value: string | null | undefined) => read === null || read === (value ?? null);
+    const unchanged =
+      kept(aiFill.type, values.type ?? aiFill.type) &&
+      kept(aiFill.number, values.number) &&
+      kept(aiFill.issuedOn, values.issuedOn) &&
+      kept(aiFill.expiresOn, values.expiresOn);
+    settle(unchanged ? "ACCEPTED" : "EDITED");
+  }
+
   // Announced to screen readers as it changes. While the document is being read, the Save button says "Please wait…", and this line says why.
   const note =
     reading === "working" ? (
-      <p role="status" className="text-sm text-muted sm:col-span-full">
+      <p role="status" className="col-span-full text-sm text-muted">
         Reading the document… Save is ready as soon as this finishes.
       </p>
+    ) : aiFill && reading === "filled" ? (
+      // AI read it: say so once, plainly, and who it is issued to, so a wrong document is noticed (HAX guidelines G1, G2).
+      <div role="status" className="col-span-full flex flex-col gap-0.5 text-sm text-muted">
+        <p className="flex items-center gap-1.5">
+          <SparklesIcon />
+          Read by AI. Check each field before saving.
+        </p>
+        {aiFill.issuedTo && <p>Issued to: {aiFill.issuedTo}</p>}
+      </div>
     ) : reading === "filled" ? (
-      <p role="status" className="text-sm font-medium text-primary sm:col-span-full">
+      <p role="status" className="col-span-full text-sm font-medium text-primary">
         ✓ Filled in from the document. Please check the details before saving.
       </p>
     ) : reading === "nothing" ? (
-      <p role="status" className="text-sm text-muted sm:col-span-full">
+      <p role="status" className="col-span-full text-sm text-muted">
         Could not read the details from this file. Please type them in.
       </p>
     ) : error ? (
-      <p role="alert" className="text-sm text-danger sm:col-span-full">
+      <p role="alert" className="col-span-full text-sm text-danger">
         {error}
       </p>
     ) : null;
 
-  return { attachmentId, working: reading === "working", note, choose };
+  /** The sparkle after a field's label while the field still holds what AI read. */
+  const aiMark = (read: string | null | undefined, current: string | null) => (aiFill && read && current === read ? <AiMark /> : undefined);
+  /** Under a field AI could not read, while it is still empty: the person must type it. */
+  const couldNotRead = (read: string | null | undefined, current: string | null) =>
+    aiFill && read === null && !current ? "Could not read: type it in" : undefined;
+
+  return { attachmentId, preview, aiFill, working: reading === "working", note, choose, saved, aiMark, couldNotRead };
+}
+
+/**
+ * The small sparkle after the label of a field the AI filled in, with no words on
+ * screen: the one line above the fields says what it means. Its words are the hover
+ * text and part of the field's name for a screen reader. The same pattern as the AI
+ * marks design systems put beside a field's label (ServiceTitan's Anvil "AI marks",
+ * Cloudscape's generative-AI icon), and the same mark as the app's.
+ */
+function AiMark() {
+  return (
+    <span title={AI_FILLED} className="ml-1.5 inline-flex align-[-2px] text-primary">
+      <SparklesIcon filled />
+      <span className="sr-only">{AI_FILLED}</span>
+    </span>
+  );
+}
+
+/**
+ * Lays the fields out beside the chosen document, the way expense apps show a receipt
+ * next to what they read off it (Zoho Expense puts the receipt on the left of the
+ * expense form, Expensify shows it with the details to review, and document-reading
+ * tools such as Affinda and Docsumo show the document beside the fields to check):
+ * the document on the left and the fields on the right when the form is wide enough,
+ * the document above the fields when it is not. The form around it must be a
+ * container (`@container`). The fields keep their place in the page whether or not a
+ * document is shown, so nothing typed is lost.
+ */
+function BesideDocument({ document, children }: { document: ChosenDocument | null; children: ReactNode }) {
+  return (
+    <div className={`grid items-start gap-4 ${document ? "@2xl:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
+      {document && <DocumentView document={document} />}
+      <div className="@container">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * The chosen document, large enough to check the fields against. Clicking it opens it
+ * full size in a new tab, as the console's customer-page photos do. A PDF is shown in
+ * the browser's own viewer where there is room; on a narrow screen it is a link only,
+ * because phone browsers do not show a PDF inside a page.
+ */
+function DocumentView({ document }: { document: ChosenDocument }) {
+  if (document.pdf) {
+    return (
+      <div className="flex flex-col items-start gap-1">
+        <iframe src={document.url} title="The chosen document" className="hidden h-[70vh] w-full rounded-lg border border-border bg-background @2xl:block" />
+        <a href={document.url} target="_blank" rel="noreferrer" className="inline-block py-0.5 text-sm font-medium text-primary hover:underline">
+          Open the document full size
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+      </div>
+    );
+  }
+  return (
+    <a href={document.url} target="_blank" rel="noreferrer" className="relative block rounded-lg">
+      {/* A signed link to private storage that expires within the hour: not something the image optimiser can fetch or should cache. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={document.url}
+        alt="The chosen document. Opens full size in a new tab."
+        className="max-h-[75vh] w-full rounded-lg border border-border bg-background object-contain object-top"
+      />
+      <span aria-hidden className="absolute right-2 bottom-2 rounded-md bg-black/65 px-2 py-1 text-xs font-semibold text-white">
+        Open full size
+      </span>
+    </a>
+  );
 }
 
 /**
@@ -266,7 +436,7 @@ export default function LicencesScreen() {
         {attention?.length === 0 && <p className="mt-2 text-muted">No licences are expired or expiring soon.</p>}
         {attention && attention.length > 0 && (
           // The side padding keeps the focus ring of the first and last columns from being cut off by the scrolling box.
-          <div className="-mx-4 mt-3 overflow-x-auto px-4">
+          <div className="relative -mx-4 mt-3 overflow-x-auto px-4">
             <table className="w-full text-left text-sm">
               <thead className="text-muted">
                 <tr className="border-b border-border">
@@ -513,6 +683,8 @@ function RenewForm({
 }) {
   const [number, setNumber] = useState(licence.number ?? "");
   const [expiresOn, setExpiresOn] = useState("");
+  // The issue date: shown only once AI has read a document, to keep the form short otherwise (as in the app).
+  const [issuedOn, setIssuedOn] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -521,7 +693,9 @@ function RenewForm({
   const file = useLicenceFile(outletId, (details) => {
     if (details.number) setNumber(details.number);
     if (details.expiresOn) setExpiresOn((current) => current || details.expiresOn!);
+    if (details.source === "ai" && details.issuedOn) setIssuedOn((current) => current || details.issuedOn!);
   });
+  const aiFill = file.aiFill;
 
   // The form may open far down the page from the "Renew" that was clicked (the one under "Needs attention"), so it is brought into view and takes the cursor.
   useEffect(() => {
@@ -540,22 +714,24 @@ function RenewForm({
 
     setBusy(true);
     setError(null);
-    const failure = await onChange(
-      async () =>
-        api.licences.update(licence.id, {
-          expiresOn,
-          number: number.trim() || undefined,
-          attachmentId: file.attachmentId ?? (await uploadFrom(form, outletId)),
-        }),
-      "Licence renewed",
-    );
+    // The issue date is sent only while its field is shown (after AI has read the document).
+    const details = { expiresOn, number: number.trim() || undefined, issuedOn: (aiFill && issuedOn) || undefined };
+    const failure = await onChange(async () => {
+      const renewed = await api.licences.update(licence.id, { ...details, attachmentId: file.attachmentId ?? (await uploadFrom(form, outletId)) });
+      // The kind of licence is not chosen when renewing, so only the other fields are compared.
+      file.saved({ ...details, type: null });
+      return renewed;
+    }, "Licence renewed");
     setBusy(false);
     if (failure) setError(failure);
     else onClose();
   }
 
+  // AI read another kind of licence than the one being renewed: perhaps the wrong document was chosen. Saving is still allowed.
+  const otherType = aiFill?.type && aiFill.type !== "OTHER" && aiFill.type !== licence.type ? aiFill.type : null;
+
   return (
-    <form ref={formRef} onSubmit={renew} noValidate aria-label={`Renew ${nameOf(licence)}`} className="mt-3 grid items-start gap-3 border-t border-border pt-3 sm:grid-cols-3">
+    <form ref={formRef} onSubmit={renew} noValidate aria-label={`Renew ${nameOf(licence)}`} className="@container mt-3 flex flex-col gap-3 border-t border-border pt-3">
       <Field
         label="New copy (PDF or image)"
         name="file"
@@ -563,30 +739,59 @@ function RenewForm({
         accept="application/pdf,image/*"
         hint="Choose it first and the details are filled in for you."
         onChange={(e) => void file.choose(e.target.files?.[0])}
-        wrapperClassName="sm:col-span-3"
       />
-      {file.note}
-      <Field label="Licence number" name="number" maxLength={60} value={number} onChange={(e) => setNumber(e.target.value)} />
-      <Field
-        label="New expiry date"
-        name="expiresOn"
-        type="date"
-        required
-        value={expiresOn}
-        error={errors.expiresOn}
-        onChange={(e) => setExpiresOn(e.target.value)}
-      />
-      <div className="flex flex-col gap-3 sm:col-span-3">
-        <ErrorMessage message={error} />
-        <div className="flex gap-3">
-          <Button type="submit" loading={busy || file.working}>
-            Save
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
+      <BesideDocument document={file.preview}>
+        <div className="grid items-start gap-3 @xl:grid-cols-3">
+          {file.note}
+          {otherType && (
+            <p role="alert" className="col-span-full rounded-lg border border-amber-600 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+              This looks like the {TYPE[otherType]}, not the {nameOf(licence)}. Check you chose the right document.
+            </p>
+          )}
+          <Field
+            label="Licence number"
+            name="number"
+            maxLength={60}
+            value={number}
+            labelMark={file.aiMark(aiFill?.number, number.trim() || null)}
+            hint={file.couldNotRead(aiFill?.number, number.trim() || null)}
+            onChange={(e) => setNumber(e.target.value)}
+          />
+          {aiFill && (
+            <Field
+              label="Issued on"
+              name="issuedOn"
+              type="date"
+              value={issuedOn}
+              labelMark={file.aiMark(aiFill.issuedOn, issuedOn || null)}
+              hint={file.couldNotRead(aiFill.issuedOn, issuedOn || null)}
+              onChange={(e) => setIssuedOn(e.target.value)}
+            />
+          )}
+          <Field
+            label="New expiry date"
+            name="expiresOn"
+            type="date"
+            required
+            value={expiresOn}
+            labelMark={file.aiMark(aiFill?.expiresOn, expiresOn || null)}
+            hint={file.couldNotRead(aiFill?.expiresOn, expiresOn || null)}
+            error={errors.expiresOn}
+            onChange={(e) => setExpiresOn(e.target.value)}
+          />
+          <div className="col-span-full flex flex-col gap-3">
+            <ErrorMessage message={error} />
+            <div className="flex gap-3">
+              <Button type="submit" loading={busy || file.working}>
+                Save
+              </Button>
+              <Button type="button" variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
+      </BesideDocument>
     </form>
   );
 }
@@ -620,6 +825,8 @@ function AddLicenceFields({
   const [type, setType] = useState<LicenceType>("FSSAI");
   const [number, setNumber] = useState("");
   const [expiresOn, setExpiresOn] = useState("");
+  // The issue date: shown only once AI has read a document, to keep the form short otherwise (as in the app).
+  const [issuedOn, setIssuedOn] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -628,7 +835,9 @@ function AddLicenceFields({
     if (details.type && details.type !== "OTHER") setType(details.type);
     if (details.number) setNumber((current) => current.trim() || details.number!);
     if (details.expiresOn) setExpiresOn((current) => current || details.expiresOn!);
+    if (details.source === "ai" && details.issuedOn) setIssuedOn((current) => current || details.issuedOn!);
   });
+  const aiFill = file.aiFill;
   // An outlet holds one licence of each standard kind, so adding the same kind again replaces the current one.
   const replacing = type === "OTHER" ? undefined : existing.find((licence) => licence.type === type);
 
@@ -646,25 +855,25 @@ function AddLicenceFields({
 
     setBusy(true);
     setError(null);
-    const failure = await onChange(
-      async () =>
-        api.licences.create({
-          outletId,
-          type,
-          name: text("name"),
-          number: number.trim() || undefined,
-          expiresOn,
-          attachmentId: file.attachmentId ?? (await uploadFrom(form, outletId)),
-        }),
-      replacing ? "Licence replaced" : "Licence added",
-    );
+    // The issue date is sent only while its field is shown (after AI has read the document).
+    const details = { type, number: number.trim() || undefined, issuedOn: (aiFill && issuedOn) || undefined, expiresOn };
+    const failure = await onChange(async () => {
+      const added = await api.licences.create({
+        ...details,
+        outletId,
+        name: text("name"),
+        attachmentId: file.attachmentId ?? (await uploadFrom(form, outletId)),
+      });
+      file.saved(details);
+      return added;
+    }, replacing ? "Licence replaced" : "Licence added");
     setBusy(false);
     if (failure) setError(failure);
     else onClose();
   }
 
   return (
-    <form onSubmit={submit} noValidate aria-label="Add a licence" className="grid items-start gap-3 rounded-lg border border-primary p-3 sm:grid-cols-2">
+    <form onSubmit={submit} noValidate aria-label="Add a licence" className="@container flex flex-col gap-3 rounded-lg border border-primary p-3">
       <Field
         label="Document (PDF or image)"
         name="file"
@@ -672,50 +881,81 @@ function AddLicenceFields({
         accept="application/pdf,image/*"
         hint="Choose it first and the details below are filled in for you."
         onChange={(e) => void file.choose(e.target.files?.[0])}
-        wrapperClassName="sm:col-span-2"
       />
-      {file.note}
-      <SelectField label="Licence" name="type" value={type} onChange={(e) => setType(e.target.value as LicenceType)}>
-        {LICENCE_TYPES.map((value) => (
-          <option key={value} value={value}>
-            {TYPE[value]}
-          </option>
-        ))}
-      </SelectField>
-      <Field
-        label="Name"
-        name="name"
-        maxLength={80}
-        required={type === "OTHER"}
-        hint={type === "OTHER" ? undefined : "Leave blank to use the standard name."}
-        error={errors.name}
-      />
-      <Field label="Licence number" name="number" maxLength={60} value={number} onChange={(e) => setNumber(e.target.value)} />
-      <Field
-        label="Expiry date"
-        name="expiresOn"
-        type="date"
-        required
-        value={expiresOn}
-        error={errors.expiresOn}
-        onChange={(e) => setExpiresOn(e.target.value)}
-      />
-      {replacing && (
-        <p className="text-sm text-amber-700 sm:col-span-2">
-          This outlet already has a {nameOf(replacing)}. Saving will replace it, and its old document will be deleted.
-        </p>
-      )}
-      <div className="flex flex-col gap-3 sm:col-span-2">
-        <ErrorMessage message={error} />
-        <div className="flex gap-3">
-          <Button type="submit" loading={busy || file.working}>
-            {replacing ? "Replace licence" : "Add licence"}
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
+      <BesideDocument document={file.preview}>
+        <div className="grid items-start gap-3 @lg:grid-cols-2">
+          {file.note}
+          <SelectField
+            label="Licence"
+            name="type"
+            value={type}
+            // The form fills in the kind only when AI read one of the standard kinds, so only then is it marked.
+            labelMark={aiFill?.type !== "OTHER" ? file.aiMark(aiFill?.type, type) : undefined}
+            onChange={(e) => setType(e.target.value as LicenceType)}
+          >
+            {LICENCE_TYPES.map((value) => (
+              <option key={value} value={value}>
+                {TYPE[value]}
+              </option>
+            ))}
+          </SelectField>
+          <Field
+            label="Name"
+            name="name"
+            maxLength={80}
+            required={type === "OTHER"}
+            hint={type === "OTHER" ? undefined : "Leave blank to use the standard name."}
+            error={errors.name}
+          />
+          <Field
+            label="Licence number"
+            name="number"
+            maxLength={60}
+            value={number}
+            labelMark={file.aiMark(aiFill?.number, number.trim() || null)}
+            hint={file.couldNotRead(aiFill?.number, number.trim() || null)}
+            onChange={(e) => setNumber(e.target.value)}
+          />
+          {aiFill && (
+            <Field
+              label="Issued on"
+              name="issuedOn"
+              type="date"
+              value={issuedOn}
+              labelMark={file.aiMark(aiFill.issuedOn, issuedOn || null)}
+              hint={file.couldNotRead(aiFill.issuedOn, issuedOn || null)}
+              onChange={(e) => setIssuedOn(e.target.value)}
+            />
+          )}
+          <Field
+            label="Expiry date"
+            name="expiresOn"
+            type="date"
+            required
+            value={expiresOn}
+            labelMark={file.aiMark(aiFill?.expiresOn, expiresOn || null)}
+            hint={file.couldNotRead(aiFill?.expiresOn, expiresOn || null)}
+            error={errors.expiresOn}
+            onChange={(e) => setExpiresOn(e.target.value)}
+          />
+          {replacing && (
+            <p className="col-span-full text-sm text-amber-700">
+              This outlet already has a {nameOf(replacing)}. Saving will replace it, and its old document will be deleted.
+            </p>
+          )}
+          <div className="col-span-full flex flex-col gap-3">
+            <ErrorMessage message={error} />
+            <div className="flex gap-3">
+              <Button type="submit" loading={busy || file.working}>
+                {replacing ? "Replace licence" : "Add licence"}
+              </Button>
+              <Button type="button" variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
+      </BesideDocument>
     </form>
   );
 }

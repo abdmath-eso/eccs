@@ -12,6 +12,17 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Thursday 15 October 2026
+
+*In progress. To be written up at the next end of day.*
+
+**So far**
+
+- The founder asked what the AI licence reader is. Claude explained it and that ECCS staff in the console still had the free reader; the founder asked for the AI reader there too. A job built it to match the app, with the document beside the fields on a computer screen, as expense apps lay it out. One real call (US$0.0003), nothing saved. The `ai`, `ai-part2` and `licences` end-to-end suites pass. Claude also fixed the Licences page scrolling sideways on a phone, which the job found.
+- The founder asked for logs in the console of everything that happens in the restaurant app, the console, the Supervisor's app and the AI, with filters such as only restaurant logs or one restaurant. Claude looked at how GitHub, Stripe and WorkOS lay out their audit logs and set it as two jobs, the recording on the server first and then the console page. What is kept out, and why, is in STATUS once it is built.
+
+---
+
 ## Wednesday 14 October 2026
 
 The day AI came into the app. The morning went on terms and privacy: five documents drafted for a lawyer, and an agreement screen at first login. The afternoon went on six AI features using the Claude API, which were built, looked at with the real AI, cut down and corrected, and then widened at the founder's word so that the camera judges whether a check looks done. Four APKs, each at the founder's word. 16 commits. Pushed to GitHub at the end of the day.

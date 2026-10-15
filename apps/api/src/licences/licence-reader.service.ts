@@ -33,9 +33,10 @@ const AI_MAX_OUTPUT_TOKENS = 600;
  *   API) with instructions to read only what is printed and never guess. Haiku
  *   reads it first; if it cannot read the number or the expiry date, Sonnet tries
  *   once. Whenever AI is off, over its limit or fails, the free reader below
- *   answers instead. Only the restaurant's Owner and Manager get the AI reader
- *   (the Head Chef has no licence screens; ECCS staff in the console get the free
- *   reader). Sends to the AI: the document, nothing else.
+ *   answers instead. Everyone who may add a licence at the outlet gets the AI
+ *   reader: the restaurant's Owner and Manager in the app and, since 15 Oct 2026,
+ *   ECCS's Super Admin and Ops Manager in the console (the Head Chef and the
+ *   Supervisor cannot add licences). Sends to the AI: the document, nothing else.
  * - "ocr": the free reader. The file is turned into plain text (a PDF's own text
  *   layer, or OCR with Tesseract running on our own server for an image), then
  *   `parseLicenceText` in @eccs/shared picks the details out. It often cannot read
@@ -63,7 +64,8 @@ export class LicenceReaderService implements OnModuleDestroy {
 
   /**
    * Never throws: if the file cannot be read, every field comes back empty.
-   * `aiFor` says who is asking, when the AI reader may be used for them.
+   * `aiFor` says who is asking and for which outlet (whose daily AI limit the cost
+   * counts against); without it only the free reader is used.
    */
   async read(file: Buffer, mimeType: string, aiFor?: AiWho): Promise<LicenceReadingDto> {
     if (this.mode === 'off') return EMPTY_READING;

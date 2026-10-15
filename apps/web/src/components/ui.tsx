@@ -51,6 +51,12 @@ interface LabelProps {
   hint?: string;
   /** What is wrong with what was typed. Shown under the label in red and read out with the field. */
   error?: string;
+  /**
+   * A small mark after the label, such as the sparkle beside a field the AI filled
+   * in. It is part of the label, so any words it carries for screen readers are read
+   * out with the field's name.
+   */
+  labelMark?: ReactNode;
 }
 
 /**
@@ -62,6 +68,7 @@ function FieldFrame({
   label,
   hint,
   error,
+  labelMark,
   required,
   className = "",
   children,
@@ -79,6 +86,7 @@ function FieldFrame({
       <label htmlFor={id}>
         {label}
         {!required && <span className="ml-1 font-normal text-muted">(optional)</span>}
+        {labelMark}
       </label>
       {hint && (
         <span id={hintId} className="font-normal text-muted">
@@ -108,9 +116,9 @@ type FieldProps = InputHTMLAttributes<HTMLInputElement> &
     plainLabel?: boolean;
   };
 
-export function Field({ label, hint, error, className = "", wrapperClassName, plainLabel, ...rest }: FieldProps) {
+export function Field({ label, hint, error, labelMark, className = "", wrapperClassName, plainLabel, ...rest }: FieldProps) {
   return (
-    <FieldFrame label={label} hint={hint} error={error} required={rest.required || plainLabel} className={wrapperClassName}>
+    <FieldFrame label={label} hint={hint} error={error} labelMark={labelMark} required={rest.required || plainLabel} className={wrapperClassName}>
       {(control) => <input className={`${CONTROL_STYLE} ${className}`} {...rest} {...control} />}
     </FieldFrame>
   );
@@ -119,9 +127,9 @@ export function Field({ label, hint, error, className = "", wrapperClassName, pl
 type SelectFieldProps = SelectHTMLAttributes<HTMLSelectElement> & LabelProps & { wrapperClassName?: string };
 
 /** A drop-down list with the same label, hint and error as `Field`. A list always has a value, so it is never marked optional. */
-export function SelectField({ label, hint, error, className = "", wrapperClassName, children, ...rest }: SelectFieldProps) {
+export function SelectField({ label, hint, error, labelMark, className = "", wrapperClassName, children, ...rest }: SelectFieldProps) {
   return (
-    <FieldFrame label={label} hint={hint} error={error} required className={wrapperClassName}>
+    <FieldFrame label={label} hint={hint} error={error} labelMark={labelMark} required className={wrapperClassName}>
       {(control) => (
         <select className={`${CONTROL_STYLE} ${className}`} {...rest} {...control}>
           {children}
@@ -133,9 +141,9 @@ export function SelectField({ label, hint, error, className = "", wrapperClassNa
 
 type TextAreaFieldProps = TextareaHTMLAttributes<HTMLTextAreaElement> & LabelProps & { wrapperClassName?: string };
 
-export function TextAreaField({ label, hint, error, className = "", wrapperClassName, ...rest }: TextAreaFieldProps) {
+export function TextAreaField({ label, hint, error, labelMark, className = "", wrapperClassName, ...rest }: TextAreaFieldProps) {
   return (
-    <FieldFrame label={label} hint={hint} error={error} required={rest.required} className={wrapperClassName}>
+    <FieldFrame label={label} hint={hint} error={error} labelMark={labelMark} required={rest.required} className={wrapperClassName}>
       {(control) => <textarea className={`${CONTROL_STYLE} ${className}`} {...rest} {...control} />}
     </FieldFrame>
   );

@@ -24,7 +24,7 @@ import { PrismaService } from './../src/prisma/prisma.service.js';
 
 const OWNER = { code: 'DECCA-KP6R3T', pin: '3917' };
 const OTHER_MANAGER = { code: 'SPICE-JH2K7M', pin: '4821' };
-const PHONES = { admin: '+919000000001', supervisor: '+919000000003' };
+const PHONES = { admin: '+919000000001', ops: '+919000000002', supervisor: '+919000000003' };
 const OUTLET_CODE = 'E2EAI-OUT001';
 const DEVICE = 'e2e-ai';
 const TEMP = { manager: 'E2E AI Manager', chef: 'E2E AI Head Chef' };
@@ -64,6 +64,8 @@ const FIRE_NOC_TEXT = textPdf([
   'Date of Issue: 12 June 2026',
   'This certificate is valid till 11 June 2027.',
 ]);
+/** What the free reader (not AI) reads off FIRE_NOC_TEXT. */
+const FREE_READER_FIRE_NOC = { type: 'FIRE_NOC', number: 'FIRE/HYD/2026/00871', issuedOn: '2026-06-12', expiresOn: '2027-06-11', textFound: true };
 
 type Translation = { text: string; from: string } | null;
 type Issue = {
@@ -87,6 +89,8 @@ describe('AI features (e2e)', () => {
   let chef: string;
   let otherManager: string;
   let admin: string;
+  let ops: string;
+  let eccsSupervisor: string;
 
   const http = () => request(app.getHttpServer());
   /** A request as `token`, with the app on screen in `language`. */
@@ -160,6 +164,8 @@ describe('AI features (e2e)', () => {
     owner = await pinLogin(OWNER.code, OWNER.pin);
     otherManager = await pinLogin(OTHER_MANAGER.code, OTHER_MANAGER.pin);
     admin = await otpLogin(PHONES.admin);
+    ops = await otpLogin(PHONES.ops);
+    eccsSupervisor = await otpLogin(PHONES.supervisor);
     const makeLogin = async (name: string, role: string, language: string) => {
       const made = await http().post('/restaurant-users').set(as(owner)).send({ name, role, outletId, language }).expect(201);
       return pinLogin(OUTLET_CODE, made.body.pin as string);
@@ -266,12 +272,81 @@ describe('AI features (e2e)', () => {
       expect((await row(reading.aiRequestId as string)).model).toBe('claude-sonnet-5-5');
     });
 
-    it('is refused to the Head Chef, and ECCS staff get the free reader, not AI', async () => {
+    it('is refused to the Head Chef and to an ECCS Supervisor, who cannot add licences', async () => {
       const mine = await uploadDocument(owner, PDF, 'licence.pdf');
       await read(chef, mine).expect(403);
-      const eccs = (await read(admin, await uploadDocument(admin, FIRE_NOC_TEXT, 'noc.pdf')).expect(200)).body;
-      expect(eccs).toEqual({ type: 'FIRE_NOC', number: 'FIRE/HYD/2026/00871', issuedOn: '2026-06-12', expiresOn: '2027-06-11', textFound: true });
+      await read(eccsSupervisor, mine).expect(403);
       expect(fake.calls).toHaveLength(0);
+    });
+
+    // The founder's decision of 15 Oct 2026: ECCS staff get the AI reader in the console too.
+    it("gives ECCS's Ops Manager and Super Admin the AI reading, recorded against the outlet", async () => {
+      const { organizationId } = await prisma.client.outlet.findUniqueOrThrow({ where: { id: outletId }, select: { organizationId: true } });
+      for (const token of [ops, admin]) {
+        fake.reset();
+        const me = (await http().get('/auth/me').set(as(token)).expect(200)).body.id as string;
+        const reading = (await read(token, await uploadDocument(token, LICENCE_IMAGE, 'fssai.png')).expect(200)).body;
+        expect(reading).toEqual({
+          type: 'FSSAI',
+          number: '13622012000456',
+          issuedOn: '2026-04-01',
+          expiresOn: '2027-03-31',
+          textFound: true,
+          source: 'ai',
+          issuedTo: 'Sample Kitchen (sample)',
+          aiRequestId: expect.any(String),
+        });
+        expect(fake.calls).toEqual([expect.objectContaining({ feature: 'licence-reader', model: 'claude-haiku-5-5', hasFile: true })]);
+        const id = reading.aiRequestId as string;
+        expect(await row(id)).toMatchObject({ status: 'OK', userId: me, organizationId, outletId, outcome: null });
+        // What they did with what was filled in is theirs to record, as in the app.
+        await http().post(`/ai/requests/${id}/outcome`).set(as(token)).send({ outcome: 'DISCARDED' }).expect(204);
+        expect((await row(id)).outcome).toBe('DISCARDED');
+      }
+    });
+
+    it("counts ECCS's readings against the outlet's daily AI limit; over it, the free reader answers everyone", async () => {
+      const since = new Date();
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+      const spentAtOutlet = async () =>
+        (
+          await prisma.client.aiRequest.aggregate({
+            where: { outletId, createdAt: { gte: new Date(`${today}T00:00:00.000+05:30`) } },
+            _sum: { costMicroUsd: true },
+          })
+        )._sum.costMicroUsd ?? 0;
+      const before = await spentAtOutlet();
+      // The outlet's limit for today sits just above what it has spent: one more reading takes it over.
+      ai.setForTest({ outletDailyLimitUsd: (before + 1) / 1_000_000 });
+      const first = (await read(ops, await uploadDocument(ops, LICENCE_IMAGE, 'fssai.png')).expect(200)).body;
+      expect(first.source).toBe('ai');
+      expect(await spentAtOutlet()).toBeGreaterThan(before + 1);
+
+      // The Ops Manager's reading used up the outlet's share: the restaurant and ECCS both get the free reader now.
+      fake.reset();
+      const owners = (await read(owner, await uploadDocument(owner, FIRE_NOC_TEXT, 'noc.pdf')).expect(200)).body;
+      const eccs = (await read(admin, await uploadDocument(admin, FIRE_NOC_TEXT, 'noc.pdf')).expect(200)).body;
+      expect(owners).toEqual(FREE_READER_FIRE_NOC);
+      expect(eccs).toEqual(FREE_READER_FIRE_NOC);
+      expect(fake.calls).toHaveLength(0);
+      const refused = await prisma.client.aiRequest.findMany({
+        where: { id: { in: ai.recordedForTest() }, status: 'LIMIT', createdAt: { gte: since } },
+      });
+      expect(refused.map((entry) => [entry.outletId, entry.errorCode])).toEqual([
+        [outletId, 'OUTLET_LIMIT'],
+        [outletId, 'OUTLET_LIMIT'],
+      ]);
+    });
+
+    it('gives ECCS the free reader, as before, when AI is off or the call fails', async () => {
+      ai.setForTest({ on: false });
+      expect((await read(ops, await uploadDocument(ops, FIRE_NOC_TEXT, 'noc.pdf')).expect(200)).body).toEqual(FREE_READER_FIRE_NOC);
+      expect(fake.calls).toHaveLength(0);
+
+      aiOn();
+      fake.queue('licence-reader', new AiEngineError('HTTP_529', 'Overloaded'));
+      expect((await read(admin, await uploadDocument(admin, FIRE_NOC_TEXT, 'noc.pdf')).expect(200)).body).toEqual(FREE_READER_FIRE_NOC);
+      expect(fake.calls).toHaveLength(1);
     });
 
     it('lets the existing reader answer when AI is off, or when the call fails', async () => {

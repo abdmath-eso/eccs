@@ -133,6 +133,17 @@ export const CollapseIcon = ({ flipped }: { flipped: boolean }) => (
   </Icon>
 );
 
+/**
+ * Sparkles: something the AI made or filled in, the same mark the app uses. `filled`
+ * is the small mark beside a field the AI filled; the outline goes with a line of words.
+ */
+export const SparklesIcon = ({ filled = false, size = 16 }: { filled?: boolean; size?: number }) => (
+  <Icon size={size}>
+    <path d="M10 4c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" fill={filled ? "currentColor" : "none"} />
+    <path d="M19 2.5v4M17 4.5h4M19 16v3M17.5 17.5h3" />
+  </Icon>
+);
+
 /** A framed picture on a stand: the customer pages and their photos. */
 export const CustomerPagesIcon = () => (
   <Icon>

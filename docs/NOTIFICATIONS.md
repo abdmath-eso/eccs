@@ -267,6 +267,20 @@ The Logs page (15 Oct 2026) sends nothing itself. Alerts it could feed, for ECCS
 | LG3 | A timed job failed (visits from plans, billing, renewals, reminders) | Adm | "Tonight's {job} did not finish." | Push + in-app | not built |
 
 
+## 16d. Finance
+
+The Finance page (15 Oct 2026) sends nothing itself: "Remind" opens WhatsApp on the computer. Suggested, for the Super Admin:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| FN1 | A payout is due tomorrow, or has become overdue | Adm (Super Admin) | "{payee}: {amount} is due on {date}." | In-app | not built |
+| FN2 | An invoice has just become overdue | Adm (Super Admin) | "{invoice} for {client} is overdue: {amount}. Send a reminder?" | In-app | not built |
+| FN3 | A budget line passes 100% of its month | Adm (Super Admin) | "{line} is over budget by {amount} this month." | In-app | not built |
+| FN4 | What is left lasts under 2 months at the current pace | Adm (Super Admin) | "At this month's pace the money left lasts about {months} months." | Push + in-app | not built |
+| FN5 | A wage advance has not been recovered by month end | Adm (Super Admin) | "{name}'s advance of {amount} is not recovered yet." | In-app | not built |
+| FN6 | Collections are under target at month end | Adm (Super Admin) | "{percent}% of {month}'s invoices were collected; the target is {target}%." | In-app | not built |
+
+
 ## 17. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
@@ -279,6 +293,7 @@ The Logs page (15 Oct 2026) sends nothing itself. Alerts it could feed, for ECCS
 | Date | Change |
 |---|---|
 | 15 Oct 2026 | Translations of library picks and the hourly filler: no notification needed. |
+| 15 Oct 2026 | Finance: section 16d added (FN1 to FN6), none built. |
 | 15 Oct 2026 | Logs: section 16c added (LG1 to LG3), none built. |
 | 14 Oct 2026 | AI features: section 16b added (AI1 to AI3), none built. |
 | 14 Oct 2026 | Terms and privacy: the two rows first numbered L1 and L2 are now G1 and G2, since L1 and L2 were already the licence reminders. |

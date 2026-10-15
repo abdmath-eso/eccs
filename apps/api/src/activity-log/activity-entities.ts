@@ -1,4 +1,15 @@
-import { localize, ROLE_LABELS, mainRole, shortText, type LocalizedText, type Role } from '@eccs/shared';
+import {
+  budgetTotal,
+  FINANCE_LINE_LABELS,
+  localize,
+  mainRole,
+  readBudgetLines,
+  ROLE_LABELS,
+  shortText,
+  type FinanceLine,
+  type LocalizedText,
+  type Role,
+} from '@eccs/shared';
 import type { PrismaService } from '../prisma/prisma.service.js';
 
 // How the activity log finds out what a record is: its outlet and restaurant, a short
@@ -12,6 +23,10 @@ export type EntityKind =
   | 'attachment'
   | 'attendancePunch'
   | 'booking'
+  | 'budget'
+  | 'cashOpening'
+  | 'expense'
+  | 'founderMoney'
   | 'catalogItem'
   | 'certificate'
   | 'checklistItem'
@@ -262,6 +277,29 @@ export async function resolveEntity(db: Db, kind: EntityKind, id: string, action
     }
     case 'notification':
       return {};
+    // ECCS's own books (the Finance page): the kind and the amount, never who was paid or what
+    // was typed (a wage advance names a staff member).
+    case 'expense': {
+      const expense = await db.expense.findUnique({ where: { id }, select: { kind: true, category: true, type: true, amountPaise: true, paidOn: true } });
+      if (!expense) return null;
+      const advance = expense.kind === 'WAGE_ADVANCE';
+      return {
+        label: advance ? 'Wage advance' : FINANCE_LINE_LABELS[expense.category as FinanceLine] ?? expense.category,
+        details: { kind: expense.kind, category: expense.category, type: expense.type, amountPaise: expense.amountPaise, paid: expense.paidOn !== null },
+      };
+    }
+    case 'budget': {
+      const budget = await db.budget.findUnique({ where: { id }, select: { name: true, lines: true } });
+      return budget && { label: shortText(budget.name), details: { totalPaise: budgetTotal(readBudgetLines(budget.lines)) } };
+    }
+    case 'founderMoney': {
+      const entry = await db.founderMoney.findUnique({ where: { id }, select: { direction: true, amountPaise: true } });
+      return entry && { label: "Founders' money", details: { direction: entry.direction, amountPaise: entry.amountPaise } };
+    }
+    case 'cashOpening': {
+      const opening = await db.cashOpening.findUnique({ where: { id }, select: { id: true } });
+      return opening && { label: 'Opening cash balance' };
+    }
     // Staff data: which outlet, and nothing else.
     case 'staffMember': {
       const person = await db.staffMember.findUnique({ where: { id }, select: { outletId: true } });

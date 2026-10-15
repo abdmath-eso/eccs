@@ -45,6 +45,7 @@ import type { ZodType } from 'zod';
 import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { env } from '../config/env.js';
+import type { Prisma } from '@eccs/db';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AI_ENGINE, AiEngineError, type AiEngine } from './ai-engine.js';
 
@@ -85,6 +86,14 @@ export type AiResult<T> =
   | { ok: false; code: AiErrorCode; requestId: string | null };
 
 const DEFAULT_TIMEOUT_MS = 45_000;
+
+/**
+ * ECCS's own work, not the restaurant's use of AI: the Supervisor's inspection write-up and the
+ * office's Monitoring digest. These count against the platform's daily limit only, never against
+ * an outlet's, and are left out of the outlet's own daily total (15 Oct 2026: a Supervisor's
+ * summary was refused because testing had used up that outlet's allowance).
+ */
+const PLATFORM_ONLY_FEATURES: readonly AiFeature[] = ['inspection-summary', 'monitoring-digest'];
 
 /**
  * Today's date in India as YYYY-MM-DD. (The same as `indiaDate` in the checklists
@@ -139,7 +148,7 @@ export class AiService {
       if (!this.isOn(call.feature)) {
         return { ok: false, code: AI_ERROR.off, requestId: await this.record({ ...row, status: 'OFF' }) };
       }
-      const limit = await this.overLimit(call.who.outletId);
+      const limit = await this.overLimit(PLATFORM_ONLY_FEATURES.includes(call.feature) ? null : call.who.outletId);
       if (limit) {
         this.logger.warn(`AI ${call.feature} not asked: ${limit}`);
         return { ok: false, code: AI_ERROR.limit, requestId: await this.record({ ...row, status: 'LIMIT', errorCode: limit }) };
@@ -303,11 +312,13 @@ export class AiService {
   /** Why no request may be made now, or null: today's spending (India time) is at a limit. */
   private async overLimit(outletId: string | null): Promise<'DAILY_LIMIT' | 'OUTLET_LIMIT' | null> {
     const since = indiaMidnight(indiaDate());
-    const spent = async (where: { outletId?: string }) =>
+    const spent = async (where: Prisma.AiRequestWhereInput) =>
       (await this.db.aiRequest.aggregate({ where: { ...where, createdAt: { gte: since } }, _sum: { costMicroUsd: true } }))._sum
         .costMicroUsd ?? 0;
     if ((await spent({})) >= this.settings.dailyLimitUsd * 1_000_000) return 'DAILY_LIMIT';
-    if (outletId && (await spent({ outletId })) >= this.settings.outletDailyLimitUsd * 1_000_000) return 'OUTLET_LIMIT';
+    // The outlet's own total leaves out ECCS's own work there (see PLATFORM_ONLY_FEATURES).
+    const outletSpent = outletId ? await spent({ outletId, feature: { notIn: [...PLATFORM_ONLY_FEATURES] } }) : 0;
+    if (outletId && outletSpent >= this.settings.outletDailyLimitUsd * 1_000_000) return 'OUTLET_LIMIT';
     return null;
   }
 

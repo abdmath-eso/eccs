@@ -110,6 +110,7 @@ export const ACTIVITY_CATEGORIES = {
   files: "Photos and files",
   ai: "AI",
   system: "System",
+  finance: "Money and budget",
 } as const;
 export type ActivityCategory = keyof typeof ACTIVITY_CATEGORIES;
 export const ACTIVITY_CATEGORY_KEYS = Object.keys(ACTIVITY_CATEGORIES) as ActivityCategory[];
@@ -354,6 +355,23 @@ export const ACTIVITY_ACTIONS = {
   "system.logs.exported": ["system", "Exported the activity log"],
   "system.logs.pruned": ["system", "Deleted log entries older than the keeping period"],
   "system.translations.filled": ["system", "Filled in missing languages of restaurants' own text (timed job)"],
+
+  // Money and budget (the Finance page, 15 Oct 2026): amounts and kinds only, never who
+  // was paid or what was typed (a wage advance names a person).
+  "finance.expense.added": ["finance", "Entered an expense"],
+  "finance.expense.changed": ["finance", "Changed an expense"],
+  "finance.expense.removed": ["finance", "Removed an expense"],
+  "finance.expenses.markedPaid": ["finance", "Marked bills as paid"],
+  "finance.receipt.added": ["finance", "Filed a receipt"],
+  "finance.budget.added": ["finance", "Added a budget"],
+  "finance.budget.changed": ["finance", "Changed a budget"],
+  "finance.budget.removed": ["finance", "Removed a budget"],
+  "finance.founderMoney.added": ["finance", "Recorded founders' money in or out"],
+  "finance.founderMoney.removed": ["finance", "Removed a founders' money entry"],
+  "finance.opening.saved": ["finance", "Set the opening cash balance"],
+  "finance.settings.changed": ["finance", "Changed the collection target or dollar rate"],
+  "finance.invoice.reminded": ["finance", "Opened a WhatsApp payment reminder"],
+  "finance.books.exported": ["finance", "Exported the books for the CA"],
 } as const satisfies Record<string, ActionEntry>;
 
 export type ActivityAction = keyof typeof ACTIVITY_ACTIONS;
@@ -829,6 +847,10 @@ export const ACTIVITY_ENTITY_LABELS: Record<string, string> = {
   checklistItem: "Checklist item",
   checklistRun: "Daily checklist",
   document: "Document",
+  budget: "Budget",
+  cashOpening: "Opening cash balance",
+  expense: "Expense",
+  founderMoney: "Founders' money",
   foodItem: "Saved label",
   foodLabel: "Label printing",
   inspection: "Inspection",

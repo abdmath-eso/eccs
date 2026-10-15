@@ -46,7 +46,8 @@ describe("the action map", () => {
   });
 
   it("has every area the founder listed, and every area is used", () => {
-    expect(ACTIVITY_CATEGORY_KEYS).toHaveLength(24);
+    // 24 areas, then "finance" for the Finance page (15 Oct 2026).
+    expect(ACTIVITY_CATEGORY_KEYS).toHaveLength(25);
     for (const category of ACTIVITY_CATEGORY_KEYS) {
       expect(ACTIVITY_ACTION_KEYS.some((key) => ACTIVITY_ACTIONS[key][0] === category), category).toBe(category === "vendors" ? false : true);
     }

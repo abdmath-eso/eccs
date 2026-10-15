@@ -30,6 +30,7 @@ export const RESOURCES = [
   "auditLog",
   "settings",
   "vendors", // the directory of nearby wholesalers and distributors
+  "finance", // ECCS's own books: expenses, budgets, founders' money, cash (the console's Finance page)
 ] as const;
 
 export type Resource = (typeof RESOURCES)[number];
@@ -74,13 +75,19 @@ const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A:
 // have it; the Head Chef does not. Nobody has C or U: the list is loaded by
 // ECCS and nothing is written through the API yet. ECCS roles have no grant
 // either, until the console gets a page for keeping the list.
+// For finance (the Finance page, 15 Oct 2026): ECCS's own money in, money out, the
+// budget and the founders' money. R = read the page and export the books for the CA;
+// C = enter expenses, budgets and founders' money; U = change or remove them, mark
+// bills paid and set the opening balance. The Super Admin (the founders) only; the
+// Ops Manager, the Supervisor and every restaurant role have no grant (Claude's
+// default, which the founder may widen).
 const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
   SUPER_ADMIN: {
     clients: "CRU", eccsUsers: "CRU", restaurantUsers: "CRU", sopTemplates: "CRU",
     checklists: "R", foodLabels: "R", issues: "CRU", catalog: "CRU", bookings: "CRU",
     subscriptions: "CRU", schedule: "CRU", jobs: "CRUA", inspections: "CRUA", reports: "CRA",
     publicPage: "RUA", licences: "CRU", documents: "CRU", scores: "R",
-    invoices: "CRU", payments: "CRU", auditLog: "R", settings: "RU",
+    invoices: "CRU", payments: "CRU", auditLog: "R", settings: "RU", finance: "CRU",
   },
   OPS_MANAGER: {
     clients: "CRU", eccsUsers: "R", restaurantUsers: "CRU", sopTemplates: "CRU",

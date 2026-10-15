@@ -480,6 +480,8 @@ model Attachment {
   documents         Document[]
   publicPhotos      PublicPhoto[]
   signOffs          SignOff[]
+  /// Expenses this file is the receipt of (the Finance page).
+  expenses          Expense[]
 
   @@index([outletId])
   @@index([checklistResponseId])
@@ -710,6 +712,8 @@ model Job {
   serviceReport  ServiceReport?
   certificates   Certificate[]
   issues         Issue[]
+  /// Costs entered against this visit on the Finance page (its job margin).
+  expenses       Expense[]
 
   @@unique([scheduleId, plannedFor])
   @@index([outletId, scheduledDate])
@@ -1837,4 +1841,118 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([organizationId, createdAt])
+}
+
+// ───────────────────────── ECCS's own books (the Finance page) ─────────────────────────
+//
+// Finance (15 Oct 2026): ECCS's money out, its budgets, the founders' money and the
+// opening cash balance, for the console's Finance page (Super Admin only). Money in is
+// not kept here: invoices and payments are billing's, and the AI's cost is AiRequest's,
+// so nothing is entered twice. Sample rows carry `isSample` and a `sampleKey`, so the
+// sample loader adds each once and they can all be removed in one go before real use.
+// Rules and labels: packages/shared/src/finance.ts.
+
+/// One expense, or one wage advance (cash given to an ECCS staff member and recovered
+/// from their pay, which is cash out but not an expense). A bill is either paid (how and
+/// when) or not yet paid and due on a date; an unpaid bill is a "payout due".
+model Expense {
+  id          String    @id @default(uuid())
+  /// EXPENSE or WAGE_ADVANCE (EXPENSE_KINDS).
+  kind        String    @default("EXPENSE")
+  /// The day the cost was incurred (the bill's date); a month's salaries are dated in that month.
+  date        DateTime  @db.Date
+  /// The budget line (FINANCE_LINES). Empty for a wage advance.
+  category    String?
+  /// The kind of day-to-day spend (EXPENSE_TYPES). Empty for a monthly bill and a wage advance.
+  type        String?
+  /// Who was paid; for a wage advance, the staff member.
+  vendor      String
+  description String?
+  /// What was paid, GST included, in paise.
+  amountPaise Int
+  /// The GST inside the amount, for the CA's input credit.
+  gstPaise    Int       @default(0)
+  /// cash, upi, bank-transfer or card (PAID_VIA). Empty while unpaid.
+  paidVia     String?
+  paidOn      DateTime? @db.Date
+  /// For a bill not yet paid: when it is due.
+  dueDate     DateTime? @db.Date
+  /// For a wage advance: the day it was taken back out of pay.
+  recoveredOn DateTime? @db.Date
+  /// The receipt photo or PDF (an Attachment of kind DOCUMENT with no outlet).
+  receiptId   String?
+  /// The visit (job) the cost belongs to, so it counts against that job's margin.
+  visitId     String?
+  enteredById String?
+  isSample    Boolean   @default(false)
+  /// A sample row's own name, so loading the sample again adds nothing twice.
+  sampleKey   String?   @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  receipt Attachment? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  visit   Job?        @relation(fields: [visitId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([paidOn])
+  @@index([visitId])
+}
+
+/// A named budget ("Lean", "Full"): a monthly amount for each budget line, and the net
+/// cash the plan expects month by month.
+model Budget {
+  id         String   @id @default(uuid())
+  name       String
+  /// { "SALARIES": 17000000, ... } in paise a month, one per budget line.
+  lines      Json
+  /// [{ "month": "2026-10", "paise": -17100000 }]: the planned net cash of each month.
+  plannedNet Json?
+  /// The budget the page compares with until another is chosen.
+  isDefault  Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  isSample   Boolean  @default(false)
+  sampleKey  String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+/// Money a founder put into ECCS (IN) or took out of it (OUT).
+model FounderMoney {
+  id          String   @id @default(uuid())
+  founder     String
+  date        DateTime @db.Date
+  amountPaise Int
+  /// IN or OUT.
+  direction   String
+  label       String?
+  enteredById String?
+  isSample    Boolean  @default(false)
+  sampleKey   String?  @unique
+  createdAt   DateTime @default(now())
+
+  @@index([date])
+}
+
+/// The bank plus cash box at the start of a day, from which the daily cash balance is
+/// counted. The one with the latest day is used.
+model CashOpening {
+  id          String   @id @default(uuid())
+  asOf        DateTime @db.Date
+  bankPaise   Int      @default(0)
+  cashPaise   Int      @default(0)
+  enteredById String?
+  isSample    Boolean  @default(false)
+  sampleKey   String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// The Finance page's settings, one row ("default"): the collection target and the
+/// dollar rate the AI's cost is shown at. Missing means the defaults in FINANCE_RULES.
+model FinanceSettings {
+  id                     String   @id @default("default")
+  collectedTargetPercent Int      @default(60)
+  /// Paise per US dollar (8800 is ₹88).
+  usdToInrPaise          Int      @default(8800)
+  updatedAt              DateTime @updatedAt
 }

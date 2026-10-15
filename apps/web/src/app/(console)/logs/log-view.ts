@@ -331,6 +331,12 @@ export function recordLink(entry: {
     case "sop":
       // A restaurant's own SOP has no page in the console; ECCS's standard SOPs do.
       return entry.details?.ownSop === false ? { href: "/sops", label: "Open SOPs" } : null;
+    case "expense":
+      return { href: "/finance/expenses", label: "Open the expense book" };
+    case "budget":
+    case "founderMoney":
+    case "cashOpening":
+      return { href: "/finance", label: "Open Finance" };
     default:
       return null;
   }

@@ -14,6 +14,7 @@ import {
   CloseIcon,
   CollapseIcon,
   CustomerPagesIcon,
+  FinanceIcon,
   InspectionsIcon,
   InvoicesIcon,
   IssuesIcon,
@@ -64,6 +65,11 @@ const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
       { href: "/certificates", label: "Certificates", icon: <CertificatesIcon /> },
       { href: "/customer-pages", label: "Customer pages", icon: <CustomerPagesIcon />, count: "publicPhotos", waiting: "photos waiting for approval", needs: (m) => can(m, "publicPage", "approve") },
     ],
+  },
+  {
+    // The founders' own business pages (15 Oct 2026): Finance now; Sales and Team join it in later stages.
+    label: "Business",
+    items: [{ href: "/finance", label: "Finance", icon: <FinanceIcon />, needs: (m) => can(m, "finance", "read") }],
   },
   {
     label: "Set-up",

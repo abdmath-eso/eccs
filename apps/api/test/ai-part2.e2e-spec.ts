@@ -370,6 +370,17 @@ describe('AI features, part 2 (e2e)', () => {
       await save(owner, { summary: 'Not mine to write.' }).expect(403);
     });
 
+    it('counts against ECCS’s daily limit only, never the outlet’s (it is ECCS’s own work)', async () => {
+      // The outlet's allowance is used up (as testing used it up on 15 Oct): the Supervisor can still draft.
+      ai.setForTest({ outletDailyLimitUsd: 0 });
+      await draft(supervisor).expect(200);
+      // ECCS's own limit still applies.
+      ai.setForTest({ dailyLimitUsd: 0 });
+      expect((await draft(supervisor).expect(503)).body.code).toBe('AI_LIMIT');
+      expect(await mine({ feature: 'inspection-summary', status: 'LIMIT' })).toMatchObject({ errorCode: 'DAILY_LIMIT' });
+      ai.setForTest({ dailyLimitUsd: 1000, outletDailyLimitUsd: 1000 });
+    });
+
     it('refuses a draft naming a finding that is not this inspection’s, or a number that is not in the facts', async () => {
       fake.queue('inspection-summary', { summary: 'A fair inspection overall.', fixFirst: [findingIds[0], 'made-up-finding'] });
       expect((await draft(supervisor).expect(503)).body.code).toBe('AI_FAILED');

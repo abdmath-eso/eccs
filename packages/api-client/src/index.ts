@@ -197,6 +197,25 @@ import type {
   ActivityLogQueryInput,
   ActivityLogSummaryDto,
 } from "@eccs/shared";
+// finance-types: the console's Finance page (15 Oct 2026)
+import type {
+  BudgetDto,
+  BudgetInput,
+  CashDayDetailDto,
+  CashOpeningDto,
+  ExpenseDto,
+  ExpenseInput,
+  ExpenseListDto,
+  ExportRegister,
+  FinanceOverviewDto,
+  FinanceSettingsDto,
+  FinanceSettingsInput,
+  FinanceVisitOptionDto,
+  FounderMoneyDto,
+  FounderMoneyInput,
+  MarkPaidInput,
+  OpeningBalanceInput,
+} from "@eccs/shared";
 // inspections-types: the inspections worker imports its types from "@eccs/shared" on the next line
 import type {
   AnswerInspectionCheckInput,
@@ -1140,6 +1159,50 @@ export function createApiClient(options: ApiClientOptions) {
           rows: rows === null ? null : Number(rows),
           truncated: truncated === null ? null : truncated === "true",
         };
+      },
+    },
+    // finance-api: the console's Finance page (15 Oct 2026)
+    /**
+     * ECCS's own books: money in (read from billing), money out, the budget and the
+     * founders' money. The Super Admin only; everyone else is refused.
+     */
+    finance: {
+      /** Everything on the page for a period, against a budget (the default one when none is given). */
+      overview: (input: { from: string; to: string; budgetId?: string | null }) =>
+        call<FinanceOverviewDto>("GET", `/finance/overview${query({ from: input.from, to: input.to, ...(input.budgetId && { budgetId: input.budgetId }) })}`),
+      /** One day's cash: opening, in, out, closing. */
+      day: (date: string) => call<CashDayDetailDto>("GET", `/finance/day${query({ date })}`),
+      /** The expense book, newest first, with its filters. */
+      expenses: (filter: { month?: string; category?: string; paid?: "yes" | "no"; visit?: "yes" | "no" } = {}) =>
+        call<ExpenseListDto>("GET", `/finance/expenses${query(Object.fromEntries(Object.entries(filter).filter(([, value]) => Boolean(value))) as Record<string, string>)}`),
+      /** Visits an expense can be linked to. */
+      visits: () => call<FinanceVisitOptionDto[]>("GET", "/finance/visits"),
+      /** Pass an `id` made when the form opens, so pressing Save twice adds one entry. */
+      addExpense: (input: ExpenseInput) => call<ExpenseDto>("POST", "/finance/expenses", input),
+      updateExpense: (expenseId: string, input: ExpenseInput) => call<ExpenseDto>("PATCH", `/finance/expenses/${id(expenseId)}`, input),
+      removeExpense: (expenseId: string) => call<void>("DELETE", `/finance/expenses/${id(expenseId)}`),
+      /** Unpaid bills paid together. */
+      markPaid: (input: MarkPaidInput) => call<{ updated: number }>("POST", "/finance/expenses/mark-paid", input),
+      /** Files a receipt (a photo or PDF); put the id it returns in the expense. */
+      uploadReceipt(file: UploadFile, fileName = "receipt") {
+        const form = new FormData();
+        form.append("file", file, fileName);
+        return send<{ id: string; path: string; pdf: boolean }>("POST", "/finance/receipts", form, undefined, true);
+      },
+      addBudget: (input: BudgetInput) => call<BudgetDto>("POST", "/finance/budgets", input),
+      updateBudget: (budgetId: string, input: BudgetInput) => call<BudgetDto>("PATCH", `/finance/budgets/${id(budgetId)}`, input),
+      removeBudget: (budgetId: string) => call<void>("DELETE", `/finance/budgets/${id(budgetId)}`),
+      addFounderMoney: (input: FounderMoneyInput) => call<FounderMoneyDto>("POST", "/finance/founders-money", input),
+      removeFounderMoney: (entryId: string) => call<void>("DELETE", `/finance/founders-money/${id(entryId)}`),
+      saveOpening: (input: OpeningBalanceInput) => call<CashOpeningDto>("PUT", "/finance/opening-balance", input),
+      saveSettings: (input: FinanceSettingsInput) => call<FinanceSettingsDto>("PUT", "/finance/settings", input),
+      /** The WhatsApp link with a payment reminder typed in, for an overdue invoice. Nothing is sent by the server. */
+      remind: (invoiceId: string) => call<{ url: string; hasPhone: boolean }>("POST", `/finance/invoices/${id(invoiceId)}/remind`),
+      /** One of the CA's three files for a period, as CSV. */
+      async exportCsv(register: ExportRegister, period: { from: string; to: string }): Promise<{ blob: Blob; fileName: string }> {
+        const { blob, headers } = await download(`/finance/export/${id(register)}${query(period)}`);
+        const named = headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1];
+        return { blob, fileName: named ?? `eccs-${register}-${period.from}-to-${period.to}.csv` };
       },
     },
     // inspections-api: the inspections worker adds `inspections: { ... },` on the next line

@@ -323,3 +323,16 @@ First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api st
 7. **Export CSV**: a file with the events shown downloads; opening it in Excel shows one row per event.
 8. Switch on **Live** and log in on the phone again: the new event appears at the top within about 10 seconds.
 9. **What is never there:** PINs, codes, messages or notes, what a checklist problem was, staff names or attendance times, clock-ins.
+
+## 24. Trying the Finance page
+
+First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api start`. Sample finance data is loaded already (to load it again or remove it: `pnpm finance:sample` or `pnpm finance:sample:remove`, run in `packages/db`).
+
+1. **Console, as the Super Admin** (`9000000001`): Business > **Finance**. The six cards, with "Sample data" beside the date.
+2. Switch the period (this month, FY to date, custom) and the budget to compare with (Lean, Full): the figures and bars follow.
+3. **Add expense**: a date, a line, a vendor, an amount and GST, paid how (or unpaid with a due date), a receipt photo or PDF, and a visit to link it to. An unpaid one appears under Payouts due; **Mark paid** moves it into the cash.
+4. **Record money in or out** under Founders' money; **Budget** to change the lines.
+5. Today's cash: choose another day to see that day's opening, items and closing.
+6. An overdue invoice's **Remind** opens WhatsApp with a message ready; do not send it to the sample clients, whose numbers are invented.
+7. **Export CSV for the CA**: three files (expenses, sales, receipts); open them in Excel.
+8. **As the Ops Manager** (`9000000002`): there is no Finance in the menu.

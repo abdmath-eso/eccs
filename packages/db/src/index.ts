@@ -3,6 +3,7 @@ import { PrismaClient } from "../generated/prisma/client.js";
 
 export * from "../generated/prisma/client.js";
 export * from "./pin.js";
+export * from "./finance-sample.js";
 
 export function createPrismaClient(connectionString = process.env["DATABASE_URL"]) {
   if (!connectionString) {

@@ -1,6 +1,14 @@
 import { Logger } from '@nestjs/common';
 import type { AiModelId, AiUsage } from '@eccs/shared';
-import { AiEngineError, type AiEngine, type AiEngineAnswer, type AiEngineRequest } from './ai-engine.js';
+import {
+  AiEngineError,
+  type AiContentBlock,
+  type AiConverseAnswer,
+  type AiConverseRequest,
+  type AiEngine,
+  type AiEngineAnswer,
+  type AiEngineRequest,
+} from './ai-engine.js';
 
 // Anthropic's Messages API, called with plain `fetch` (no npm package: the REST API is
 // small, and installing packages on this PC fails while the founder's API is running).
@@ -60,7 +68,7 @@ interface MessagesResponse {
 }
 
 interface ErrorResponse {
-  error?: { type?: string; details?: { error_code?: string } };
+  error?: { type?: string; message?: string; details?: { error_code?: string } };
 }
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -97,7 +105,54 @@ export class ClaudeEngine implements AiEngine {
       ...(thinking && { thinking }),
       ...(request.personTag && { metadata: { user_id: request.personTag } }),
     });
+    return readAnswer(await this.post(body, request.timeoutMs));
+  }
 
+  /**
+   * One step of a conversation with tools (ECCS Buddy, 16 Oct 2026). Follows Anthropic's tool use
+   * and prompt caching pages (read 16 Oct 2026):
+   * - Tools, then the system prompt, then the messages make up the prompt in that order, and a
+   *   cache mark on the last block of the system prompt caches the tools and the system prompt
+   *   together (5 minutes; a read costs a tenth of the input price on Haiku 5.5, a twentieth on
+   *   Sonnet 5.5; at least 512 tokens on both). The instructions, the app guide and the tools are
+   *   fixed, so every message from every restaurant reads them from the cache.
+   * - A second mark on the last block of the conversation caches it as it grows, so each later
+   *   step of the same answer (after a tool's result) reads everything before it from the cache.
+   * - `tool_choice` stays "auto" (Sonnet 5.5 refuses a forced tool); thinking is off as for the
+   *   other features (Sonnet 5.5's "between_tools" can still send short thinking blocks between
+   *   tool calls, which the caller sends back unchanged).
+   * - A refusal or an answer cut off at its length is a failure, as for `complete`.
+   */
+  async converse(request: AiConverseRequest): Promise<AiConverseAnswer> {
+    if (!this.#key) throw new AiEngineError('NO_KEY', 'No API key is set');
+    // Adaptive thinking is what Haiku 5.5 and Sonnet 5.5 do when the field is left out.
+    const thinking = request.thinking === 'adaptive' ? undefined : THINKING_OFF[request.model];
+    const messages = request.messages.map((message, index) =>
+      index === request.messages.length - 1
+        ? { ...message, content: message.content.map((block, at) => (at === message.content.length - 1 ? { ...block, cache_control: { type: 'ephemeral' } } : block)) }
+        : message,
+    );
+    const body = JSON.stringify({
+      model: request.model,
+      max_tokens: request.maxOutputTokens,
+      system: [{ type: 'text', text: request.system, cache_control: { type: 'ephemeral' } }],
+      tools: request.tools,
+      tool_choice: { type: 'auto' },
+      messages,
+      output_config: { effort: request.effort },
+      ...(thinking && { thinking }),
+      ...(request.personTag && { metadata: { user_id: request.personTag } }),
+    });
+    const answer = await this.post(body, request.timeoutMs, request.signal);
+    const usage = usageOf(answer);
+    if (answer.stop_reason === 'refusal') throw new AiEngineError('REFUSED', 'The model declined to answer', usage);
+    if (answer.stop_reason === 'max_tokens') throw new AiEngineError('TOO_LONG', 'The answer was cut off at its length limit', usage);
+    return { content: (answer.content ?? []) as AiContentBlock[], stopReason: answer.stop_reason ?? 'end_turn', usage };
+  }
+
+  /** Sends one request to the Messages API, trying again after a pause when Anthropic says to. */
+  private async post(body: string, timeoutMs: number, stop?: AbortSignal): Promise<MessagesResponse> {
+    if (!this.#key) throw new AiEngineError('NO_KEY', 'No API key is set');
     for (let attempt = 1; ; attempt += 1) {
       let response: Response;
       try {
@@ -105,12 +160,13 @@ export class ClaudeEngine implements AiEngine {
           method: 'POST',
           headers: { 'x-api-key': this.#key, 'anthropic-version': API_VERSION, 'content-type': 'application/json' },
           body,
-          signal: AbortSignal.timeout(request.timeoutMs),
+          signal: stop ? AbortSignal.any([AbortSignal.timeout(timeoutMs), stop]) : AbortSignal.timeout(timeoutMs),
         });
       } catch (error) {
         // A timeout is not tried again: the person has already waited the whole time.
+        if (stop?.aborted) throw new AiEngineError('ABORTED', 'Stopped by the server');
         if (error instanceof Error && error.name === 'TimeoutError') {
-          throw new AiEngineError('TIMEOUT', `No answer within ${request.timeoutMs / 1000} seconds`);
+          throw new AiEngineError('TIMEOUT', `No answer within ${timeoutMs / 1000} seconds`);
         }
         if (attempt < MAX_ATTEMPTS) {
           await pause(backoff(attempt));
@@ -119,7 +175,7 @@ export class ClaudeEngine implements AiEngine {
         throw new AiEngineError('NETWORK', 'Could not reach Anthropic');
       }
 
-      if (response.ok) return readAnswer((await response.json()) as MessagesResponse);
+      if (response.ok) return (await response.json()) as MessagesResponse;
 
       const failure = ((await response.json().catch(() => ({}))) ?? {}) as ErrorResponse;
       const type = failure.error?.type ?? 'unknown';
@@ -131,6 +187,8 @@ export class ClaudeEngine implements AiEngine {
         await pause(waitMs);
         continue;
       }
+      // Anthropic's own words on a refused request (never the key, the text sent or an answer), to find the cause.
+      if (response.status === 400) this.logger.warn(`Anthropic refused the request: ${(failure.error?.message ?? '').slice(0, 300)}`);
       throw new AiEngineError(spendCap ? 'SPEND_CAP' : `HTTP_${response.status}`, `Anthropic answered ${response.status} (${type})`);
     }
   }
@@ -139,13 +197,16 @@ export class ClaudeEngine implements AiEngine {
 /** Half a second, then a second, with a little randomness so retries do not bunch up. */
 const backoff = (attempt: number) => 500 * 2 ** (attempt - 1) + Math.floor(Math.random() * 250);
 
+/** The token counts of an answer, cache writes and reads included. */
+const usageOf = (body: MessagesResponse): AiUsage => ({
+  inputTokens: body.usage?.input_tokens ?? 0,
+  outputTokens: body.usage?.output_tokens ?? 0,
+  cacheWriteTokens: body.usage?.cache_creation_input_tokens ?? 0,
+  cacheReadTokens: body.usage?.cache_read_input_tokens ?? 0,
+});
+
 function readAnswer(body: MessagesResponse): AiEngineAnswer {
-  const usage: AiUsage = {
-    inputTokens: body.usage?.input_tokens ?? 0,
-    outputTokens: body.usage?.output_tokens ?? 0,
-    cacheWriteTokens: body.usage?.cache_creation_input_tokens ?? 0,
-    cacheReadTokens: body.usage?.cache_read_input_tokens ?? 0,
-  };
+  const usage = usageOf(body);
   if (body.stop_reason === 'refusal') throw new AiEngineError('REFUSED', 'The model declined to answer', usage);
   if (body.stop_reason === 'max_tokens') throw new AiEngineError('TOO_LONG', 'The answer was cut off at its length limit', usage);
   // Thinking blocks, if any, come before the answer and are skipped.

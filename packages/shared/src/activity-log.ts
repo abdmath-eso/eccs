@@ -351,6 +351,16 @@ export const ACTIVITY_ACTIONS = {
   "ai.request.shopBoard": ["ai", "AI read a shop board for a new lead"],
   "ai.digest.updated": ["ai", "Asked for a fresh Monitoring digest"],
   "ai.outcome.recorded": ["ai", "Said what they did with an AI answer"],
+  // ECCS Buddy (16 Oct 2026): what was done, never the chat's words. A change made through a
+  // card is logged as the app's own action (Booked a service...) with the detail through=buddy.
+  "ai.request.buddy": ["ai", "ECCS Buddy worked on an answer (one step)"],
+  "ai.request.buddyScreen": ["ai", "ECCS Buddy checked a message was about the restaurant or the app"],
+  "ai.buddy.message": ["ai", "Sent a message to ECCS Buddy"],
+  "ai.buddy.cardConfirmed": ["ai", "Tapped a Buddy card to make a change"],
+  "ai.buddy.cardCancelled": ["ai", "Said no to a Buddy card"],
+  "ai.buddy.feedback": ["ai", "Said whether a Buddy answer helped"],
+  "ai.buddy.chatDeleted": ["ai", "Deleted a Buddy chat"],
+  "ai.buddy.chatsCleaned": ["ai", "Removed Buddy chats past their keeping period (timed job)"],
 
   // System
   "system.server.started": ["system", "The server started"],
@@ -445,6 +455,8 @@ export const AI_FEATURE_ACTIONS: Record<AiFeature, ActivityAction> = {
   "photo-check": "ai.request.photoCheck",
   "photo-standard": "ai.request.photoStandard",
   "shop-board": "ai.request.shopBoard",
+  buddy: "ai.request.buddy",
+  "buddy-screen": "ai.request.buddyScreen",
 };
 
 export const isActivityAction = (key: string): key is ActivityAction => Object.hasOwn(ACTIVITY_ACTIONS, key);

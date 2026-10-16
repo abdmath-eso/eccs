@@ -264,6 +264,19 @@ import type {
   TemplateTaskInput,
   TickInput,
 } from "@eccs/shared";
+// buddy-types: ECCS Buddy, the helper in the restaurant app (16 Oct 2026)
+import type {
+  BuddyCardDto,
+  BuddyCardResultDto,
+  BuddyChatDto,
+  BuddyChatSummaryDto,
+  BuddyFeedbackInput,
+  BuddyMessageInput,
+  BuddyReplyDto,
+  BuddyScreen,
+  BuddyStartDto,
+  BuddyStatsDto,
+} from "@eccs/shared";
 // inspections-types: the inspections worker imports its types from "@eccs/shared" on the next line
 import type {
   AnswerInspectionCheckInput,
@@ -1377,6 +1390,23 @@ export function createApiClient(options: ApiClientOptions) {
       saveLetterSettings: (input: LetterSettingsInput) => call<LetterSettings>("PUT", "/onboarding/letter-settings", input),
       handbook: () => call<StaffHandbookDto | null>("GET", "/onboarding/handbook"),
       publishHandbook: (input: HandbookInput) => call<StaffHandbookDto>("POST", "/onboarding/handbook", input),
+    },
+    // buddy-api: ECCS Buddy, the helper in the restaurant app (16 Oct 2026)
+    /**
+     * ECCS Buddy, for the restaurant's Owner and Manager only (the server refuses everyone else).
+     * A message is answered at once; a change comes back as a confirmation card, carried out only by
+     * `confirm`. `stats` is the console's counts per day (the Super Admin and the Ops Manager).
+     */
+    buddy: {
+      start: (screen: BuddyScreen, outletId?: string | null) => call<BuddyStartDto>("GET", `/buddy/start${query({ screen, ...(outletId ? { outletId } : {}) })}`),
+      chats: () => call<BuddyChatSummaryDto[]>("GET", "/buddy/chats"),
+      chat: (chatId: string) => call<BuddyChatDto>("GET", `/buddy/chats/${id(chatId)}`),
+      removeChat: (chatId: string) => call<void>("DELETE", `/buddy/chats/${id(chatId)}`),
+      send: (input: BuddyMessageInput) => call<BuddyReplyDto>("POST", "/buddy/messages", input),
+      feedback: (messageId: string, input: BuddyFeedbackInput) => call<void>("POST", `/buddy/messages/${id(messageId)}/feedback`, input),
+      confirm: (cardId: string) => call<BuddyCardResultDto>("POST", `/buddy/cards/${id(cardId)}/confirm`),
+      cancel: (cardId: string) => call<BuddyCardDto>("POST", `/buddy/cards/${id(cardId)}/cancel`),
+      stats: () => call<BuddyStatsDto>("GET", "/ai/buddy-stats"),
     },
     // inspections-api: the inspections worker adds `inspections: { ... },` on the next line
     /** Scored inspections: ECCS's audit of an outlet, its scored report and the approval. */

@@ -203,6 +203,8 @@ describe('AI features (e2e)', () => {
         'photo-check': true,
         'photo-standard': true,
         'shop-board': true,
+        buddy: true,
+        'buddy-screen': true,
       });
       ai.setForTest({ disabled: ['explain-score'] });
       expect((await http().get('/ai/status').set(as(chef)).expect(200)).body.features['explain-score']).toBe(false);

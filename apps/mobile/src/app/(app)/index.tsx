@@ -5,6 +5,8 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { isEccsUser } from '@/components/app-nav';
 import { BdeHome } from '@/components/bde-home';
+import { BuddyButton } from '@/components/buddy-button';
+import { BuddyHomeCard } from '@/components/buddy-parts';
 import { DuesLine } from '@/components/dues-line';
 import { NotificationBell } from '@/components/notification-bell';
 import { OutletOverview } from '@/components/outlet-overview';
@@ -104,7 +106,12 @@ export default function HomeScreen() {
           </ThemedText>
         </View>
         {/* Top right, where people look for it. It fetches its own number each time Home comes into view. */}
-        <NotificationBell />
+        <View style={styles.topEnd}>
+          {/* ECCS Buddy, for the Owner and the Manager only (it shows nothing for anyone else): the
+              sparkle alone beside the bell, as the greeting needs the width; the card below names it. */}
+          <BuddyButton compact />
+          <NotificationBell />
+        </View>
       </View>
 
       <ErrorText message={error} onRetry={() => void load()} />
@@ -144,6 +151,8 @@ export default function HomeScreen() {
               {/* For the Owner and Manager, and only when something is due: how much, leading to Invoices. */}
               <DuesLine outletId={outlet.outletId} stamp={loadedAt} />
               <OutletOverview outlet={outlet} />
+              {/* ECCS Buddy's card, after the day's main part (the founder: main part first). Owner and Manager only. */}
+              <BuddyHomeCard />
               {outlet.visits && (
                 <>
                   <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
@@ -169,5 +178,6 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   header: { flex: 1, gap: Spacing.one, paddingTop: Spacing.two },
   greeting: { fontSize: 24, lineHeight: 30 },
+  topEnd: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   sectionGap: { marginTop: Spacing.three },
 });

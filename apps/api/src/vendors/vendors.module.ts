@@ -6,5 +6,7 @@ import { VendorsService } from './vendors.service.js';
 @Module({
   controllers: [VendorsController],
   providers: [VendorsService],
+  // ECCS Buddy reads through it, as the person asking (apps/api/src/buddy).
+  exports: [VendorsService],
 })
 export class VendorsModule {}

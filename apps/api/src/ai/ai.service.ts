@@ -47,7 +47,14 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { env } from '../config/env.js';
 import type { Prisma } from '@eccs/db';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { AI_ENGINE, AiEngineError, type AiEngine } from './ai-engine.js';
+import {
+  AI_ENGINE,
+  AiEngineError,
+  type AiContentBlock,
+  type AiConversationMessage,
+  type AiEngine,
+  type AiToolDefinition,
+} from './ai-engine.js';
 
 /** Who and where a request is for: the person, their restaurant and the outlet. Any may be unknown. */
 export interface AiWho {
@@ -83,6 +90,29 @@ export interface AiCall<T> {
 
 export type AiResult<T> =
   | { ok: true; value: T; requestId: string }
+  | { ok: false; code: AiErrorCode; requestId: string | null; reason?: string };
+
+/** One step of a conversation with tools (see `converse`). */
+export interface AiConverseCall {
+  feature: AiFeature;
+  model: AiModelId;
+  system: string;
+  tools: AiToolDefinition[];
+  messages: AiConversationMessage[];
+  maxOutputTokens: number;
+  who: AiWho;
+  effort?: 'low' | 'medium' | 'high';
+  /** 'off' (the default) or 'adaptive': the model may think first. */
+  thinking?: 'off' | 'adaptive';
+  /** Stops the step early; it is then recorded as an error, ABORTED. */
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  /** For the fake engine (see AiEngineRequest.facts). */
+  facts?: unknown;
+}
+
+export type AiConverseResult =
+  | { ok: true; content: AiContentBlock[]; stopReason: string; requestId: string }
   | { ok: false; code: AiErrorCode; requestId: string | null };
 
 const DEFAULT_TIMEOUT_MS = 45_000;
@@ -192,6 +222,67 @@ export class AiService {
       const requestId = await this.record({ ...row, usage, durationMs: Date.now() - started, status: 'ERROR', errorCode: code }).catch(
         () => null,
       );
+      // The engine's own short code (TIMEOUT, REFUSED...), for a feature that acts on why it failed.
+      return { ok: false, code: AI_ERROR.failed, requestId, reason: code };
+    }
+  }
+
+  /**
+   * One step of a conversation with tools (ECCS Buddy, 16 Oct 2026): the same gate as `run` (the
+   * switches, today's limits for everyone and for the outlet, a recorded AiRequest with its cost,
+   * cache reads and writes included), for a step whose answer is text and tool calls rather than
+   * JSON in a fixed shape. Never throws. The caller runs the tools and asks again; each step is
+   * its own request row.
+   */
+  async converse(call: AiConverseCall): Promise<AiConverseResult> {
+    const row = { feature: call.feature, model: call.model, ...call.who };
+    try {
+      if (!this.isOn(call.feature)) {
+        return { ok: false, code: AI_ERROR.off, requestId: await this.record({ ...row, status: 'OFF' }) };
+      }
+      const limit = await this.overLimit(PLATFORM_ONLY_FEATURES.includes(call.feature) ? null : call.who.outletId);
+      if (limit) {
+        this.logger.warn(`AI ${call.feature} not asked: ${limit}`);
+        return { ok: false, code: AI_ERROR.limit, requestId: await this.record({ ...row, status: 'LIMIT', errorCode: limit }) };
+      }
+    } catch (error) {
+      this.logger.warn(`AI ${call.feature} not asked: could not check the limits (${String(error)})`);
+      return { ok: false, code: AI_ERROR.failed, requestId: null };
+    }
+    const started = Date.now();
+    try {
+      const answer = await this.engine.converse({
+        feature: call.feature,
+        model: call.model,
+        system: call.system,
+        tools: call.tools,
+        messages: call.messages,
+        maxOutputTokens: call.maxOutputTokens,
+        effort: call.effort ?? 'low',
+        thinking: call.thinking ?? 'off',
+        ...(call.signal && { signal: call.signal }),
+        timeoutMs: call.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        personTag: call.who.userId ? personTag(call.who.userId) : null,
+        facts: call.facts,
+      });
+      // Which tools the step asked for, by name ("TOOLS:visits+open_screen"), or ANSWER: for measuring which tools are used. Never any words.
+      const toolNames = answer.content.flatMap((block) => (block.type === 'tool_use' ? [String(block.name).slice(0, 40)] : []));
+      const thought = answer.content.some((block) => block.type === 'thinking' || block.type === 'redacted_thinking');
+      const requestId = await this.record({
+        ...row,
+        usage: answer.usage,
+        durationMs: Date.now() - started,
+        status: 'OK',
+        // Only how the step ended, for measuring: never any of the words.
+        // ;THOUGHT when the answer came with thinking blocks (adaptive thinking ran), to check it really thinks.
+        resultCode: `${toolNames.length > 0 ? `TOOLS:${toolNames.join('+')}`.slice(0, 180) : 'ANSWER'}${thought ? ';THOUGHT' : ''}`,
+      });
+      return { ok: true, content: answer.content, stopReason: answer.stopReason, requestId };
+    } catch (error) {
+      const code = error instanceof AiEngineError ? error.code : 'UNEXPECTED';
+      const usage = error instanceof AiEngineError ? error.usage : undefined;
+      this.logger.warn(`AI ${call.feature} on ${call.model} failed: ${code}`);
+      const requestId = await this.record({ ...row, usage, durationMs: Date.now() - started, status: 'ERROR', errorCode: code }).catch(() => null);
       return { ok: false, code: AI_ERROR.failed, requestId };
     }
   }

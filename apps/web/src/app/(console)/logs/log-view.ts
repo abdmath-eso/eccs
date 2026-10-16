@@ -391,6 +391,8 @@ export const AI_FEATURE_LABEL: Record<string, string> = {
   "photo-check": "Photo check",
   "photo-standard": "Photo standard of a checklist item",
   "shop-board": "Shop board reader (a BDE's new lead)",
+  buddy: "ECCS Buddy (the helper in the restaurant app)",
+  "buddy-screen": "ECCS Buddy scope screen (is the message about the restaurant?)",
 };
 
 export const AI_STATUS_LABEL: Record<string, string> = {

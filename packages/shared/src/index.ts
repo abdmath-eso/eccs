@@ -37,3 +37,4 @@ export * from "./sales.js";
 export * from "./free-check.js";
 export * from "./team.js";
 export * from "./onboarding.js";
+export * from "./buddy.js";

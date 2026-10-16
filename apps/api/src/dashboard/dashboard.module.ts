@@ -10,5 +10,7 @@ import { DashboardService } from './dashboard.service.js';
   imports: [ChecklistsModule, IssuesModule, LicencesModule, ServicesModule],
   controllers: [DashboardController],
   providers: [DashboardService],
+  // ECCS Buddy reads through it, as the person asking (apps/api/src/buddy).
+  exports: [DashboardService],
 })
 export class DashboardModule {}

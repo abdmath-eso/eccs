@@ -7,7 +7,7 @@ import {
   type VisitSlot,
 } from '@eccs/shared';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -63,9 +63,11 @@ export default function BookServiceScreen() {
   const { t, api, language } = useSession();
   const notify = useSnackbar();
   const { outletId, outlets, choose } = useOutlet();
+  // itemId: from ECCS Buddy's Open button, the service already chosen.
+  const params = useLocalSearchParams<{ itemId?: string }>();
 
   const [catalog, setCatalog] = useState<ServiceCatalogItemDto[] | null>(null);
-  const [itemId, setItemId] = useState<string | null>(null);
+  const [itemId, setItemId] = useState<string | null>(params.itemId || null);
   const [date, setDate] = useState<string | null>(null);
   const [slot, setSlot] = useState<VisitSlot | null>(null);
   const [notes, setNotes] = useState('');

@@ -5,6 +5,7 @@ import { AppController } from './app.controller.js';
 import { AttendanceModule } from './attendance/attendance.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BillingModule } from './billing/billing.module.js';
+import { BuddyModule } from './buddy/buddy.module.js';
 import { CalendarModule } from './calendar/calendar.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { CertificatesModule } from './certificates/certificates.module.js';
@@ -71,6 +72,7 @@ import { VendorsModule } from './vendors/vendors.module.js';
     FinanceModule,
     SalesModule,
     TeamModule,
+    BuddyModule,
   ],
   controllers: [AppController],
 })

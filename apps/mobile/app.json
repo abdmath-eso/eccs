@@ -37,18 +37,25 @@
       ],
       "expo-secure-store",
       [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "ECCS uses the microphone only when you tap Speak in ECCS Buddy, to turn what you say into words you check before sending.",
+          "speechRecognitionPermission": "ECCS uses the phone's speech recognition to turn what you say to ECCS Buddy into words in the box, for you to check before sending."
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "cameraPermission": "ECCS uses the camera to clock staff in and out by face and to take proof photos.",
           "photosPermission": "ECCS lets you choose a photo or a document you already have, such as a licence.",
-          "microphonePermission": false
+          "microphonePermission": "ECCS uses the microphone only when you tap Speak in ECCS Buddy, to turn what you say into words you check before sending."
         }
       ],
       [
         "expo-camera",
         {
           "cameraPermission": "ECCS uses the camera to clock staff in and out by face and to take proof photos.",
-          "microphonePermission": false,
+          "microphonePermission": "ECCS uses the microphone only when you tap Speak in ECCS Buddy, to turn what you say into words you check before sending.",
           "recordAudioAndroid": false
         }
       ],

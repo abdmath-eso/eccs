@@ -338,6 +338,15 @@ Onboarding (16 Oct 2026) sends nothing itself: Send joining link opens WhatsApp 
 | OB9 | The 30- or 60-day check-in or the probation review is 7 days away | Super Admin | "{name}'s probation review is due on {date}." | In-app | not built |
 | OB10 | Onboarding is done | Super Admin; Ops Manager | "{name}'s onboarding is done." | In-app | not built |
 
+## 16h. ECCS Buddy
+
+ECCS Buddy (16 Oct 2026) sends nothing of its own. A card the person taps does what the app's own screen does and sends the same notifications: a booking request as in section 1, an issue or a support request as in section 3; a withdrawn request, a checklist item or checklist, an SOP or a food label send whatever their own screens send. Buddy's own notices (a limit reached, paused, too fast, the chat full) are shown in the chat, not sent, and AI1 also covers Buddy. Suggested, for ECCS's office:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| BU1 | Buddy pauses someone at a restaurant after 5 refused messages in a day | Adm; Ops Manager | "ECCS Buddy paused a user at {restaurant} today after messages it could not help with." | In-app | not built |
+| BU2 | Several of Buddy's answers in a day are marked not helpful (the founder to say how many) | Adm | "{count} ECCS Buddy answers were marked not helpful today." | In-app | not built |
+
 ## 17. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
@@ -353,6 +362,7 @@ Onboarding (16 Oct 2026) sends nothing itself: Send joining link opens WhatsApp 
 | 16 Oct 2026 | The BDE's phone app: SL10 to SL12 added to section 16e; AI1 also covers the shop-board reader. None built. |
 | 16 Oct 2026 | The Team page: section 16f added (TM1 to TM8). None built. |
 | 16 Oct 2026 | Onboarding: section 16g added (OB1 to OB10). None built. |
+| 16 Oct 2026 | ECCS Buddy: section 16h added (BU1, BU2); its cards send the same notifications as the app's own screens. None built. |
 | 15 Oct 2026 | Sales: section 16e added (SL1 to SL9), none built. |
 | 15 Oct 2026 | Finance: section 16d added (FN1 to FN6), none built. |
 | 15 Oct 2026 | Logs: section 16c added (LG1 to LG3), none built. |

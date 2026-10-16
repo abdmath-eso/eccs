@@ -53,6 +53,23 @@ const schema = z
           .map((name) => name.trim())
           .filter(Boolean),
       ),
+    // ECCS Buddy, the helper in the restaurant app (16 Oct 2026). How many messages one person may
+    // send it in a day (India time), on top of the outlet's and everyone's daily AI limits; and which
+    // model answers ("haiku", chosen by measuring both on a test set; "sonnet" to try the stronger one).
+    BUDDY_DAILY_MESSAGES: z.coerce.number().int().min(0).default(40),
+    BUDDY_MODEL: z.enum(['haiku', 'sonnet']).default('haiku'),
+    // How hard the model works on each step. "medium", chosen by measuring (16 Oct 2026): on the hard test set
+    // Haiku 5.5 got 26 of 28 at medium, 25 at low, against Sonnet 5.5's 28 at ten times the cost.
+    BUDDY_EFFORT: z.enum(['low', 'medium']).default('medium'),
+    // "adaptive": the model may think before it answers (billed as output); "off": it does not.
+    BUDDY_THINKING: z.enum(['off', 'adaptive']).default('adaptive'),
+    // The scope screen: a quick check, made with each message, that it is about the restaurant or
+    // the app; "off" leaves only the instructions and the check on each answer.
+    BUDDY_SCREEN: z.enum(['on', 'off']).default('on'),
+    // Messages one person may send in a minute, and refused messages in a day before Buddy pauses
+    // for them until tomorrow (BUDDY_RULES has the same defaults).
+    BUDDY_PER_MINUTE: z.coerce.number().int().min(1).default(6),
+    BUDDY_BLOCKS_BEFORE_PAUSE: z.coerce.number().int().min(1).default(5),
     // How restaurants reach ECCS directly. Sample numbers until the real ones are supplied.
     SUPPORT_PHONE: z.string().default('+919000000000'),
     SUPPORT_WHATSAPP: z.string().default('919000000000'),

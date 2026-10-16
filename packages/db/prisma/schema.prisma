@@ -2471,3 +2471,111 @@ model OnboardingSettings {
   letter    Json
   updatedAt DateTime @updatedAt
 }
+
+// ───────────────────────── ECCS Buddy (16 Oct 2026) ─────────────────────────
+//
+// The AI helper in the restaurant app, for the Owner and the Manager. A chat, its messages
+// and its confirmation cards are removed together 30 days after the chat's last message
+// (BUDDY_RULES.keepDays, a daily job in apps/api/src/buddy). The person, restaurant and outlet
+// are plain ids with no link, as on AiRequest, so removing an outlet or a login never waits on
+// a chat. The chat's words are kept here only: never in the activity log.
+
+/// One chat with Buddy.
+model BuddyChat {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String?
+  /// The outlet in view when it was last used: tools default to it and its AI allowance pays.
+  outletId       String?
+  /// The start of the first message.
+  title          String
+  createdAt      DateTime @default(now())
+  /// When the last message was added: the chat is removed 30 days after it.
+  lastMessageAt  DateTime @default(now())
+
+  messages BuddyMessage[]
+  cards    BuddyCard[]
+
+  @@index([userId, lastMessageAt])
+  @@index([lastMessageAt])
+}
+
+/// A message in a Buddy chat: the person's (USER) or Buddy's (BUDDY).
+model BuddyMessage {
+  id          String   @id @default(uuid())
+  chatId      String
+  /// The person who sent it, or the chat's person for Buddy's answers (for the daily cap).
+  userId      String
+  /// USER or BUDDY.
+  role        String
+  text        String
+  /// Buddy's Open buttons: [{ target, params }] (BuddyOpenDto).
+  opens       Json?
+  /// The screen the person was on when they sent it (BUDDY_SCREENS).
+  screen      String?
+  /// ANSWER: written by AI. DONE: Buddy's line after a card was carried out (fixed words).
+  kind        String   @default("ANSWER")
+  /// The last AiRequest of the answer, for "Helpful?".
+  aiRequestId String?
+  /// HELPFUL or NOT_HELPFUL, from the thumbs.
+  outcome     String?
+  createdAt   DateTime @default(now())
+
+  chat  BuddyChat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  cards BuddyCard[]
+
+  @@index([chatId, createdAt])
+  @@index([userId, role, createdAt])
+}
+
+/// A confirmation card: a change Buddy prepared, carried out only when the person taps it,
+/// once, within 30 minutes, through the app's own service with fresh checks.
+model BuddyCard {
+  id             String    @id @default(uuid())
+  chatId         String
+  messageId      String?
+  /// The person it was made for: nobody else can use it.
+  userId         String
+  organizationId String?
+  outletId       String?
+  /// BUDDY_ACTIONS: BOOK, ADD_CHECKLIST_ITEM, SAVE_SOP...
+  action         String
+  /// What the service is called with, already checked against the route's own schema.
+  input          Json
+  /// What the card shows (BuddyCardDetails).
+  details        Json
+  /// PENDING, RUNNING, DONE, FAILED or CANCELLED (BUDDY_CARD_STATUSES).
+  status         String    @default("PENDING")
+  expiresAt      DateTime
+  usedAt         DateTime?
+  /// Once done: where to see it ({ target, params }).
+  result         Json?
+  /// What was made, for the done line (an issue's ECCS-0042).
+  reference      String?
+  /// Why the last try failed, in plain words.
+  error          String?
+  createdAt      DateTime  @default(now())
+
+  chat    BuddyChat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message BuddyMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([chatId])
+  @@index([userId, status, createdAt])
+}
+
+/// A message Buddy refused (out of scope, abuse) or an answer the check on its way out replaced
+/// (16 Oct 2026). Counts only, never the words: Buddy pauses for a person after five refused
+/// messages in a day, and the console counts them per restaurant. Removed with the chats' 30 days.
+model BuddyBlock {
+  id             String   @id @default(uuid())
+  userId         String
+  organizationId String?
+  outletId       String?
+  /// OFFTOPIC, ABUSE or ANSWER (BUDDY_BLOCK_REASONS); for ANSWER, what failed (CODE, LINK...).
+  reason         String
+  detail         String?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}

@@ -51,6 +51,67 @@ export class AiEngineError extends Error {
   }
 }
 
+// ───────────────────────── A conversation with tools (ECCS Buddy, 16 Oct 2026) ─────────────────────────
+//
+// Anthropic's tool use (platform.claude.com/docs/en/agents-and-tools/tool-use): the request
+// carries the tools; the model answers with text and `tool_use` blocks; the server runs the
+// tools and sends their `tool_result` blocks back, first in the next user message, until the
+// model answers with text alone (stop reason "end_turn").
+
+/** One tool the model may ask for: its name, what it does and when to use it, and its input's JSON schema. */
+export interface AiToolDefinition {
+  name: string;
+  description: string;
+  input_schema: AiJsonSchema;
+}
+
+/**
+ * A block of a message, as the Messages API writes it. Text, a tool call, a tool's result, or
+ * anything else the model sends (a thinking block from Sonnet 5.5's `between_tools`), which is
+ * sent back unchanged within the same answer, as Anthropic asks.
+ */
+export type AiContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; id: string; name: string; input: unknown }
+  | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean }
+  | { type: 'thinking' | 'redacted_thinking'; [key: string]: unknown };
+
+export interface AiConversationMessage {
+  role: 'user' | 'assistant';
+  content: AiContentBlock[];
+}
+
+export interface AiConverseRequest {
+  feature: AiFeature;
+  model: AiModelId;
+  /** The long fixed part (instructions and the app guide): cached together with the tools. */
+  system: string;
+  tools: AiToolDefinition[];
+  messages: AiConversationMessage[];
+  maxOutputTokens: number;
+  effort: 'low' | 'medium' | 'high';
+  /**
+   * 'off': no thinking, as for the other features. 'adaptive': the model may think before it
+   * answers or calls a tool (billed as output); with thinking off, Haiku 5.5 can write its reasoning
+   * into the visible answer instead (Anthropic's migration notes), so Buddy measures both.
+   */
+  thinking: 'off' | 'adaptive';
+  timeoutMs: number;
+  /** Stops the step early (Buddy's scope screen refused the message); it then fails with ABORTED. */
+  signal?: AbortSignal;
+  personTag: string | null;
+  /** For the fake engine only (see AiEngineRequest.facts). */
+  facts?: unknown;
+}
+
+export interface AiConverseAnswer {
+  /** The model's blocks, in order, thinking blocks included. */
+  content: AiContentBlock[];
+  /** "end_turn" (answered) or "tool_use" (wants tools run). Refusals and cut-off answers are thrown as AiEngineError. */
+  stopReason: string;
+  usage: AiUsage;
+}
+
 /**
  * Something that answers AI requests. Two kinds: the real one, which calls
  * Anthropic's Messages API (claude-engine.ts), and a fake one with fixed answers
@@ -61,6 +122,8 @@ export interface AiEngine {
   /** False when the engine cannot be used at all (the real one without an API key). */
   readonly ready: boolean;
   complete(request: AiEngineRequest): Promise<AiEngineAnswer>;
+  /** One step of a conversation with tools: the next assistant message. */
+  converse(request: AiConverseRequest): Promise<AiConverseAnswer>;
 }
 
 export const AI_ENGINE = Symbol('AI_ENGINE');

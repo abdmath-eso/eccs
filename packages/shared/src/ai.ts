@@ -111,6 +111,8 @@ export const AI_FEATURES = [
   "photo-check", // a nudge at the camera when a checklist proof photo is blurred, too dark, of the wrong thing, or the check looks not done
   "photo-standard", // writes, once, what a checklist item's proof photo must show (the photo check judges against it)
   "shop-board", // reads a photo of a shop's board into a BDE's Log a lead form (16 Oct 2026)
+  "buddy", // ECCS Buddy, the helper in the restaurant app for the Owner and the Manager: one row per step of an answer (16 Oct 2026)
+  "buddy-screen", // ECCS Buddy's scope screen: is this message about the restaurant or the app? Made with each message, at the same time as its first step
 ] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 

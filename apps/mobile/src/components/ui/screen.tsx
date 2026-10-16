@@ -4,11 +4,13 @@ import { useState, type ReactNode, type RefObject } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BuddyButton } from '@/components/buddy-button';
 import { ThemedText } from '@/components/themed-text';
 import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useDirection } from '@/lib/direction';
-import { isTabRoute } from '@/lib/navigation';
+import { showsBuddy } from '@/lib/buddy';
+import { isTabRoute, normalizePath } from '@/lib/navigation';
 import { useSession } from '@/lib/session';
 
 interface ScreenProps {
@@ -58,7 +60,13 @@ export function Screen({
   const { backIcon } = useDirection();
   const [refreshing, setRefreshing] = useState(false);
   // On a screen that shows the bottom bar, the bar itself keeps clear of the home indicator.
-  const aboveBottomBar = isTabRoute(usePathname(), user?.memberships[0]?.role);
+  const pathname = usePathname();
+  const aboveBottomBar = isTabRoute(pathname, user?.memberships[0]?.role);
+  // ECCS Buddy's button, for the Owner and the Manager, at the end of the top bar (or of the title
+  // line on a screen with no top bar). Not on Buddy's own screens, nor on Home, which places it
+  // beside the bell itself, nor before login.
+  const buddy =
+    showsBuddy(user?.memberships) && !normalizePath(pathname).startsWith('/buddy') && normalizePath(pathname) !== '/' && !normalizePath(pathname).startsWith('/legal') && normalizePath(pathname) !== '/accept';
   // A main section is reached from the bottom bar and has nowhere to go "back" to,
   // unless the screen steps back within itself.
   const showBack = back && (!aboveBottomBar || onBack !== undefined);
@@ -79,7 +87,7 @@ export function Screen({
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <SafeAreaView style={styles.safeArea} edges={aboveBottomBar ? ['top', 'left', 'right'] : undefined}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          {(showBack || headerRight) && (
+          {(showBack || headerRight || (buddy && !title)) && (
             <View style={styles.header}>
               {showBack ? (
                 <Pressable
@@ -95,7 +103,10 @@ export function Screen({
               ) : (
                 <View />
               )}
-              {headerRight}
+              <View style={styles.headerEnd}>
+                {headerRight}
+                {buddy && <BuddyButton />}
+              </View>
             </View>
           )}
           <ScrollView
@@ -117,11 +128,21 @@ export function Screen({
                 />
               ) : undefined
             }>
-            {title && (
-              <ThemedText type="subtitle" style={styles.title}>
-                {title}
-              </ThemedText>
-            )}
+            {title &&
+              (buddy && !(showBack || headerRight) ? (
+                // No top bar: Buddy's button sits at the end of the title's line instead of adding one,
+                // as the sparkle alone, so the title keeps its width.
+                <View style={styles.titleRow}>
+                  <ThemedText type="subtitle" style={[styles.title, styles.titleText]}>
+                    {title}
+                  </ThemedText>
+                  <BuddyButton compact />
+                </View>
+              ) : (
+                <ThemedText type="subtitle" style={styles.title}>
+                  {title}
+                </ThemedText>
+              ))}
             {subtitle && (
               <ThemedText type="default" themeColor="textSecondary">
                 {subtitle}
@@ -157,6 +178,9 @@ const styles = StyleSheet.create({
     paddingEnd: Spacing.three,
   },
   title: { fontSize: 28, lineHeight: 36 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  titleText: { flex: 1 },
+  headerEnd: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   footer: {
     borderTopWidth: 1,
     paddingHorizontal: Spacing.four,

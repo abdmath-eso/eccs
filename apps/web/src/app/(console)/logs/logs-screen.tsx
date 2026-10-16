@@ -27,6 +27,7 @@ import { useSession } from "@/lib/session";
 import { EventPanel, type PanelFilter } from "./event-panel";
 import { FilterMenu, Popover, type MenuOption } from "./filter-menu";
 import { AiMark, isFailure, ResultBadge, SourceBadge, Time } from "./log-parts";
+import { BuddyStats } from "./buddy-stats";
 import {
   AI_FEATURE_LABEL,
   AI_KEYS,
@@ -724,6 +725,8 @@ function Logs() {
       </div>
 
       <SummaryLine totals={totals} loading={!totals && !failure} live={live && current} checkedAt={checkedAt} />
+      {/* ECCS Buddy's counts per day (chats, changes made, not helpful), on the AI tab only. Never a chat's words. */}
+      {ai && <BuddyStats />}
 
       {failure && <LoadError message={failure} onRetry={() => setAttempt((n) => n + 1)} />}
       {!rows && !failure && <Loading />}

@@ -33,7 +33,8 @@ import { useOutlet } from '@/lib/use-outlet';
 export default function PersonScreen() {
   const theme = useTheme();
   const { t, api, user } = useSession();
-  const { staffId } = useLocalSearchParams<{ staffId?: string }>();
+  // name: from ECCS Buddy's Open button (Add a person, with the name the Owner or Manager said). Only the name.
+  const { staffId, name: suggestedName } = useLocalSearchParams<{ staffId?: string; name?: string }>();
   const { outletId, outlets, choose } = useOutlet();
   const [person, setPerson] = useState<StaffMemberDto | null>(null);
   const [logins, setLogins] = useState<RestaurantUserDto[]>([]);
@@ -92,6 +93,7 @@ export default function PersonScreen() {
       // A fresh form for each person and outlet, so nothing typed for one leaks into another.
       key={`${person?.id ?? 'new'}|${formOutletId}`}
       person={person}
+      suggestedName={person ? undefined : suggestedName}
       outletId={formOutletId}
       // Only the logins of this outlet can be linked, and the Owner is not on the staff list. A Manager is not
       // offered their own login: only the Owner links a person to the login of whoever is filling this in.
@@ -103,17 +105,19 @@ export default function PersonScreen() {
 
 interface PersonFormProps {
   person: StaffMemberDto | null;
+  /** A new person's name to start with (from ECCS Buddy). */
+  suggestedName?: string | undefined;
   outletId: string | null;
   logins: RestaurantUserDto[];
   outletChoice: ReactNode;
 }
 
-function PersonForm({ person, outletId, logins, outletChoice }: PersonFormProps) {
+function PersonForm({ person, suggestedName, outletId, logins, outletChoice }: PersonFormProps) {
   const { t, api, language, user } = useSession();
   const notify = useSnackbar();
   const isOwner = (user?.memberships ?? []).some((membership) => membership.role === 'OWNER');
 
-  const [name, setName] = useState(person?.name ?? '');
+  const [name, setName] = useState(person?.name ?? suggestedName?.slice(0, 100) ?? '');
   const [jobTitle, setJobTitle] = useState(person?.jobTitle ?? '');
   const [phone, setPhone] = useState(person?.phone ?? '');
   // Pay starts on the day the person joined, so the date is always filled in: today for a new person,

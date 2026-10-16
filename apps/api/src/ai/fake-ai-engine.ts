@@ -1,5 +1,15 @@
 import type { AiFeature, AiUsage, LicenceAnswer } from '@eccs/shared';
-import { AiEngineError, type AiEngine, type AiEngineAnswer, type AiEngineRequest } from './ai-engine.js';
+import {
+  AiEngineError,
+  type AiContentBlock,
+  type AiConversationMessage,
+  type AiConverseAnswer,
+  type AiConverseRequest,
+  type AiEngine,
+  type AiEngineAnswer,
+  type AiEngineRequest,
+  type AiToolDefinition,
+} from './ai-engine.js';
 
 // A stand-in for Anthropic, for the automated tests: fixed, plausible answers for
 // each feature, worked out from the facts each feature passes along, with no
@@ -54,6 +64,24 @@ export const FAKE_BOARD = {
   phones: ['040-2345 6789', '98480 22338'],
 };
 
+/**
+ * ECCS Buddy's conversation (16 Oct 2026): what the fake was asked, all of it, so a test can check
+ * that nothing private is ever sent (phone numbers, PINs, tokens, attendance, pay, names of staff).
+ */
+export interface FakeConverseCall {
+  feature: AiFeature;
+  model: string;
+  system: string;
+  tools: AiToolDefinition[];
+  messages: AiConversationMessage[];
+  facts: unknown;
+}
+
+/** Buddy's fake answer when no step is queued, marked with the language asked for ("[te] ..."). */
+export const FAKE_BUDDY_ANSWER = 'FAKE-BUDDY answer.';
+/** Buddy's fake answer after its tools have run. */
+export const FAKE_BUDDY_AFTER_TOOLS = 'FAKE-BUDDY: here is what I found.';
+
 /** What a fake call was asked, for tests to look at. */
 export interface FakeAiCall {
   feature: AiFeature;
@@ -70,7 +98,18 @@ export class FakeAiEngine implements AiEngine {
   readonly kind = 'fake';
   readonly ready = true;
   readonly calls: FakeAiCall[] = [];
+  readonly conversations: FakeConverseCall[] = [];
   private readonly queued = new Map<AiFeature, unknown[]>();
+  private readonly turns: (AiContentBlock[] | AiEngineError)[] = [];
+
+  /**
+   * Tests: the next step of a conversation answers with these blocks (a tool call, or text), or
+   * fails with the error. A step not queued answers with plain text: FAKE_BUDDY_ANSWER, or
+   * FAKE_BUDDY_AFTER_TOOLS when it follows tool results.
+   */
+  queueTurn(turn: AiContentBlock[] | AiEngineError): void {
+    this.turns.push(turn);
+  }
 
   /** Tests: the next call for `feature` answers with this (or fails, for an AiEngineError). */
   queue(feature: AiFeature, answer: unknown): void {
@@ -81,6 +120,31 @@ export class FakeAiEngine implements AiEngine {
   reset(): void {
     this.calls.length = 0;
     this.queued.clear();
+    this.conversations.length = 0;
+    this.turns.length = 0;
+  }
+
+  converse(request: AiConverseRequest): Promise<AiConverseAnswer> {
+    // A copy as it was at this step: the caller goes on adding to its own list.
+    this.conversations.push(
+      JSON.parse(
+        JSON.stringify({ feature: request.feature, model: request.model, system: request.system, tools: request.tools, messages: request.messages, facts: request.facts ?? null }),
+      ) as FakeConverseCall,
+    );
+    if (request.signal?.aborted) return Promise.reject(new AiEngineError('ABORTED', 'Stopped by the server'));
+    const queued = this.turns.shift();
+    if (queued instanceof AiEngineError) return Promise.reject(queued);
+    const language = (request.facts as { language?: string } | undefined)?.language ?? 'en';
+    const last = request.messages[request.messages.length - 1];
+    const afterTools = last?.content.some((block) => block.type === 'tool_result') ?? false;
+    const content: AiContentBlock[] = queued ?? [{ type: 'text', text: `[${language}] ${afterTools ? FAKE_BUDDY_AFTER_TOOLS : FAKE_BUDDY_ANSWER}` }];
+    const usage: AiUsage = {
+      inputTokens: Math.ceil(JSON.stringify(request.messages).length / 4),
+      outputTokens: Math.ceil(JSON.stringify(content).length / 4),
+      // The fixed part counts as read from the cache, as it would be after the first message.
+      cacheReadTokens: Math.ceil((request.system.length + JSON.stringify(request.tools).length) / 4),
+    };
+    return Promise.resolve({ content, stopReason: content.some((block) => block.type === 'tool_use') ? 'tool_use' : 'end_turn', usage });
   }
 
   complete(request: AiEngineRequest): Promise<AiEngineAnswer> {
@@ -191,6 +255,11 @@ export class FakeAiEngine implements AiEngine {
         if (bytes.includes('FAKE-AI:NO-ADDRESS')) return { ...FAKE_BOARD, area: null, address: null };
         if (bytes.includes('FAKE-AI:LANDLINE')) return { ...FAKE_BOARD, phones: ['040-2345 6789'] };
         return FAKE_BOARD;
+      }
+      case 'buddy-screen': {
+        // Buddy's scope screen: a message with FAKE-SCREEN:OFFTOPIC or FAKE-SCREEN:ABUSE is refused; anything else is about the app.
+        const marked = /FAKE-SCREEN:(OFFTOPIC|ABUSE)/.exec(request.text);
+        return { kind: marked ? marked[1]!.toLowerCase() : 'app' };
       }
       // A new feature adds its fixed answer above.
       default:

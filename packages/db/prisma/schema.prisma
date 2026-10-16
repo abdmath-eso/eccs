@@ -147,6 +147,8 @@ model User {
   ownedLeads     Lead[]
   /// Their weekly sales targets set by hand.
   salesTargets   SalesTarget[]
+  /// Their place on ECCS's own team (the Team page): area, joining date, salary, leave.
+  teamMember     TeamMember?
 
   @@unique([pinOrganizationId, pinLookup])
 }
@@ -1895,15 +1897,21 @@ model Expense {
   /// The visit (job) the cost belongs to, so it counts against that job's margin.
   visitId     String?
   enteredById String?
+  /// A month's salary made from the Team page (16 Oct 2026): the team member it is for, and
+  /// the month (YYYY-MM). Kept up to date by the app while unpaid; never typed in.
+  teamMemberId String?
+  salaryMonth  String?
   isSample    Boolean   @default(false)
   /// A sample row's own name, so loading the sample again adds nothing twice.
   sampleKey   String?   @unique
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  receipt Attachment? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
-  visit   Job?        @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  receipt    Attachment? @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  visit      Job?        @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  teamMember TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
 
+  @@unique([teamMemberId, salaryMonth])
   @@index([date])
   @@index([paidOn])
   @@index([visitId])
@@ -2040,6 +2048,7 @@ model Lead {
   photo        Attachment?   @relation(fields: [photoId], references: [id], onDelete: SetNull)
   activities   LeadActivity[]
   quotes       Quote[]
+  followUps    LeadFollowUp[]
 
   @@index([ownerId, status])
   @@index([status, stage])
@@ -2148,4 +2157,99 @@ model SalesSettings {
   floorFirstJobs Int      @default(1)
   floorPlans     Int      @default(0)
   updatedAt      DateTime @updatedAt
+}
+
+/// A next step's due time on a lead, kept from the moment it is set (16 Oct 2026, for the
+/// Team page's "follow-ups on time"): when it was set, when it was due, and when it stopped
+/// being the lead's next step (a step logged, a new date set, the lead parked or lost). The
+/// lead itself keeps only its current next step, so without this the history would be lost.
+model LeadFollowUp {
+  id        String    @id @default(uuid())
+  leadId    String
+  /// Who owned the lead while it was due (moved with the lead when one is handed over).
+  ownerId   String
+  setAt     DateTime
+  dueAt     DateTime
+  endedAt   DateTime?
+  isSample  Boolean   @default(false)
+  sampleKey String?   @unique
+  createdAt DateTime  @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, dueAt])
+  @@index([leadId, endedAt])
+}
+
+// ───────────────────────── ECCS's own team (the Team page) ─────────────────────────
+//
+// Team (16 Oct 2026): the founders' own staff (Ops Manager, Supervisors, BDEs), not a
+// restaurant's cooks. A team member is an ECCS login with an area, a joining date (and a
+// leaving date), a weekly day off, a monthly salary that can change from a date, and days
+// of leave. Presence is never marked: it is read from what the person did (lead steps,
+// visit arrivals and inspections, changes in the console). Each month's salary becomes an
+// Expense row on the Finance page (Expense.teamMemberId). Rules: packages/shared/src/team.ts.
+
+/// One person's place on the team. One per login.
+model TeamMember {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  /// Where they work, e.g. "Jubilee Hills".
+  area        String?
+  joinedOn    DateTime  @db.Date
+  /// Their last day, once they have left. They can no longer log in from then.
+  leftOn      DateTime? @db.Date
+  /// Their weekly day off: 0 is Sunday, 6 is Saturday.
+  weeklyOff   Int       @default(0)
+  createdById String?
+  isSample    Boolean   @default(false)
+  sampleKey   String?   @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salaries   TeamSalary[]
+  leave      TeamLeave[]
+  /// The months of salary made into the Finance page's expense book.
+  salaryRows Expense[]
+}
+
+/// A monthly salary from a day on. The latest one that has started is the salary paid.
+model TeamSalary {
+  id           String   @id @default(uuid())
+  memberId     String
+  from         DateTime @db.Date
+  monthlyPaise Int
+  setById      String?
+  isSample     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  member TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, from])
+}
+
+/// A day or a few days of leave, recorded by the Super Admin or the Ops Manager.
+model TeamLeave {
+  id          String   @id @default(uuid())
+  memberId    String
+  from        DateTime @db.Date
+  to          DateTime @db.Date
+  /// A few words ("family function"). Never medical details.
+  reason      String?
+  createdById String?
+  isSample    Boolean  @default(false)
+  sampleKey   String?  @unique
+  createdAt   DateTime @default(now())
+
+  member TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, from])
+}
+
+/// The Team page's settings, one row ("default"): the share of follow-ups and arrivals on time aimed for.
+model TeamSettings {
+  id                  String   @id @default("default")
+  onTimeTargetPercent Int      @default(90)
+  updatedAt           DateTime @updatedAt
 }

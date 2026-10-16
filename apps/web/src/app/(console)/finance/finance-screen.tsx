@@ -288,7 +288,7 @@ function Finance() {
 
           <Panel
             title={budget ? `Expenses against the ${budgetWord} budget, by category` : "Expenses by category"}
-            description={budget ? "The bar is how much of each budget line is used. Salaries come from the expense book until Team works them out." : "Add a budget to compare with."}
+            description={budget ? "The bar is how much of each budget line is used. Salaries come from each person's salary on the Team page." : "Add a budget to compare with."}
           >
             <ul className="flex flex-col gap-3">
               {data.lines.map((line) => {
@@ -687,6 +687,8 @@ export function ExpenseTable({
   const linked = (entry: ExpenseDto) =>
     entry.automatic ? (
       "From AI requests"
+    ) : entry.team ? (
+      "From Team"
     ) : entry.visit ? (
       <Link href={`/visits?state=closed&visit=${encodeURIComponent(entry.visit.id)}`} className="text-primary hover:underline">
         {entry.visit.reference ? `${entry.visit.reference} · ` : "Visit · "}
@@ -714,6 +716,12 @@ export function ExpenseTable({
       <span>
         {entry.vendor}, {entry.description?.toLowerCase().startsWith("month to date") ? "month to date" : entry.description}
       </span>
+    ) : entry.team ? (
+      // A salary made from the Team page opens that person's page: it is changed there, and only paid here.
+      <Link href={`/team/${encodeURIComponent(entry.team.userId)}`} className="font-medium hover:underline">
+        {entry.vendor}
+        {!compact && entry.description && <span className="block font-normal text-muted">{entry.description}</span>}
+      </Link>
     ) : (
       <button type="button" onClick={() => onOpen(entry)} className="cursor-pointer text-left font-medium hover:underline">
         {entry.vendor}

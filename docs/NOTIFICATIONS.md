@@ -305,6 +305,22 @@ The BDE's phone app (16 Oct 2026) sends nothing either: a quote and the free che
 | SL11 | A BDE is behind target midweek | the BDE; Super Admin | "{done} of {target} leads this week: {left} to go." | In-app | not built |
 | SL12 | Work held on a BDE's phone was refused by the server | the BDE (on the phone already); Adm | "{business}: a step from {name}'s phone was not accepted." | In-app | not built |
 
+## 16f. Team
+
+The Team page (16 Oct 2026) sends nothing itself: Message opens WhatsApp on the computer, and a new team member is told their login by the founder. Suggested:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| TM1 | Someone is not in by a set hour on a working day, with no leave recorded | Super Admin; Ops Manager | "{name} is not in yet today." | In-app | not built |
+| TM2 | Monday morning, each person's week | Super Admin | "Last week: {name} {figure} of {target}; {count} to keep an eye on." | In-app | not built |
+| TM3 | A BDE's stale leads pass the threshold | the BDE; Super Admin | "{count} of your leads have had nothing logged for 5 days." | Push + in-app | not built |
+| TM4 | A BDE's next steps due today are not logged by evening | the BDE | "{count} follow-ups due today are not logged yet." | Push | not built |
+| TM5 | Salaries are due, two days before the month ends | Super Admin | "{month}'s salaries, {amount}, are due on {date}." | In-app | not built |
+| TM6 | Leave is recorded, or starts tomorrow | Super Admin; Ops Manager | "{name} is on leave {dates}." | In-app | not built |
+| TM7 | Leads are handed over when someone leaves | the BDE who receives them | "{count} of {name}'s leads are now yours." | Push + in-app | not built |
+| TM8 | A new team member's login is ready | the new member | "You can log in to the ECCS app with {phone}." | SMS or WhatsApp | not built |
+
+SL6 (a lead handed to another BDE) covers a single lead; TM7 covers a leaver's leads in one message.
 
 ## 17. Features not built yet (to fill in when they are)
 
@@ -319,6 +335,7 @@ The BDE's phone app (16 Oct 2026) sends nothing either: a quote and the free che
 |---|---|
 | 15 Oct 2026 | Translations of library picks and the hourly filler: no notification needed. |
 | 16 Oct 2026 | The BDE's phone app: SL10 to SL12 added to section 16e; AI1 also covers the shop-board reader. None built. |
+| 16 Oct 2026 | The Team page: section 16f added (TM1 to TM8). None built. |
 | 15 Oct 2026 | Sales: section 16e added (SL1 to SL9), none built. |
 | 15 Oct 2026 | Finance: section 16d added (FN1 to FN6), none built. |
 | 15 Oct 2026 | Logs: section 16c added (LG1 to LG3), none built. |

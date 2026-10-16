@@ -365,3 +365,17 @@ First, **when Claude says no builder is changing the code**: stop the API termin
 7. **In the console** as the Super Admin (`9000000001`): Business > Sales, open the lead you logged: the board photo under Details and the scorecard in the timeline.
 
 Leads cannot be deleted; mark your test ones Lost ("test"). The sample leads are removed and loaded again with `pnpm sales:sample:remove` and `pnpm sales:sample` in `packages/db`.
+
+## 27. Trying the Team page
+
+First, **when Claude says no builder is changing the code**: stop the API terminal and start it again (`pnpm --filter @eccs/api start`; run `pnpm build` first unless Claude says it has built), and restart the console (`pnpm --filter @eccs/web dev`). Team details for the five sample ECCS logins are loaded (to load again or remove: `pnpm team:sample` or `pnpm team:sample:remove` in `packages/db`).
+
+1. **Console, as the Super Admin** (`9000000001`): Business > **Team**. Who is in today, each person's week, what to keep an eye on, the salaries. Filter by role.
+2. Open **Imran**: the banner, the three cards, the last 14 days, what the app found. **See Imran's leads** opens Sales filtered to him. **Message Imran** opens WhatsApp to a made-up number: do not send.
+3. **Record leave** for a day or two, then **Remove** it. Open the **Sample Supervisor**: visits, inspections and arrivals instead of leads.
+4. **Add a team member**: a made-up number such as `9000000099`, a role, an area, a joining day and a salary. They can log in at once as ECCS staff with that number and code `123456`.
+5. On their page, **Change**: a new salary from a date. Then **Finance**: the Salaries line, and under payouts "Team, October", which is marked paid as one.
+6. **Mark as left** only the person you added (a sample person marked as left stays switched off even after the sample is removed). For a BDE with leads, choose who takes them over.
+7. **As the Ops Manager** (`9000000002`): Team without salaries; leave can be recorded. As Ravi (`9000000004`) or the Supervisor: no Team.
+
+People cannot be deleted; mark your test ones as left.

@@ -169,6 +169,14 @@ export const SalesIcon = () => (
   </Icon>
 );
 
+/** A person: Team, ECCS's own staff. */
+export const TeamIcon = () => (
+  <Icon>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
+  </Icon>
+);
+
 /** A framed picture on a stand: the customer pages and their photos. */
 export const CustomerPagesIcon = () => (
   <Icon>

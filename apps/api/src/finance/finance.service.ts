@@ -67,6 +67,7 @@ import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { sniffFile } from '../storage/attachments.controller.js';
 import { StorageService } from '../storage/storage.service.js';
+import { TeamSalaryService } from '../team/team-salary.service.js';
 
 // The Finance page (15 Oct 2026): ECCS's own money in, money out and the budget, for
 // the founders (the Super Admin; the "finance" grant in permissions.ts).
@@ -104,12 +105,20 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 };
 const methodLabel = (method: string) => PAYMENT_METHOD_LABELS[method] ?? method;
 
+/**
+ * Why the expense book takes no salaries by hand since 16 Oct 2026: the Team page makes them,
+ * a row a person a month, so typing them in as well would count them twice.
+ */
+const SALARIES_FROM_TEAM = 'Salaries come from the Team page: add the person and their salary there.';
+const TEAM_ROW = 'This salary comes from the Team page. Change it there; here it can only be marked paid.';
+
 /** The AI line's name in the expense book and the CA's register. */
 const AI_VENDOR = 'Anthropic API';
 
 const expenseInclude = {
   receipt: { select: { id: true, mimeType: true } },
   visit: { select: { id: true, scheduledDate: true, outlet: { select: { name: true } }, serviceReport: { select: { number: true } } } },
+  teamMember: { select: { userId: true } },
 } as const satisfies Prisma.ExpenseInclude;
 type ExpenseRow = Prisma.ExpenseGetPayload<{ include: typeof expenseInclude }>;
 
@@ -135,6 +144,7 @@ export class FinanceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly team: TeamSalaryService,
   ) {}
 
   private get db() {
@@ -234,6 +244,8 @@ export class FinanceService {
   /** Everything on the Finance page for a period, against one budget. */
   async overview(query: FinanceQuery): Promise<FinanceOverviewDto> {
     const today = indiaDate();
+    // The month's salaries from the Team page, brought in before anything is read.
+    await this.team.sync(today);
     const { from, to } = query;
     const settings = await this.settings();
     const [budgets, opening, expenses, founderRows, received, ai, unpaidInvoices, invoicesInPeriod, active, cancelledAt] = await Promise.all([
@@ -473,6 +485,7 @@ export class FinanceService {
 
   /** One day's cash, as the office closes it. Any day can be asked for. */
   async day(date: string): Promise<CashDayDetailDto> {
+    await this.team.sync();
     const [opening, expenses, founders, received] = await Promise.all([
       this.opening(),
       this.expenseRows(),
@@ -526,6 +539,7 @@ export class FinanceService {
       ...(filter.visit === 'yes' && { visitId: { not: null } }),
       ...(filter.visit === 'no' && { visitId: null }),
     };
+    await this.team.sync();
     const settings = await this.settings();
     const [rows, all, ai] = await Promise.all([
       this.expenseRows(where, FINANCE_RULES.maxListed),
@@ -568,14 +582,18 @@ export class FinanceService {
     const id = input.id ?? randomUUID();
     const existing = await this.db.expense.findUnique({ where: { id }, include: expenseInclude });
     if (existing) return this.toDto(existing, await this.names([existing]));
+    if (input.category === 'SALARIES') throw new BadRequestException(SALARIES_FROM_TEAM);
     await this.check(input);
     const row = await this.db.expense.create({ data: { id, ...expenseData(input), enteredById: user.id }, include: expenseInclude });
     return this.toDto(row, await this.names([row]));
   }
 
   async updateExpense(id: string, input: ExpenseValues): Promise<ExpenseDto> {
-    const current = await this.db.expense.findUnique({ where: { id }, select: { receiptId: true } });
+    const current = await this.db.expense.findUnique({ where: { id }, select: { receiptId: true, category: true, teamMemberId: true } });
     if (!current) throw new NotFoundException('That entry is no longer in the expense book');
+    if (current.teamMemberId) throw new ConflictException(TEAM_ROW);
+    // A salary typed in before Team made them can still be corrected; no other entry becomes one.
+    if (input.category === 'SALARIES' && current.category !== 'SALARIES') throw new BadRequestException(SALARIES_FROM_TEAM);
     await this.check(input);
     const row = await this.db.expense.update({ where: { id }, data: expenseData(input), include: expenseInclude });
     if (current.receiptId && current.receiptId !== row.receiptId) await this.dropReceipt(current.receiptId);
@@ -583,8 +601,9 @@ export class FinanceService {
   }
 
   async removeExpense(id: string): Promise<void> {
-    const current = await this.db.expense.findUnique({ where: { id }, select: { receiptId: true } });
+    const current = await this.db.expense.findUnique({ where: { id }, select: { receiptId: true, teamMemberId: true } });
     if (!current) throw new NotFoundException('That entry is no longer in the expense book');
+    if (current.teamMemberId) throw new ConflictException(TEAM_ROW);
     await this.db.expense.delete({ where: { id } });
     if (current.receiptId) await this.dropReceipt(current.receiptId);
   }
@@ -719,6 +738,7 @@ export class FinanceService {
    */
   async exportCsv(register: ExportRegister, from: string, to: string): Promise<{ csv: string; rows: number; fileName: string }> {
     let table: (string | number | null)[][];
+    await this.team.sync();
     if (register === 'expenses') table = await this.expenseRegister(from, to);
     else if (register === 'sales') table = await this.salesRegister(from, to);
     else table = await this.receiptsRegister(from, to);
@@ -888,6 +908,7 @@ export class FinanceService {
       visit: null,
       isSample: false,
       automatic: true,
+      team: null,
       enteredByName: null,
     }));
   }
@@ -913,6 +934,7 @@ export class FinanceService {
         : null,
       isSample: row.isSample,
       automatic: false,
+      team: row.teamMember && row.salaryMonth ? { userId: row.teamMember.userId, month: row.salaryMonth } : null,
       enteredByName: row.enteredById ? (people.get(row.enteredById) ?? null) : null,
     };
   }
@@ -956,8 +978,11 @@ function toFounderDto(row: { id: string; founder: string; date: Date; amountPais
 function payoutGroups(unpaid: readonly ExpenseRow[]): PayoutGroupDto[] {
   const groups = new Map<string, PayoutGroupDto>();
   for (const row of unpaid) {
-    const key = `${row.vendor.trim().toLowerCase()}|${row.category}`;
-    const group = groups.get(key) ?? { key, vendor: row.vendor, category: row.category as FinanceLine, count: 0, visitCount: 0, totalPaise: 0, dueDate: null, ids: [] };
+    // A month's salaries from Team are paid together: one group for the whole team that month.
+    const month = row.teamMemberId ? row.salaryMonth : null;
+    const key = month ? `team|${month}` : `${row.vendor.trim().toLowerCase()}|${row.category}`;
+    const vendor = month ? `Team, ${monthName(month)}` : row.vendor;
+    const group = groups.get(key) ?? { key, vendor, category: row.category as FinanceLine, count: 0, visitCount: 0, totalPaise: 0, dueDate: null, ids: [] };
     group.count += 1;
     if (row.visitId) group.visitCount += 1;
     group.totalPaise += row.amountPaise;

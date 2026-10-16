@@ -232,7 +232,8 @@ function ExpenseForm({ expense, onClose, onSaved }: { expense: ExpenseDto | null
             error={errors.category}
           >
             <option value="">Choose…</option>
-            {FINANCE_LINES.map((line) => (
+            {/* Salaries come from the Team page (16 Oct 2026); only a salary typed in before then can still be corrected here. */}
+            {FINANCE_LINES.filter((line) => line !== "SALARIES" || expense?.category === "SALARIES").map((line) => (
               <option key={line} value={line}>
                 {FINANCE_LINE_LABELS[line]}
               </option>

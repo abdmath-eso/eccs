@@ -31,8 +31,6 @@ const monthEnd = (month: string) => {
   const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0));
   return last.toISOString().slice(0, 10);
 };
-const monthName = (month: string) =>
-  new Intl.DateTimeFormat("en-IN", { timeZone: "UTC", month: "long" }).format(new Date(`${month}-01T00:00:00Z`));
 const indiaToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 const rupees = (amount: number) => Math.round(amount * 100);
 /** Sunday is 0. */
@@ -84,26 +82,9 @@ export function sampleExpenses(today: string, visitIds: readonly { id: string; d
   const paid = (date: string, via = "upi") => ({ paidVia: via, paidOn: date });
 
   // ── Monthly bills ──
-  // Last month's salaries, paid on its last day (a set-up month: the team joined part-way through).
-  add({
-    sampleKey: `sample-salaries-${previous}`,
-    date: monthEnd(previous),
-    category: "SALARIES",
-    vendor: "ECCS team payroll (sample)",
-    description: `Staff salaries, ${monthName(previous)}`,
-    amountPaise: rupees(92_000),
-    ...paid(monthEnd(previous), "bank-transfer"),
-  });
-  // This month's salaries, entered on the first and paid on the last day: owed until then.
-  add({
-    sampleKey: `sample-salaries-${month}`,
-    date: `${month}-01`,
-    category: "SALARIES",
-    vendor: "ECCS team payroll (sample)",
-    description: `Staff salaries, ${monthName(month)}`,
-    amountPaise: rupees(162_000),
-    dueDate: monthEnd(month),
-  });
+  // No salaries here since 16 Oct 2026: they come from the Team page (each team member's
+  // monthly salary, a row a month), and the Team sample (`pnpm team:sample`) gives the sample
+  // team theirs. Two hand-entered salary rows here as well would count the salaries twice.
 
   const bills: [offsetFromStart: number, line: string, vendor: string, what: string, amount: number, via: string][] = [
     [1, "INSURANCE", "Deccan Shield Insurance (sample)", "Public liability insurance, one year", 14_500, "bank-transfer"],
@@ -289,10 +270,13 @@ export async function loadFinanceSample(db: Db, options: { today?: string } = {}
   return added;
 }
 
-/** Takes every sample row out of the books. Real entries are never touched. */
+/**
+ * Takes every sample row out of the books. Real entries are never touched, and neither are
+ * the sample team's salary rows, which belong to the Team sample (`pnpm team:sample:remove`).
+ */
 export async function removeFinanceSample(db: Db) {
   const [expenses, budgets, founderMoney, openings] = [
-    (await db.expense.deleteMany({ where: { isSample: true } })).count,
+    (await db.expense.deleteMany({ where: { isSample: true, teamMemberId: null } })).count,
     (await db.budget.deleteMany({ where: { isSample: true } })).count,
     (await db.founderMoney.deleteMany({ where: { isSample: true } })).count,
     (await db.cashOpening.deleteMany({ where: { isSample: true } })).count,

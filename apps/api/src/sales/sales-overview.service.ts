@@ -320,6 +320,25 @@ export class SalesOverviewService {
   }
 
   /**
+   * This week against target for each of these BDEs, worked out by the same bdeWeek as the
+   * Sales page's "This week, by BDE", for the Team page (16 Oct 2026). `rows` are their
+   * leads, every status, when the caller has them loaded already.
+   */
+  async weeks(people: readonly { id: string; name: string }[], rows?: readonly LeadRow[]): Promise<Map<string, BdeWeekDto>> {
+    if (people.length === 0) return new Map();
+    const today = indiaDate();
+    const ids = people.map((person) => person.id);
+    const [leads, floors, overrides] = await Promise.all([
+      rows ? Promise.resolve(rows) : this.sales.loaded({ ownerId: { in: ids } }).then((loaded) => loaded.rows),
+      this.sales.floors(),
+      this.db.salesTarget.findMany({ where: { weekStart: toDb(weekStartOf(today)), userId: { in: ids } } }),
+    ]);
+    return new Map(
+      people.map((person) => [person.id, bdeWeek(person, leads.filter((row) => row.ownerId === person.id), floors, overrides.find((row) => row.userId === person.id) ?? null, today)]),
+    );
+  }
+
+  /**
    * From the app: when each outlet first paid (its first approved visit, paid invoice or
    * plan), the restaurant logins' sessions (when each was first and last used), and the
    * plans running now. Narrowed to some clients when the page is narrowed to one BDE.

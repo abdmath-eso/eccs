@@ -250,7 +250,11 @@ describe('Finance (e2e)', () => {
         paidOn: day(-2),
         visitId,
       });
-      await addExpense('salaries', { date: day(-1), category: 'SALARIES', vendor: 'E2E Payroll', amountPaise: 3_000_000, dueDate: day(5) });
+      // A salary typed in before the Team page made them (16 Oct 2026): it still counts as it was.
+      // New salaries come only from Team (team.e2e-spec.ts), so it is written straight in.
+      await db.expense.create({
+        data: { date: new Date(`${day(-1)}T00:00:00Z`), category: 'SALARIES', vendor: 'E2E Payroll', amountPaise: 3_000_000, dueDate: new Date(`${day(5)}T00:00:00Z`) },
+      });
       await addExpense('chemicals', { date: day(-2), category: 'CHEMICALS', type: 'CHEMICALS', vendor: 'E2E Chemicals', amountPaise: 120_000, paidVia: 'cash', paidOn: day(-2) });
       await addExpense('grease', { date: day(-4), category: 'SUBCONTRACTOR', vendor: 'E2E Grease', amountPaise: 320_000, dueDate: day(3) });
       await addExpense('advance', { kind: 'WAGE_ADVANCE', date: day(-2), vendor: 'E2E Staff', amountPaise: 150_000, paidVia: 'cash', paidOn: day(-2) });
@@ -571,19 +575,23 @@ describe('Finance (e2e)', () => {
             const first = await loadFinanceSample(tx, { today });
             expect(first.expenses).toBeGreaterThan(60);
             expect(first).toMatchObject({ budgets: 2, founderMoney: 2, openings: 1 });
-            const counts = { expenses: await tx.expense.count({ where: { isSample: true } }), budgets: await tx.budget.count({ where: { isSample: true } }) };
+            // The sample team's salary rows belong to the Team sample, and are left out here.
+            const finance = { isSample: true, teamMemberId: null };
+            const counts = { expenses: await tx.expense.count({ where: finance }), budgets: await tx.budget.count({ where: { isSample: true } }) };
             const second = await loadFinanceSample(tx, { today });
             expect(second).toEqual({ expenses: 0, budgets: 0, founderMoney: 0, openings: 0 });
-            expect(await tx.expense.count({ where: { isSample: true } })).toBe(counts.expenses);
+            expect(await tx.expense.count({ where: finance })).toBe(counts.expenses);
             expect(await tx.budget.count({ where: { isSample: true } })).toBe(counts.budgets);
+            // No salaries: they come from Team now.
+            expect(await tx.expense.count({ where: { ...finance, category: 'SALARIES' } })).toBe(0);
             // Every sample vendor says so.
-            const vendors = await tx.expense.findMany({ where: { isSample: true }, select: { vendor: true } });
+            const vendors = await tx.expense.findMany({ where: finance, select: { vendor: true } });
             for (const row of vendors) expect(row.vendor).toMatch(/\(sample\)$/);
             const lean = await tx.budget.findFirstOrThrow({ where: { sampleKey: 'sample-budget-lean' } });
             expect(Object.values(lean.lines as Record<string, number>).reduce((total, value) => total + value, 0)).toBe(30_100_000);
             const removed = await removeFinanceSample(tx);
             expect(removed.expenses).toBe(counts.expenses);
-            expect(await tx.expense.count({ where: { isSample: true } })).toBe(0);
+            expect(await tx.expense.count({ where: finance })).toBe(0);
             expect(await tx.cashOpening.count({ where: { isSample: true } })).toBe(0);
             expect(await tx.expense.count({ where: { id: real.id } })).toBe(1);
             throw new Rollback();

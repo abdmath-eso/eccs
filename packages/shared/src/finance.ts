@@ -674,6 +674,11 @@ export interface ExpenseDto {
   isSample: boolean;
   /** True for a line the server works out itself (the month's AI cost). It cannot be changed or removed. */
   automatic: boolean;
+  /**
+   * A month's salary made from the Team page (16 Oct 2026): whose (their login, for the link
+   * to their page) and which month. It cannot be changed or removed here, only paid.
+   */
+  team: { userId: string; month: string } | null;
   enteredByName: string | null;
 }
 
@@ -814,7 +819,10 @@ export interface AgeingDto {
   overdue: OverdueInvoiceDto[];
 }
 
-/** Unpaid bills from one payee under one budget line, paid together with "Mark paid". */
+/**
+ * Unpaid bills from one payee under one budget line, paid together with "Mark paid". A
+ * month's salaries from Team are one group, the whole team's for that month.
+ */
 export interface PayoutGroupDto {
   key: string;
   vendor: string;

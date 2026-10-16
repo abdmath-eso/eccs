@@ -10,6 +10,7 @@ import { ShopBoardReaderService } from './shop-board-reader.service.js';
 @Module({
   controllers: [SalesController, PublicQuotesController],
   providers: [SalesService, SalesFactsService, SalesOverviewService, ShopBoardReaderService],
-  exports: [SalesService],
+  // The Team page (16 Oct 2026) reads a BDE's week and stale leads from here, so the two pages always agree.
+  exports: [SalesService, SalesOverviewService],
 })
 export class SalesModule {}

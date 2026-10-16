@@ -78,6 +78,22 @@ describe("can", () => {
     expect(can(headChef, "bookings", "create", { outletId: "outlet-1" })).toBe(false);
     expect(can(headChef, "checklists", "create", { outletId: "outlet-2" })).toBe(false);
   });
+
+  it("shows ECCS's own team to the Super Admin and the Ops Manager, salaries and logins to the Super Admin only (16 Oct 2026)", () => {
+    for (const role of ["SUPER_ADMIN", "OPS_MANAGER"] as const) {
+      expect(can(eccs(role), "team", "read")).toBe(true);
+      // Both record and remove leave.
+      expect(can(eccs(role), "team", "create")).toBe(true);
+      expect(can(eccs(role), "team", "update")).toBe(true);
+    }
+    expect(can(eccs("SUPER_ADMIN"), "team", "approve")).toBe(true);
+    expect(can(eccs("OPS_MANAGER"), "team", "approve")).toBe(false);
+    // Adding a member and marking one as left go through the ECCS logins grant.
+    expect(can(eccs("SUPER_ADMIN"), "eccsUsers", "create")).toBe(true);
+    expect(can(eccs("OPS_MANAGER"), "eccsUsers", "update")).toBe(false);
+    for (const role of ["SUPERVISOR", "BDE"] as const) expect(can(eccs(role), "team", "read")).toBe(false);
+    for (const members of [owner, manager, headChef]) expect(can(members, "team", "read")).toBe(false);
+  });
 });
 
 describe("accessScope", () => {

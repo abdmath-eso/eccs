@@ -282,8 +282,10 @@ export async function resolveEntity(db: Db, kind: EntityKind, id: string, action
     // ECCS's own books (the Finance page): the kind and the amount, never who was paid or what
     // was typed (a wage advance names a staff member).
     case 'expense': {
-      const expense = await db.expense.findUnique({ where: { id }, select: { kind: true, category: true, type: true, amountPaise: true, paidOn: true } });
+      const expense = await db.expense.findUnique({ where: { id }, select: { kind: true, category: true, type: true, amountPaise: true, paidOn: true, teamMemberId: true } });
       if (!expense) return null;
+      // A team member's salary (the Team page, 16 Oct 2026) is pay: never its amount.
+      if (expense.teamMemberId) return { label: 'Salary from Team', details: { kind: expense.kind, category: expense.category, paid: expense.paidOn !== null } };
       const advance = expense.kind === 'WAGE_ADVANCE';
       return {
         label: advance ? 'Wage advance' : FINANCE_LINE_LABELS[expense.category as FinanceLine] ?? expense.category,

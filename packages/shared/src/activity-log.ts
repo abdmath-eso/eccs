@@ -112,6 +112,7 @@ export const ACTIVITY_CATEGORIES = {
   system: "System",
   finance: "Money and budget",
   sales: "Sales and leads",
+  team: "ECCS team",
 } as const;
 export type ActivityCategory = keyof typeof ACTIVITY_CATEGORIES;
 export const ACTIVITY_CATEGORY_KEYS = Object.keys(ACTIVITY_CATEGORIES) as ActivityCategory[];
@@ -395,6 +396,15 @@ export const ACTIVITY_ACTIONS = {
   // The BDE's phone (16 Oct 2026): a shop board's or a free check's photo, and the AI reading the board.
   "sales.photo.added": ["sales", "Filed a photo for a lead (shop board or free check)"],
   "sales.board.read": ["sales", "Asked AI to read a shop board"],
+
+  // ECCS's own team (the Team page, 16 Oct 2026): staff data, so only the action and who
+  // did it are kept, never the person, their pay, their dates or the reason for leave.
+  "team.member.added": ["team", "Added a team member"],
+  "team.member.changed": ["team", "Changed a team member's details"],
+  "team.member.left": ["team", "Marked a team member as left"],
+  "team.leave.added": ["team", "Recorded leave for a team member"],
+  "team.leave.removed": ["team", "Removed a team member's leave"],
+  "team.settings.changed": ["team", "Changed the on-time target"],
 } as const satisfies Record<string, ActionEntry>;
 
 export type ActivityAction = keyof typeof ACTIVITY_ACTIONS;

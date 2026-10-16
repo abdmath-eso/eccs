@@ -551,6 +551,7 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
         activities: { create: { kind: 'CREATED', at: now, byId: user.id } },
       },
     });
+    await this.keepFollowUp({ id: lead.id, ownerId, nextActionAt: null }, lead.nextActionAt, now);
     noteActivity({ details: { source: input.source, kitchens: input.kitchens, photo: Boolean(input.photoId) } });
     await this.rescore([lead.id]);
     return this.detail(user, lead.id);
@@ -589,6 +590,9 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
     const referrer = data.referrerName === undefined ? lead.referrerName : data.referrerName;
     if (referrer && source !== 'CHEF_REFERRAL' && source !== 'PARTNER_REFERRAL') throw new BadRequestException('Only a referral has a referrer');
     await this.db.lead.update({ where: { id }, data });
+    await this.keepFollowUp(lead, data.nextActionAt as Date | null | undefined, new Date());
+    // A lead handed to someone else takes its next step with it.
+    if (input.ownerId && input.ownerId !== lead.ownerId) await this.db.leadFollowUp.updateMany({ where: { leadId: id, endedAt: null }, data: { ownerId: input.ownerId } });
     noteActivity({ details: { changed: Object.keys(data) } });
     await this.rescore([id]);
     return this.detail(user, id);
@@ -625,7 +629,8 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
     const data: Prisma.LeadUncheckedUpdateInput = { stage, lastActivityAt: at > lead.lastActivityAt ? at : lead.lastActivityAt };
     const reopen = lead.status !== 'OPEN';
     if (reopen) Object.assign(data, this.reopened());
-    Object.assign(data, this.nextStep(lead, input, at));
+    const next = this.nextStep(lead, input, at);
+    Object.assign(data, next);
     if (input.kind === 'CHECK_BOOKED') Object.assign(data, { checkAt: new Date(input.checkAt!), checkWith: input.checkWith });
     if (input.kind === 'CHECK_DONE') Object.assign(data, { checkDoneAt: at, checkFindings: findings, checkAt: null, checkWith: null });
 
@@ -650,6 +655,7 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
       });
       await tx.lead.update({ where: { id }, data });
     });
+    await this.keepFollowUp(lead, 'nextActionAt' in next ? next.nextActionAt : undefined, at);
     noteActivity({ details: { stage, moved: stage !== lead.stage, reopened: reopen, ...(scorecard && { scorecard: true, findings }), late: input.at !== undefined && now.getTime() - at.getTime() > 5 * 60_000 } });
     await this.rescore([id]);
     return this.detail(user, id);
@@ -664,6 +670,38 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
     if (lead.nextActionAt && lead.nextActionAt.getTime() <= Math.max(at.getTime(), Date.now())) return { nextAction: null, nextActionAt: null };
     if (!lead.nextActionAt && lead.nextAction) return { nextAction: null };
     return {};
+  }
+
+  /**
+   * Keeps the history of a lead's next step (LeadFollowUp, 16 Oct 2026), which the Team
+   * page's "follow-ups on time" reads: when a lead's next-step time changes (set, moved,
+   * cleared by a step, a park or a loss), the one before ends at that moment and the new one
+   * starts. `next` undefined means it did not change.
+   */
+  private async keepFollowUp(lead: { id: string; ownerId: string; nextActionAt: Date | null }, next: Date | null | undefined, at: Date) {
+    if (next === undefined || (lead.nextActionAt?.getTime() ?? null) === (next?.getTime() ?? null)) return;
+    await this.db.leadFollowUp.updateMany({ where: { leadId: lead.id, endedAt: null }, data: { endedAt: at } });
+    if (next) await this.db.leadFollowUp.create({ data: { leadId: lead.id, ownerId: lead.ownerId, setAt: at, dueAt: next } });
+  }
+
+  /**
+   * Hands every lead someone owns that is not lost to another owner in one go, with the same
+   * rule as handing one lead over: the Super Admin or the Ops Manager does it, to a BDE, a
+   * founder or the Ops Manager (the Team page's "Mark as left", 16 Oct 2026). Their next
+   * steps go with them. Returns how many leads moved.
+   */
+  async handOver(user: AuthUser, fromId: string, toId: string): Promise<number> {
+    if (this.scope(user) !== 'all') throw new ForbiddenException('Only the Super Admin or the Ops Manager hands a lead to someone else');
+    if (fromId === toId) throw new BadRequestException('Choose someone else to take the leads over');
+    await this.checkOwner(toId);
+    const leads = await this.db.lead.findMany({ where: { ownerId: fromId, status: { not: 'LOST' } }, select: { id: true } });
+    const ids = leads.map((lead) => lead.id);
+    if (ids.length === 0) return 0;
+    await this.db.$transaction([
+      this.db.lead.updateMany({ where: { id: { in: ids } }, data: { ownerId: toId } }),
+      this.db.leadFollowUp.updateMany({ where: { leadId: { in: ids }, endedAt: null }, data: { ownerId: toId } }),
+    ]);
+    return ids.length;
   }
 
   /** The fields that put a parked or lost lead back in the pipeline. */
@@ -715,6 +753,7 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
         },
       }),
     ]);
+    await this.keepFollowUp(lead, null, at);
     noteActivity({ details: { again: lead.status === 'PARKED', days: Math.round((toDb(input.until).getTime() - toDb(today).getTime()) / DAY_MS) } });
     await this.rescore([id]);
     return this.detail(user, id);
@@ -733,6 +772,7 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
         data: { status: 'LOST', lostAt: at, lostReason: input.reason, nextAction: null, nextActionAt: null, lastActivityAt: at > lead.lastActivityAt ? at : lead.lastActivityAt },
       }),
     ]);
+    await this.keepFollowUp(lead, null, at);
     noteActivity({ details: { stage: lead.stage } });
     await this.rescore([id]);
     return this.detail(user, id);
@@ -842,6 +882,7 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
     if (first) {
       const stage = moveForward(lead.stage as LeadStage, STEP_STAGE.QUOTE_SENT);
       const reopen = lead.status !== 'OPEN';
+      const next = this.nextStep(lead, {}, now);
       await this.db.$transaction(async (tx) => {
         if (reopen) await tx.leadActivity.create({ data: { leadId: lead.id, kind: 'REOPENED', at: new Date(now.getTime() - 1), byId: user.id } });
         await tx.leadActivity.create({
@@ -850,9 +891,10 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
         await tx.quote.update({ where: { id: quote.id }, data: { status: 'SENT', sentAt: now, validUntil: toDb(addDays(indiaDate(), SALES_RULES.quoteValidDays)) } });
         await tx.lead.update({
           where: { id: lead.id },
-          data: { stage, lastActivityAt: now, ...(reopen && this.reopened()), ...this.nextStep(lead, {}, now) },
+          data: { stage, lastActivityAt: now, ...(reopen && this.reopened()), ...next },
         });
       });
+      await this.keepFollowUp(lead, 'nextActionAt' in next ? next.nextActionAt : undefined, now);
       await this.rescore([lead.id]);
     }
     const saved = await this.db.quote.findUniqueOrThrow({ where: { id: quote.id } });

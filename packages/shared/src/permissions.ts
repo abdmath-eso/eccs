@@ -32,6 +32,7 @@ export const RESOURCES = [
   "vendors", // the directory of nearby wholesalers and distributors
   "finance", // ECCS's own books: expenses, budgets, founders' money, cash (the console's Finance page)
   "sales", // leads, their steps and quotes, and the BDEs' targets (the console's Sales page)
+  "team", // ECCS's own team: who is in, their week, leave and salaries (the console's Team page)
 ] as const;
 
 export type Resource = (typeof RESOURCES)[number];
@@ -89,6 +90,12 @@ const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A:
 // Manager reach every lead; a BDE reaches only the leads they own: see `salesScope`
 // in sales.ts, which the API's sales service checks on every request. A BDE has no
 // other grant at all: no clients' records, no visits, no finance.
+// For team (the Team page, 16 Oct 2026): ECCS's own staff, not a restaurant's. R = read
+// the team list and each person's page; C = record leave; U = remove leave; A = see and
+// set salaries (the Super Admin only; the Ops Manager sees everything else). Adding a team
+// member (their ECCS login), changing their details and marking them as left use the
+// existing eccsUsers grant (C and U), which only the Super Admin holds. A BDE and a
+// Supervisor have no grant on team.
 const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
   SUPER_ADMIN: {
     clients: "CRU", eccsUsers: "CRU", restaurantUsers: "CRU", sopTemplates: "CRU",
@@ -96,13 +103,14 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     subscriptions: "CRU", schedule: "CRU", jobs: "CRUA", inspections: "CRUA", reports: "CRA",
     publicPage: "RUA", licences: "CRU", documents: "CRU", scores: "R",
     invoices: "CRU", payments: "CRU", auditLog: "R", settings: "RU", finance: "CRU", sales: "CRUA",
+    team: "CRUA",
   },
   OPS_MANAGER: {
     clients: "CRU", eccsUsers: "R", restaurantUsers: "CRU", sopTemplates: "CRU",
     checklists: "R", foodLabels: "R", issues: "CRU", catalog: "CRU", bookings: "CRU",
     subscriptions: "CRU", schedule: "CRU", jobs: "CRUA", inspections: "CRUA", reports: "CRA",
     publicPage: "RUA", licences: "CRU", documents: "CRU", scores: "R",
-    invoices: "CRU", payments: "CRU", auditLog: "R", sales: "CRU",
+    invoices: "CRU", payments: "CRU", auditLog: "R", sales: "CRU", team: "CRU",
   },
   BDE: {
     sales: "CRU",

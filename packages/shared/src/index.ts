@@ -35,3 +35,4 @@ export * from "./activity-log.js";
 export * from "./finance.js";
 export * from "./sales.js";
 export * from "./free-check.js";
+export * from "./team.js";

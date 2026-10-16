@@ -23,9 +23,11 @@ export interface NavCounts {
   publicPhotos: number | null;
   /** Sales: today's to-dos for the leads the person reaches (Do today). */
   sales: number | null;
+  /** Team: people on ECCS's own team with something to keep an eye on. */
+  team: number | null;
 }
 
-const EMPTY: NavCounts = { visits: null, issues: null, licences: null, invoices: null, publicPhotos: null, sales: null };
+const EMPTY: NavCounts = { visits: null, issues: null, licences: null, invoices: null, publicPhotos: null, sales: null, team: null };
 
 const NavCountsContext = createContext<{ counts: NavCounts; refresh: () => void } | null>(null);
 
@@ -41,7 +43,7 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
   const skipped = Promise.reject(new Error("not part of this role"));
   skipped.catch(() => undefined);
   // Each is fetched on its own, so one that fails (a Supervisor may not list requests) does not hide the others.
-  const [requests, visits, issues, licences, billing, photos, sales] = await Promise.allSettled([
+  const [requests, visits, issues, licences, billing, photos, sales, team] = await Promise.allSettled([
     operations ? api.bookings.list({ requestedOnly: true }) : skipped,
     operations ? api.visits.list({ state: "open" }) : skipped,
     operations ? api.issues.list({ openOnly: true }) : skipped,
@@ -49,6 +51,7 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
     operations ? api.billing.totals() : skipped,
     operations ? api.publicPage.photosWaiting() : skipped,
     can(memberships, "sales", "read") ? api.sales.doToday() : skipped,
+    can(memberships, "team", "read") ? api.eccsTeam.list() : skipped,
   ]);
   const waiting = requests.status === "fulfilled" ? requests.value.length : 0;
   return {
@@ -58,6 +61,7 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
     invoices: billing.status === "fulfilled" ? billing.value.overdueCount : null,
     publicPhotos: photos.status === "fulfilled" ? photos.value.waiting : null,
     sales: sales.status === "fulfilled" ? sales.value.items.length : null,
+    team: team.status === "fulfilled" ? team.value.flagged : null,
   };
 }
 

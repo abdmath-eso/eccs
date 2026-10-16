@@ -243,6 +243,8 @@ import type {
   TargetFloorsInput,
   TargetInput,
 } from "@eccs/shared";
+// team-types: the console's Team page (16 Oct 2026)
+import type { LeaveInput, MarkLeftInput, TeamChangeInput, TeamListDto, TeamMemberDto, TeamMemberInput, TeamSettingsInput } from "@eccs/shared";
 // inspections-types: the inspections worker imports its types from "@eccs/shared" on the next line
 import type {
   AnswerInspectionCheckInput,
@@ -1275,6 +1277,26 @@ export function createApiClient(options: ApiClientOptions) {
       },
       /** Reads a filed shop-board photo into the Log a lead form, with AI. Fails with AI_OFF, AI_LIMIT or AI_FAILED when AI steps aside. */
       readBoard: (input: ShopBoardReadInput) => call<ShopBoardReadingDto>("POST", "/sales/board-reading", input),
+    },
+    // team-api: the console's Team page (16 Oct 2026)
+    /**
+     * ECCS's own team: who is in, each person's week, leave and salaries. The Super Admin and
+     * the Ops Manager read it; salaries, adding, changing and marking as left are the Super
+     * Admin's. People are addressed by their login's id. (Not `team`, which is the
+     * restaurant's own staff.)
+     */
+    eccsTeam: {
+      list: () => call<TeamListDto>("GET", "/team"),
+      member: (userId: string) => call<TeamMemberDto>("GET", `/team/${id(userId)}`),
+      /** Adds a team member with their ECCS login (they log in with this number and a one-time code). */
+      add: (input: TeamMemberInput) => call<TeamMemberDto>("POST", "/team", input),
+      /** Only what is sent changes; a new salary takes effect from its `from` day. */
+      change: (userId: string, input: TeamChangeInput) => call<TeamMemberDto>("PATCH", `/team/${id(userId)}`, input),
+      /** Their last day. Fails with code OPEN_LEADS (and `count`) until `handTo` names who takes their open leads. */
+      markLeft: (userId: string, input: MarkLeftInput) => call<TeamMemberDto>("POST", `/team/${id(userId)}/mark-left`, input),
+      addLeave: (userId: string, input: LeaveInput) => call<TeamMemberDto>("POST", `/team/${id(userId)}/leave`, input),
+      removeLeave: (leaveId: string) => call<void>("DELETE", `/team/leave/${id(leaveId)}`),
+      saveSettings: (input: TeamSettingsInput) => call<{ onTimeTargetPercent: number }>("PUT", "/team/settings", input),
     },
     // inspections-api: the inspections worker adds `inspections: { ... },` on the next line
     /** Scored inspections: ECCS's audit of an outlet, its scored report and the approval. */

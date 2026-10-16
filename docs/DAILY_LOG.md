@@ -19,6 +19,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 **So far**
 
 - The founder said to continue. Stage B2 of the business dashboards was started: the BDE's own screens on the phone (Home with Do today, a lead logged from a photo of the shop board read by AI, their leads and steps, a short free-check scorecard, all usable without signal). One builder is on it, with a brief that also asks it to measure the shop-board reader on drawn boards before calling it done.
+- The founder asked whether BDE screens on the phone were needed. Claude said not strictly (a BDE can work leads in the console, also in a phone's browser), set out what the phone app adds (no signal needed, the shop-board photo read by AI, a Call that logs itself, the scorecard) and offered to stop the builder. The founder said to keep it.
 
 ---
 

@@ -6,7 +6,7 @@
 
 **Rule for anyone working on this repo, human or Claude:** update this file in the same session as any change that affects it: a feature started or finished, a decision made, a question answered, a tool installed. Add a line to the change log at the bottom every time, and commit.
 
-**Last updated:** 15 Oct 2026
+**Last updated:** 16 Oct 2026
 
 ---
 
@@ -25,7 +25,7 @@ The team is the founder plus Claude Code. There are no other developers, so this
 | **Code** | `packages/db`: schema (about 48 tables), migrations, sample seed. `packages/shared`: roles, permission rules, request schemas. `packages/api-client`: the one typed client web and mobile use. `packages/i18n`: English, Telugu, Hindi text. `apps/api`: login, sessions, role and scope checks, staff logins, outlets, client onboarding, daily checklists, photo storage. `apps/mobile`: login screens, role-based home, staff logins, daily checklists (today, fill in with photos, add own items, history). `apps/web`: ECCS console with login, client list and restaurant onboarding. |
 | **Local services** | Running in Docker: PostgreSQL on 5432, Redis on 6379, SeaweedFS (S3 stand-in) on 8333. Database is migrated and seeded. |
 | **Blocked** | Nothing. |
-| **Next action (Claude)** | Nothing is in progress. The newest APK was built on 15 Oct at 3:44 pm, at the founder's word. The founder restarted the API at 3:55 pm on 15 Oct (with `nest start`), so 15 Oct's server work is running: the console's licence reader, the Logs page, the translation filler, the camera check's standards and the checklist's date. Build an APK only when the founder asks. Waiting for the founder's testing and their answers in section 4. |
+| **Next action (Claude)** | **Building Stage B2 of the founders' dashboards (16 Oct): the BDE (salesperson) in the phone app**: their own Home with Do today, logging a lead from a photo of the shop board read by AI, their leads and the steps, a short free-check scorecard, all working without signal. One builder is changing the code: **do not ask the founder to rebuild or restart the API until it is done.** The newest APK is still 15 Oct 3:44 pm; B2 will need a new one, built only when the founder asks. Then Stage C (Team). |
 | **Next action (founder)** | **Restart the API** (stop it, `pnpm build`, `pnpm --filter @eccs/api start`), then open **Logs** in the console as the Super Admin and follow `docs/TEST_LOGINS.md` section 23; the console's licence reader is in section 22 step 1. **To try the AI features:** stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api start`; install the 3:44 pm APK of 15 Oct (or reload the app in the Expo terminal); follow `docs/TEST_LOGINS.md` section 22; and decide the AI points in section 4 ("AI features"), above all the spending limits and whether the Privacy Policy should name Anthropic now. Then test following `docs/TEST_LOGINS.md` section 17 (steps 13 to 15, a Manager and their own record), section 19 (the shorter customer page) and section 20 (the vendor directory, which needs a new APK or the Expo terminal). Read `docs/ECCS briefing for the BD team.pdf` before sharing it, above all page 3 (the services in plain words) and page 12 (what is not ready). Decide the points in section 4, above all: whether a Manager may correct the team's attendance; who adds real vendors and whether ECCS checks their FSSAI numbers; the customer page's wording. **Still waiting from 12 Oct:** the three questions the viability report turns on (does ECCS already trade; the founder's own history in the trade; investment and fast growth, or a profitable local business first), and Y Combinator (deadline 2 Nov 2026). Before real employees use face attendance: a lawyer on the consent notice, and a week's trial at one outlet. Still open: the ECCS logo; ECCS's real GSTIN, legal name, address and bank details; real prices and task lists; a review of the translations and of the SOPs; the real holiday list. |
 
 ## 3. Decisions made
@@ -377,7 +377,7 @@ Seen by Claude with the real AI, in the browser preview at phone width and in th
 |---|---|---|
 | A. Finance | done (15 Oct), sample data loaded | Console > Business > Finance, Super Admin only. Invoiced, collected, outstanding, plan revenue and AI cost come from the app; expenses (with receipts, visit links, unpaid bills as payouts), wage advances, budgets, founders' money and the opening balance are new. Seen by Claude on test copies at 1280 and 390 wide; not seen by the founder |
 | B1. Sales and CRM (console) | done (15 Oct), sample data loaded | Console > Business > Sales (Super Admin, Ops Manager; a BDE sees only their own leads). The new BDE role; leads, their timeline, quotes with a public link and opens, targets; stages move by themselves, First job and On a plan from the client's own records; Do today, stale, Likely to close; the four cards, the stage bar, by BDE, growth with a forecast to 31 Dec, where first jobs came from. Seen by Claude on test copies at 1280 and 390 wide; not seen by the founder |
-| B2. The BDE in the app | next | The BDE's Home and menu on the phone are placeholders until then |
+| B2. The BDE in the app | in progress (16 Oct) | Home with Do today and the week against target; Log a lead from a photo of the shop board (AI); the BDE's leads and one-tap steps; a free-check scorecard shared with the owner on WhatsApp; offline through the outbox. Until it lands the BDE's Home and menu are placeholders |
 | C. Team | to do | Salaries into Finance |
 
 ## 6. Machine and environment
@@ -625,6 +625,7 @@ Newest first.
 
 | Date | Change |
 |---|---|
+| 16 Oct 2026 | Stage B2 of the founders' dashboards (the BDE in the phone app) started. |
 | 15 Oct 2026 | Stage B1 of the founders' dashboards: Sales and a CRM in the console, with a new ECCS role, BDE (sales executive), and sample leads loaded. |
 | 15 Oct 2026 | Stage A of the founders' dashboards: the Finance page (Super Admin), with sample data loaded. ECCS's own AI work (inspection summary, digest) no longer counts against a restaurant outlet's daily AI allowance. |
 | 15 Oct 2026 | APK rebuilt at 3:44 pm at the founder's word, with the Retake button that fits a narrow phone and the app telling the server which app it is. |

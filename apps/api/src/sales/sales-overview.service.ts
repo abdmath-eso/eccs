@@ -20,6 +20,7 @@ import {
   weeklyTargets,
   weekNumber,
   weekStartOf,
+  type BdeDayDto,
   type BdeWeekDto,
   type BillingCycle,
   type LeadSource,
@@ -49,6 +50,50 @@ const toDb = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const within = (date: string, from: string, to: string) => date >= from && date <= to;
 const sum = <T>(items: readonly T[], pick: (item: T) => number) => items.reduce((total, item) => total + pick(item), 0);
 const RESTAURANT_ROLES = ['OWNER', 'MANAGER', 'HEAD_CHEF'] as const;
+
+/** One person's leads logged, free checks done, first jobs and plans won between two India dates. */
+function weekFigures(list: readonly LeadRow[], from: string, to: string): TargetFigures {
+  const day = (at: Date) => indiaDay(at);
+  return {
+    leads: list.filter((row) => within(day(row.createdAt), from, to)).length,
+    checks: sum(list, (row) => row.activities.filter((entry) => entry.kind === 'CHECK_DONE' && within(day(entry.at), from, to)).length),
+    firstJobs: list.filter((row) => row.wonAt && within(day(row.wonAt), from, to)).length,
+    plans: list.filter((row) => row.planAt && within(day(row.planAt), from, to)).length,
+  };
+}
+
+/**
+ * One BDE's week against their targets: this week so far, last week, and the targets set
+ * every Monday from the last two weeks (or by the Super Admin). The Sales page's "This
+ * week, by BDE" and the BDE's own Home on the phone both use this, so they always agree.
+ */
+function bdeWeek(
+  person: { id: string; name: string },
+  mine: readonly LeadRow[],
+  floors: TargetFigures,
+  set: { leads: number | null; checks: number | null; firstJobs: number | null; plans: number | null } | null,
+  today: string,
+): BdeWeekDto {
+  const weekStart = weekStartOf(today);
+  const lastWeekStart = addDays(weekStart, -7);
+  const weekBeforeStart = addDays(weekStart, -14);
+  const lastWeek = weekFigures(mine, lastWeekStart, addDays(lastWeekStart, 6));
+  const weekBefore = weekFigures(mine, weekBeforeStart, addDays(weekBeforeStart, 6));
+  const actual = weekFigures(mine, weekStart, today);
+  const manual: Partial<Record<TargetFigure, number | null>> = set ? { leads: set.leads, checks: set.checks, firstJobs: set.firstJobs, plans: set.plans } : {};
+  const targets = weeklyTargets(lastWeek, weekBefore, floors, manual);
+  const status = targetStatus(actual, targets, today);
+  return {
+    userId: person.id,
+    name: person.name,
+    actual,
+    targets,
+    overridden: TARGET_FIGURES.filter((figure) => typeof manual[figure] === 'number'),
+    status: status.status,
+    missed: status.missed,
+    lastWeek,
+  };
+}
 
 @Injectable()
 export class SalesOverviewService {
@@ -96,8 +141,6 @@ export class SalesOverviewService {
     const wonValue = (from: string, to: string) => sum(won.filter((entry) => within(day(entry.at), from, to)), (entry) => entry.amountPaise ?? 0);
     const firstJobs = (from: string, to: string, list: readonly LeadRow[] = rows) => list.filter((row) => row.wonAt && within(day(row.wonAt), from, to)).length;
     const plansWon = (from: string, to: string, list: readonly LeadRow[] = rows) => list.filter((row) => row.planAt && within(day(row.planAt), from, to)).length;
-    const checks = (from: string, to: string, list: readonly LeadRow[] = rows) =>
-      sum(list, (row) => row.activities.filter((entry) => entry.kind === 'CHECK_DONE' && within(day(entry.at), from, to)).length);
     // A client counts once, in the week its first lead was won.
     const firstWin = new Map<string, string>();
     for (const row of rows) {
@@ -140,36 +183,9 @@ export class SalesOverviewService {
     const quotedPaise = sum(openQuoted, (row) => latestSent(row.quotes)?.subtotalPaise ?? 0);
 
     // ── This week, by BDE ──
-    const figures = (list: readonly LeadRow[], from: string, to: string): TargetFigures => ({
-      leads: list.filter((row) => within(day(row.createdAt), from, to)).length,
-      checks: checks(from, to, list),
-      firstJobs: firstJobs(from, to, list),
-      plans: plansWon(from, to, list),
-    });
     const byBde: BdeWeekDto[] = owners
       .filter((person) => person.isBde && (!owner || person.id === owner))
-      .map((person) => {
-        const mine = rows.filter((row) => row.ownerId === person.id);
-        const lastWeekStart = addDays(weekStart, -7);
-        const weekBeforeStart = addDays(weekStart, -14);
-        const lastWeek = figures(mine, lastWeekStart, addDays(lastWeekStart, 6));
-        const weekBefore = figures(mine, weekBeforeStart, addDays(weekBeforeStart, 6));
-        const actual = figures(mine, weekStart, today);
-        const set = overrides.find((row) => row.userId === person.id);
-        const manual: Partial<Record<TargetFigure, number | null>> = set ? { leads: set.leads, checks: set.checks, firstJobs: set.firstJobs, plans: set.plans } : {};
-        const targets = weeklyTargets(lastWeek, weekBefore, floors, manual);
-        const status = targetStatus(actual, targets, today);
-        return {
-          userId: person.id,
-          name: person.name,
-          actual,
-          targets,
-          overridden: TARGET_FIGURES.filter((figure) => typeof manual[figure] === 'number'),
-          status: status.status,
-          missed: status.missed,
-          lastWeek,
-        };
-      });
+      .map((person) => bdeWeek(person, rows.filter((row) => row.ownerId === person.id), floors, overrides.find((row) => row.userId === person.id) ?? null, today));
 
     // ── Growth and the forecasts ──
     const end = forecastEnd(today);
@@ -277,6 +293,29 @@ export class SalesOverviewService {
       // Most first; equal counts in the usual order of sources (field visits first).
       sources: [...bySource.entries()].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count || LEAD_SOURCES.indexOf(a.source) - LEAD_SOURCES.indexOf(b.source)),
       firstJobsThisMonth: thisMonth.length,
+    };
+  }
+
+  /**
+   * A BDE's day on the phone (B2): Do today for their own leads only, and this week's
+   * leads, free checks, first jobs and plans against their targets, worked out exactly as
+   * the Sales page's "This week, by BDE" (bdeWeek below). One request for the Home screen.
+   */
+  async day(user: AuthUser): Promise<BdeDayDto> {
+    this.sales.scope(user);
+    const now = new Date();
+    const today = indiaDate(now);
+    const [{ rows, facts }, floors, override, me] = await Promise.all([
+      this.sales.loaded({ ownerId: user.id }),
+      this.sales.floors(),
+      this.db.salesTarget.findUnique({ where: { userId_weekStart: { userId: user.id, weekStart: toDb(weekStartOf(today)) } } }),
+      this.db.user.findUnique({ where: { id: user.id }, select: { name: true } }),
+    ]);
+    const isBde = user.memberships.some((membership) => membership.role === 'BDE');
+    return {
+      today,
+      items: this.sales.toDoList(rows, facts, now),
+      week: isBde ? bdeWeek({ id: user.id, name: me?.name ?? '' }, rows, floors, override, today) : null,
     };
   }
 

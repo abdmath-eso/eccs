@@ -31,6 +31,7 @@ const TAB: Record<TabHref, Tab> = {
   '/support': { label: 'tab.issues', icon: 'chatbubble-ellipses-outline', iconSelected: 'chatbubble-ellipses' },
   '/sops': { label: 'tab.sops', icon: 'book-outline', iconSelected: 'book' },
   '/inspections': { label: 'tile.inspections', icon: 'clipboard-outline', iconSelected: 'clipboard' },
+  '/sales': { label: 'bde.tab.leads', icon: 'people-outline', iconSelected: 'people' },
 };
 
 // One "Staff" entry for the Owner and Manager: the people, their attendance and the salary
@@ -73,8 +74,11 @@ const MENU: Record<Role, MenuItem[]> = {
   SUPERVISOR: ECCS_MENU,
   OPS_MANAGER: ECCS_MENU,
   SUPER_ADMIN: ECCS_MENU,
-  // A BDE works leads only; their phone screens come in stage B2 of the sales work.
-  BDE: [],
+  // A BDE works leads only (B2): logging one from anywhere; their leads are in the bar.
+  BDE: [
+    { label: 'bde.logLead', icon: 'add-circle-outline', href: '/sales/new' },
+    { label: 'bde.tab.leads', icon: 'people-outline', href: '/sales' },
+  ],
 };
 
 /**

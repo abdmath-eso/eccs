@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { isEccsUser } from '@/components/app-nav';
+import { BdeHome } from '@/components/bde-home';
 import { DuesLine } from '@/components/dues-line';
 import { NotificationBell } from '@/components/notification-bell';
 import { OutletOverview } from '@/components/outlet-overview';
@@ -38,7 +39,7 @@ export default function HomeScreen() {
 
   const membership = user?.memberships[0];
   const eccs = isEccsUser(membership?.role);
-  // A BDE (sales) has no visits to load; their own screens come in stage B2 of the sales work.
+  // A BDE (sales) loads their own day instead (components/bde-home.tsx).
   const loads = membership !== undefined && !newPin && membership.role !== 'BDE';
 
   const load = useCallback(async () => {
@@ -79,10 +80,13 @@ export default function HomeScreen() {
     );
   }
 
+  // A BDE (sales, B2) has a Home of their own: their day's to-dos and Log a lead.
+  if (membership.role === 'BDE') return <BdeHome />;
+
   const place =
     membership.outletName ?? membership.organizationName ?? (membership.role === 'OWNER' ? t('home.allOutlets') : null);
   const roleAndPlace = `${t(`role.${membership.role}`)}${place ? ` · ${place}` : ''}`;
-  const outlet = overview?.find((entry) => entry.outletId === chosenOutlet) ?? overview?.[0];
+  const outlet =overview?.find((entry) => entry.outletId === chosenOutlet) ?? overview?.[0];
   const today = indiaToday();
   // Today's visits, and any earlier ones still open, are what the Supervisor has to do now.
   const dueVisits = visits?.filter((visit) => visit.date <= today) ?? [];

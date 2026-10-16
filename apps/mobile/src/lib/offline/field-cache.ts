@@ -1,4 +1,4 @@
-import type { InspectionAnswerResultDto, InspectionDto, VisitDto } from '@eccs/shared';
+import type { InspectionAnswerResultDto, InspectionDto, LeadDetailDto, VisitDto } from '@eccs/shared';
 
 import { rescored, type FieldSubject } from './field-ops';
 import { readJson, removeJson, writeJson } from './files';
@@ -38,7 +38,9 @@ const keyOf = (subject: FieldSubject, id: string) => `${subject}:${id}`;
 
 let userId: string | null = null;
 let index: IndexFile = emptyIndex();
-let details: Record<string, Saved<VisitDto | InspectionDto>> = {};
+/** A visit, an inspection, or (B2) one of a BDE's leads. */
+type Detail = VisitDto | InspectionDto | LeadDetailDto;
+let details: Record<string, Saved<Detail>> = {};
 /** The files being read, so two screens asking for the same one share the read. */
 let opening: Record<string, Promise<void>> = {};
 let loading: Promise<void> = Promise.resolve();
@@ -64,7 +66,7 @@ function queue(write: (owner: string) => Promise<void> | void) {
 
 const saveIndex = () => queue((owner) => writeJson(fileOf(owner, 'lists'), index));
 
-function put(subject: FieldSubject, value: VisitDto | InspectionDto) {
+function put(subject: FieldSubject, value: Detail) {
   if (!userId) return;
   const key = keyOf(subject, value.id);
   const saved = { at: Date.now(), data: value };
@@ -154,7 +156,7 @@ export const fieldCache = {
     const key = keyOf(subject, id);
     if (!owner || details[key]) return Promise.resolve();
     opening[key] ??= loading
-      .then(() => readJson<Saved<VisitDto | InspectionDto>>(fileOf(owner, key)))
+      .then(() => readJson<Saved<Detail>>(fileOf(owner, key)))
       .then((file) => {
         // Anything fetched in the meantime is newer than the file.
         if (userId !== owner || !file || details[key]) return;
@@ -197,6 +199,15 @@ export const fieldCache = {
 
   putInspection(inspection: InspectionDto) {
     put('inspection', inspection);
+  },
+
+  /** A BDE's lead as the server last sent it (B2), so its page opens without signal. */
+  getLead(id: string): Saved<LeadDetailDto> | null {
+    return (details[keyOf('lead', id)] as Saved<LeadDetailDto> | undefined) ?? null;
+  },
+
+  putLead(lead: LeadDetailDto) {
+    put('lead', lead);
   },
 
   /**

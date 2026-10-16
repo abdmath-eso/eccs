@@ -390,6 +390,7 @@ export const AI_FEATURE_LABEL: Record<string, string> = {
   "inspection-summary": "Inspection summary draft",
   "photo-check": "Photo check",
   "photo-standard": "Photo standard of a checklist item",
+  "shop-board": "Shop board reader (a BDE's new lead)",
 };
 
 export const AI_STATUS_LABEL: Record<string, string> = {

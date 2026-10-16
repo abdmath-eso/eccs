@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { FREE_CHECK_POINTS } from "./free-check.js";
 import { roleCan } from "./permissions.js";
 import {
+  loseSchema,
+  parkSchema,
   closeScore,
   closeTitle,
   closeWords,
@@ -260,6 +263,21 @@ describe("Do today", () => {
     expect(doTodayFor(lead({ hasPhone: false, nextActionAt: at("2026-11-26", "12:00") }), NOW)?.action).toBe("OPEN");
   });
 
+  it("gives each line's facts too, so the BDE's phone can say it in their own language", () => {
+    expect(doTodayFor(lead({ status: "PARKED", parkedAt: at("2026-10-28"), parkedUntil: "2026-11-23", parkedReason: "after Diwali" }), NOW)?.params).toEqual({
+      parkedOn: "2026-10-28",
+      until: "2026-11-23",
+      reason: "after Diwali",
+    });
+    const opened = lead({ stage: "QUOTED", lastActivityAt: at("2026-11-21"), quote: quote({ openCount: 2, firstOpenedAt: at("2026-11-24", "19:00") }) });
+    expect(doTodayFor(opened, NOW)?.params).toEqual({ totalPaise: 850_000, sentOn: "2026-11-21", opens: 2 });
+    expect(doTodayFor(lead({ nextAction: "Call back about the price", nextActionAt: at("2026-11-24", "15:00") }), NOW)?.params).toEqual({
+      nextAction: "Call back about the price",
+      dueOn: "2026-11-24",
+    });
+    expect(doTodayFor(lead({ stage: "CHECK_DONE", checkDoneAt: at("2026-11-18") }), NOW)?.params).toEqual({ doneOn: "2026-11-18" });
+  });
+
   it("puts overdue first, longest waiting first, then today's by time with untimed last; one to-do per lead", () => {
     const items = doToday(
       [
@@ -452,6 +470,20 @@ describe("what the API accepts", () => {
     expect(stepSchema.safeParse({ kind: "CHECK_DONE" }).success).toBe(false);
     expect(stepSchema.safeParse({ kind: "CHECK_DONE", findings: 0 }).success).toBe(true);
     expect(stepSchema.safeParse({ kind: "ASKED" }).success).toBe(false);
+  });
+
+  it("takes a free check done with the phone's scorecard instead of a count, and a scorecard only then", () => {
+    const answers = FREE_CHECK_POINTS.map((point) => ({ point, answer: point === "HOOD" ? "FIX" : "OK" }));
+    expect(stepSchema.safeParse({ kind: "CHECK_DONE", scorecard: { answers } }).success).toBe(true);
+    expect(stepSchema.safeParse({ kind: "CHECK_DONE", scorecard: { answers: answers.slice(1) } }).success).toBe(false);
+    expect(stepSchema.safeParse({ kind: "VISIT", scorecard: { answers } }).success).toBe(false);
+  });
+
+  it("takes a park or a loss with the phone's own id and time, for sending again safely", () => {
+    const id = "6f1b8c0e-6a4d-4a8e-9d43-0d7f0a8f2b11";
+    expect(parkSchema.parse({ id, at: at("2026-11-26"), until: "2026-12-10", reason: "after Diwali" })).toMatchObject({ id, until: "2026-12-10" });
+    expect(loseSchema.safeParse({ id: "not-an-id", reason: "Has a vendor" }).success).toBe(false);
+    expect(loseSchema.safeParse({ reason: "Has a vendor" }).success).toBe(true);
   });
 
   it("takes a target for a week that starts on a Monday, and each quote line once", () => {

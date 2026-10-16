@@ -347,6 +347,7 @@ export const ACTIVITY_ACTIONS = {
   "ai.request.inspectionSummary": ["ai", "AI drafted an inspection summary"],
   "ai.request.photoCheck": ["ai", "AI checked a proof photo"],
   "ai.request.photoStandard": ["ai", "AI wrote what a checklist item's proof photo must show"],
+  "ai.request.shopBoard": ["ai", "AI read a shop board for a new lead"],
   "ai.digest.updated": ["ai", "Asked for a fresh Monitoring digest"],
   "ai.outcome.recorded": ["ai", "Said what they did with an AI answer"],
 
@@ -391,6 +392,9 @@ export const ACTIVITY_ACTIONS = {
   "sales.target.set": ["sales", "Set a BDE's weekly target by hand"],
   "sales.targets.floorsChanged": ["sales", "Changed the lowest weekly targets"],
   "sales.leads.refreshed": ["sales", "Moved leads on from the app's data and scored them (timed job)"],
+  // The BDE's phone (16 Oct 2026): a shop board's or a free check's photo, and the AI reading the board.
+  "sales.photo.added": ["sales", "Filed a photo for a lead (shop board or free check)"],
+  "sales.board.read": ["sales", "Asked AI to read a shop board"],
 } as const satisfies Record<string, ActionEntry>;
 
 export type ActivityAction = keyof typeof ACTIVITY_ACTIONS;
@@ -406,6 +410,7 @@ export const AI_FEATURE_ACTIONS: Record<AiFeature, ActivityAction> = {
   "inspection-summary": "ai.request.inspectionSummary",
   "photo-check": "ai.request.photoCheck",
   "photo-standard": "ai.request.photoStandard",
+  "shop-board": "ai.request.shopBoard",
 };
 
 export const isActivityAction = (key: string): key is ActivityAction => Object.hasOwn(ACTIVITY_ACTIONS, key);

@@ -29,6 +29,30 @@ Fields:
 
 Dates as YYYY-MM-DD. Indian documents write dates day first: 01/04/2026 is 1 April 2026, never 4 January.`;
 
+/**
+ * Feature 7 (16 Oct 2026): reading a photo of a restaurant's shop board into a BDE's "Log
+ * a lead" form, so the founder's design holds: "a photo of the shop board fills the name
+ * and address". The BDE checks every field before saving, as with the licence reader.
+ * Sends: the photo only. The answer starts with `seen` (the board's words as written),
+ * which is thrown away at once: never stored, logged or shown.
+ *
+ * Written for Hyderabad boards: English, Telugu, Hindi and Urdu, often two scripts on one
+ * board; mobile numbers painted for orders; franchise boards with a brand logo; boards
+ * with no address at all. Names go into Latin letters as the business writes them in
+ * English, because the CRM, the quote and the console are in English.
+ */
+export const SHOP_BOARD_INSTRUCTIONS = `You read the photo of a shop board (the signboard over or beside the door) of a restaurant, hotel, café, bakery, tiffin centre, dhaba, sweet shop or other food business in Hyderabad, India, for a salesperson logging the business as a sales lead. The salesperson checks everything you fill in before it is saved.
+
+Boards are in English, Telugu, Hindi or Urdu, often in two scripts at once. Read only what is on the board. Never guess, never fill a field from what the place looks like, and answer null for anything the board does not show. An empty field is fine; a wrong one is not.
+
+First write seen: the board's words as they are written, in their own scripts, line by line, at most about 60 words. Then fill in:
+- businessName: the business's name. If the board has it in English letters, copy it as written there, with its spelling (keep "Hotel", "Restaurant", "Tiffins", "Biryani House" and the like when they are part of the name). Boards paint names in capital letters; write the name with ordinary capitals (SHAHI DASTARKHWAN = "Shahi Dastarkhwan"), keeping initials and short forms as they are (KFC, A1, BBQ). If the name is only in Telugu, Hindi or Urdu script, write how it sounds in English letters, as the business itself would spell it in English (బావర్చి = "Bawarchi", शाह गौस = "Shah Ghouse"); never translate the meaning. Leave out slogans, the cuisine list, "Since 1985", "Family Restaurant" taglines, "Pure Veg" and the like unless they are plainly part of the name. For a franchise or chain (a brand logo such as Domino's, KFC, Paradise), give the brand's name, and add the branch only when the board names it ("Paradise Biryani, Secunderabad"). The word "(sample)" is never part of a name.
+- area: the locality or neighbourhood of Hyderabad the board names (Gachibowli, Banjara Hills, Tolichowki, Kukatpally, Madhapur, Ameerpet, Dilsukhnagar, Secunderabad, Mehdipatnam), in English letters, without the city, PIN code, road or landmark ("Panjagutta X Roads" = "Panjagutta"). Only when the board says it, often as part of the address or a branch name: when the address names the locality, give it here too. null if the board names none.
+- address: the address as written on the board, in English letters (door or plot number, road, landmark such as "Opp. Metro Station", locality, city, PIN code), on one line. null if the board shows no address.
+- phones: every phone number painted on the board, exactly as written, in the order they appear (mobile numbers, landlines with their 040 code, toll-free numbers). An empty list if there are none. Never make a number up or complete a number you cannot read in full.
+
+If the photo is not of a shop board, or is too blurred or dark to read, answer null for every field and an empty list of phones.`;
+
 /** Feature 2a: translating the messages of a support thread for the person reading it. */
 export function supportTranslationInstructions(target: AiLanguage): string {
   return `You translate the messages of a support conversation between a restaurant kitchen in Hyderabad, India, and ECCS, the commercial kitchen cleaning and hygiene company that serves it. The reader reads ${AI_LANGUAGE_NAMES[target]}.

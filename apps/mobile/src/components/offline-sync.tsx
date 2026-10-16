@@ -15,11 +15,17 @@ import { checklistCache } from '@/lib/offline/checklist-cache';
 import { fieldCache } from '@/lib/offline/field-cache';
 import { isFieldOp } from '@/lib/offline/field-ops';
 import { outbox, useOutbox } from '@/lib/offline/outbox';
-import type { OutboxNotice } from '@/lib/offline/outbox-core';
+import type { OutboxNotice, OutboxOp } from '@/lib/offline/outbox-core';
 import { useSession } from '@/lib/session';
 
 // How long "All sent" stays up before the line goes away.
 const ALL_SENT_MS = 4000;
+
+/** The name typed for a lead logged on this phone and not on the server yet, if it is still waiting. */
+function leadNameOnPhone(ops: readonly OutboxOp[], leadId: string): string | undefined {
+  const create = ops.filter(isFieldOp).find((op) => op.kind === 'leadCreate' && op.subjectId === leadId);
+  return create?.kind === 'leadCreate' ? create.input.businessName : undefined;
+}
 
 /**
  * Keeps checklist answers, and a Supervisor's visits and inspections, flowing
@@ -96,16 +102,23 @@ export function OfflineSync() {
   // restaurant, visits and inspections for ECCS staff.
   const savesForLater =
     pathname.startsWith('/checklists') ||
-    (role !== undefined && isEccsRole(role) && (pathname.startsWith('/services') || pathname.startsWith('/inspections')));
-  // The first visit or inspection whose work the server refused and the phone is keeping.
+    (role !== undefined && isEccsRole(role) && (pathname.startsWith('/services') || pathname.startsWith('/inspections'))) ||
+    // A BDE's leads and their steps (B2), from Home and the leads screens.
+    (role === 'BDE' && (pathname === '/' || pathname.startsWith('/sales')));
+  // The first visit, inspection or lead whose work the server refused and the phone is keeping.
   const heldOp = box.ops.filter(isFieldOp).find((op) => op.held !== undefined);
-  const openHeld = () => {
-    if (!heldOp) return;
-    if (heldOp.subject === 'visit') router.push({ pathname: '/services/[visitId]', params: { visitId: heldOp.subjectId } });
-    else router.push({ pathname: '/inspections/[inspectionId]', params: { inspectionId: heldOp.subjectId } });
+  const openSubject = (subject: OutboxNotice['subject'], id: string) => {
+    if (subject === 'visit') router.push({ pathname: '/services/[visitId]', params: { visitId: id } });
+    else if (subject === 'lead') router.push({ pathname: '/sales/[leadId]', params: { leadId: id } });
+    else router.push({ pathname: '/inspections/[inspectionId]', params: { inspectionId: id } });
   };
-  // On a visit or an inspection itself the notice there already says what is held and what to do.
-  const onOne = /^\/(services|inspections)\/[^/]+/.test(pathname) && !/\/(book|start)$/.test(pathname);
+  const openHeld = () => {
+    if (heldOp) openSubject(heldOp.subject, heldOp.subjectId);
+  };
+  // On a visit, an inspection or a lead itself the notice there already says what is held and what to do.
+  const onOne =
+    (/^\/(services|inspections)\/[^/]+/.test(pathname) && !/\/(book|start)$/.test(pathname)) ||
+    (/^\/sales\/[^/]+$/.test(pathname) && !/\/(new|edit|check|quote)$/.test(pathname));
 
   // What the line says, if anything. Text and an icon together, never colour alone.
   let line: {
@@ -134,14 +147,18 @@ export function OfflineSync() {
   /** Says plainly what happened to the answers that were not added. */
   const noticeText = (shown: OutboxNotice): string => {
     if (shown.subject) {
-      // A Supervisor's visit or inspection, named by its outlet where the phone knows it.
+      // A Supervisor's visit or inspection, named by its outlet where the phone knows it; a BDE's lead by its name.
       const visit = shown.subject === 'visit' ? fieldCache.getVisit(shown.runId)?.data : undefined;
       const place = visit
         ? [localize(visit.serviceName, language), visit.outletName].join(', ')
         : shown.subject === 'inspection'
           ? fieldCache.getInspection(shown.runId)?.data.outletName
-          : undefined;
-      const title = place ? `“${place}”` : t(shown.subject === 'visit' ? 'offline.thisVisit' : 'offline.thisInspection');
+          : shown.subject === 'lead'
+            ? (fieldCache.getLead(shown.runId)?.data.businessName ?? leadNameOnPhone(box.ops, shown.runId))
+            : undefined;
+      const title = place
+        ? `“${place}”`
+        : t(shown.subject === 'visit' ? 'offline.thisVisit' : shown.subject === 'lead' ? 'bde.offline.thisLead' : 'offline.thisInspection');
       if (shown.reason === 'rejected') return t('offline.stepsRejected', { title, count: shown.count });
       if (shown.reason === 'finishRejected') return t('offline.finishRejected', { title });
       if (shown.reason === 'finished' || shown.reason === 'cancelled' || shown.reason === 'gone') {
@@ -214,11 +231,7 @@ export function OfflineSync() {
                   label={t('offline.open')}
                   onPress={() => {
                     outbox.dismissNotice(notice.id);
-                    if (notice.subject === 'visit') {
-                      router.push({ pathname: '/services/[visitId]', params: { visitId: notice.runId } });
-                    } else {
-                      router.push({ pathname: '/inspections/[inspectionId]', params: { inspectionId: notice.runId } });
-                    }
+                    openSubject(notice.subject, notice.runId);
                   }}
                 />
               )}

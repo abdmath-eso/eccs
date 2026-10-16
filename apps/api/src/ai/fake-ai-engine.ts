@@ -45,6 +45,15 @@ export const FAKE_NOT_DONE_REASON = 'Two bottles still have water in them.';
 /** The camera nudge's `seen` note: thrown away by the server, so it must never be found anywhere. */
 export const FAKE_SEEN = 'FAKE-SEEN a steel shelf and a blue cloth';
 
+/** What the fake reads off a shop board photo (feature 7): a bilingual board with a mobile and a landline. */
+export const FAKE_BOARD = {
+  seen: FAKE_SEEN,
+  businessName: '  Sri Annapurna   Tiffins ',
+  area: 'Kukatpally',
+  address: 'Plot 12, KPHB Colony, Kukatpally, Hyderabad 500072',
+  phones: ['040-2345 6789', '98480 22338'],
+};
+
 /** What a fake call was asked, for tests to look at. */
 export interface FakeAiCall {
   feature: AiFeature;
@@ -172,6 +181,16 @@ export class FakeAiEngine implements AiEngine {
           partlyNote: null,
           aboutPeople: /\b(staff|uniform|gloves|hair|apron)\b/i.test(check),
         };
+      }
+      case 'shop-board': {
+        // A board photo reads as FAKE_BOARD, unless its bytes carry a marker: "FAKE-AI:UNREADABLE"
+        // reads as nothing, "FAKE-AI:NO-ADDRESS" leaves the area and address out, "FAKE-AI:LANDLINE"
+        // has only a landline painted on it.
+        const bytes = request.file ? request.file.data.toString('latin1') : '';
+        if (bytes.includes('FAKE-AI:UNREADABLE')) return { seen: FAKE_SEEN, businessName: null, area: null, address: null, phones: [] };
+        if (bytes.includes('FAKE-AI:NO-ADDRESS')) return { ...FAKE_BOARD, area: null, address: null };
+        if (bytes.includes('FAKE-AI:LANDLINE')) return { ...FAKE_BOARD, phones: ['040-2345 6789'] };
+        return FAKE_BOARD;
       }
       // A new feature adds its fixed answer above.
       default:

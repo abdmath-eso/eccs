@@ -351,3 +351,17 @@ First: stop the API terminal, run `pnpm build`, then `pnpm --filter @eccs/api st
 5. **Became a client**: link a lead to an existing client; its First job and On a plan then come from the client's visits and plan.
 6. **Targets** (Super Admin): this week's targets per BDE, and the floors.
 7. **As Ravi** (`9000000004`, ECCS staff login, in the console): only Sales, with only his own leads.
+
+## 26. Trying the BDE's phone app
+
+First, **when Claude says no builder is changing the code**: stop the API terminal, run `pnpm build` (skip it when Claude says it has built), start it again (`pnpm --filter @eccs/api start`), then reload the app. On the phone this works in Expo Go as usual; the 15 Oct APK does not have it yet.
+
+1. In the app: **ECCS staff login** → `9000000004` (Ravi) → code `123456`. Sana is `9000000005`, Imran `9000000006`. Three tabs: Home, Leads, More.
+2. **Home**: Do today (overdue first), the week against target. Tap **Call** on a to-do: with a sample lead the call is only logged, never dialled.
+3. **Log a lead**: photograph any shop board (or a picture of one on the computer screen). With signal the name, area, address and a mobile number fill in with a sparkle; check them, add a contact and **Save lead**. To try the dialler, put your own number on a lead you log yourself.
+4. Open the lead: **Visited**, **Note**, then **Book a free check** and **Free check done**: answer the ten points (a photo on one that needs fixing), **Finish**, then **Share with the owner on WhatsApp** (send it to yourself) and **Send a quote**.
+5. **Park** a lead until a date, **Lost** with a reason; the stage chips on **Leads** find them again.
+6. **Without signal**: switch on aeroplane mode, log a lead (type it; the photo still goes with it) and a few steps on another lead; they show at once. Switch it off: they are sent, with the times they were done.
+7. **In the console** as the Super Admin (`9000000001`): Business > Sales, open the lead you logged: the board photo under Details and the scorecard in the timeline.
+
+Leads cannot be deleted; mark your test ones Lost ("test"). The sample leads are removed and loaded again with `pnpm sales:sample:remove` and `pnpm sales:sample` in `packages/db`.

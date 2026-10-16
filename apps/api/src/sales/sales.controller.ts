@@ -1,5 +1,13 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  SHOP_BOARD_MAX_BYTES,
+  shopBoardReadSchema,
+  type BdeDayDto,
+  type LoseValues,
+  type ParkValues,
+  type SalesPhotoDto,
+  type ShopBoardReadingDto,
   leadListQuerySchema,
   leadSchema,
   leadUpdateSchema,
@@ -31,6 +39,9 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { SalesOverviewService } from './sales-overview.service.js';
 import { SalesService } from './sales.service.js';
+
+/** The form fields that come with a lead photo: the id the phone chose, and when it was taken. */
+const photoFieldsSchema = z.object({ id: z.uuid().optional(), capturedAt: z.iso.datetime({ offset: true }).optional() });
 
 // The Sales page and the CRM (15 Oct 2026). Every route needs the "sales" grant: the
 // Super Admin, the Ops Manager and the BDEs (permissions.ts). A BDE reaches only the
@@ -71,6 +82,35 @@ export class SalesController {
     return this.sales.detail(user, id);
   }
 
+  /** A BDE's day on the phone (B2): their own Do today and this week against their targets. */
+  @Get('my-day')
+  @RequirePermission('sales', 'read')
+  myDay(@CurrentUser() user: AuthUser): Promise<BdeDayDto> {
+    return this.figures.day(user);
+  }
+
+  // ───────────────────────── Photos and the shop board (the BDE's phone) ─────────────────────────
+
+  /** A photo for a lead (the shop board, a free check's "Needs fixing"), filed before the lead or step; its id goes in it. */
+  @Post('photos')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: SHOP_BOARD_MAX_BYTES, files: 1 } }))
+  @RequirePermission('sales', 'create')
+  @Activity('sales.photo.added', { entity: 'attachment', from: 'answer' })
+  photo(@CurrentUser() user: AuthUser, @UploadedFile() file: { buffer: Buffer; size: number } | undefined, @Body() body: unknown): Promise<SalesPhotoDto> {
+    const fields = photoFieldsSchema.safeParse(body ?? {});
+    if (!fields.success) throw new BadRequestException('Invalid upload');
+    return this.sales.uploadPhoto(user, file, fields.data);
+  }
+
+  /** Reads a filed shop-board photo into the Log a lead form, with AI. Nothing is saved. 503 with a code when AI is off or over its limit. */
+  @Post('board-reading')
+  @HttpCode(200)
+  @RequirePermission('sales', 'create')
+  @Activity('sales.board.read', { entity: 'attachment', from: 'body', key: 'photoId' })
+  readBoard(@CurrentUser() user: AuthUser, @Body(new ZodValidationPipe(shopBoardReadSchema)) body: { photoId: string }): Promise<ShopBoardReadingDto> {
+    return this.sales.readBoard(user, body.photoId);
+  }
+
   /** What a quote can hold: the services and plans on offer, with their prices before GST. */
   @Get('quote-options')
   @RequirePermission('sales', 'read')
@@ -106,7 +146,7 @@ export class SalesController {
   @HttpCode(200)
   @RequirePermission('sales', 'update')
   @Activity('sales.lead.parked', { entity: 'lead' })
-  park(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body(new ZodValidationPipe(parkSchema)) body: { until: string; reason: string }): Promise<LeadDetailDto> {
+  park(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body(new ZodValidationPipe(parkSchema)) body: ParkValues): Promise<LeadDetailDto> {
     return this.sales.park(user, id, body);
   }
 
@@ -114,7 +154,7 @@ export class SalesController {
   @HttpCode(200)
   @RequirePermission('sales', 'update')
   @Activity('sales.lead.lost', { entity: 'lead' })
-  lose(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body(new ZodValidationPipe(loseSchema)) body: { reason: string }): Promise<LeadDetailDto> {
+  lose(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body(new ZodValidationPipe(loseSchema)) body: LoseValues): Promise<LeadDetailDto> {
     return this.sales.lose(user, id, body);
   }
 

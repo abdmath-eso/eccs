@@ -18,7 +18,7 @@ import {
 // the network; those are handed in, so the rules can be tested on their own.
 //
 // The same outbox also carries what an ECCS Supervisor does on a service visit
-// and on an inspection (the "field" entries, see field-ops.ts). They share the
+// and on an inspection, and what a BDE does on a lead (the "field" entries, see field-ops.ts). They share the
 // queue, the order, the retrying and the keeping of people apart. They differ
 // in one thing: when the server refuses a Supervisor's work (the visit was
 // cancelled meanwhile, say) it is kept on the phone and held, never dropped,
@@ -350,6 +350,11 @@ export class Outbox {
 
     let last: FieldOp | undefined;
     for (const old of ops) if (sameSubject(old, next)) last = old;
+    // A lead's details changed twice in a row (B2): one change carrying both, the later winning.
+    if (next.kind === 'leadUpdate' && last?.kind === 'leadUpdate' && untouched(last)) {
+      const merged: FieldOp = { ...next, changes: { ...last.changes, ...next.changes } };
+      return ops.map((old) => (old === last ? merged : old));
+    }
     const repeats =
       last !== undefined &&
       last.id !== this.sendingId &&

@@ -78,6 +78,23 @@ async function sendField(op: FieldOp): Promise<void> {
       return fieldCache.putVisit(await api.visits.complete(id, { at: op.at }));
     case 'inspFinish':
       return fieldCache.putInspection(await api.inspections.finish(id, { at: op.at }));
+    // A BDE's lead (B2). Each carries ids and times chosen on the phone, so a repeat is recorded once.
+    case 'leadPhoto': {
+      const file = await openKeptPhoto(op.photoId);
+      if (!file) throw new MissingPhotoError();
+      await api.sales.uploadPhoto(file, { id: op.photoId, capturedAt: op.capturedAt });
+      return;
+    }
+    case 'leadCreate':
+      return fieldCache.putLead(await api.sales.addLead(op.input));
+    case 'leadUpdate':
+      return fieldCache.putLead(await api.sales.updateLead(id, op.changes));
+    case 'leadStep':
+      return fieldCache.putLead(await api.sales.logStep(id, op.input));
+    case 'leadPark':
+      return fieldCache.putLead(await api.sales.park(id, op.input));
+    case 'leadLose':
+      return fieldCache.putLead(await api.sales.lose(id, op.input));
     default:
       break;
   }
@@ -119,6 +136,12 @@ async function sendField(op: FieldOp): Promise<void> {
  */
 async function inspectField(op: FieldOp): Promise<FieldState> {
   try {
+    if (op.subject === 'lead') {
+      // A lead the server shows this BDE is open to them: only the refused step was wrong.
+      // One it does not show (never created, or handed to someone else) holds its work.
+      fieldCache.putLead(await api.sales.lead(op.subjectId));
+      return 'open';
+    }
     if (op.subject === 'visit') {
       const visit = await api.visits.get(op.subjectId);
       fieldCache.putVisit(visit);

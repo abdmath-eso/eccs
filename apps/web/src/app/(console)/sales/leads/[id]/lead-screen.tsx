@@ -4,7 +4,10 @@ import {
   ASK_SIGNAL_LABELS,
   can,
   closeWords,
+  FREE_CHECK_FIX_LABELS,
+  FREE_CHECK_POINT_LABELS,
   LEAD_STAGE_LABELS,
+  type FreeCheckDto,
   type LeadActivityDto,
   type LeadDetailDto,
   type QuoteDto,
@@ -196,6 +199,18 @@ function Lead({ leadId }: { leadId: string }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
         <div className="flex min-w-0 flex-col gap-6">
           <Panel title="Details" action={<Button variant="link" className="text-sm" onClick={() => open("edit")}>Change</Button>}>
+            {/* The shop board the BDE photographed when logging it (B2, the phone). Opens full size. */}
+            {lead.photo && (
+              <a href={api.fileUrl(lead.photo.path)} target="_blank" rel="noreferrer" className="mb-4 block">
+                {/* A signed link to private storage that expires within the hour: not something the image optimiser can fetch or should cache. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={api.fileUrl(lead.photo.path)}
+                  alt={`The shop board of ${lead.businessName}, as the BDE photographed it. Opens full size.`}
+                  className="max-h-48 w-full rounded-lg border border-border bg-background object-contain"
+                />
+              </a>
+            )}
             <dl className="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
               <Row label="Next step">
                 {lead.nextAction || lead.nextActionAt ? `${lead.nextAction ?? "Next step"}${lead.nextActionAt ? `, ${shortMoment(lead.nextActionAt)}` : ""}` : <span className="text-muted">None set</span>}
@@ -290,6 +305,7 @@ function Lead({ leadId }: { leadId: string }) {
                   <span className="font-medium">{activityWords(entry)}</span>
                   {entry.toStage && <span className="text-muted"> · moved to {LEAD_STAGE_LABELS[entry.toStage]}</span>}
                   {entry.note && !["PARKED", "LOST", "LINKED"].includes(entry.kind) && <span className="block text-muted">{entry.note}</span>}
+                  {entry.scorecard && <Scorecard card={entry.scorecard} />}
                   <span className="block text-xs text-muted">{entry.byName ?? (entry.kind === "QUOTE_OPENED" ? "The owner" : "The app")}</span>
                 </span>
               </li>
@@ -313,6 +329,40 @@ function BackLink() {
     <Link href="/sales/leads" className="w-fit rounded-md px-1 text-sm font-semibold text-primary hover:underline">
       ← Leads
     </Link>
+  );
+}
+
+/**
+ * The free-check scorecard the BDE filled in on the phone (B2): how many points were OK,
+ * needed fixing or could not be seen, and each one needing fixing with the ECCS service
+ * that fixes it and its photo, if one was taken.
+ */
+function Scorecard({ card }: { card: FreeCheckDto }) {
+  const toFix = card.answers.filter((entry) => entry.answer === "FIX");
+  return (
+    <span className="mt-1 block rounded-lg border border-border bg-background px-3 py-2">
+      <span className="block text-xs text-muted">
+        Scorecard: {card.counts.FIX} to fix · {card.counts.OK} OK · {card.counts.UNSEEN} could not see
+      </span>
+      {toFix.length > 0 && (
+        <ul className="mt-1 flex flex-col gap-1">
+          {toFix.map((entry) => (
+            <li key={entry.point} className="flex items-center justify-between gap-3">
+              <span>
+                <span className="font-medium">{FREE_CHECK_POINT_LABELS[entry.point]}</span>
+                <span className="text-muted"> · {FREE_CHECK_FIX_LABELS[entry.point]}</span>
+              </span>
+              {entry.photo && (
+                <a href={api.fileUrl(entry.photo.path)} target="_blank" rel="noreferrer" className="shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={api.fileUrl(entry.photo.path)} alt={`${FREE_CHECK_POINT_LABELS[entry.point]}: the BDE's photo. Opens full size.`} className="h-12 w-12 rounded-md border border-border object-cover" />
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </span>
   );
 }
 

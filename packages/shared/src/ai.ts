@@ -110,6 +110,7 @@ export const AI_FEATURES = [
   "inspection-summary", // the draft summary and "Fix these first" of an inspection report, for the Supervisor
   "photo-check", // a nudge at the camera when a checklist proof photo is blurred, too dark, of the wrong thing, or the check looks not done
   "photo-standard", // writes, once, what a checklist item's proof photo must show (the photo check judges against it)
+  "shop-board", // reads a photo of a shop's board into a BDE's Log a lead form (16 Oct 2026)
 ] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
@@ -732,6 +733,94 @@ export function photoStandardFits(stored: Pick<StoredPhotoStandard, "wording"> |
 export function photoStandardForCheck(stored: PhotoStandard): PhotoStandard {
   const { subject, done, notDone, photoCanShow, partlyNote, aboutPeople } = stored;
   return { subject, done, notDone, photoCanShow, partlyNote: photoCanShow === "partly" ? partlyNote : null, aboutPeople };
+}
+
+// ───────────────────────── The shop board (a BDE logging a lead) ─────────────────────────
+//
+// The founder's design: "A BDE logs a lead in 20 seconds from the field: a photo of the
+// shop board fills the name and address". The BDE photographs the restaurant's board and
+// the form fills in with what is painted on it, as the licence reader fills its form:
+// a sparkle beside each field AI filled, "Could not read: type it in" under each it could
+// not, nothing saved until Save. Hyderabad boards are in English, Telugu, Hindi and Urdu,
+// often two at once; the name is kept in Latin letters as the business writes it in English.
+
+/** The most the `seen` note may be: it is asked for in a few lines, only so the model reads the board before it fills anything in. */
+export const SHOP_BOARD_SEEN_MAX = 1500;
+
+/** The board photo the phone sends (about 1280 pixels wide) is a few hundred KB; anything over this is refused. */
+export const SHOP_BOARD_MAX_BYTES = 5 * 1024 * 1024;
+
+export const shopBoardAnswerSchema = z.object({
+  /**
+   * The board's words as they are written, in their own scripts, read first so the model
+   * looks before it fills anything in (as the photo check's `seen`). Never stored, logged,
+   * sent to the phone or shown.
+   */
+  seen: z.string().max(SHOP_BOARD_SEEN_MAX),
+  /** The business's name in Latin letters, as the business writes it in English. null when not on the board. */
+  businessName: z.string().max(200).nullable(),
+  /** The locality (Gachibowli, Tolichowki), only when the board says it. */
+  area: z.string().max(200).nullable(),
+  /** The address as painted, in Latin letters. */
+  address: z.string().max(500).nullable(),
+  /** Every phone number on the board, as written, in the order they appear. */
+  phones: z.array(z.string().max(60)).max(8),
+});
+export type ShopBoardAnswer = z.infer<typeof shopBoardAnswerSchema>;
+
+/** `seen` comes first, so the board is read before the fields are filled (structured outputs keep the schema's order). */
+export const SHOP_BOARD_JSON_SCHEMA: AiJsonSchema = {
+  type: "object",
+  properties: {
+    seen: { type: "string" },
+    businessName: nullableString,
+    area: nullableString,
+    address: nullableString,
+    phones: { type: "array", items: { type: "string" } },
+  },
+  required: ["seen", "businessName", "area", "address", "phones"],
+  additionalProperties: false,
+};
+
+/** What the phone is sent: the fields for the form, never the `seen` note. */
+export interface ShopBoardReadingDto {
+  businessName: string | null;
+  area: string | null;
+  address: string | null;
+  /** The first mobile number on the board, as +91XXXXXXXXXX, which the lead's phone field takes. */
+  phone: string | null;
+  /** Other numbers on the board (a landline, a second mobile), as written, for the BDE to see. */
+  otherPhones: string[];
+  /** The AiRequest it came from: the phone says afterwards whether the BDE kept or changed what was filled in. */
+  aiRequestId: string;
+}
+
+/** An Indian mobile number in any of the ways boards write it ("98480 22338", "+91-98480-22338", "098480 22338"), as +91XXXXXXXXXX; else null. */
+export function boardMobile(written: string): string | null {
+  const digits = written.replace(/\D/g, "");
+  const local = digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits.length === 11 && digits.startsWith("0") ? digits.slice(1) : digits;
+  return /^[6-9]\d{9}$/.test(local) ? `+91${local}` : null;
+}
+
+/**
+ * Makes a board answer safe to put in the form: spaces tidied, text cut to what the
+ * lead form holds (name 100, area 60, address 200), an area that only repeats the
+ * name dropped, and the phone numbers split into the first mobile (which the form's
+ * phone field takes) and the rest, as written. The `seen` note is left behind here.
+ */
+export function cleanShopBoardAnswer(answer: ShopBoardAnswer): Omit<ShopBoardReadingDto, "aiRequestId"> {
+  const text = (value: string | null, max: number) => {
+    const trimmed = value?.replace(/\s+/g, " ").replace(/^[\s,.;:-]+|[\s,;:-]+$/g, "").trim();
+    return trimmed ? trimmed.slice(0, max).trim() : null;
+  };
+  const businessName = text(answer.businessName, 100);
+  let area = text(answer.area, 60);
+  if (area && businessName && area.toLowerCase() === businessName.toLowerCase()) area = null;
+  const written = answer.phones.map((phone) => phone.replace(/\s+/g, " ").trim()).filter((phone) => /\d{6,}/.test(phone.replace(/\D/g, "")));
+  const mobiles = written.map((phone) => ({ phone, mobile: boardMobile(phone) }));
+  const first = mobiles.find((entry) => entry.mobile);
+  const others = mobiles.filter((entry) => entry !== first && entry.mobile !== first?.mobile).map((entry) => entry.phone.slice(0, 30));
+  return { businessName, area, address: text(answer.address, 200), phone: first?.mobile ?? null, otherPhones: [...new Set(others)].slice(0, 3) };
 }
 
 // ───────────────────────── Checking ids ─────────────────────────

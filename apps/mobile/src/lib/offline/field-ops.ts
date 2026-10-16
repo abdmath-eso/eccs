@@ -1,10 +1,26 @@
 import {
+  freeCheckCounts,
+  freeCheckFindings,
+  inPointOrder,
+  isReferral,
+  moveForward,
+  normalizePhone,
   scoreInspection,
+  STEP_STAGE,
   type InspectionAnswer,
   type InspectionCheckDto,
   type InspectionDto,
   type InspectionScore,
   type InspectionSeverity,
+  type LeadActivityDto,
+  type LeadDetailDto,
+  type LeadInput,
+  type LeadRowDto,
+  type LeadStage,
+  type LeadUpdateInput,
+  type LoseInput,
+  type ParkInput,
+  type StepInput,
   type VisitDto,
   type VisitPhotoKind,
 } from '@eccs/shared';
@@ -16,8 +32,8 @@ import {
 // screen before the server has them. Like outbox-core.ts it knows nothing about
 // React, the phone's storage or the network, so it can be tested on its own.
 
-/** What a step belongs to: one service visit or one inspection. */
-export type FieldSubject = 'visit' | 'inspection';
+/** What a step belongs to: one service visit, one inspection, or one of a BDE's leads (B2). */
+export type FieldSubject = 'visit' | 'inspection' | 'lead';
 
 /**
  * Why work is being kept on the phone without being sent:
@@ -124,9 +140,49 @@ export interface InspFinishOp extends FieldBase {
   at: string;
 }
 
+// A BDE's work on a lead (B2, 16 Oct 2026). The lead's id, each step's id and its time
+// are all chosen on the phone, so the server recognises anything sent twice (B1's
+// `POST /sales/leads` and `/steps`, and Park and Lost since B2, take them for this).
+
+/** A lead's photo (the shop board, a free check's "Needs fixing"). Its file is kept on the phone under `photoId` until the server has it; it goes before what points at it. */
+export interface LeadPhotoOp extends FieldBase {
+  kind: 'leadPhoto';
+  photoId: string;
+  capturedAt: string;
+}
+
+/** A lead logged on this phone. `subjectId` is the lead's id, also `input.id`. */
+export interface LeadCreateOp extends FieldBase {
+  kind: 'leadCreate';
+  input: LeadInput & { id: string };
+}
+
+/** A change to a lead's details or its next step. Only what changed is sent. */
+export interface LeadUpdateOp extends FieldBase {
+  kind: 'leadUpdate';
+  changes: LeadUpdateInput;
+}
+
+/** A call, a visit, a note, a free check booked or done (with its scorecard). */
+export interface LeadStepOp extends FieldBase {
+  kind: 'leadStep';
+  input: StepInput & { id: string; at: string };
+}
+
+export interface LeadParkOp extends FieldBase {
+  kind: 'leadPark';
+  input: ParkInput & { id: string; at: string };
+}
+
+export interface LeadLoseOp extends FieldBase {
+  kind: 'leadLose';
+  input: LoseInput & { id: string; at: string };
+}
+
 export type VisitOp = VisitCheckInOp | VisitTaskOp | VisitRecordOp | VisitPhotoOp | VisitPhotoRemoveOp | VisitCompleteOp;
 export type InspectionOp = InspAnswerOp | InspPhotoOp | InspPhotoRemoveOp | InspFinishOp;
-export type FieldOp = VisitOp | InspectionOp;
+export type LeadOp = LeadPhotoOp | LeadCreateOp | LeadUpdateOp | LeadStepOp | LeadParkOp | LeadLoseOp;
+export type FieldOp = VisitOp | InspectionOp | LeadOp;
 
 type Filled = 'id' | 'userId' | 'createdAt' | 'attempts' | 'held';
 type Unfilled<T> = T extends unknown ? Omit<T, Filled> : never;
@@ -141,7 +197,8 @@ interface AnyOp {
 
 export const isFieldOp = (op: AnyOp): op is FieldOp => op.subject !== undefined;
 /** A photo whose file is kept on this phone until the step is sent. */
-export const isPhotoOp = (op: FieldOp): op is VisitPhotoOp | InspPhotoOp => op.kind === 'visitPhoto' || op.kind === 'inspPhoto';
+export const isPhotoOp = (op: FieldOp): op is VisitPhotoOp | InspPhotoOp | LeadPhotoOp =>
+  op.kind === 'visitPhoto' || op.kind === 'inspPhoto' || op.kind === 'leadPhoto';
 /** Finish: the step that closes the visit or the inspection. */
 export const isFinishOp = (op: FieldOp): op is VisitCompleteOp | InspFinishOp =>
   op.kind === 'visitComplete' || op.kind === 'inspFinish';
@@ -389,4 +446,323 @@ export function applyInspectionPending(inspection: InspectionDto, ops: readonly 
   }
 
   return { ...summary, inspection: next, score, localPhotos, unsentChecks };
+}
+
+// ───────────────────────── A BDE's lead as it stands on this phone (B2) ─────────────────────────
+
+/** Who is using the phone, for the steps they log here. */
+export interface Me {
+  id: string;
+  name: string;
+}
+
+export interface LeadView extends FieldSummary {
+  /** The server's copy (or, for a lead logged here, one made from what was typed) with what is still waiting laid over it. */
+  lead: LeadDetailDto;
+  /** Logged on this phone and not on the server yet. */
+  isNew: boolean;
+  /** Timeline entries done on this phone that the server does not have yet. */
+  unsentActivities: ReadonlySet<string>;
+  /** Photos (the board, a free check's) still only on this phone: shown from the phone's own file. */
+  localPhotos: ReadonlySet<string>;
+}
+
+const leadOps = (ops: readonly AnyOp[], leadId: string) => about(ops, 'lead', leadId) as LeadOp[];
+
+/** A typed phone number as the server will keep it, for showing before it has it. */
+const phoneOf = (typed: string | null | undefined) => (typed ? (normalizePhone(typed) ?? typed) : null);
+const textOf = (typed: string | null | undefined) => {
+  const trimmed = typed?.trim();
+  return trimmed ? trimmed : null;
+};
+
+function activity(fields: Partial<LeadActivityDto> & Pick<LeadActivityDto, 'id' | 'kind' | 'at'>): LeadActivityDto {
+  return {
+    byName: null,
+    note: null,
+    fromStage: null,
+    toStage: null,
+    checkAt: null,
+    checkWith: null,
+    findings: null,
+    amountPaise: null,
+    signal: null,
+    rating: null,
+    quoteNumber: null,
+    scorecard: null,
+    ...fields,
+  };
+}
+
+/** A lead logged on this phone, as its page shows it before the server has it. */
+export function draftLead(op: LeadCreateOp, me: Me | null): LeadDetailDto {
+  const input = op.input;
+  const at = op.createdAt;
+  const nextActionAt = input.nextActionAt ?? null;
+  return {
+    id: input.id,
+    businessName: input.businessName.trim(),
+    area: textOf(input.area),
+    stage: 'NEW',
+    status: 'OPEN',
+    source: input.source,
+    kitchens: input.kitchens ?? 1,
+    ownerId: me?.id ?? op.userId,
+    ownerName: me?.name ?? '',
+    contactName: textOf(input.contactName),
+    contactPhone: phoneOf(input.contactPhone),
+    createdAt: at,
+    lastActivityAt: at,
+    nextAction: textOf(input.nextAction) ?? (nextActionAt ? 'Next step' : null),
+    nextActionAt,
+    parkedUntil: null,
+    quote: null,
+    stale: null,
+    organization: null,
+    isSample: false,
+    photo: input.photoId ? { id: input.photoId, path: '' } : null,
+    address: textOf(input.address),
+    referrerName: input.referrerName && isReferral(input.source) ? textOf(input.referrerName) : null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+    checkAt: null,
+    checkWith: null,
+    checkDoneAt: null,
+    checkFindings: null,
+    parkedAt: null,
+    parkedReason: null,
+    lostAt: null,
+    lostReason: null,
+    wonAt: null,
+    planAt: null,
+    activities: [activity({ id: `created-${input.id}`, kind: 'CREATED', at, byName: me?.name ?? null })],
+    quotes: [],
+    close: null,
+    toDo: null,
+    owners: [],
+  };
+}
+
+/**
+ * Lays one person's waiting work on a lead over the server's copy, so the lead page and
+ * the list show it done straight away: the stage moves right by the same rule the server
+ * uses (STEP_STAGE, moveForward), a step on a parked or lost lead brings it back, a park
+ * or a loss changes its state, a change of details shows at once, and every step is in
+ * the timeline marked as not sent yet. `lead` is null for a lead logged on this phone
+ * that the server does not have yet; the view is then made from what was typed. Null
+ * when there is neither.
+ *
+ * While work is waiting, the server's "do today" and "waiting" notes on the lead are put
+ * aside: the BDE has just done something about it.
+ */
+export function applyLeadPending(lead: LeadDetailDto | null, leadId: string, ops: readonly AnyOp[], me: Me | null): LeadView | null {
+  const mine = leadOps(ops, leadId);
+  const summary = fieldSummary(ops, 'lead', leadId);
+  const create = mine.find((op): op is LeadCreateOp => op.kind === 'leadCreate');
+  const base = lead ?? (create ? draftLead(create, me) : null);
+  if (!base) return null;
+  const unsentActivities = new Set<string>();
+  const localPhotos = new Set<string>();
+  if (mine.length === 0) return { ...summary, lead: base, isNew: false, unsentActivities, localPhotos };
+
+  const next: LeadDetailDto = { ...base, activities: [...base.activities] };
+  let acted = false;
+  const touched = (at: string) => {
+    acted = true;
+    if (at > next.lastActivityAt) next.lastActivityAt = at;
+  };
+  /** A next step given with a step replaces the old one; one already due is cleared, since this step was it (as on the server). */
+  const nextStepAfter = (input: { nextAction?: string | null; nextActionAt?: string | null }, at: string) => {
+    if (input.nextAction || input.nextActionAt) {
+      next.nextAction = textOf(input.nextAction) ?? 'Next step';
+      next.nextActionAt = input.nextActionAt ?? null;
+    } else if (next.nextActionAt && next.nextActionAt <= at) {
+      next.nextAction = null;
+      next.nextActionAt = null;
+    } else if (!next.nextActionAt && next.nextAction) {
+      next.nextAction = null;
+    }
+  };
+  const reopenIfClosed = () => {
+    if (next.status === 'OPEN') return;
+    next.status = 'OPEN';
+    next.parkedAt = null;
+    next.parkedUntil = null;
+    next.parkedReason = null;
+    next.lostAt = null;
+    next.lostReason = null;
+  };
+
+  for (const op of mine) {
+    switch (op.kind) {
+      case 'leadPhoto':
+        localPhotos.add(op.photoId);
+        break;
+      case 'leadCreate':
+        if (op.input.photoId) localPhotos.add(op.input.photoId);
+        break;
+      case 'leadUpdate': {
+        const changes = op.changes;
+        if (changes.businessName !== undefined) next.businessName = changes.businessName.trim();
+        if (changes.area !== undefined) next.area = textOf(changes.area);
+        if (changes.address !== undefined) next.address = textOf(changes.address);
+        if (changes.contactName !== undefined) next.contactName = textOf(changes.contactName);
+        if (changes.contactPhone !== undefined) next.contactPhone = phoneOf(changes.contactPhone);
+        if (changes.kitchens !== undefined) next.kitchens = changes.kitchens;
+        if (changes.source !== undefined) next.source = changes.source;
+        if (changes.referrerName !== undefined) next.referrerName = textOf(changes.referrerName);
+        if (changes.photoId !== undefined) {
+          next.photo = changes.photoId ? { id: changes.photoId, path: '' } : null;
+          if (changes.photoId) localPhotos.add(changes.photoId);
+        }
+        if (changes.nextAction !== undefined || changes.nextActionAt !== undefined) {
+          const at = changes.nextActionAt === undefined ? next.nextActionAt : (changes.nextActionAt ?? null);
+          const text = changes.nextAction === undefined ? next.nextAction : textOf(changes.nextAction);
+          next.nextActionAt = at;
+          next.nextAction = at ? (text ?? 'Next step') : text;
+          acted = true;
+        }
+        break;
+      }
+      case 'leadStep': {
+        const input = op.input;
+        const from: LeadStage = next.stage;
+        const stage = moveForward(from, STEP_STAGE[input.kind]);
+        reopenIfClosed();
+        nextStepAfter(input, input.at);
+        let findings: number | null = null;
+        let scorecard: LeadActivityDto['scorecard'] = null;
+        if (input.kind === 'CHECK_BOOKED') {
+          next.checkAt = input.checkAt ?? null;
+          next.checkWith = textOf(input.checkWith);
+        }
+        if (input.kind === 'CHECK_DONE') {
+          const answers = input.scorecard ? inPointOrder(input.scorecard.answers) : null;
+          findings = answers ? freeCheckFindings(answers) : (input.findings ?? 0);
+          if (answers) {
+            scorecard = {
+              answers: answers.map((entry) => ({ point: entry.point, answer: entry.answer, photo: entry.photoId ? { id: entry.photoId, path: '' } : null })),
+              counts: freeCheckCounts(answers),
+            };
+            for (const entry of answers) if (entry.photoId) localPhotos.add(entry.photoId);
+          }
+          next.checkDoneAt = input.at;
+          next.checkFindings = findings;
+          next.checkAt = null;
+          next.checkWith = null;
+        }
+        next.stage = stage;
+        next.activities.push(
+          activity({
+            id: input.id,
+            kind: input.kind,
+            at: input.at,
+            byName: me?.name ?? null,
+            note: textOf(input.note),
+            ...(stage !== from && { fromStage: from, toStage: stage }),
+            checkAt: input.kind === 'CHECK_BOOKED' ? (input.checkAt ?? null) : null,
+            checkWith: input.kind === 'CHECK_BOOKED' ? textOf(input.checkWith) : null,
+            findings,
+            signal: input.kind === 'ASKED' ? (input.signal ?? null) : null,
+            scorecard,
+          }),
+        );
+        unsentActivities.add(input.id);
+        touched(input.at);
+        break;
+      }
+      case 'leadPark':
+        next.status = 'PARKED';
+        next.parkedAt = op.input.at;
+        next.parkedUntil = op.input.until;
+        next.parkedReason = op.input.reason.trim();
+        next.nextAction = null;
+        next.nextActionAt = null;
+        next.activities.push(activity({ id: op.input.id, kind: 'PARKED', at: op.input.at, byName: me?.name ?? null, note: op.input.reason.trim() }));
+        unsentActivities.add(op.input.id);
+        touched(op.input.at);
+        break;
+      case 'leadLose':
+        next.status = 'LOST';
+        next.lostAt = op.input.at;
+        next.lostReason = op.input.reason.trim();
+        next.nextAction = null;
+        next.nextActionAt = null;
+        next.activities.push(activity({ id: op.input.id, kind: 'LOST', at: op.input.at, byName: me?.name ?? null, note: op.input.reason.trim() }));
+        unsentActivities.add(op.input.id);
+        touched(op.input.at);
+        break;
+    }
+  }
+
+  // Newest first, as the server sends the timeline.
+  next.activities.sort((a, b) => b.at.localeCompare(a.at));
+  if (acted) {
+    next.toDo = null;
+    next.stale = null;
+  }
+  return { ...summary, lead: next, isNew: lead === null, unsentActivities, localPhotos };
+}
+
+/** A lead's row for the list, as it stands on this phone. */
+export function applyLeadRowPending(row: LeadRowDto, ops: readonly AnyOp[], me: Me | null): LeadRowDto {
+  if (leadOps(ops, row.id).length === 0) return row;
+  const detail: LeadDetailDto = {
+    ...row,
+    photo: null,
+    address: null,
+    referrerName: null,
+    latitude: null,
+    longitude: null,
+    checkAt: null,
+    checkWith: null,
+    checkDoneAt: null,
+    checkFindings: null,
+    parkedAt: null,
+    parkedReason: null,
+    lostAt: null,
+    lostReason: null,
+    wonAt: null,
+    planAt: null,
+    activities: [],
+    quotes: [],
+    close: null,
+    toDo: null,
+    owners: [],
+  };
+  return rowOf(applyLeadPending(detail, row.id, ops, me)!.lead, row);
+}
+
+/** The list's fields of a lead page, on top of a row (or none, for a lead logged here). */
+function rowOf(view: LeadDetailDto, row?: LeadRowDto): LeadRowDto {
+  return {
+    id: view.id,
+    businessName: view.businessName,
+    area: view.area,
+    stage: view.stage,
+    status: view.status,
+    source: view.source,
+    kitchens: view.kitchens,
+    ownerId: view.ownerId,
+    ownerName: view.ownerName,
+    contactName: view.contactName,
+    contactPhone: view.contactPhone,
+    createdAt: view.createdAt,
+    lastActivityAt: view.lastActivityAt,
+    nextAction: view.nextAction,
+    nextActionAt: view.nextActionAt,
+    parkedUntil: view.parkedUntil,
+    quote: row?.quote ?? view.quote,
+    stale: view.stale,
+    organization: row?.organization ?? view.organization,
+    isSample: row?.isSample ?? view.isSample,
+  };
+}
+
+/** Leads logged on this phone that the server does not have yet (not in `known`), newest first, as list rows. */
+export function newLeadsOnPhone(ops: readonly AnyOp[], known: ReadonlySet<string>, me: Me | null): LeadRowDto[] {
+  const creates = ops.filter((op): op is LeadCreateOp => isFieldOp(op) && op.kind === 'leadCreate' && !known.has(op.subjectId));
+  return creates
+    .map((op) => rowOf(applyLeadPending(null, op.subjectId, ops, me)!.lead))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

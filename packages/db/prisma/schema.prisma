@@ -433,6 +433,7 @@ enum AttachmentKind {
   REPORT
   PROFILE /// a person's own profile photo; belongs to no outlet
   PUNCH /// the photo taken when someone clocks in or out; for the Owner and Manager only, deleted after 35 days
+  LEAD /// a sales lead's photo: its shop board, or a free check's "Needs fixing"; belongs to no outlet
 }
 
 /// A photo or file in object storage. At most one of the owner links is set.
@@ -490,6 +491,8 @@ model Attachment {
   signOffs          SignOff[]
   /// Expenses this file is the receipt of (the Finance page).
   expenses          Expense[]
+  /// Leads this photo is the shop board of (B2, the BDE's phone).
+  leadPhotos        Lead[]
 
   @@index([outletId])
   @@index([checklistResponseId])
@@ -2019,6 +2022,8 @@ model Lead {
   /// Where the shop is, when the phone knew (B2: logged from the field).
   latitude       Float?
   longitude      Float?
+  /// The photo of the shop board the BDE took when logging it (B2), an Attachment of kind LEAD.
+  photoId        String?
   /// The last step a person logged (the app's own events do not count): what "stale" is read from.
   lastActivityAt DateTime  @default(now())
   /// "Likely to close": the score and its signals, worked out when the lead changes and every night.
@@ -2032,6 +2037,7 @@ model Lead {
 
   owner        User          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  photo        Attachment?   @relation(fields: [photoId], references: [id], onDelete: SetNull)
   activities   LeadActivity[]
   quotes       Quote[]
 
@@ -2067,6 +2073,8 @@ model LeadActivity {
   /// WON (first job): the restaurant's rating and whether it signed off the day the job was done.
   rating      Int?
   sameDay     Boolean?
+  /// CHECK_DONE with the phone's scorecard (B2): { answers: [{ point, answer, photoId }] }, see packages/shared/src/free-check.ts.
+  scorecard   Json?
   isSample    Boolean   @default(false)
   sampleKey   String?   @unique
   createdAt   DateTime  @default(now())

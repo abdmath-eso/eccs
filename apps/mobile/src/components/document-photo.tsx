@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DirectionView } from '@/components/direction-view';
@@ -20,7 +20,7 @@ const PAGE_SHAPE = 1 / Math.SQRT2;
  * fields they filled in (Expensify, SAP Concur's receipt viewer), and how the app's own
  * proof photos open. On an iPhone it can also be pinched to zoom.
  */
-export function DocumentPhoto({ uri }: { uri: string }) {
+export function DocumentPhoto({ uri, previewStyle }: { uri: string; previewStyle?: StyleProp<ViewStyle> }) {
   const theme = useTheme();
   const { t } = useSession();
   const insets = useSafeAreaInsets();
@@ -47,7 +47,7 @@ export function DocumentPhoto({ uri }: { uri: string }) {
         accessibilityLabel={t('ai.documentPhoto')}
         accessibilityHint={t('checklists.viewPhoto')}
         onPress={enlarge}
-        style={[styles.preview, { backgroundColor: theme.backgroundElement }]}>
+        style={[styles.preview, { backgroundColor: theme.backgroundElement }, previewStyle]}>
         <Image source={{ uri }} style={styles.fill} resizeMode="contain" />
         {/* A small "open full size" mark in the corner, so the preview is seen to open. */}
         <View style={styles.expand}>

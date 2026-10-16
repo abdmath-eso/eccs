@@ -1,7 +1,7 @@
 import type { Role } from '@eccs/shared';
 
 /** The screens that can sit in the bottom bar. */
-export type TabHref = '/' | '/checklists' | '/services' | '/history' | '/support' | '/sops' | '/inspections';
+export type TabHref = '/' | '/checklists' | '/services' | '/history' | '/support' | '/sops' | '/inspections' | '/sales';
 
 // The sections each role uses most, at most four; "More" in the bar opens the rest.
 // The Head Chef has no calendar, so keeps Raise an issue and SOPs in the bar.
@@ -13,8 +13,10 @@ export const TAB_ROUTES: Record<Role, readonly TabHref[]> = {
   SUPERVISOR: ['/', '/services', '/inspections'],
   OPS_MANAGER: ['/', '/services'],
   SUPER_ADMIN: ['/', '/services'],
-  // A BDE (sales) has only Home until their own screens come (stage B2 of the sales work).
-  BDE: ['/'],
+  // A BDE (sales, B2): their day and their leads. Field-sales apps keep the bar this short
+  // (Pipedrive's Focus first, LeadSquared's dashboard and leads); logging a lead is the big
+  // button on Home and in More.
+  BDE: ['/', '/sales'],
 };
 
 /** A path without its trailing slash, as the routes above are written. */

@@ -31,6 +31,7 @@ import { indiaDay } from "./food-labels.js";
 import type { Role, MembershipScope } from "./roles.js";
 import { roleCan } from "./permissions.js";
 import { BILLING_CYCLES, CYCLE_MONTHS, type BillingCycle } from "./subscriptions.js";
+import { freeCheckSchema, type FreeCheckDto } from "./free-check.js";
 
 // ───────────────────────── Stages, sources, kinds of step ─────────────────────────
 
@@ -462,6 +463,27 @@ export const DO_TODAY_ACTION_LABELS: Record<DoTodayAction, string> = {
   SEND_PLAN: "Send plan",
 };
 
+/**
+ * The facts a to-do's line is made from (16 Oct 2026), so the BDE's phone can say it in
+ * the BDE's own language; `line` is the console's English. Dates are India dates.
+ */
+export interface DoTodayParams {
+  parkedOn?: string;
+  until?: string;
+  reason?: string | null;
+  nextAction?: string | null;
+  dueOn?: string;
+  totalPaise?: number;
+  sentOn?: string;
+  opens?: number;
+  checkWith?: string | null;
+  doneOn?: string;
+  plan?: string | null;
+  more?: number;
+  onPlan?: number;
+  planName?: string | null;
+}
+
 export interface DoTodayItem {
   leadId: string;
   businessName: string;
@@ -474,6 +496,8 @@ export interface DoTodayItem {
   /** "16:00" for a to-do with its own time; null for "By 6 pm". */
   time: string | null;
   line: string;
+  /** What the line says, as facts, for the phone to word in the BDE's language. */
+  params: DoTodayParams;
   action: DoTodayAction;
   /** A second, lesser button (Park again beside Call). */
   secondAction: DoTodayAction | null;
@@ -504,7 +528,8 @@ export function doTodayFor(lead: LeadFacts, now: Date): DoTodayItem | null {
   // A parked lead only comes back when its date has passed.
   if (lead.status === "PARKED") {
     if (!lead.parkedUntil || lead.parkedUntil >= today) return null;
-    const parkedOn = shortDate(indiaDay(lead.parkedAt ?? lead.lastActivityAt));
+    const parkedDay = indiaDay(lead.parkedAt ?? lead.lastActivityAt);
+    const parkedOn = shortDate(parkedDay);
     return {
       ...base,
       bucket: "OVERDUE",
@@ -512,6 +537,7 @@ export function doTodayFor(lead: LeadFacts, now: Date): DoTodayItem | null {
       days: daysFrom(lead.parkedUntil, today),
       time: null,
       line: lead.parkedReason ? `Parked on ${parkedOn}, "${lead.parkedReason}". Date passed.` : `Parked on ${parkedOn} until ${shortDate(lead.parkedUntil)}. Date passed.`,
+      params: { parkedOn: parkedDay, until: lead.parkedUntil, reason: lead.parkedReason },
       action: call,
       secondAction: "PARK_AGAIN",
     };
@@ -530,6 +556,7 @@ export function doTodayFor(lead: LeadFacts, now: Date): DoTodayItem | null {
       days,
       time: null,
       line: `${lead.nextAction ? `${lead.nextAction}. ` : ""}Was due ${recentDay(nextDay, today)}.`,
+      params: { nextAction: lead.nextAction, dueOn: nextDay },
       action: call,
     };
   }
@@ -545,6 +572,7 @@ export function doTodayFor(lead: LeadFacts, now: Date): DoTodayItem | null {
         days: waited,
         time: null,
         line: `Quote ${salesRupees(lead.quote.totalPaise)} sent ${shortDate(indiaDay(lead.quote.sentAt))}. Owner opened it ${timesWord(lead.quote.openCount)}, no reply.`,
+        params: { totalPaise: lead.quote.totalPaise, sentOn: indiaDay(lead.quote.sentAt), opens: lead.quote.openCount },
         action: call,
       };
     }
@@ -558,6 +586,7 @@ export function doTodayFor(lead: LeadFacts, now: Date): DoTodayItem | null {
       days: null,
       time: indiaClock(lead.checkAt),
       line: `Free check${lead.checkWith ? ` with ${lead.checkWith}` : ""}. Scorecard on the phone.`,
+      params: { checkWith: lead.checkWith },
       action: "OPEN",
     };
   }
@@ -570,6 +599,7 @@ export function doTodayFor(lead: LeadFacts, now: Date): DoTodayItem | null {
       days: null,
       time: ownTime,
       line: `Free check done ${shortDate(indiaDay(lead.checkDoneAt ?? lead.lastActivityAt))}; quote not sent yet. Send it.`,
+      params: { doneOn: indiaDay(lead.checkDoneAt ?? lead.lastActivityAt) },
       action: "SEND_QUOTE",
     };
   }
@@ -585,6 +615,7 @@ export function doTodayFor(lead: LeadFacts, now: Date): DoTodayItem | null {
         days: null,
         time: ownTime,
         line: `First job done ${recentDay(indiaDay(lead.wonAt), today)}, signed off. Offer ${plan}.`,
+        params: { doneOn: indiaDay(lead.wonAt), plan: lead.suggestedPlan },
         action: "SEND_PLAN",
       };
     }
@@ -594,7 +625,7 @@ export function doTodayFor(lead: LeadFacts, now: Date): DoTodayItem | null {
     const callDay = addDays(indiaDay(lead.wonAt), SALES_RULES.day10CallDays);
     const called = lead.lastContactAt !== null && indiaDay(lead.lastContactAt) >= callDay;
     if (callDay <= today && !called) {
-      return { ...base, bucket: "TODAY", kind: "DAY10_CALL", days: null, time: ownTime, line: "Day-10 call: how is the app going, ask for a rating.", action: call };
+      return { ...base, bucket: "TODAY", kind: "DAY10_CALL", days: null, time: ownTime, line: "Day-10 call: how is the app going, ask for a rating.", params: {}, action: call };
     }
   }
 
@@ -610,13 +641,14 @@ export function doTodayFor(lead: LeadFacts, now: Date): DoTodayItem | null {
         days: null,
         time: ownTime,
         line: `Pitch ${more === 1 ? "one more kitchen" : `${numberWord(more)} more kitchens`}; they have ${lead.onPlan.kitchens}${plan} already.`,
+        params: { more, onPlan: lead.onPlan.kitchens, planName: lead.onPlan.planName },
         action: "OPEN",
       };
     }
   }
 
   if (nextToday) {
-    return { ...base, bucket: "TODAY", kind: "NEXT_ACTION_TODAY", days: null, time: ownTime, line: lead.nextAction ?? "Next step due today.", action: call };
+    return { ...base, bucket: "TODAY", kind: "NEXT_ACTION_TODAY", days: null, time: ownTime, line: lead.nextAction ?? "Next step due today.", params: { nextAction: lead.nextAction }, action: call };
   }
   return null;
 }
@@ -920,11 +952,17 @@ const leadFields = {
   nextActionAt: momentSchema.optional().nullable(),
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
+  /** The photo of the shop board (B2): uploaded first through POST /sales/photos, kept with the lead. */
+  photoId: z.uuid().optional().nullable(),
 };
 
-/** A new lead. `id` is chosen by the app when the form opens, so sending it twice adds one lead. */
+/**
+ * A new lead. `id` is chosen by the app when the form opens, so sending it twice adds one
+ * lead. `at` (B2) is when it was logged on the phone, so a lead logged without signal
+ * counts on the day and in the week it was really logged.
+ */
 export const leadSchema = z
-  .object({ id: z.uuid().optional(), ...leadFields, kitchens: leadFields.kitchens.default(1) })
+  .object({ id: z.uuid().optional(), at: momentSchema.optional(), ...leadFields, kitchens: leadFields.kitchens.default(1) })
   .superRefine((value, context) => {
     if (value.referrerName && !isReferral(value.source)) context.addIssue({ code: "custom", path: ["referrerName"], message: "Only a referral has a referrer" });
   });
@@ -955,27 +993,44 @@ export const stepSchema = z
     signal: z.enum(ASK_SIGNALS).optional().nullable(),
     nextAction: optionalText(80, "Keep the next step under 80 characters"),
     nextActionAt: momentSchema.optional().nullable(),
+    /**
+     * A free check done with the scorecard on the phone (B2): every point's answer. The
+     * number of things to fix is then counted from it, whatever `findings` says.
+     */
+    scorecard: freeCheckSchema.optional().nullable(),
   })
   .superRefine((value, context) => {
     const issue = (path: string, message: string) => context.addIssue({ code: "custom", path: [path], message });
     if (value.kind === "NOTE" && !value.note) issue("note", "Write the note");
     if (value.kind === "CHECK_BOOKED" && !value.checkAt) issue("checkAt", "Enter when the free check is");
-    if (value.kind === "CHECK_DONE" && (value.findings === null || value.findings === undefined)) issue("findings", "Enter how many things it found to fix");
+    if (value.kind === "CHECK_DONE" && (value.findings === null || value.findings === undefined) && !value.scorecard) issue("findings", "Enter how many things it found to fix");
     if (value.kind === "ASKED" && !value.signal) issue("signal", "Choose what the owner asked");
+    if (value.scorecard && value.kind !== "CHECK_DONE") issue("scorecard", "A scorecard goes only with a free check done");
   });
 export type StepInput = z.input<typeof stepSchema>;
 export type StepValues = z.output<typeof stepSchema>;
 
+/**
+ * Park and Lost, like a step, may carry an `id` chosen on the phone and `at`, when it was
+ * done (B2): a park or a loss sent again from the phone's outbox is then recorded once,
+ * at the time it really happened.
+ */
+const replay = { id: z.uuid().optional(), at: momentSchema.optional() };
+
 export const parkSchema = z.object({
+  ...replay,
   until: dateSchema,
   reason: z.string("Say why in a few words").trim().min(1, "Say why in a few words").max(60, "Keep it under 60 characters"),
 });
 export type ParkInput = z.input<typeof parkSchema>;
+export type ParkValues = z.output<typeof parkSchema>;
 
 export const loseSchema = z.object({
+  ...replay,
   reason: z.string("Say why").trim().min(1, "Say why").max(100, "Keep it under 100 characters"),
 });
 export type LoseInput = z.input<typeof loseSchema>;
+export type LoseValues = z.output<typeof loseSchema>;
 
 /** "Became a client": the client it became, or null to undo a wrong link. */
 export const linkClientSchema = z.object({ organizationId: z.uuid().nullable() });
@@ -1082,6 +1137,8 @@ export interface LeadActivityDto {
   signal: AskSignal | null;
   rating: number | null;
   quoteNumber: string | null;
+  /** A free check done with the phone's scorecard: every point's answer, with its photo. */
+  scorecard: FreeCheckDto | null;
 }
 
 export interface QuoteDto {
@@ -1103,6 +1160,8 @@ export interface QuoteDto {
 }
 
 export interface LeadDetailDto extends LeadRowDto {
+  /** The photo of the shop board taken when the lead was logged, with a link that lasts an hour. */
+  photo: { id: string; path: string } | null;
   address: string | null;
   referrerName: string | null;
   latitude: number | null;
@@ -1134,7 +1193,26 @@ export interface QuoteOptionDto {
   unitPaise: number;
   gstRatePercent: number;
   cycle: BillingCycle | null;
+  /** A service's kind (its catalogue code, e.g. "CHIMNEY"), so a free check's findings can be offered first; null for a plan. */
+  serviceCode: string | null;
 }
+
+/** A photo filed for a lead (the shop board, or a free check's "Needs fixing"). */
+export interface SalesPhotoDto {
+  id: string;
+  path: string;
+}
+
+/** A BDE's day on the phone (B2): their own Do today and this week against their targets. */
+export interface BdeDayDto {
+  today: string;
+  items: DoTodayItemDto[];
+  /** Null for someone who is not a BDE (a founder selling for themselves has no weekly targets). */
+  week: BdeWeekDto | null;
+}
+
+export const shopBoardReadSchema = z.object({ photoId: z.uuid() });
+export type ShopBoardReadInput = z.input<typeof shopBoardReadSchema>;
 
 export interface QuoteSentDto {
   quote: QuoteDto;
@@ -1147,6 +1225,8 @@ export interface DoTodayItemDto extends DoTodayItem {
   ownerName: string;
   /** For Call: the number dialled. */
   contactPhone: string | null;
+  /** A sample lead: its number is made up and never dialled. */
+  isSample: boolean;
 }
 
 export interface LikelyDto {

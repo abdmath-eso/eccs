@@ -218,6 +218,10 @@ import type {
 } from "@eccs/shared";
 // sales-types: the console's Sales page and the CRM (15 Oct 2026)
 import type {
+  BdeDayDto,
+  SalesPhotoDto,
+  ShopBoardReadingDto,
+  ShopBoardReadInput,
   DoTodayItemDto,
   LeadDetailDto,
   LeadInput,
@@ -1254,6 +1258,23 @@ export function createApiClient(options: ApiClientOptions) {
       removeQuote: (quoteId: string) => call<void>("DELETE", `/sales/quotes/${id(quoteId)}`),
       setFloors: (input: TargetFloorsInput) => call<TargetFigures>("PUT", "/sales/targets/floors", input),
       setTarget: (userId: string, input: TargetInput) => call<{ saved: boolean }>("PUT", `/sales/targets/${id(userId)}`, input),
+      // The BDE's phone (B2, 16 Oct 2026).
+      /** The BDE's own Do today and this week against their targets, for Home. */
+      myDay: () => call<BdeDayDto>("GET", "/sales/my-day"),
+      /**
+       * Files a lead's photo (the shop board, or a free check's "Needs fixing") before the
+       * lead or step that points at it. Pass an id made on the phone, so sending it again
+       * from the outbox files it once.
+       */
+      uploadPhoto(file: UploadFile, input: { id?: string; capturedAt?: string } = {}) {
+        const form = new FormData();
+        if (input.id) form.append("id", input.id);
+        if (input.capturedAt) form.append("capturedAt", input.capturedAt);
+        form.append("file", file, "photo.jpg");
+        return send<SalesPhotoDto>("POST", "/sales/photos", form, undefined, true);
+      },
+      /** Reads a filed shop-board photo into the Log a lead form, with AI. Fails with AI_OFF, AI_LIMIT or AI_FAILED when AI steps aside. */
+      readBoard: (input: ShopBoardReadInput) => call<ShopBoardReadingDto>("POST", "/sales/board-reading", input),
     },
     // inspections-api: the inspections worker adds `inspections: { ... },` on the next line
     /** Scored inspections: ECCS's audit of an outlet, its scored report and the approval. */

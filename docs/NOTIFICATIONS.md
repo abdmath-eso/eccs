@@ -251,7 +251,7 @@ The six AI features (14 Oct 2026) send nothing of their own to restaurants: a tr
 
 | # | When | Who | Says | Channel (suggested) | Status |
 |---|---|---|---|---|---|
-| AI1 | The day's AI spending limit is reached, overall or for one outlet | Adm | "AI features are paused until tomorrow: today's limit was reached." / "AI is paused at {outlet} until tomorrow." | In-app | not built |
+| AI1 | The day's AI spending limit is reached, overall or for one outlet (from 16 Oct this also pauses the shop-board reader, so BDEs type their leads) | Adm | "AI features are paused until tomorrow: today's limit was reached." / "AI is paused at {outlet} until tomorrow." | In-app | not built |
 | AI2 | Anthropic refuses every request (the key is wrong or withdrawn, or the monthly limit set in Anthropic's console is reached) | Adm | "AI features are not working: {reason}." | Push + in-app | not built |
 | AI3 | Each morning, the monitoring board's digest is ready (the founder to decide) | Adm | "Today's summary of the monitoring board is ready." | Push | not built |
 
@@ -297,6 +297,14 @@ The Sales pages (15 Oct 2026) send nothing themselves: sending a quote opens Wha
 | SL8 | Monday's targets, and a BDE falling behind | the BDE; Super Admin | "This week's targets: {leads} leads, {checks} checks." | In-app | not built |
 | SL9 | A quote is close to its end date with no reply | the lead's BDE | "{business}'s quote ends on {date}." | In-app | not built |
 
+The BDE's phone app (16 Oct 2026) sends nothing either: a quote and the free check's result go from the BDE's own WhatsApp. SL1 to SL3 and SL8 above are the ones the phone app most needs, as push to the BDE's phone. Also suggested:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| SL10 | A free check the BDE booked is due in an hour | the lead's BDE | "Free check at {business} at {time}." | Push | not built |
+| SL11 | A BDE is behind target midweek | the BDE; Super Admin | "{done} of {target} leads this week: {left} to go." | In-app | not built |
+| SL12 | Work held on a BDE's phone was refused by the server | the BDE (on the phone already); Adm | "{business}: a step from {name}'s phone was not accepted." | In-app | not built |
+
 
 ## 17. Features not built yet (to fill in when they are)
 
@@ -310,6 +318,7 @@ The Sales pages (15 Oct 2026) send nothing themselves: sending a quote opens Wha
 | Date | Change |
 |---|---|
 | 15 Oct 2026 | Translations of library picks and the hourly filler: no notification needed. |
+| 16 Oct 2026 | The BDE's phone app: SL10 to SL12 added to section 16e; AI1 also covers the shop-board reader. None built. |
 | 15 Oct 2026 | Sales: section 16e added (SL1 to SL9), none built. |
 | 15 Oct 2026 | Finance: section 16d added (FN1 to FN6), none built. |
 | 15 Oct 2026 | Logs: section 16c added (LG1 to LG3), none built. |

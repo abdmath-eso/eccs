@@ -93,7 +93,9 @@ const DEFAULT_TIMEOUT_MS = 45_000;
  * an outlet's, and are left out of the outlet's own daily total (15 Oct 2026: a Supervisor's
  * summary was refused because testing had used up that outlet's allowance).
  */
-const PLATFORM_ONLY_FEATURES: readonly AiFeature[] = ['inspection-summary', 'monitoring-digest'];
+const PLATFORM_ONLY_FEATURES: readonly AiFeature[] = ['inspection-summary', 'monitoring-digest', 'shop-board'];
+// The shop-board reader (16 Oct 2026) is ECCS's own sales work: a lead is not a client yet,
+// so it has no outlet, and it counts against the platform's daily limit only.
 
 /**
  * Today's date in India as YYYY-MM-DD. (The same as `indiaDate` in the checklists

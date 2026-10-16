@@ -158,6 +158,10 @@ export class AttachmentsController {
     }
     const attachment = await this.prisma.client.attachment.findUnique({ where: { id } });
     if (!attachment) throw new NotFoundException();
+    // A team member's joining documents (onboarding, 16 Oct 2026) are never served by a link that
+    // carries no login, even a well-signed one: only the Super Admin and the person may open them,
+    // through GET /onboarding/documents/:id/file, which checks who is asking.
+    if (attachment.kind === 'JOINING') throw new ForbiddenException('Open this from the joining file');
     if (attachment.kind === 'DOCUMENT') noteActivity({ record: true });
 
     const body = await this.storage.get(attachment.storageKey);

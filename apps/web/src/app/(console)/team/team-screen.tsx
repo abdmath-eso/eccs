@@ -8,7 +8,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useToast } from "@/components/toast";
 import { Button, EmptyState, HowItWorks, LoadError, Loading, NoAccess, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
-import { describe } from "@/lib/format";
+import { describe, today } from "@/lib/format";
 import { useNavCounts } from "@/lib/nav-counts";
 import { useQuery } from "@/lib/query";
 import { useSession } from "@/lib/session";
@@ -27,7 +27,10 @@ import { Initials, MemberSheet } from "./team-parts";
 // report (a few figures per rep against their goal). The main list first; how presence and
 // salaries are worked out folded under "How this works".
 
-type Filter = "all" | "OPS_MANAGER" | "SUPERVISOR" | "BDE" | "left";
+type Filter = "all" | "OPS_MANAGER" | "SUPERVISOR" | "BDE" | "joining" | "left";
+
+/** Joining: a joining day still ahead, or an onboarding still open (16 Oct 2026). */
+const isJoining = (row: TeamRowDto) => Boolean(row.onboarding) || Boolean(row.joinedOn && row.joinedOn > today());
 
 export default function TeamScreen() {
   const { user } = useSession();
@@ -49,7 +52,7 @@ function Team() {
   const manages = can(memberships, "eccsUsers", "create");
   const seesPay = can(memberships, "team", "approve");
   const asked = query.get("show");
-  const filter = (["OPS_MANAGER", "SUPERVISOR", "BDE", "left"].includes(asked) ? asked : "all") as Filter;
+  const filter = (["OPS_MANAGER", "SUPERVISOR", "BDE", "joining", "left"].includes(asked) ? asked : "all") as Filter;
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +74,13 @@ function Team() {
       title="Team"
       description="Who is in today, each person's week, and what to keep an eye on."
       action={manages ? <Button onClick={() => setAdding(true)}>Add a team member</Button> : undefined}
+      secondary={
+        seesPay ? (
+          <Link href="/team/onboarding" className="rounded-lg border border-border-strong bg-surface px-4 py-2.5 font-semibold hover:bg-background">
+            Onboarding checklist
+          </Link>
+        ) : undefined
+      }
     />
   );
   if (!data) {
@@ -84,17 +94,19 @@ function Team() {
 
   const current = data.members.filter((row) => !row.leftOn);
   const left = data.members.filter((row) => row.leftOn);
-  const count = (role: Filter) => (role === "left" ? left.length : current.filter((row) => row.role === role).length);
+  const joining = current.filter(isJoining);
+  const count = (role: Filter) => (role === "left" ? left.length : role === "joining" ? joining.length : current.filter((row) => row.role === role).length);
   const options = (
     [
       { value: "all", label: `All (${current.length})` },
       { value: "OPS_MANAGER", label: "Ops Manager" },
       { value: "SUPERVISOR", label: "Supervisors" },
       { value: "BDE", label: "BDEs" },
+      { value: "joining", label: `Joining (${joining.length})` },
       { value: "left", label: "Left" },
     ] as const
   ).filter((option) => option.value === "all" || count(option.value) > 0);
-  const shown = filter === "all" ? current : filter === "left" ? left : current.filter((row) => row.role === filter);
+  const shown = filter === "all" ? current : filter === "left" ? left : filter === "joining" ? joining : current.filter((row) => row.role === filter);
   const inToday = current.filter((row) => row.today.state === "IN").length;
 
   return (
@@ -130,6 +142,10 @@ function Team() {
           on time, the share of visits a Supervisor reached by the end of the arrival window. Both are held against one target.
         </p>
         <p>Each person&apos;s monthly salary, from their joining day to their last, becomes the Salaries line on the Finance page, owed until it is marked paid there.</p>
+        <p>
+          Joining: someone whose joining day is still ahead, or whose onboarding checklist is not done yet. Onboarding tasks past their day are the last thing that
+          puts someone under &ldquo;keep an eye on&rdquo;.
+        </p>
         {seesPay && <TargetForm target={data.onTimeTargetPercent} onSaved={() => setAttempt((value) => value + 1)} />}
       </HowItWorks>
 
@@ -147,13 +163,16 @@ function Team() {
   );
 }
 
-/** "In since 9:40 am" with a dot, the words carrying the meaning. */
+/** "In since 9:40 am" with a dot, the words carrying the meaning; under it, "Onboarding 9 of 16" while it is open. */
 function Today({ row }: { row: TeamRowDto }) {
   const color = row.today.state === "IN" ? COLOR.in : row.today.state === "LEAVE" ? "#9DB0C9" : "#C9CDD3";
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
-      {row.today.words}
+    <span className="inline-flex flex-col">
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+        {row.today.words}
+      </span>
+      {row.onboarding && <span className="pl-3.5 text-xs whitespace-nowrap text-muted">{row.onboarding.words}</span>}
     </span>
   );
 }

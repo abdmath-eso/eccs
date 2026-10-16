@@ -436,6 +436,7 @@ enum AttachmentKind {
   PROFILE /// a person's own profile photo; belongs to no outlet
   PUNCH /// the photo taken when someone clocks in or out; for the Owner and Manager only, deleted after 35 days
   LEAD /// a sales lead's photo: its shop board, or a free check's "Needs fixing"; belongs to no outlet
+  JOINING /// a new ECCS team member's joining document (ID proof, bank proof, certificates) or a signed letter; only the Super Admin and the person may open it
 }
 
 /// A photo or file in object storage. At most one of the owner links is set.
@@ -2212,6 +2213,12 @@ model TeamMember {
   leave      TeamLeave[]
   /// The months of salary made into the Finance page's expense book.
   salaryRows Expense[]
+  /// Onboarding (16 Oct 2026): their checklist, joining file, documents, letters and handbook acceptances.
+  onboarding          Onboarding?
+  joiningFile         JoiningFile?
+  joiningDocuments    JoiningDocument[]
+  appointmentLetters  AppointmentLetter[]
+  handbookAcceptances HandbookAcceptance[]
 }
 
 /// A monthly salary from a day on. The latest one that has started is the salary paid.
@@ -2252,4 +2259,215 @@ model TeamSettings {
   id                  String   @id @default("default")
   onTimeTargetPercent Int      @default(90)
   updatedAt           DateTime @updatedAt
+}
+
+// ───────────────────────── Onboarding a new team member ─────────────────────────
+//
+// Onboarding (16 Oct 2026): a checklist per new hire, copied from their role's template when
+// it starts, with the joining file they fill in, the documents they upload, their appointment
+// letter and the staff handbook they accept. Everything hangs off the team member, not the
+// login, so crew without a login can be added later. Rules: packages/shared/src/onboarding.ts.
+
+/// A role's checklist template (Ops Manager, Supervisor, BDE). Changing it reaches only people started afterwards.
+model OnboardingTemplate {
+  id        String   @id @default(uuid())
+  /// A team role key: OPS_MANAGER, SUPERVISOR or BDE.
+  role      String   @unique
+  /// The documents this role is asked for: [{ kind, required }].
+  documents Json
+  /// A sample template; the Super Admin's first change makes it theirs (kept when the sample is removed).
+  isSample  Boolean  @default(false)
+  sampleKey String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks OnboardingTemplateTask[]
+}
+
+model OnboardingTemplateTask {
+  id              String   @id @default(uuid())
+  templateId      String
+  /// BEFORE_JOINING, FIRST_DAY, FIRST_WEEK, FIRST_MONTH or BY_3_MONTHS.
+  phase           String
+  title           String
+  /// SUPER_ADMIN, OPS_MANAGER or NEW_HIRE.
+  owner           String
+  /// Its due day, counted from the joining day (0); negative before it.
+  daysFromJoining Int
+  required        Boolean  @default(true)
+  /// What makes it tick itself (DETAILS, DOCUMENTS, LETTER, ...); empty for a task ticked by hand.
+  auto            String?
+  position        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  template OnboardingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, position])
+}
+
+/// One person's onboarding (one at most). Its tasks are copies of the template's at the start.
+model Onboarding {
+  id          String   @id @default(uuid())
+  memberId    String   @unique
+  role        String
+  startedOn   DateTime @db.Date
+  startedById String?
+  /// The documents asked for, copied from the template: [{ kind, required }].
+  documents   Json
+  isSample    Boolean  @default(false)
+  sampleKey   String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  member TeamMember       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  tasks  OnboardingTask[]
+}
+
+model OnboardingTask {
+  id              String    @id @default(uuid())
+  onboardingId    String
+  phase           String
+  title           String
+  owner           String
+  daysFromJoining Int
+  required        Boolean   @default(true)
+  auto            String?
+  position        Int       @default(0)
+  /// A short note left when ticking it.
+  note            String?
+  doneAt          DateTime?
+  /// Who ticked it; empty for one the app ticked itself.
+  doneById        String?
+  /// Set when it was added to this person alone, by whom.
+  addedById       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  onboarding Onboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+
+  @@index([onboardingId])
+}
+
+/// The joining file a new hire fills in. Only the last 4 digits of an ID are ever kept.
+model JoiningFile {
+  id               String   @id @default(uuid())
+  memberId         String   @unique
+  dateOfBirth      DateTime? @db.Date
+  parentName       String?
+  currentAddress   String?
+  permanentSame    Boolean?
+  permanentAddress String?
+  emergencyName    String?
+  emergencyRelation String?
+  emergencyPhone   String?
+  bloodGroup       String?
+  uniformSize      String?
+  /// AADHAAR, VOTER_ID, DRIVING_LICENCE or PASSPORT.
+  idType           String?
+  /// The ID's last 4 digits; never the whole number.
+  idLast4          String?
+  pan              String?
+  bankHolder       String?
+  bankAccount      String?
+  bankIfsc         String?
+  previousEmployer String?
+  uan              String?
+  esiNumber        String?
+  education        String?
+  updatedById      String?
+  isSample         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  member TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+/// A joining document uploaded (by the new hire or the Super Admin), then accepted or sent back.
+/// A document sent back loses its file at once; the row keeps the reason.
+model JoiningDocument {
+  id           String    @id @default(uuid())
+  memberId     String
+  /// PHOTO, ID_PROOF, ADDRESS_PROOF, BANK_PROOF, POLICE_VERIFICATION, MEDICAL_FITNESS, RELIEVING_LETTER, EDUCATION.
+  kind         String
+  /// UPLOADED, ACCEPTED or SENT_BACK.
+  status       String
+  attachmentId String?   @unique
+  reason       String?
+  uploadedAt   DateTime  @default(now())
+  uploadedById String?
+  reviewedAt   DateTime?
+  reviewedById String?
+  isSample     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  member TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, kind])
+}
+
+/// An appointment letter (ECCS/AL/2026/0001). While waiting it is made again whenever its
+/// particulars change; once accepted it never changes, and a newer one replaces it.
+model AppointmentLetter {
+  id             String    @id @default(uuid())
+  memberId       String
+  number         String    @unique
+  version        Int       @default(1)
+  /// The particulars printed (LetterParticulars); empty until first read for a sample letter.
+  particulars    Json?
+  /// What changed when it was last made again: a list of labels.
+  remadeFor      Json?
+  pdfKey         String?
+  madeAt         DateTime  @default(now())
+  madeById       String?
+  acceptedAt     DateTime?
+  acceptedById   String?
+  /// CLICK (accepted on the Joining ECCS page) or PAPER (signed on paper, scan filed).
+  acceptedHow    String?
+  acceptedIp     String?
+  /// A fingerprint (SHA-256) of the exact text accepted.
+  acceptedSha256 String?
+  signedScanId   String?
+  replacedAt     DateTime?
+  replacedById   String?
+  isSample       Boolean   @default(false)
+  sampleKey      String?   @unique
+  createdAt      DateTime  @default(now())
+
+  member TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+}
+
+/// The staff handbook. Editing it publishes a new version; the old ones stay.
+model StaffHandbook {
+  id          String   @id @default(uuid())
+  version     Int      @unique
+  title       String
+  body        String
+  createdById String?
+  isSample    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+/// A team member's acceptance of one version of the handbook.
+model HandbookAcceptance {
+  id           String   @id @default(uuid())
+  memberId     String
+  version      Int
+  acceptedAt   DateTime @default(now())
+  acceptedById String?
+  sha256       String
+  isSample     Boolean  @default(false)
+
+  member TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, version])
+}
+
+/// Onboarding's settings, one row ("default"): the appointment letter's terms (LetterSettings).
+model OnboardingSettings {
+  id        String   @id @default("default")
+  letter    Json
+  updatedAt DateTime @updatedAt
 }

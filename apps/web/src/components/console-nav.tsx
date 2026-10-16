@@ -18,6 +18,7 @@ import {
   InspectionsIcon,
   InvoicesIcon,
   IssuesIcon,
+  JoiningIcon,
   LicencesIcon,
   LogsIcon,
   MenuIcon,
@@ -40,6 +41,8 @@ interface NavItem {
   waiting?: string;
   /** Shown only to people who may do this. It is the same check the page itself makes before showing anything. */
   needs?: (memberships: Memberships) => boolean;
+  /** Shown only while the counts say so (the Joining ECCS page, for a new team member with an open onboarding). */
+  shown?: (counts: NavCounts) => boolean;
 }
 
 /**
@@ -49,6 +52,11 @@ interface NavItem {
  * A Supervisor is shown only the sections they can use.
  */
 const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
+  {
+    // A new team member's own joining page (16 Oct 2026), first while their onboarding is open.
+    label: "You",
+    items: [{ href: "/joining", label: "Joining ECCS", icon: <JoiningIcon />, count: "joining", waiting: "joining steps left", shown: (counts) => counts.joining !== null }],
+  },
   {
     label: "Daily work",
     // Each `needs` is the grant its page reads with, so a BDE (sales only) is not shown them.
@@ -110,7 +118,7 @@ function SectionList({ memberships, collapsed = false, onNavigate }: { membershi
   return (
     <nav aria-label="Main menu" className="flex flex-col gap-5">
       {GROUPS.map((group, index) => {
-        const items = group.items.filter((item) => !item.needs || item.needs(memberships));
+        const items = group.items.filter((item) => (!item.needs || item.needs(memberships)) && (!item.shown || item.shown(counts)));
         if (items.length === 0) return null;
         return (
           <div key={group.label}>

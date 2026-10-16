@@ -37,6 +37,7 @@ describe("names and roles", () => {
     expect(initials("Imran")).toBe("IM");
     expect(initials("Sample Supervisor")).toBe("SS");
     expect(initials("  ravi kumar reddy ")).toBe("RK");
+    expect(initials("Kiran (sample)")).toBe("KI");
   });
 
   it("calls a person by their first name, the seed's sample logins by their whole name", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { can, firstName, leaveWords, WEEKDAY_NAMES, type TeamMemberDto } from "@eccs/shared";
+import { can, firstName, leaveWords, TEAM_ROLE_LABELS, WEEKDAY_NAMES, type PersonOnboardingDto, type TeamMemberDto } from "@eccs/shared";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -8,11 +8,12 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
 import { Button, LoadError, Loading, NoAccess } from "@/components/ui";
 import { api } from "@/lib/api";
-import { describe } from "@/lib/format";
+import { describe, today } from "@/lib/format";
 import { useNavCounts } from "@/lib/nav-counts";
 import { useSession } from "@/lib/session";
 
 import { dayMonth, Panel, SampleBadge } from "../../finance/finance-parts";
+import { ChecklistPanel, DocumentsPanel, FilePanel, LetterPanel } from "../onboarding-parts";
 import { DayLegend, DaySquares, Initials, LeaveSheet, LeftSheet, longDate, MemberSheet, roleLine, salaryWords } from "../team-parts";
 
 // One person on ECCS's own team (16 Oct 2026), to the founder's design (docs/design/
@@ -20,6 +21,10 @@ import { DayLegend, DaySquares, Initials, LeaveSheet, LeftSheet, longDate, Membe
 // thing to keep an eye on and today in a sentence; three figures against target and last
 // week; the last 14 days as one square a day; what the app found; and, at the end, their
 // details, leave and (for the Super Admin) salary.
+// Onboarding (16 Oct 2026): while it is open, its checklist is at the top and (for the Super
+// Admin) the joining file, documents and letter come before Details; before the joining day
+// the figures and squares, which would be empty, are left out. Done, the checklist folds into
+// one line under Details, with the file after it.
 //
 // PATTERN FOLLOWED: the founder's design, itself the shape of a rep's page in Pipedrive
 // Insights and HubSpot's rep productivity report (a handful of figures, each against its goal
@@ -42,6 +47,8 @@ function Member({ userId }: { userId: string }) {
   const confirm = useConfirm();
   const { refresh: refreshCounts } = useNavCounts();
   const [loaded, setLoaded] = useState<TeamMemberDto | null>(null);
+  // Onboarding (16 Oct 2026): the checklist (the Super Admin and the Ops Manager) and the papers (the Super Admin).
+  const [onboarding, setOnboarding] = useState<(PersonOnboardingDto & { userId: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [sheet, setSheet] = useState<SheetName>(null);
@@ -49,11 +56,11 @@ function Member({ userId }: { userId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    api.eccsTeam
-      .member(userId)
-      .then((member) => {
+    Promise.all([api.eccsTeam.member(userId), api.onboarding.person(userId).catch(() => null)])
+      .then(([member, person]) => {
         if (cancelled) return;
         setLoaded(member);
+        setOnboarding(person ? { ...person, userId } : null);
         setError(null);
       })
       .catch((e) => !cancelled && setError(describe(e)));
@@ -80,7 +87,41 @@ function Member({ userId }: { userId: string }) {
   const saved = (next: TeamMemberDto) => {
     setLoaded(next);
     refreshCounts();
+    // A change of pay or role makes a waiting letter again: the papers are read afresh.
+    void api.onboarding
+      .person(next.userId)
+      .then((person) => setOnboarding({ ...person, userId: next.userId }))
+      .catch(() => undefined);
   };
+  const onboardingChanged = (next: PersonOnboardingDto) => {
+    setOnboarding({ ...next, userId });
+    refreshCounts();
+    void api.eccsTeam
+      .member(userId)
+      .then(setLoaded)
+      .catch(() => undefined);
+  };
+  const person = onboarding?.userId === userId ? onboarding : null;
+  const checklist = person?.onboarding ?? null;
+  const open = checklist !== null && !checklist.progress.doneOn;
+  const joinsLater = Boolean(member.joinedOn && member.joinedOn > today());
+
+  async function startOnboarding() {
+    try {
+      const next = await api.onboarding.start(userId);
+      onboardingChanged(next);
+      notify(`Onboarding started: ${next.onboarding?.progress.total ?? 0} tasks from the ${TEAM_ROLE_LABELS[member!.role]} checklist`);
+    } catch (e) {
+      notify(describe(e));
+    }
+  }
+  const papers = checklist && checklist.file ? (
+    <>
+      <FilePanel data={checklist} member={member} onChange={onboardingChanged} />
+      <DocumentsPanel data={checklist} member={member} onChange={onboardingChanged} />
+      <LetterPanel data={checklist} member={member} onChange={onboardingChanged} />
+    </>
+  ) : null;
   const who = firstName(member.name);
   const sells = member.role === "BDE" || member.openLeads > 0;
 
@@ -136,11 +177,14 @@ function Member({ userId }: { userId: string }) {
         </div>
       </header>
 
-      {/* ── Keep an eye on, and today ── */}
-      <KeepAnEyeOn member={member} />
+      {/* ── Onboarding, at the top while it is open (main part first) ── */}
+      {open && checklist && <ChecklistPanel data={checklist} member={member} onChange={onboardingChanged} />}
+
+      {/* ── Keep an eye on, and today (before the joining day, only when something is late) ── */}
+      {(!joinsLater || member.keep.pick) && <KeepAnEyeOn member={member} />}
 
       {/* ── Three figures against target and last week ── */}
-      {member.cards.length > 0 && (
+      {!joinsLater && member.cards.length > 0 && (
         // Three across even on a phone, smaller there, so the squares and the list stay near the top.
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {member.cards.map((card) => (
@@ -153,46 +197,56 @@ function Member({ userId }: { userId: string }) {
         </div>
       )}
 
-      {/* ── The last 14 days ── */}
-      <Panel
-        title="Last 14 days"
-        action={
-          member.canRecordLeave ? (
-            <Button variant="link" className="text-sm" onClick={() => setSheet("leave")}>
-              Record leave
-            </Button>
-          ) : undefined
-        }
-      >
-        <DaySquares days={member.days} />
-        <p className="text-sm text-muted">{member.presenceLine}</p>
-        <DayLegend days={member.days} />
-        {member.leave.length > 0 && (
-          <ul className="flex flex-col gap-1 border-t border-border pt-3 text-sm">
-            {member.leave.map((span) => (
-              <li key={span.id} className="flex flex-wrap items-center gap-x-2">
-                <span className="font-medium">Leave {leaveWords(span)}</span>
-                {span.reason && <span className="text-muted">({span.reason})</span>}
-                {member.canRecordLeave && (
-                  <Button variant="link" className="text-sm" onClick={() => void removeLeave(span.id, leaveWords(span))}>
-                    Remove<span className="sr-only"> the leave on {leaveWords(span)}</span>
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
+      {/* ── The last 14 days (nothing to show before the joining day) ── */}
+      {!joinsLater && (
+        <Panel
+          title="Last 14 days"
+          action={
+            member.canRecordLeave ? (
+              <Button variant="link" className="text-sm" onClick={() => setSheet("leave")}>
+                Record leave
+              </Button>
+            ) : undefined
+          }
+        >
+          <DaySquares days={member.days} />
+          <p className="text-sm text-muted">{member.presenceLine}</p>
+          <DayLegend days={member.days} />
+          {member.leave.length > 0 && (
+            <ul className="flex flex-col gap-1 border-t border-border pt-3 text-sm">
+              {member.leave.map((span) => (
+                <li key={span.id} className="flex flex-wrap items-center gap-x-2">
+                  <span className="font-medium">Leave {leaveWords(span)}</span>
+                  {span.reason && <span className="text-muted">({span.reason})</span>}
+                  {member.canRecordLeave && (
+                    <Button variant="link" className="text-sm" onClick={() => void removeLeave(span.id, leaveWords(span))}>
+                      Remove<span className="sr-only"> the leave on {leaveWords(span)}</span>
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
 
       {/* ── What the app found ── */}
-      <Found member={member} />
+      {!joinsLater && <Found member={member} />}
+
+      {/* ── The joining file, documents and letter while onboarding is open (the Super Admin) ── */}
+      {open && papers}
 
       {/* ── Details, leave and salary ── */}
       <Panel
         title="Details"
         action={
           member.canManage && member.role !== "SUPER_ADMIN" && !member.leftOn ? (
-            <span className="flex gap-1">
+            <span className="flex flex-wrap gap-1">
+              {person?.canStart && (
+                <Button variant="link" className="text-sm" onClick={() => void startOnboarding()}>
+                  Start onboarding
+                </Button>
+              )}
               <Button variant="link" className="text-sm" onClick={() => setSheet("change")}>
                 {member.memberId ? "Change" : "Add details"}
               </Button>
@@ -211,13 +265,17 @@ function Member({ userId }: { userId: string }) {
       >
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
           <Detail label="Login">{member.phone ? `${member.phone.replace(/^\+91/, "+91 ")} with a one-time code` : "—"}</Detail>
-          <Detail label="Joined">{member.joinedOn ? longDate(member.joinedOn) : "Not given yet"}</Detail>
+          <Detail label={joinsLater ? "Joins" : "Joined"}>{member.joinedOn ? longDate(member.joinedOn) : "Not given yet"}</Detail>
           {member.leftOn && <Detail label="Left">{longDate(member.leftOn)}: the login no longer works</Detail>}
           <Detail label="Weekly day off">{WEEKDAY_NAMES[member.weeklyOff]}</Detail>
           {member.salary && <Detail label="Monthly salary">{member.salary.history.length > 0 ? salaryWords(member.salary.history) : "None set"}</Detail>}
         </dl>
         {member.salary && <p className="text-sm text-muted">Each month&apos;s salary goes into the Finance page as a payout due, counted from the joining day; leave days are paid.</p>}
       </Panel>
+
+      {/* ── Onboarding done: one line, and the file stays here under Details ── */}
+      {!open && checklist && <ChecklistPanel data={checklist} member={member} onChange={onboardingChanged} />}
+      {!open && papers}
 
       <MemberSheet open={sheet === "change"} member={member} seesPay={seesPay} onClose={() => setSheet(null)} onSaved={saved} />
       <LeaveSheet member={sheet === "leave" ? member : null} onClose={() => setSheet(null)} onSaved={saved} />

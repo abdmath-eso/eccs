@@ -6,6 +6,7 @@ export * from "./pin.js";
 export * from "./finance-sample.js";
 export * from "./sales-sample.js";
 export * from "./team-sample.js";
+export * from "./onboarding-sample.js";
 
 export function createPrismaClient(connectionString = process.env["DATABASE_URL"]) {
   if (!connectionString) {

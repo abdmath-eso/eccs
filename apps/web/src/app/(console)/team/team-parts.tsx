@@ -34,7 +34,7 @@ import { COLOR, dayMonth, money, paiseField, Sheet, toPaise } from "../finance/f
 
 /** "BDE · Jubilee Hills · joined 23 September", as the design's line under the name. */
 export function roleLine(person: Pick<TeamMemberDto, "role" | "area" | "joinedOn" | "leftOn">) {
-  const joined = person.joinedOn ? `joined ${longDate(person.joinedOn)}` : "no team details yet";
+  const joined = person.joinedOn ? `${person.joinedOn > today() ? "joins" : "joined"} ${longDate(person.joinedOn)}` : "no team details yet";
   return [TEAM_ROLE_LABELS[person.role], person.area, joined, person.leftOn ? `left ${longDate(person.leftOn)}` : null].filter(Boolean).join(" · ");
 }
 
@@ -175,13 +175,15 @@ function MemberForm({ member, seesPay, onClose, onSaved }: { member: TeamMemberD
           joinedOn: text("joinedOn"),
           weeklyOff: Number(text("weeklyOff")),
           monthlySalaryPaise: salary,
+          // Onboarding (16 Oct 2026): their role's checklist copied to them; ticked unless the founder unticks it.
+          startOnboarding: values.get("startOnboarding") === "on",
         };
         Object.assign(found, checkAgainst(teamMemberSchema, input));
         if (found.monthlySalaryPaise) found.salary = found.monthlySalaryPaise;
         setErrors(found);
         if (hasErrors(found)) return focusFirstError(form, found);
         const saved = await api.eccsTeam.add(input);
-        notify(`${saved.name} added. They log in with ${text("phone")} and a one-time code.`);
+        notify(`${saved.name} added. They log in with ${text("phone")} and a one-time code.`, input.startOnboarding ? { detail: "Onboarding started: send them the joining link from their page." } : undefined);
         onSaved(saved);
       } else {
         const input: TeamChangeInput = {
@@ -239,7 +241,15 @@ function MemberForm({ member, seesPay, onClose, onSaved }: { member: TeamMemberD
         <Field label="Area" name="area" maxLength={60} defaultValue={member?.area ?? ""} hint="Where they work, for example Jubilee Hills" error={errors.area} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Joined on" name="joinedOn" type="date" required defaultValue={member?.joinedOn ?? today()} error={errors.joinedOn} />
+        <Field
+          label={member?.memberId ? "Joined on" : "Joins on"}
+          name="joinedOn"
+          type="date"
+          required
+          defaultValue={member?.joinedOn ?? today()}
+          hint={member?.memberId ? undefined : "A day ahead is fine"}
+          error={errors.joinedOn}
+        />
         <SelectField label="Weekly day off" name="weeklyOff" defaultValue={String(member?.weeklyOff ?? 0)} error={errors.weeklyOff}>
           {WEEKDAY_NAMES.map((name, index) => (
             <option key={name} value={index}>
@@ -260,6 +270,15 @@ function MemberForm({ member, seesPay, onClose, onSaved }: { member: TeamMemberD
           />
           {member?.memberId && <Field label="From" name="salaryFrom" type="date" required defaultValue={today()} hint="The first day at a new salary" />}
         </div>
+      )}
+      {!member && seesPay && (
+        <label className="flex items-start gap-2.5 text-sm">
+          <input type="checkbox" name="startOnboarding" defaultChecked className="mt-0.5 h-4 w-4 shrink-0 accent-primary" />
+          <span>
+            <span className="font-semibold">Start onboarding</span>
+            <span className="block text-muted">Their role&apos;s joining checklist, the joining file to fill in and the appointment letter.</span>
+          </span>
+        </label>
       )}
       <ErrorMessage message={error} />
       <div className="flex gap-2 border-t border-border pt-4">

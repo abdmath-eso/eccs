@@ -22,7 +22,16 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === "signedIn") router.replace("/");
+    if (status !== "signedIn") return;
+    let cancelled = false;
+    // A new team member whose onboarding is open starts on their own Joining ECCS page (16 Oct 2026); everyone else as before.
+    api.onboarding
+      .mine()
+      .then(({ page }) => !cancelled && router.replace(page && !page.doneOn ? "/joining" : "/"))
+      .catch(() => !cancelled && router.replace("/"));
+    return () => {
+      cancelled = true;
+    };
   }, [status, router]);
 
   async function sendCode(event: FormEvent<HTMLFormElement>) {

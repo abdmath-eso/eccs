@@ -85,7 +85,11 @@ export const TEAM_RULES = {
 
 /** "IM" for Imran, "SS" for Sample Supervisor: the first two letters of a single name, else the first letter of the first two words. */
 export function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
+  // Words that do not start with a letter or digit ("(sample)") are left out: "Kiran (sample)" is "KI".
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter((word) => /^[\p{L}\p{N}]/u.test(word));
   if (words.length === 0) return "?";
   if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
   return (words[0]![0]! + words[1]![0]!).toUpperCase();
@@ -289,7 +293,7 @@ export function presenceLine(summary: PresenceSummary, input: { name: string; we
 }
 
 /** Today in one sentence: "In since 9:40 am today, first lead logged from the field." */
-export function todaySentence(today: PresenceDayDto, input: { name: string; lastIn?: PresenceDayDto | null; leftOn?: string | null }): string {
+export function todaySentence(today: PresenceDayDto, input: { name: string; lastIn?: PresenceDayDto | null; leftOn?: string | null; joinedOn?: string | null }): string {
   switch (today.state) {
     case "IN":
       return `In since ${clockWords(today.firstAt!)} today, ${today.what}.`;
@@ -298,7 +302,9 @@ export function todaySentence(today: PresenceDayDto, input: { name: string; last
     case "OFF":
       return `${WEEKDAY_NAMES[weekdayOf(today.date)]} is ${firstName(input.name)}'s day off.`;
     case "NOT_ON_TEAM":
-      return input.leftOn ? `Left on ${dayAndMonth(input.leftOn)}.` : "Not on the team yet.";
+      if (input.leftOn) return `Left on ${dayAndMonth(input.leftOn)}.`;
+      // Someone joining on a day ahead (onboarding, 16 Oct 2026).
+      return input.joinedOn && input.joinedOn > today.date ? `Joins on ${WEEKDAY_NAMES[weekdayOf(input.joinedOn)]} ${dayAndMonth(input.joinedOn)}.` : "Not on the team yet.";
     case "NO_RECORD":
       return "Nothing to read today yet.";
     default: {
@@ -408,7 +414,7 @@ export function arrivalsOnTime(visits: readonly ArrivalFacts[], from: string, to
 // ───────────────────────── Keep an eye on ─────────────────────────
 
 /** The things worth the founder's attention, in the order the page picks them: absence first, then work going stale, then the week's figures. */
-export const CONCERN_KINDS = ["MISSED_DAYS", "STALE_LEADS", "VISITS_OVERDUE", "TARGETS_BEHIND", "FOLLOW_UPS_LATE", "ARRIVALS_LATE"] as const;
+export const CONCERN_KINDS = ["MISSED_DAYS", "STALE_LEADS", "VISITS_OVERDUE", "TARGETS_BEHIND", "FOLLOW_UPS_LATE", "ARRIVALS_LATE", "ONBOARDING_LATE"] as const;
 export type ConcernKind = (typeof CONCERN_KINDS)[number];
 
 export interface ConcernDto {
@@ -431,10 +437,23 @@ export interface ConcernInput {
   followUps?: OnTimeDto | null;
   arrivals?: OnTimeDto | null;
   onTimeTargetPercent: number;
+  /** Onboarding tasks past their day and not done (onboarding, 16 Oct 2026): the last rule. */
+  onboardingLate?: number | null;
+  /** Their joining day is still ahead: only their onboarding can be behind. */
+  joinsLater?: boolean;
+}
+
+/** "3 onboarding tasks late." */
+function onboardingConcern(late: number): ConcernDto {
+  const words = `${plural(late, "onboarding task")} late`;
+  return { kind: "ONBOARDING_LATE", words: `${words}.`, short: words };
 }
 
 /** Everything worth attention, most first. Empty when all is well. */
 export function concerns(input: ConcernInput): ConcernDto[] {
+  const onboardingLate = input.onboardingLate ?? 0;
+  // Someone not yet joined has no days, leads or visits to judge.
+  if (input.joinsLater) return onboardingLate > 0 ? [onboardingConcern(onboardingLate)] : [];
   const found: ConcernDto[] = [];
   const missed = input.missedDays.length;
   if (missed >= TEAM_RULES.missedDaysFlag) {
@@ -475,6 +494,7 @@ export function concerns(input: ConcernInput): ConcernDto[] {
   if (arrivals !== null) {
     found.push({ kind: "ARRIVALS_LATE", words: `Arrived on time at ${arrivals}% of visits this week, target ${input.onTimeTargetPercent}%.`, short: `arrivals on time ${arrivals}%` });
   }
+  if (onboardingLate > 0) found.push(onboardingConcern(onboardingLate));
   return found;
 }
 
@@ -606,8 +626,12 @@ const memberFields = {
   weeklyOff: z.number().int().min(0).max(6).default(0),
 };
 
-/** Add a team member (the Super Admin). The salary is optional; it counts from the joining day. */
-export const teamMemberSchema = z.object({ ...memberFields, monthlySalaryPaise: salaryField.nullable().optional() });
+/**
+ * Add a team member (the Super Admin). The salary is optional; it counts from the joining day,
+ * which may be a day ahead. `startOnboarding` copies their role's onboarding checklist to them
+ * (the console's form has it ticked).
+ */
+export const teamMemberSchema = z.object({ ...memberFields, monthlySalaryPaise: salaryField.nullable().optional(), startOnboarding: z.boolean().optional().default(false) });
 export type TeamMemberInput = z.input<typeof teamMemberSchema>;
 export type TeamMemberValues = z.output<typeof teamMemberSchema>;
 
@@ -692,6 +716,8 @@ export interface TeamRowDto {
   flag: ConcernDto | null;
   /** The salary paid now; only the Super Admin is sent it. */
   monthlyPaise: number | null;
+  /** Their onboarding while it is open: "Onboarding 9 of 16" and how many tasks are late. Null with none open. */
+  onboarding: { done: number; total: number; late: number; words: string } | null;
 }
 
 export interface TeamListDto {

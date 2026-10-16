@@ -245,6 +245,25 @@ import type {
 } from "@eccs/shared";
 // team-types: the console's Team page (16 Oct 2026)
 import type { LeaveInput, MarkLeftInput, TeamChangeInput, TeamListDto, TeamMemberDto, TeamMemberInput, TeamSettingsInput } from "@eccs/shared";
+// onboarding-types: onboarding a new team member (16 Oct 2026)
+import type {
+  AcceptLetterInput,
+  JoiningDetails,
+  JoiningDetailsInput,
+  JoiningDocumentKind,
+  JoiningPageDto,
+  LetterSettings,
+  LetterSettingsInput,
+  OnboardingTemplatesDto,
+  PersonOnboardingDto,
+  PersonTaskInput,
+  StaffHandbookDto,
+  HandbookInput,
+  DocumentAsked,
+  TeamRole,
+  TemplateTaskInput,
+  TickInput,
+} from "@eccs/shared";
 // inspections-types: the inspections worker imports its types from "@eccs/shared" on the next line
 import type {
   AnswerInspectionCheckInput,
@@ -1297,6 +1316,67 @@ export function createApiClient(options: ApiClientOptions) {
       addLeave: (userId: string, input: LeaveInput) => call<TeamMemberDto>("POST", `/team/${id(userId)}/leave`, input),
       removeLeave: (leaveId: string) => call<void>("DELETE", `/team/leave/${id(leaveId)}`),
       saveSettings: (input: TeamSettingsInput) => call<{ onTimeTargetPercent: number }>("PUT", "/team/settings", input),
+    },
+    // onboarding-api: onboarding a new team member (16 Oct 2026)
+    /**
+     * A new team member's checklist, joining file, documents, appointment letter and the staff
+     * handbook. On a person's Team page: the checklist for the Super Admin and the Ops Manager,
+     * the papers for the Super Admin only. `mine` and the `my*` calls are the new hire's own
+     * "Joining ECCS" page. The files open only for the Super Admin and the person themselves.
+     */
+    onboarding: {
+      person: (userId: string) => call<PersonOnboardingDto>("GET", `/onboarding/people/${id(userId)}`),
+      start: (userId: string) => call<PersonOnboardingDto>("POST", `/onboarding/people/${id(userId)}/start`),
+      tick: (userId: string, taskId: string, input: TickInput) => call<PersonOnboardingDto>("POST", `/onboarding/people/${id(userId)}/tasks/${id(taskId)}/tick`, input),
+      addTask: (userId: string, input: PersonTaskInput) => call<PersonOnboardingDto>("POST", `/onboarding/people/${id(userId)}/tasks`, input),
+      removeTask: (userId: string, taskId: string) => call<PersonOnboardingDto>("DELETE", `/onboarding/people/${id(userId)}/tasks/${id(taskId)}`),
+      /** The whole joining file, the account number and PAN included: only for the Super Admin's edit form. */
+      fullDetails: (userId: string) => call<JoiningDetails>("GET", `/onboarding/people/${id(userId)}/details`),
+      saveDetails: (userId: string, input: JoiningDetailsInput) => call<PersonOnboardingDto>("PUT", `/onboarding/people/${id(userId)}/details`, input),
+      uploadFor(userId: string, kind: JoiningDocumentKind, file: UploadFile, fileName = "document") {
+        const form = new FormData();
+        form.append("kind", kind);
+        form.append("file", file, fileName);
+        return send<PersonOnboardingDto>("POST", `/onboarding/people/${id(userId)}/documents`, form, undefined, true);
+      },
+      acceptDocument: (documentId: string) => call<PersonOnboardingDto>("POST", `/onboarding/documents/${id(documentId)}/accept`),
+      sendBack: (documentId: string, reason: string) => call<PersonOnboardingDto>("POST", `/onboarding/documents/${id(documentId)}/send-back`, { reason }),
+      makeLetter: (userId: string) => call<PersonOnboardingDto>("POST", `/onboarding/people/${id(userId)}/letter`),
+      signedOnPaper(letterId: string, file: UploadFile, fileName = "signed-letter") {
+        const form = new FormData();
+        form.append("file", file, fileName);
+        return send<PersonOnboardingDto>("POST", `/onboarding/letters/${id(letterId)}/paper`, form, undefined, true);
+      },
+      /** A joining document's file, for the Super Admin or the person only. */
+      async documentFile(documentId: string): Promise<Blob> {
+        return (await download(`/onboarding/documents/${id(documentId)}/file`)).blob;
+      },
+      /** The appointment letter as a PDF, for the Super Admin or the person only. */
+      async letterPdf(letterId: string): Promise<Blob> {
+        return (await download(`/onboarding/letters/${id(letterId)}/pdf`)).blob;
+      },
+      // The new hire's own page.
+      mine: () => call<{ page: JoiningPageDto | null }>("GET", "/onboarding/me"),
+      saveMyDetails: (input: JoiningDetailsInput) => call<{ page: JoiningPageDto | null }>("PUT", "/onboarding/me/details", input),
+      uploadMine(kind: JoiningDocumentKind, file: UploadFile, fileName = "document") {
+        const form = new FormData();
+        form.append("kind", kind);
+        form.append("file", file, fileName);
+        return send<{ page: JoiningPageDto | null }>("POST", "/onboarding/me/documents", form, undefined, true);
+      },
+      acceptMyLetter: (input: AcceptLetterInput) => call<{ page: JoiningPageDto | null }>("POST", "/onboarding/me/letter/accept", input),
+      acceptHandbook: (version: number) => call<{ page: JoiningPageDto | null }>("POST", "/onboarding/me/handbook/accept", { version }),
+      tickMine: (taskId: string, input: TickInput) => call<{ page: JoiningPageDto | null }>("POST", `/onboarding/me/tasks/${id(taskId)}/tick`, input),
+      // Templates, the letter's terms and the handbook (the Super Admin).
+      templates: () => call<OnboardingTemplatesDto>("GET", "/onboarding/templates"),
+      addTemplateTask: (role: TeamRole, input: TemplateTaskInput) => call<OnboardingTemplatesDto>("POST", `/onboarding/templates/${id(role)}/tasks`, input),
+      changeTemplateTask: (taskId: string, input: TemplateTaskInput) => call<OnboardingTemplatesDto>("PUT", `/onboarding/templates/tasks/${id(taskId)}`, input),
+      removeTemplateTask: (taskId: string) => call<OnboardingTemplatesDto>("DELETE", `/onboarding/templates/tasks/${id(taskId)}`),
+      moveTemplateTask: (taskId: string, direction: "up" | "down") => call<OnboardingTemplatesDto>("POST", `/onboarding/templates/tasks/${id(taskId)}/move`, { direction }),
+      setTemplateDocuments: (role: TeamRole, documents: DocumentAsked[]) => call<OnboardingTemplatesDto>("PUT", `/onboarding/templates/${id(role)}/documents`, { documents }),
+      saveLetterSettings: (input: LetterSettingsInput) => call<LetterSettings>("PUT", "/onboarding/letter-settings", input),
+      handbook: () => call<StaffHandbookDto | null>("GET", "/onboarding/handbook"),
+      publishHandbook: (input: HandbookInput) => call<StaffHandbookDto>("POST", "/onboarding/handbook", input),
     },
     // inspections-api: the inspections worker adds `inspections: { ... },` on the next line
     /** Scored inspections: ECCS's audit of an outlet, its scored report and the approval. */

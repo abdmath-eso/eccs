@@ -69,6 +69,7 @@ Open http://localhost:3000, enter the phone number, then the code.
 | Ravi (sample BDE) | BDE (sales) | `9000000004` | `123456` | Sales, own leads only |
 | Sana (sample BDE) | BDE (sales) | `9000000005` | `123456` | Sales, own leads only |
 | Imran (sample BDE) | BDE (sales) | `9000000006` | `123456` | Sales, own leads only |
+| Kiran (sample new hire) | Supervisor, joins Mon 19 Oct | `9000000007` | `123456` | Their own Joining ECCS page |
 
 The same three can log in to the mobile app through **"ECCS staff login"**, but the app has nothing built for ECCS staff yet; their work is in the console.
 
@@ -379,3 +380,16 @@ First, **when Claude says no builder is changing the code**: stop the API termin
 7. **As the Ops Manager** (`9000000002`): Team without salaries; leave can be recorded. As Ravi (`9000000004`) or the Supervisor: no Team.
 
 People cannot be deleted; mark your test ones as left.
+
+## 28. Trying onboarding
+
+First, as for section 27: restart the API (`pnpm --filter @eccs/api start`; run `pnpm build` first unless Claude says it has built) and the console. The sample (three checklists, the handbook, and Kiran, a Supervisor joining Mon 19 Oct) comes with `pnpm team:sample` and goes with `pnpm team:sample:remove` in `packages/db`. Kiran's documents are made-up pictures, not real IDs.
+
+1. **As the Super Admin** (`9000000001`): Business > **Team**, the **Joining** filter: Kiran, "Joins Mon 19 Oct", "Onboarding 2 of 17". Open Kiran: the checklist at the top, then the joining file, the documents and the appointment letter.
+2. **Documents**: open the ID proof and **Accept** it; open the bank proof's reason ("sent back"). **Appointment letter**: Open the PDF.
+3. **As Kiran**: log out, log in with `9000000007` and code `123456`. "Joining ECCS" opens: fill in the bank details (any made-up account number and an IFSC such as `SBIN0001234`), upload a picture as the bank proof, read the letter and tap **I accept**. Back as the Super Admin, the tasks that tick themselves have ticked.
+4. **Team > Onboarding checklist** (Super Admin): the three templates; change a task, the documents asked for, the letter's terms; **Staff handbook** to read and change it.
+5. **Start onboarding** for someone new: Add a team member with a joining day next week and "Start onboarding" ticked. For someone already working: their Details > **Start onboarding**.
+6. **As the Ops Manager** (`9000000002`): Kiran's checklist and progress only, no file, documents, letter or salary.
+
+Do not put real ID numbers, bank details or documents into the sample. A whole Aadhaar number is refused: only its last 4 digits are kept.

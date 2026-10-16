@@ -12,6 +12,7 @@ import {
   indiaDay,
   indiaMoment,
   initials,
+  joinsWords,
   keepAnEyeOn,
   PERSON_ACTIVITY_KINDS,
   presenceDays,
@@ -56,6 +57,8 @@ import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SalesOverviewService } from '../sales/sales-overview.service.js';
 import { SalesService } from '../sales/sales.service.js';
+import { OnboardingPapersService } from './onboarding-papers.service.js';
+import { OnboardingService } from './onboarding.service.js';
 import { TeamSalaryService } from './team-salary.service.js';
 
 // ECCS's own team (the console's Team page, 16 Oct 2026): who is on it, who is in today and
@@ -112,7 +115,7 @@ const personSelect = {
   phone: true,
   isActive: true,
   memberships: { select: { role: true } },
-  teamMember: { include: { salaries: { orderBy: { from: 'asc' } }, leave: { orderBy: { from: 'asc' } } } },
+  teamMember: { include: { salaries: { orderBy: { from: 'asc' } }, leave: { orderBy: { from: 'asc' } }, onboarding: { include: { tasks: true } } } },
 } as const satisfies Prisma.UserSelect;
 type PersonRow = Prisma.UserGetPayload<{ select: typeof personSelect }>;
 type Person = PersonRow & { role: TeamMemberRole };
@@ -138,6 +141,8 @@ export class TeamService {
     private readonly sales: SalesService,
     private readonly figures: SalesOverviewService,
     private readonly salaries: TeamSalaryService,
+    private readonly onboarding: OnboardingService,
+    private readonly papers: OnboardingPapersService,
   ) {}
 
   private get db() {
@@ -168,6 +173,8 @@ export class TeamService {
 
   async list(user: AuthUser): Promise<TeamListDto> {
     const now = new Date();
+    // Onboarding tasks the app can see tick themselves first, so the list's progress is current.
+    await this.onboarding.sync();
     const [people, target] = await Promise.all([this.people(), this.onTimeTarget()]);
     const worked = await this.work(people, now, target, can(user.memberships, 'team', 'approve'));
     return {
@@ -181,6 +188,8 @@ export class TeamService {
 
   async member(user: AuthUser, userId: string): Promise<TeamMemberDto> {
     const now = new Date();
+    const own = await this.db.teamMember.findUnique({ where: { userId }, select: { id: true } });
+    if (own) await this.onboarding.sync([own.id]);
     const [people, target] = await Promise.all([this.people({ id: userId }), this.onTimeTarget()]);
     const person = people[0];
     if (!person) throw new NotFoundException('That person is not on the team');
@@ -299,6 +308,9 @@ export class TeamService {
       const leftOn = member?.leftOn ? fromDb(member.leftOn) : null;
       const leave = (member?.leave ?? []).map((span) => ({ from: fromDb(span.from), to: fromDb(span.to), reason: span.reason }));
       const weeklyOff = member?.weeklyOff ?? 0;
+      // Onboarding (16 Oct 2026): someone whose joining day is still ahead, and their checklist while it is open.
+      const joinsLater = joinedOn !== null && joinedOn > today;
+      const onboarding = member?.onboarding ? this.onboarding.progressFor([{ joinedOn: member.joinedOn, onboarding: member.onboarding }], today)[0]! : null;
 
       // ── Presence, from what they did ──
       let events: PresenceEvent[] = [];
@@ -317,7 +329,7 @@ export class TeamService {
       const days = presenceDays({ today, events, weeklyOff, leave, joinedOn, leftOn, recordsFrom: source === 'ACTIVITY_LOG' ? logsFrom : null });
       const summary = summarisePresence(days);
       const lastIn = [...days].reverse().find((day) => day.state === 'IN' && day.date < today) ?? null;
-      const sentence = todaySentence(summary.today, { name: person.name, lastIn, leftOn });
+      const sentence = todaySentence(summary.today, { name: person.name, lastIn, leftOn, joinedOn });
       const line = presenceLine(summary, { name: person.name, weeklyOff, source });
 
       // ── The week, the cards and what the app found ──
@@ -326,7 +338,7 @@ export class TeamService {
       let foundLeads: Worked['foundLeads'] = null;
       let foundVisits: Worked['foundVisits'] = null;
       let upcomingVisits = 0;
-      const input: Parameters<typeof concerns>[0] = { missedDays: summary.missed, onTimeTargetPercent: onTimeTarget };
+      const input: Parameters<typeof concerns>[0] = { missedDays: summary.missed, onTimeTargetPercent: onTimeTarget, onboardingLate: onboarding?.late ?? 0, joinsLater };
 
       if (person.role === 'BDE' && loaded) {
         const bde = weeks.get(person.id);
@@ -392,8 +404,14 @@ export class TeamService {
         ];
       }
 
+      if (joinsLater) {
+        // Nothing of the week to judge before the joining day.
+        cards = [];
+        week = null;
+      }
       const found = leftOn ? [] : concerns(input);
-      const keep = keepAnEyeOn(found, sentence);
+      // Before the joining day the note is only when they join; "on target" would mean nothing yet.
+      const keep = joinsLater ? { pick: found[0] ?? null, note: sentence } : keepAnEyeOn(found, sentence);
       const salarySteps = member?.salaries.map((step) => ({ from: fromDb(step.from), monthlyPaise: step.monthlyPaise })) ?? [];
       return {
         person,
@@ -416,10 +434,15 @@ export class TeamService {
           leftOn,
           weeklyOff,
           isSample: Boolean(member?.isSample),
-          today: { state: summary.today.state, words: leftOn ? `Left ${dayAndMonth(leftOn)}` : todayWords(summary.today), firstAt: summary.today.firstAt },
+          today: {
+            state: summary.today.state,
+            words: leftOn ? `Left ${dayAndMonth(leftOn)}` : joinsLater && joinedOn ? joinsWords(joinedOn) : todayWords(summary.today),
+            firstAt: summary.today.firstAt,
+          },
           week,
           flag: keep.pick,
-          monthlyPaise: seesPay ? salaryOn(salarySteps, leftOn && leftOn < today ? leftOn : today) : null,
+          monthlyPaise: seesPay ? salaryOn(salarySteps, leftOn && leftOn < today ? leftOn : joinsLater && joinedOn ? joinedOn : today) : null,
+          onboarding: leftOn ? null : onboarding,
         },
       };
     });
@@ -458,6 +481,8 @@ export class TeamService {
       });
     }
     await this.salaries.sync();
+    // "Start onboarding" (ticked on the console's form): their role's checklist copied to them.
+    if (input.startOnboarding && can(user.memberships, 'team', 'approve')) await this.onboarding.start(user, userId);
     return this.member(user, userId);
   }
 
@@ -532,6 +557,8 @@ export class TeamService {
       }
     });
     await this.salaries.sync();
+    // A letter waiting to be accepted is made again at once when its particulars (pay, role, joining day) change.
+    if (member) await this.papers.refreshWaiting(member.id);
     return this.member(user, userId);
   }
 

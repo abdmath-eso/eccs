@@ -321,6 +321,22 @@ The Team page (16 Oct 2026) sends nothing itself: Message opens WhatsApp on the 
 | TM8 | A new team member's login is ready | the new member | "You can log in to the ECCS app with {phone}." | SMS or WhatsApp | not built |
 
 SL6 (a lead handed to another BDE) covers a single lead; TM7 covers a leaver's leads in one message.
+## 16g. Onboarding
+
+Onboarding (16 Oct 2026) sends nothing itself: Send joining link opens WhatsApp on the computer. Suggested:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| OB1 | Onboarding is started | the new hire | "Welcome to ECCS. Open your joining page: {link}" | SMS or WhatsApp | not built |
+| OB2 | The new hire uploads a document | Super Admin | "{name} uploaded their {document}." | In-app | not built |
+| OB3 | A document is sent back | the new hire | "Please upload your {document} again: {reason}" | SMS or WhatsApp | not built |
+| OB4 | The letter is made, or made again | the new hire | "Your appointment letter is ready to read and accept." | SMS or WhatsApp | not built |
+| OB5 | The new hire accepts the letter or the handbook | Super Admin | "{name} accepted their appointment letter." | In-app | not built |
+| OB6 | A new handbook version is published | every team member | "The staff handbook has changed: please read and accept it." | In-app | not built |
+| OB7 | An onboarding task is due tomorrow, or late | the task's owner | "{task} for {name} is due {date}." | In-app | not built |
+| OB8 | A new hire joins tomorrow | Ops Manager; Super Admin | "{name} joins tomorrow as {role}." | In-app | not built |
+| OB9 | The 30- or 60-day check-in or the probation review is 7 days away | Super Admin | "{name}'s probation review is due on {date}." | In-app | not built |
+| OB10 | Onboarding is done | Super Admin; Ops Manager | "{name}'s onboarding is done." | In-app | not built |
 
 ## 17. Features not built yet (to fill in when they are)
 
@@ -336,6 +352,7 @@ SL6 (a lead handed to another BDE) covers a single lead; TM7 covers a leaver's l
 | 15 Oct 2026 | Translations of library picks and the hourly filler: no notification needed. |
 | 16 Oct 2026 | The BDE's phone app: SL10 to SL12 added to section 16e; AI1 also covers the shop-board reader. None built. |
 | 16 Oct 2026 | The Team page: section 16f added (TM1 to TM8). None built. |
+| 16 Oct 2026 | Onboarding: section 16g added (OB1 to OB10). None built. |
 | 15 Oct 2026 | Sales: section 16e added (SL1 to SL9), none built. |
 | 15 Oct 2026 | Finance: section 16d added (FN1 to FN6), none built. |
 | 15 Oct 2026 | Logs: section 16c added (LG1 to LG3), none built. |

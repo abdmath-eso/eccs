@@ -1,4 +1,5 @@
 import type { PrismaClient } from "../generated/prisma/client.js";
+import { loadOnboardingSample, removeOnboardingSample } from "./onboarding-sample.js";
 
 // The sample team for the console's Team page (16 Oct 2026), so the pages can be seen
 // before the founder adds the real team: team details for the sample ECCS logins (the Ops
@@ -27,7 +28,28 @@ import type { PrismaClient } from "../generated/prisma/client.js";
 // does not depend on that one). A past month's salary is worked out the way the app does:
 // the monthly salary × days on the team that month ÷ days in the month, to the rupee.
 
-type Db = Pick<PrismaClient, "user" | "teamMember" | "teamSalary" | "teamLeave" | "expense" | "lead" | "leadActivity" | "leadFollowUp">;
+type Db = Pick<
+  PrismaClient,
+  | "user"
+  | "teamMember"
+  | "teamSalary"
+  | "teamLeave"
+  | "expense"
+  | "lead"
+  | "leadActivity"
+  | "leadFollowUp"
+  // The onboarding sample (16 Oct 2026): onboarding-sample.ts.
+  | "onboardingTemplate"
+  | "onboardingTemplateTask"
+  | "onboarding"
+  | "onboardingTask"
+  | "joiningFile"
+  | "joiningDocument"
+  | "appointmentLetter"
+  | "staffHandbook"
+  | "handbookAcceptance"
+  | "attachment"
+>;
 
 interface SampleMember {
   key: string;
@@ -237,7 +259,10 @@ export async function loadTeamSample(db: Db, options: { now?: Date } = {}) {
 
     if (member.late) added.followUps += await sampleFollowUps(db, user.id, member.late, now, today);
   }
-  return added;
+  // Onboarding (16 Oct 2026): the checklist templates, the handbook and one new hire, Kiran.
+  // The five members above are left without onboarding.
+  const onboarding = await loadOnboardingSample(db, { now });
+  return { ...added, onboarding };
 }
 
 /**
@@ -293,9 +318,11 @@ async function sampleFollowUps(db: Db, userId: string, late: { thisWeek: number;
  * real is touched. The Finance sample's old hand-entered salaries are not put back.
  */
 export async function removeTeamSample(db: Db) {
+  // First the onboarding sample: Kiran (with the login this sample made), the templates, the handbook.
+  const onboarding = await removeOnboardingSample(db);
   const members = await db.teamMember.findMany({ where: { isSample: true }, select: { id: true } });
   const ids = members.map((member) => member.id);
-  const removed = { members: 0, salaryRows: 0, followUps: 0, leads: 0 };
+  const removed = { members: 0, salaryRows: 0, followUps: 0, leads: 0, onboarding };
   removed.salaryRows = (await db.expense.deleteMany({ where: { teamMemberId: { in: ids } } })).count;
   // Their salaries and leave go with them.
   removed.members = (await db.teamMember.deleteMany({ where: { id: { in: ids } } })).count;

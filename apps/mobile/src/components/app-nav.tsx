@@ -51,7 +51,8 @@ const HEAD_CHEF_MENU: MenuItem[] = [
 ];
 const MANAGER_MENU: MenuItem[] = [
   // ECCS Buddy, the AI helper (16 Oct 2026): the Owner's and the Manager's only, first in the menu.
-  { label: 'buddy.menu', icon: 'sparkles-outline', href: '/buddy' },
+  // The side menu draws Buddy's mascot for this entry; the icon named here is not shown.
+  { label: 'buddy.menu', icon: 'chatbubbles-outline', href: '/buddy' },
   ...HEAD_CHEF_MENU,
   { label: 'tile.services', icon: 'construct-outline', href: '/services' },
   { label: 'tile.history', icon: 'calendar-outline', href: '/history' },

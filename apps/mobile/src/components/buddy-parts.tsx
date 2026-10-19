@@ -13,6 +13,7 @@ import { router, usePathname, type Href } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Platform, Pressable, Share, StyleSheet, View } from 'react-native';
 
+import { BuddyMascot } from '@/components/buddy-mascot';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
@@ -45,7 +46,7 @@ export function BuddyHomeCard() {
       accessibilityRole="button"
       onPress={() => router.push(buddyHref(pathname))}
       style={({ pressed }) => [styles.homeCard, { borderColor: theme.outline, backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement }]}>
-      <Ionicons name="sparkles" size={24} color={theme.primary} />
+      <BuddyMascot size={36} />
       <View style={styles.flex}>
         <ThemedText type="smallBold">{t('buddy.homeCard.title')}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
@@ -119,7 +120,7 @@ export function Message({ message, outletId, latest, onFeedback, onCardChanged, 
   return (
     <View style={styles.answer}>
       <View style={styles.answerHead}>
-        <Ionicons name="sparkles" size={16} color={theme.primary} />
+        <BuddyMascot size={22} />
         <ThemedText type="default" selectable style={styles.flex}>
           {message.text}
         </ThemedText>

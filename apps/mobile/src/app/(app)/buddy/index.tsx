@@ -18,6 +18,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import { BuddyMascot } from '@/components/buddy-mascot';
 import { ListeningBar, Message, Starters, StateNotice } from '@/components/buddy-parts';
 import { ThemedText } from '@/components/themed-text';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -376,7 +377,13 @@ export default function BuddyChatScreen() {
       {messages.length === 0 && (
         <>
           <View style={styles.welcome}>
-            <ThemedText type="default">{t('buddy.welcome.body')}</ThemedText>
+            {/* Buddy's mascot greets the person, beside the two lines that say what Buddy is. */}
+            <View style={styles.greeting}>
+              <BuddyMascot size={52} />
+              <ThemedText type="default" style={styles.flex}>
+                {t('buddy.welcome.body')}
+              </ThemedText>
+            </View>
             <View style={styles.answerHead}>
               <Ionicons name="shield-checkmark-outline" size={18} color={theme.primary} />
               <ThemedText type="smallBold" style={styles.flex}>
@@ -480,6 +487,7 @@ const styles = StyleSheet.create({
   headerButtons: { flexDirection: 'row', alignItems: 'center' },
   headerButton: { width: MinTouchSize, height: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
   welcome: { gap: Spacing.two },
+  greeting: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   answerHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.two },
   input: {

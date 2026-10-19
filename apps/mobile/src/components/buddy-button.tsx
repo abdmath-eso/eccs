@@ -1,7 +1,7 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, usePathname } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
 
+import { BuddyMascot } from '@/components/buddy-mascot';
 import { ThemedText } from '@/components/themed-text';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -16,12 +16,11 @@ import { useSession } from '@/lib/session';
  * floating one would sit on top of it. Buddy opens on the screen it was tapped from, so its
  * suggested prompts fit that screen.
  *
- * Where the top bar has room (beside Back) it is a pill with a sparkle and the word "Buddy". Beside
- * a screen's big title, and on Home beside the bell, it is the sparkle alone in a round button
- * (`compact`), so the title keeps its width: the standalone sparkle is the usual sign for an AI chat
- * entry (Cloudscape's gen-AI ingress; Innovaccer's AI icon button for tight space), and its name
- * ("Ask ECCS Buddy") is read out by screen readers. The word is learned from Home's "Ask ECCS
- * Buddy" card and the menu entry, which carry it in full.
+ * Where the top bar has room (beside Back) it is a pill with Buddy's mascot and the word "Buddy".
+ * Beside a screen's big title, and on Home beside the bell, it is the mascot alone in a round button
+ * (`compact`), so the title keeps its width; its name ("Ask ECCS Buddy") is read out by screen
+ * readers, and the word is learned from Home's "Ask ECCS Buddy" card and the menu entry, which carry
+ * it in full. The mascot replaced a sparkle on 19 Oct 2026 (components/buddy-mascot).
  */
 export function BuddyButton({ compact = false }: { compact?: boolean }) {
   const theme = useTheme();
@@ -35,7 +34,7 @@ export function BuddyButton({ compact = false }: { compact?: boolean }) {
       onPress={() => router.push(buddyHref(pathname))}
       hitSlop={compact ? 4 : 0}
       style={({ pressed }) => [compact ? styles.round : styles.pill, { borderColor: theme.primary, backgroundColor: pressed ? theme.backgroundSelected : theme.background }]}>
-      <Ionicons name="sparkles" size={compact ? 20 : 18} color={theme.primary} />
+      <BuddyMascot size={compact ? 28 : 22} />
       {!compact && (
         <ThemedText type="smallBold" themeColor="primary">
           {t('buddy.button')}

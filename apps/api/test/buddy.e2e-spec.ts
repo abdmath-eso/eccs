@@ -59,19 +59,38 @@ describe('ECCS Buddy (e2e)', () => {
   const userIds: string[] = [];
   const startedAt = new Date();
 
+  // The chats these tests make, by id. The tests log in as the sample Spice Route Owner and Manager,
+  // whom the founder also uses, so clean-up removes only these and never "that person's chats since
+  // the start" (19 Oct 2026: a founder's chat was lost to a clean-up that matched by words).
+  const chatsMade = new Set<string>();
+
   const http = () => request(app.getHttpServer());
   const as = (token: string, language = 'EN') => ({ Authorization: `Bearer ${token}`, 'X-App-Language': language });
-  const send = (token: string, body: object, language = 'EN') => http().post('/buddy/messages').set(as(token, language)).send(body);
+  const send = (token: string, body: object, language = 'EN') =>
+    http()
+      .post('/buddy/messages')
+      .set(as(token, language))
+      .send(body)
+      .expect((res) => {
+        const id = (res.body as { chat?: { id?: string } | null } | undefined)?.chat?.id;
+        if (id) chatsMade.add(id);
+      });
   const confirm = (token: string, cardId: string) => http().post(`/buddy/cards/${cardId}/confirm`).set(as(token));
 
   async function cleanUp() {
     const db = prisma.client;
-    await db.buddyChat.deleteMany({ where: { userId: { in: userIds }, createdAt: { gte: startedAt } } });
-    await db.buddyBlock.deleteMany({ where: { userId: { in: userIds }, createdAt: { gte: startedAt } } });
     const outlet = await db.outlet.findUnique({ where: { code: OUTLET_CODE }, select: { id: true } });
+    // This run's chats and every chat at its own throwaway outlet, with their messages and cards (no
+    // foreign keys hold them together, so each goes by its chat's id).
+    const outletChats = outlet ? await db.buddyChat.findMany({ where: { outletId: outlet.id }, select: { id: true } }) : [];
+    const chatIds = [...chatsMade, ...outletChats.map((chat) => chat.id)];
+    await db.buddyCard.deleteMany({ where: { chatId: { in: chatIds } } });
+    await db.buddyMessage.deleteMany({ where: { chatId: { in: chatIds } } });
+    await db.buddyChat.deleteMany({ where: { id: { in: chatIds } } });
+    // Refusals carry no chat; those of the test's own few seconds go (a founder's in that window would too).
+    await db.buddyBlock.deleteMany({ where: { userId: { in: userIds }, createdAt: { gte: startedAt } } });
     if (outlet) {
       const where = { outletId: outlet.id };
-      await db.buddyChat.deleteMany({ where });
       await db.invoice.deleteMany({ where });
       await db.job.deleteMany({ where });
       await db.booking.deleteMany({ where });
@@ -356,6 +375,7 @@ describe('ECCS Buddy (e2e)', () => {
       // A card made for the Spice Manager, but pointing at the Deccan outlet: the service's own checks refuse it.
       const managerId = userIds[3]!;
       const chat = await prisma.client.buddyChat.create({ data: { userId: managerId, title: 'E2E', outletId } });
+      chatsMade.add(chat.id);
       const card = await prisma.client.buddyCard.create({
         data: {
           chatId: chat.id,

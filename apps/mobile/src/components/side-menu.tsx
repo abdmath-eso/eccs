@@ -7,6 +7,7 @@ import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, View } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
+import { BuddyMascot } from '@/components/buddy-mascot';
 import { DirectionView } from '@/components/direction-view';
 import { LanguagePicker } from '@/components/language-picker';
 import { ThemedText } from '@/components/themed-text';
@@ -125,12 +126,17 @@ export function SideMenu({
                     disabled={!href}
                     onPress={() => href && onSelect(href)}
                     style={({ pressed }) => [styles.item, pressed && { backgroundColor: theme.backgroundElement }]}>
-                    <Ionicons
-                      name={item.icon}
-                      size={24}
-                      color={href ? theme.primary : theme.textSecondary}
-                      style={!href && styles.muted}
-                    />
+                    {/* ECCS Buddy shows its mascot, as everywhere else. */}
+                    {href === '/buddy' ? (
+                      <BuddyMascot size={26} />
+                    ) : (
+                      <Ionicons
+                        name={item.icon}
+                        size={24}
+                        color={href ? theme.primary : theme.textSecondary}
+                        style={!href && styles.muted}
+                      />
+                    )}
                     <View style={styles.itemText}>
                       <ThemedText type="default" style={[styles.itemLabel, !href && styles.muted]}>
                         {t(item.label)}

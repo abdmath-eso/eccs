@@ -94,6 +94,15 @@ describe("can", () => {
     for (const role of ["SUPERVISOR", "BDE"] as const) expect(can(eccs(role), "team", "read")).toBe(false);
     for (const members of [owner, manager, headChef]) expect(can(members, "team", "read")).toBe(false);
   });
+
+  it("shows the AI usage page to the Super Admin and the Ops Manager, and lets only the Super Admin change the AI settings (19 Oct 2026)", () => {
+    expect(can(eccs("SUPER_ADMIN"), "aiUsage", "read")).toBe(true);
+    expect(can(eccs("SUPER_ADMIN"), "aiUsage", "update")).toBe(true);
+    expect(can(eccs("OPS_MANAGER"), "aiUsage", "read")).toBe(true);
+    expect(can(eccs("OPS_MANAGER"), "aiUsage", "update")).toBe(false);
+    for (const role of ["SUPERVISOR", "BDE"] as const) expect(can(eccs(role), "aiUsage", "read")).toBe(false);
+    for (const members of [owner, manager, headChef]) expect(can(members, "aiUsage", "read")).toBe(false);
+  });
 });
 
 describe("accessScope", () => {

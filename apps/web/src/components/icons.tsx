@@ -153,6 +153,9 @@ export const SparklesIcon = ({ filled = false, size = 16 }: { filled?: boolean; 
   </Icon>
 );
 
+/** Sparkles at the menu's size: AI usage, what the AI helpers cost and how they are set (19 Oct 2026). */
+export const AiUsageIcon = () => <SparklesIcon size={20} />;
+
 /** A stack of coins: Finance, ECCS's own money in and out. */
 export const FinanceIcon = () => (
   <Icon>

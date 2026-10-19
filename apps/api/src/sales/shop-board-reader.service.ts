@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import {
-  AI_MODELS,
   cleanShopBoardAnswer,
   SHOP_BOARD_JSON_SCHEMA,
   shopBoardAnswerSchema,
@@ -20,7 +19,7 @@ const MAX_OUTPUT_TOKENS = 700;
  * 2026): the business name, the locality and address, and a mobile number if one is
  * painted on it. The BDE checks every field before saving; nothing is saved here.
  *
- * Haiku reads it, once (a board is short, and a second, stronger try is not worth the
+ * Haiku (or the model set in the console) reads it, once (a board is short, and a second, stronger try is not worth the
  * wait in the street). It counts against ECCS's overall daily AI limit, never an outlet's:
  * a lead is not a client yet (PLATFORM_ONLY_FEATURES in ai.service.ts). With AI off, over
  * its limit or failing, the answer says so with its code and the form is simply typed.
@@ -37,7 +36,7 @@ export class ShopBoardReaderService {
   async read(photo: { data: Buffer; mimeType: string }, userId: string): Promise<{ ok: true; reading: ShopBoardReadingDto } | { ok: false; code: AiErrorCode }> {
     const result = await this.ai.run<ShopBoardAnswer>({
       feature: 'shop-board',
-      model: AI_MODELS.haiku,
+      model: this.ai.modelFor('shop-board'),
       instructions: SHOP_BOARD_INSTRUCTIONS,
       text: 'Read this shop board.',
       file: photo,

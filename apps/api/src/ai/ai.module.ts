@@ -1,6 +1,9 @@
 import { Global, Logger, Module } from '@nestjs/common';
 import { env } from '../config/env.js';
 import { AI_ENGINE, type AiEngine } from './ai-engine.js';
+import { AiSettingsService } from './ai-settings.service.js';
+import { AiUsageController } from './ai-usage.controller.js';
+import { AiUsageService } from './ai-usage.service.js';
 import { AiController } from './ai.controller.js';
 import { AiService } from './ai.service.js';
 import { ClaudeEngine } from './claude-engine.js';
@@ -12,6 +15,9 @@ import { TranslationFillerService } from './translation-filler.service.js';
  * The shared AI part (the Claude API). Global, so any feature's service can ask
  * AiService without importing this module.
  *
+ * The AI usage page (19 Oct 2026) reads the request log through AiUsageService, and its
+ * settings are kept by AiSettingsService, which AiService reads.
+ *
  * Which engine answers is chosen once, when the API starts, from AI_ENGINE: the
  * real one ("real", the default), which calls Anthropic with ANTHROPIC_API_KEY, or
  * the stand-in the automated tests use ("fake"). Without a key the real engine is
@@ -19,9 +25,11 @@ import { TranslationFillerService } from './translation-filler.service.js';
  */
 @Global()
 @Module({
-  controllers: [AiController],
+  controllers: [AiController, AiUsageController],
   providers: [
     AiService,
+    AiSettingsService,
+    AiUsageService,
     ContentTranslatorService,
     TranslationFillerService,
     {
@@ -38,6 +46,6 @@ import { TranslationFillerService } from './translation-filler.service.js';
       },
     },
   ],
-  exports: [AiService, ContentTranslatorService, TranslationFillerService],
+  exports: [AiService, AiSettingsService, ContentTranslatorService, TranslationFillerService],
 })
 export class AiModule {}

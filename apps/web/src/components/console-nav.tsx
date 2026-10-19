@@ -8,6 +8,7 @@ import { useEffect, useId, useRef, useSyncExternalStore, type ReactNode } from "
 import { useNavCounts, type NavCounts } from "@/lib/nav-counts";
 
 import {
+  AiUsageIcon,
   CatalogueIcon,
   CertificatesIcon,
   ClientsIcon,
@@ -78,12 +79,13 @@ const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
     ],
   },
   {
-    // The founders' own business pages (15 and 16 Oct 2026): Finance, Sales and Team.
+    // The founders' own business pages (15 and 16 Oct 2026): Finance, Sales and Team; AI usage (19 Oct 2026).
     label: "Business",
     items: [
       { href: "/finance", label: "Finance", icon: <FinanceIcon />, needs: (m) => can(m, "finance", "read") },
       { href: "/sales", label: "Sales", icon: <SalesIcon />, count: "sales", waiting: "things to do today", needs: (m) => can(m, "sales", "read") },
       { href: "/team", label: "Team", icon: <TeamIcon />, count: "team", waiting: "people to keep an eye on", needs: (m) => can(m, "team", "read") },
+      { href: "/ai-usage", label: "AI usage", icon: <AiUsageIcon />, count: "ai", waiting: "AI warnings", needs: (m) => can(m, "aiUsage", "read") },
     ],
   },
   {

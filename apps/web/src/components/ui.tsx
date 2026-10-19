@@ -297,7 +297,20 @@ export function NoAccess({ title, children }: { title: string; children: ReactNo
  * An on/off switch with its label beside it. It says "On" or "Off" in words
  * and the knob moves, so its state is not shown by colour alone.
  */
-export function Switch({ label, checked, onChange, disabled }: { label: string; checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }) {
+export function Switch({
+  label,
+  checked,
+  onChange,
+  disabled,
+  hideLabel = false,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  /** For a switch in a table row whose name is already beside it: the label is read out but not shown again. */
+  hideLabel?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -314,8 +327,8 @@ export function Switch({ label, checked, onChange, disabled }: { label: string; 
         <span className={`h-4.5 w-4.5 rounded-full ${checked ? "bg-white" : "bg-border-strong"}`} />
       </span>
       <span>
-        {label}
-        <span className="ml-2 font-normal text-muted">{checked ? "On" : "Off"}</span>
+        <span className={hideLabel ? "sr-only" : undefined}>{label}</span>
+        <span className={`font-normal text-muted ${hideLabel ? "" : "ml-2"}`}>{checked ? "On" : "Off"}</span>
       </span>
     </button>
   );

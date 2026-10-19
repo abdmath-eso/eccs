@@ -25,11 +25,13 @@ export interface NavCounts {
   sales: number | null;
   /** Team: people on ECCS's own team with something to keep an eye on. */
   team: number | null;
+  /** AI usage: the warnings true now (a limit's warning share passed, credit low, AI off, a helper failing; 19 Oct 2026). */
+  ai: number | null;
   /** Joining ECCS: how many of their four joining steps a new team member has left; null with no onboarding of their own (16 Oct 2026). */
   joining: number | null;
 }
 
-const EMPTY: NavCounts = { visits: null, issues: null, licences: null, invoices: null, publicPhotos: null, sales: null, team: null, joining: null };
+const EMPTY: NavCounts = { visits: null, issues: null, licences: null, invoices: null, publicPhotos: null, sales: null, team: null, ai: null, joining: null };
 
 const NavCountsContext = createContext<{ counts: NavCounts; refresh: () => void } | null>(null);
 
@@ -45,7 +47,7 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
   const skipped = Promise.reject(new Error("not part of this role"));
   skipped.catch(() => undefined);
   // Each is fetched on its own, so one that fails (a Supervisor may not list requests) does not hide the others.
-  const [requests, visits, issues, licences, billing, photos, sales, team, joining] = await Promise.allSettled([
+  const [requests, visits, issues, licences, billing, photos, sales, team, ai, joining] = await Promise.allSettled([
     operations ? api.bookings.list({ requestedOnly: true }) : skipped,
     operations ? api.visits.list({ state: "open" }) : skipped,
     operations ? api.issues.list({ openOnly: true }) : skipped,
@@ -54,6 +56,7 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
     operations ? api.publicPage.photosWaiting() : skipped,
     can(memberships, "sales", "read") ? api.sales.doToday() : skipped,
     can(memberships, "team", "read") ? api.eccsTeam.list() : skipped,
+    can(memberships, "aiUsage", "read") ? api.aiUsage.alerts() : skipped,
     // Anyone on ECCS's team may have their own joining page; the answer is empty for everyone else.
     api.onboarding.mine(),
   ]);
@@ -66,6 +69,7 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
     publicPhotos: photos.status === "fulfilled" ? photos.value.waiting : null,
     sales: sales.status === "fulfilled" ? sales.value.items.length : null,
     team: team.status === "fulfilled" ? team.value.flagged : null,
+    ai: ai.status === "fulfilled" ? ai.value.warnings.length : null,
     // Shown while their onboarding is open; done, the page leaves the menu.
     joining: joining.status === "fulfilled" && joining.value.page && !joining.value.page.doneOn ? joining.value.page.left : null,
   };

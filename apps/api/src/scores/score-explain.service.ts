@@ -3,7 +3,6 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { createTranslator, type MessageKey } from '@eccs/i18n';
 import {
   AI_ERROR,
-  AI_MODELS,
   calculateScore,
   can,
   hasDigit,
@@ -124,7 +123,7 @@ export class ScoreExplainService {
 
     const answer = await this.ai.run<ScoreExplanationAnswer>({
       feature: 'explain-score',
-      model: AI_MODELS.haiku,
+      model: this.ai.modelFor('explain-score'),
       instructions: scoreExplanationInstructions(language),
       text: JSON.stringify(facts),
       answer: { schema: SCORE_EXPLANATION_JSON_SCHEMA, check: scoreExplanationSchema },

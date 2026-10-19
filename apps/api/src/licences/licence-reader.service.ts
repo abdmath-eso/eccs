@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import {
-  AI_MODELS,
   cleanLicenceAnswer,
   EMPTY_READING,
   LICENCE_ANSWER_JSON_SCHEMA,
@@ -32,7 +31,8 @@ const AI_MAX_OUTPUT_TOKENS = 600;
  * - "ai" (the default, 14 Oct 2026): the photo or PDF goes to the AI (the Claude
  *   API) with instructions to read only what is printed and never guess. Haiku
  *   reads it first; if it cannot read the number or the expiry date, Sonnet tries
- *   once. Whenever AI is off, over its limit or fails, the free reader below
+ *   once (both models, and the second try, are set in the console since 19 Oct
+ *   2026). Whenever AI is off, over its limit or fails, the free reader below
  *   answers instead. Everyone who may add a licence at the outlet gets the AI
  *   reader: the restaurant's Owner and Manager in the app and, since 15 Oct 2026,
  *   ECCS's Super Admin and Ops Manager in the console (the Head Chef and the
@@ -101,14 +101,17 @@ export class LicenceReaderService implements OnModuleDestroy {
         timeoutMs: READ_TIMEOUT_MS,
       });
 
-    const first = await ask(AI_MODELS.haiku);
+    // Both models, and whether to try twice, are the console's AI settings (19 Oct 2026; Haiku
+    // then Sonnet unless changed).
+    const first = await ask(this.ai.modelFor('licence-reader'));
     if (!first.ok) return null;
     let answer = cleanLicenceAnswer(first.value);
     let requestId = first.requestId;
-    // The number and the expiry date are what matter most: if Haiku could not read
+    // The number and the expiry date are what matter most: if the first model could not read
     // either, the stronger model tries once, and fills in what it read.
-    if (!answer.number || !answer.expiresOn) {
-      const second = await ask(AI_MODELS.sonnet);
+    const secondTry = this.ai.licenceSecondTry();
+    if (secondTry.on && (!answer.number || !answer.expiresOn)) {
+      const second = await ask(secondTry.model);
       if (second.ok) {
         const better = cleanLicenceAnswer(second.value);
         answer = cleanLicenceAnswer({

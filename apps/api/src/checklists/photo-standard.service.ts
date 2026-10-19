@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@eccs/db';
 import {
   AI_ERROR,
-  AI_MODELS,
   checkWording,
   PHOTO_STANDARD_JSON_SCHEMA,
   photoStandardFits,
@@ -233,11 +232,11 @@ export class PhotoStandardService {
     return started;
   }
 
-  /** Asks Haiku to write the standard for this wording. Only the wording is sent. */
+  /** Asks the model set in the console (Haiku unless changed) to write the standard for this wording. Only the wording is sent. */
   private async make(wording: string, who: AiWho): Promise<StandardFound> {
     const result = await this.ai.run<PhotoStandard>({
       feature: 'photo-standard',
-      model: AI_MODELS.haiku,
+      model: this.ai.modelFor('photo-standard'),
       instructions: PHOTO_STANDARD_INSTRUCTIONS,
       text: JSON.stringify({ check: wording }),
       answer: { schema: PHOTO_STANDARD_JSON_SCHEMA, check: photoStandardSchema },

@@ -2,7 +2,6 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import {
   accessScope,
   AI_ERROR,
-  AI_MODELS,
   firstDistinct,
   hasNumberWord,
   isEccsRole,
@@ -144,7 +143,7 @@ export class MonitoringDigestService {
     const facts = digestFacts(await this.monitoring.board(user));
     const answer = await this.ai.run<MonitoringDigestAnswer>({
       feature: 'monitoring-digest',
-      model: AI_MODELS.sonnet,
+      model: this.ai.modelFor('monitoring-digest'),
       instructions: MONITORING_DIGEST_INSTRUCTIONS,
       text: JSON.stringify(facts),
       answer: { schema: MONITORING_DIGEST_JSON_SCHEMA, check: monitoringDigestSchema },

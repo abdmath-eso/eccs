@@ -33,6 +33,7 @@ export const RESOURCES = [
   "finance", // ECCS's own books: expenses, budgets, founders' money, cash (the console's Finance page)
   "sales", // leads, their steps and quotes, and the BDEs' targets (the console's Sales page)
   "team", // ECCS's own team: who is in, their week, leave and salaries (the console's Team page)
+  "aiUsage", // what the AI helpers cost, the request log, and the AI settings (the console's AI usage page)
 ] as const;
 
 export type Resource = (typeof RESOURCES)[number];
@@ -100,6 +101,10 @@ const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A:
 // Ops Manager ticks the tasks the Ops Manager owns, checked in the service); A = the joining
 // file, documents, appointment letter, handbook and templates (the Super Admin only). A new
 // hire reaches only their own joining page, with no grant: the service checks it is theirs.
+// For aiUsage (the AI usage page, 19 Oct 2026): R = what the AI helpers cost, the request log and
+// its export, and the AI settings read-only; U = change the AI settings (switches, models, limits,
+// warnings, Buddy, the key's facts). The Super Admin has both; the Ops Manager reads (as for Logs);
+// nobody else sees the page.
 const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
   SUPER_ADMIN: {
     clients: "CRU", eccsUsers: "CRU", restaurantUsers: "CRU", sopTemplates: "CRU",
@@ -107,14 +112,14 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     subscriptions: "CRU", schedule: "CRU", jobs: "CRUA", inspections: "CRUA", reports: "CRA",
     publicPage: "RUA", licences: "CRU", documents: "CRU", scores: "R",
     invoices: "CRU", payments: "CRU", auditLog: "R", settings: "RU", finance: "CRU", sales: "CRUA",
-    team: "CRUA",
+    team: "CRUA", aiUsage: "RU",
   },
   OPS_MANAGER: {
     clients: "CRU", eccsUsers: "R", restaurantUsers: "CRU", sopTemplates: "CRU",
     checklists: "R", foodLabels: "R", issues: "CRU", catalog: "CRU", bookings: "CRU",
     subscriptions: "CRU", schedule: "CRU", jobs: "CRUA", inspections: "CRUA", reports: "CRA",
     publicPage: "RUA", licences: "CRU", documents: "CRU", scores: "R",
-    invoices: "CRU", payments: "CRU", auditLog: "R", sales: "CRU", team: "CRU",
+    invoices: "CRU", payments: "CRU", auditLog: "R", sales: "CRU", team: "CRU", aiUsage: "R",
   },
   BDE: {
     sales: "CRU",

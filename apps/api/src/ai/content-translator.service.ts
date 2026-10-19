@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   AI_LANGUAGES,
-  AI_MODELS,
   contentTranslationJsonSchema,
   contentTranslationSchema,
   type AiErrorCode,
@@ -179,7 +178,7 @@ export class ContentTranslatorService {
     for (const languages of groups) {
       const result = await this.ai.run<ContentTranslationAnswer>({
         feature: 'translate-content',
-        model: AI_MODELS.haiku,
+        model: this.ai.modelFor('translate-content'),
         instructions: contentTranslationInstructions(languages),
         text: JSON.stringify({ texts: job.strings }),
         answer: { schema: contentTranslationJsonSchema(languages), check: contentTranslationSchema(languages) },

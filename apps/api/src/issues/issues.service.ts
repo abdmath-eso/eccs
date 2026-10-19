@@ -2,7 +2,6 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import type { Prisma } from '@eccs/db';
 import {
   accessScope,
-  AI_MODELS,
   can,
   hasWords,
   isEccsRole,
@@ -138,7 +137,7 @@ export class IssuesService {
     const chars = messages.reduce((total, message) => total + message.text.length, 0);
     const result = await this.ai.run<SupportTranslationAnswer>({
       feature: 'translate-support',
-      model: AI_MODELS.haiku,
+      model: this.ai.modelFor('translate-support'),
       instructions: supportTranslationInstructions(target),
       text: JSON.stringify({ messages }),
       answer: { schema: SUPPORT_TRANSLATION_JSON_SCHEMA, check: supportTranslationSchema },

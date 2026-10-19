@@ -11,7 +11,6 @@ import { translate, type LanguageCode, type MessageKey } from '@eccs/i18n';
 import {
   AI_ERROR,
   AI_LANGUAGE_NAMES,
-  AI_MODELS,
   BUDDY_RULES,
   BUDDY_TOOLS,
   buddyCardRefusal,
@@ -69,7 +68,7 @@ import { buddyToolDefinitions, BuddyToolbox, plainReason, type BuddyTurn } from 
 // cards, the daily cap, the clean-up and ECCS's counts. AiService stays the one gate to the model:
 // every step of an answer is one AiRequest with its cost, under the AI switches and the daily
 // limits for everyone and for the outlet in view. On top of those, one person may send
-// BUDDY_DAILY_MESSAGES messages a day (40 unless the server says otherwise).
+// its daily number of messages (40 unless the console's AI settings say otherwise).
 //
 // Only the Owner and the Manager may use Buddy; everyone else is refused on every route.
 
@@ -144,10 +143,8 @@ interface OutletOption {
 export class BuddyService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger('Buddy');
   private timers: NodeJS.Timeout[] = [];
-  private dailyCap = env.BUDDY_DAILY_MESSAGES;
-  private perMinute = env.BUDDY_PER_MINUTE;
-  private blocksBeforePause = env.BUDDY_BLOCKS_BEFORE_PAUSE;
-  private screenOn = env.BUDDY_SCREEN === 'on';
+  /** Tests only: limits that replace the console's for the run (see the "Tests only" methods). */
+  private testLimits: { dailyCap?: number; perMinute?: number; blocksBeforePause?: number; screenOn?: boolean } = {};
   /** When each person sent their last messages, for the per-minute limit (this process only). */
   private readonly recentSends = new Map<string, number[]>();
 
@@ -165,8 +162,29 @@ export class BuddyService implements OnModuleInit, OnModuleDestroy {
     return this.prisma.client;
   }
 
+  // Buddy's model, effort, thinking, scope check and limits are the console's AI settings (19 Oct
+  // 2026; until then BUDDY_* in .env, which are now only their defaults), read through AiService.
   private get model() {
-    return env.BUDDY_MODEL === 'sonnet' ? AI_MODELS.sonnet : AI_MODELS.haiku;
+    return this.ai.modelFor('buddy');
+  }
+
+  /** Messages one person may send in a day (India time). */
+  private get dailyCap() {
+    return this.testLimits.dailyCap ?? this.ai.buddySettings().dailyMessages;
+  }
+
+  private get perMinute() {
+    return this.testLimits.perMinute ?? this.ai.buddySettings().perMinute;
+  }
+
+  /** Refused messages in a day before Buddy pauses for the person until tomorrow. */
+  private get blocksBeforePause() {
+    return this.testLimits.blocksBeforePause ?? this.ai.buddySettings().blocksBeforePause;
+  }
+
+  /** The scope check's own switch is its helper's ("Buddy's scope check"), checked in `screen`; a test may switch it off. */
+  private get screenOn() {
+    return this.testLimits.screenOn ?? true;
   }
 
   /** Removes chats past their keeping period shortly after the server starts and once a day. Off under tests. */
@@ -238,6 +256,8 @@ export class BuddyService implements OnModuleInit, OnModuleDestroy {
   /** Whether Buddy can answer now, and the suggested prompts for the screen and the person's day. */
   async start(user: AuthUser, screen: BuddyScreen, outletId?: string): Promise<BuddyStartDto> {
     this.requireBuddy(user);
+    // The console may have changed Buddy's switch or limits a moment ago (on another copy of the server).
+    await this.ai.freshSettings();
     const outlets = await this.outletsOf(user);
     const outlet = this.pick(outlets, outletId) ?? outlets[0] ?? null;
     const sent = await this.sentToday(user.id);
@@ -328,6 +348,7 @@ export class BuddyService implements OnModuleInit, OnModuleDestroy {
    */
   async send(user: AuthUser, input: BuddyMessageInput): Promise<BuddyReplyDto> {
     this.requireBuddy(user);
+    await this.ai.freshSettings();
     const outlets = await this.outletsOf(user);
     const existing = input.chatId ? await this.ownChat(user, input.chatId) : null;
     const outlet = this.pick(outlets, input.outletId ?? existing?.outletId ?? null);
@@ -367,7 +388,7 @@ export class BuddyService implements OnModuleInit, OnModuleDestroy {
     const tools = buddyToolDefinitions(user);
     const who = { userId: user.id, organizationId: outlet?.organizationId ?? null, outletId: outlet?.id ?? null };
     const step = (signal?: AbortSignal) =>
-      this.ai.converse({ feature: 'buddy', model: this.model, system: SYSTEM, tools, messages, maxOutputTokens: MAX_OUTPUT_TOKENS, who, effort: env.BUDDY_EFFORT, thinking: env.BUDDY_THINKING, timeoutMs: STEP_TIMEOUT_MS, ...(signal && { signal }), facts: { language, screen: input.screen ?? 'other' } });
+      this.ai.converse({ feature: 'buddy', model: this.model, system: SYSTEM, tools, messages, maxOutputTokens: MAX_OUTPUT_TOKENS, who, effort: this.ai.buddySettings().effort, thinking: this.ai.buddySettings().thinking, timeoutMs: STEP_TIMEOUT_MS, ...(signal && { signal }), facts: { language, screen: input.screen ?? 'other' } });
 
     // The scope screen runs at the same time as the first step, so it adds no wait. Its answer is
     // awaited before any tool runs or anything is shown; on offtopic or abuse the step is stopped.
@@ -479,7 +500,7 @@ export class BuddyService implements OnModuleInit, OnModuleDestroy {
     const previous = lastPerson ? { person: words(lastPerson), buddy: words(lastBuddy) } : null;
     const result = await this.ai.run<BuddyScreenAnswer>({
       feature: 'buddy-screen',
-      model: AI_MODELS.haiku,
+      model: this.ai.modelFor('buddy-screen'),
       instructions: BUDDY_SCREEN_INSTRUCTIONS,
       text: JSON.stringify({ previous, message: text }),
       answer: { schema: BUDDY_SCREEN_JSON_SCHEMA, check: buddyScreenSchema },
@@ -660,18 +681,23 @@ export class BuddyService implements OnModuleInit, OnModuleDestroy {
 
   // ───────────────────────── Tests only ─────────────────────────
 
-  /** Tests: change the daily cap for this run. */
+  /** Tests: change the daily cap for this run (over the console's). */
   setDailyCapForTest(cap: number): void {
     if (env.NODE_ENV !== 'test') throw new Error('Only in tests');
-    this.dailyCap = cap;
+    this.testLimits.dailyCap = cap;
   }
 
-  /** Tests: the per-minute limit, the pause and the screen for this run; forgets who sent what. */
+  /** Tests: the per-minute limit, the pause and the screen for this run (over the console's); forgets who sent what. */
   setLimitsForTest(changes: Partial<{ perMinute: number; blocksBeforePause: number; screenOn: boolean }>): void {
     if (env.NODE_ENV !== 'test') throw new Error('Only in tests');
-    this.perMinute = changes.perMinute ?? this.perMinute;
-    this.blocksBeforePause = changes.blocksBeforePause ?? this.blocksBeforePause;
-    this.screenOn = changes.screenOn ?? this.screenOn;
+    this.testLimits = { ...this.testLimits, ...changes };
+    this.recentSends.clear();
+  }
+
+  /** Tests: the console's settings apply again, with no limits of the test's own. */
+  clearLimitsForTest(): void {
+    if (env.NODE_ENV !== 'test') throw new Error('Only in tests');
+    this.testLimits = {};
     this.recentSends.clear();
   }
 

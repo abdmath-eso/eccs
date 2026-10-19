@@ -361,6 +361,9 @@ export const ACTIVITY_ACTIONS = {
   "ai.buddy.feedback": ["ai", "Said whether a Buddy answer helped"],
   "ai.buddy.chatDeleted": ["ai", "Deleted a Buddy chat"],
   "ai.buddy.chatsCleaned": ["ai", "Removed Buddy chats past their keeping period (timed job)"],
+  // The AI usage page (19 Oct 2026): a change to the AI settings, with what changed from and to; the request log exported.
+  "ai.settings.changed": ["ai", "Changed the AI settings"],
+  "ai.log.exported": ["ai", "Exported the AI request log"],
 
   // System
   "system.server.started": ["system", "The server started"],
@@ -911,6 +914,7 @@ export interface ActivityLogSummaryDto {
 /** The names of the kinds of record a row can be about, for the Logs page. */
 export const ACTIVITY_ENTITY_LABELS: Record<string, string> = {
   aiRequest: "AI request",
+  aiSettings: "AI settings",
   attachment: "Photo or file",
   booking: "Booking",
   catalogItem: "Bookable service",

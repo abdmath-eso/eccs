@@ -2,7 +2,6 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   AI_ERROR,
   AI_LANGUAGE_NAMES,
-  AI_MODELS,
   checkWording,
   PHOTO_CHECK_JSON_SCHEMA,
   PHOTO_CHECK_MAX_BYTES,
@@ -62,7 +61,7 @@ const MAX_OUTPUT_TOKENS = 260;
  *
  * It never marks the item, never fails it, never changes the answer (OK or Problem),
  * never stops the checklist being submitted, never reaches the office and is shown to
- * nobody else. Haiku only, for speed; it counts against the outlet's daily AI limit.
+ * nobody else. Haiku unless the console says Sonnet (19 Oct 2026), for speed; it counts against the outlet's daily AI limit.
  *
  * Sends to the AI: the small copy of the photo (first, as Anthropic's vision guide
  * advises), then the check's wording, its standard and the language on the person's screen
@@ -102,7 +101,7 @@ export class PhotoCheckService {
 
     const answer = await this.ai.run<PhotoCheckAnswer>({
       feature: 'photo-check',
-      model: AI_MODELS.haiku,
+      model: this.ai.modelFor('photo-check'),
       instructions: PHOTO_CHECK_INSTRUCTIONS,
       text: JSON.stringify({ check: wording, standard, checklistDate: checklistDay(date), language: AI_LANGUAGE_NAMES[language] }),
       file: { mimeType: image.mimeType, data: file.buffer },

@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   AI_ERROR,
-  AI_MODELS,
   firstDistinct,
   hasNumberWord,
   INSPECTION_FIX_FIRST_MAX,
@@ -97,7 +96,7 @@ export class InspectionSummaryService {
     const facts = summaryFacts(inspection, checks);
     const answer = await this.ai.run<InspectionSummaryAnswer>({
       feature: 'inspection-summary',
-      model: AI_MODELS.sonnet,
+      model: this.ai.modelFor('inspection-summary'),
       instructions: INSPECTION_SUMMARY_INSTRUCTIONS,
       text: JSON.stringify(facts),
       answer: { schema: INSPECTION_SUMMARY_JSON_SCHEMA, check: inspectionSummaryAnswerSchema },

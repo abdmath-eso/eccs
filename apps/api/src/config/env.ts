@@ -33,16 +33,24 @@ const schema = z
     // to the apps, never written to a file other than .env, and never logged. Without
     // it every AI feature is off by itself and the app works as before.
     ANTHROPIC_API_KEY: z.string().optional(),
-    // The main switch: "off" turns every AI feature off.
+    // The main switch: "off" turns every AI feature off. It stays above the console's AI
+    // settings (19 Oct 2026): the console can never switch AI on while this says "off".
     AI_FEATURES: z.enum(['on', 'off']).default('on'),
     // "real" calls Anthropic; "fake" gives fixed answers with no network call, for the
     // automated tests (vitest.config.e2e.ts sets it). Left unset, tests use "fake".
     AI_ENGINE: z.enum(['real', 'fake']).optional(),
     // The most to spend on AI in one day (India time), in US dollars, across everything,
     // and the most for any one outlet. Over either, AI steps aside until the next day.
+    // Since 19 Oct 2026 these, and the BUDDY_* values below, are only the defaults: the limits
+    // are set in the console (Business > AI usage > Settings) and kept in the database.
     AI_DAILY_LIMIT_USD: z.coerce.number().min(0).default(2),
     AI_OUTLET_DAILY_LIMIT_USD: z.coerce.number().min(0).default(0.25),
-    // Feature names to switch off one by one, separated by commas, e.g. "explain-score".
+    // "on" makes this server take its AI limits and Buddy settings from this .env instead of the
+    // console's saved settings. For a test copy of the server measuring the AI (port 4001), which
+    // shares the database and must not change the founder's settings. Never in production.
+    AI_SETTINGS_FROM_ENV: z.enum(['on', 'off']).default('off'),
+    // Feature names to switch off one by one, separated by commas, e.g. "explain-score". A
+    // feature named here stays off whatever the console says (the server can always switch off).
     // The names are AI_FEATURES in packages/shared/src/ai.ts.
     AI_DISABLED_FEATURES: z
       .string()
@@ -134,6 +142,9 @@ const schema = z
   })
   .refine((env) => !(env.NODE_ENV === 'production' && env.AI_ENGINE === 'fake'), {
     message: 'AI_ENGINE must not be "fake" in production',
+  })
+  .refine((env) => !(env.NODE_ENV === 'production' && env.AI_SETTINGS_FROM_ENV === 'on'), {
+    message: 'AI_SETTINGS_FROM_ENV is for test copies of the server only, never production',
   });
 
 export type Env = z.infer<typeof schema>;

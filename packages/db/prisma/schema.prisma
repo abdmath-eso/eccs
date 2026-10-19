@@ -1715,10 +1715,18 @@ model AiRequest {
   userId         String?
   organizationId String?
   outletId       String?
+  /// Every input token, those read from or written to the prompt cache included.
   inputTokens    Int      @default(0)
   outputTokens   Int      @default(0)
+  /// Of inputTokens, how many were read from the prompt cache and written to it (19 Oct 2026;
+  /// ECCS Buddy caches its instructions and tools). 0 on rows written before.
+  cacheReadTokens  Int    @default(0)
+  cacheWriteTokens Int    @default(0)
   /// What it cost in millionths of a US dollar, from the token counts and AI_PRICES.
   costMicroUsd   Int      @default(0)
+  /// Where it was asked from: RESTAURANT_APP, SUPERVISOR_APP, CONSOLE or SYSTEM (the server's
+  /// own work), as the activity log names its sources (19 Oct 2026). Empty when not known.
+  source         String?
   /// OK, ERROR, OFF, LIMIT or INVALID (AI_STATUSES).
   status         String
   /// Why it failed, e.g. "TIMEOUT", "HTTP_529", "NUMBERS".
@@ -1733,6 +1741,23 @@ model AiRequest {
 
   @@index([createdAt])
   @@index([outletId, createdAt])
+  @@index([feature, createdAt])
+}
+
+/// The AI settings changed from the console (19 Oct 2026): each helper's switch and model,
+/// the limits, the warnings, ECCS Buddy's own limits and the facts about the key. One row
+/// holds them all as one JSON value, checked by aiSettingsSchema in packages/shared, so a
+/// change is saved whole or not at all and the shape lives in one place. The row is keyed:
+/// "main" is the server's; the automated tests use "e2e", so they never touch the real one.
+/// No row means the defaults (today's .env values). `history` keeps the latest changes, who
+/// made them and what changed from and to (each also goes in the activity log).
+model AiSettings {
+  id            String   @id
+  settings      Json
+  history       Json     @default("[]")
+  updatedById   String?
+  updatedByName String?
+  updatedAt     DateTime @updatedAt
 }
 
 /// "Why this score?": the explanation written for an outlet's score, kept for the

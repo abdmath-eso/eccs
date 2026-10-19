@@ -31,6 +31,8 @@ export * from "./public-page.js";
 export * from "./vendors.js";
 export * from "./legal/index.js";
 export * from "./ai.js";
+export * from "./ai-settings.js";
+export * from "./ai-usage.js";
 export * from "./activity-log.js";
 export * from "./finance.js";
 export * from "./sales.js";

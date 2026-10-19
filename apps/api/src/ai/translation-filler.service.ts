@@ -100,8 +100,8 @@ export interface FillReport {
   failed: number;
   /** Outlets that waited because their own daily AI allowance is used up. */
   overLimit: number;
-  /** Why the run stopped early: AI is off, or the platform's daily AI allowance is used up. */
-  stopped: 'AI_OFF' | 'DAILY_LIMIT' | null;
+  /** Why the run stopped early: AI is off, or the platform's daily (or, since 19 Oct 2026, monthly) AI allowance is used up. */
+  stopped: 'AI_OFF' | 'DAILY_LIMIT' | 'MONTH_LIMIT' | null;
 }
 
 const KIND_COUNT: Record<FillKind, 'items' | 'lists' | 'sops' | 'labels' | 'library'> = {
@@ -285,8 +285,8 @@ export class TranslationFillerService implements OnModuleInit, OnModuleDestroy {
       // Asked before each call, so a limit stops the run without a refused request each time.
       const limit = await this.ai.limitReached(call.outletId);
       if (limit) {
-        if (limit === 'DAILY_LIMIT') report.stopped = 'DAILY_LIMIT';
-        else overLimit.add(call.outletId);
+        if (limit === 'OUTLET_LIMIT') overLimit.add(call.outletId);
+        else report.stopped = limit;
         report.waiting += call.texts.length;
         continue;
       }
@@ -318,8 +318,9 @@ export class TranslationFillerService implements OnModuleInit, OnModuleDestroy {
       if (result.code === AI_ERROR.off) report.stopped = AI_ERROR.off;
       else if (result.code === AI_ERROR.limit) {
         // Reached during this call: whose limit was it?
-        if ((await this.ai.limitReached(call.outletId)) === 'OUTLET_LIMIT') overLimit.add(call.outletId);
-        else report.stopped = 'DAILY_LIMIT';
+        const reached = await this.ai.limitReached(call.outletId);
+        if (reached === 'OUTLET_LIMIT') overLimit.add(call.outletId);
+        else report.stopped = reached ?? 'DAILY_LIMIT';
       }
     }
     report.overLimit = overLimit.size;
@@ -332,7 +333,7 @@ export class TranslationFillerService implements OnModuleInit, OnModuleDestroy {
   /** One activity log row for a run that did something, failed or was held back by a limit; none for an empty run. */
   private finish(report: FillReport): FillReport {
     const filled = report.items + report.lists + report.sops + report.labels + report.library;
-    if (filled + report.copied + report.failed + report.overLimit > 0 || report.stopped === 'DAILY_LIMIT') {
+    if (filled + report.copied + report.failed + report.overLimit > 0 || report.stopped === 'DAILY_LIMIT' || report.stopped === 'MONTH_LIMIT') {
       this.activity.system('system.translations.filled', { details: { filled, ...report } });
     }
     return report;

@@ -183,6 +183,8 @@ import type {
 } from "@eccs/shared";
 // ai-types: the AI features (14 Oct 2026)
 import type { AiOutcome, AiStatusDto, AiUsageDto, ScoreExplanationDto } from "@eccs/shared";
+// ai-usage-types: the console's AI usage page and the AI settings (19 Oct 2026)
+import type { AiAlertsDto, AiOverviewDto, AiRequestPageDto, AiSettingsDto, AiSettingsPatch, AiUsageQueryInput } from "@eccs/shared";
 import type {
   InspectionSummaryDraftDto,
   MonitoringDigestDto,
@@ -390,8 +392,11 @@ export interface ActivityLogExport {
   truncated: boolean | null;
 }
 
+/** The AI usage page's filters as the API takes them (see aiUsageQuerySchema). */
+export type AiUsageFilters = Omit<AiUsageQueryInput, "cursor" | "limit">;
+
 /** The filters as query parameters: lists joined with commas, true flags as "1", empty values left out. */
-function activityLogParams(filters: ActivityLogFilters & { cursor?: string; limit?: number }): Record<string, string | number> {
+function activityLogParams(filters: (ActivityLogFilters | AiUsageFilters) & { cursor?: string; limit?: number }): Record<string, string | number> {
   const params: Record<string, string | number> = {};
   for (const [key, value] of Object.entries(filters) as [string, unknown][]) {
     if (Array.isArray(value)) {
@@ -1221,6 +1226,37 @@ export function createApiClient(options: ApiClientOptions) {
           truncated: truncated === null ? null : truncated === "true",
         };
       },
+    },
+    // ai-usage-api: the console's AI usage page and the AI settings (19 Oct 2026)
+    /**
+     * What the AI helpers cost, read from the server's request log, with the page's filters;
+     * the log itself and its CSV; and the AI settings. The Super Admin and the Ops Manager
+     * read; only the Super Admin changes the settings.
+     */
+    aiUsage: {
+      overview: (filters: AiUsageFilters = {}) => call<AiOverviewDto>("GET", `/ai/overview${query(activityLogParams(filters))}`),
+      /** Newest first, 50 at a time; pass `nextCursor` back as `cursor` for the next (older) page. */
+      requests: (filters: AiUsageFilters & { cursor?: string; limit?: number } = {}) =>
+        call<AiRequestPageDto>("GET", `/ai/requests${query(activityLogParams(filters))}`),
+      /** The filtered requests as a CSV file (newest first, at most 10,000). The export is itself logged. */
+      async exportCsv(filters: AiUsageFilters = {}): Promise<ActivityLogExport> {
+        const { blob, headers } = await download(`/ai/requests/export${query(activityLogParams(filters))}`);
+        const named = headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1];
+        const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+        const rows = headers.get("X-Export-Rows");
+        const truncated = headers.get("X-Export-Truncated");
+        return {
+          blob,
+          fileName: named ?? `eccs-ai-requests-${day}.csv`,
+          rows: rows === null ? null : Number(rows),
+          truncated: truncated === null ? null : truncated === "true",
+        };
+      },
+      /** The warnings true now, for the page's banner and the menu's count. */
+      alerts: () => call<AiAlertsDto>("GET", "/ai/alerts"),
+      settings: () => call<AiSettingsDto>("GET", "/ai/settings"),
+      /** Changes some settings (the Super Admin only); answers with the settings as saved. */
+      saveSettings: (change: AiSettingsPatch) => call<AiSettingsDto>("PATCH", "/ai/settings", change),
     },
     // finance-api: the console's Finance page (15 Oct 2026)
     /**

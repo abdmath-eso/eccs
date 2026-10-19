@@ -17,7 +17,9 @@ export class AiController {
 
   /** Which AI features are on, so the apps show or hide their buttons. */
   @Get('status')
-  status(): AiStatusDto {
+  async status(): Promise<AiStatusDto> {
+    // The console's switches may have changed a moment ago (on another copy of the server).
+    await this.ai.freshSettings();
     return this.ai.status();
   }
 

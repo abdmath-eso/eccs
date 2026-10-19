@@ -2,7 +2,7 @@ import type { PublicPageDto } from "@eccs/shared";
 import { PUBLIC_PAGE_RULES } from "@eccs/shared";
 import type { NextRequest } from "next/server";
 
-import { API_URL, chooseLanguage, pageHeaders, renderNothing, renderPage, TOKEN_PATTERN } from "@/lib/public-page";
+import { API_URL, chooseLanguage, pageHeaders, renderNothing, renderPage, TOKEN_PATTERN, visitorHeaders } from "@/lib/public-page";
 
 // The customer QR page: /k/<token>. A route handler, not a React page, so that
 // what reaches the diner's phone is one small HTML document with no JavaScript
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, context: RouteContext<"/k/[token
   if (TOKEN_PATTERN.test(token)) {
     try {
       // The API keeps each answer for a minute itself; this server does not keep a second copy.
-      const response = await fetch(`${API_URL}/public/pages/${encodeURIComponent(token)}`, { cache: "no-store" });
+      const response = await fetch(`${API_URL}/public/pages/${encodeURIComponent(token)}`, { cache: "no-store", headers: visitorHeaders(request) });
       if (response.ok) page = (await response.json()) as PublicPageDto;
       else if (response.status !== 404) throw new Error(`The API answered ${response.status}`);
     } catch {

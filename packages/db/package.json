@@ -15,6 +15,7 @@
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "prisma db seed",
+    "seed:live": "tsx prisma/seed-live.ts",
     "library:import": "node scripts/import-checklist-library.mjs",
     "library:load": "tsx prisma/load-library.ts",
     "visits:load": "tsx prisma/load-sample-visits.ts",

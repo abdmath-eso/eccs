@@ -1,0 +1,7 @@
+# Files that are read on Linux (the server, and inside the Docker images) keep Linux line
+# endings whatever the checkout's settings: bash stops on a Windows line ending.
+*.sh text eol=lf
+*.Dockerfile text eol=lf
+infra/docker/** text eol=lf
+infra/server/** text eol=lf
+.dockerignore text eol=lf

@@ -1,0 +1,145 @@
+# ECCS on one server (Stage H, 19 Oct 2026): Caddy (HTTPS) in front of the API and the console.
+#
+# On the server this file is /opt/eccs/compose.yml, beside the Caddyfile and the settings file
+# /opt/eccs/.env (made from server.env.example, never in git). Docker Compose reads that .env by
+# itself. infra/RUNBOOK.md has every command; the everyday ones, run in /opt/eccs:
+#
+#   docker compose run --rm migrate     apply new database migrations (deploy.ps1 does it)
+#   docker compose up -d                start everything, or apply a changed setting
+#   docker compose ps                   what is running, and whether it is healthy
+#   docker compose logs -f api          follow the API's log (Ctrl+C to stop following)
+#
+# The images are not pulled from anywhere: infra/scripts/deploy.ps1 loads them onto the server
+# and tags the version to run ":current" (and the one before it ":previous", for -Rollback).
+#
+# Memory: the server has 4 GB and 2 GB of swap. The limits below come from `docker stats` on the
+# founder's PC on 19 Oct 2026, while loading the console and printing PDFs in all 12 languages:
+#   api       about 270 MB idle; 750 MB to 1,000 MB printing 3 PDFs at once; 1.2 GB at 6 at once
+#   web       about 95 MB          caddy  about 30 MB          postgres (test server)  about 90 MB
+#   migrate   migrations and seed:live both ran within 384 MB
+# Together the limits come to 2.0 GB on the live server (2.5 GB on the test server, with its
+# database), leaving the rest for the system, Docker and the disk cache.
+
+# Not "eccs": that is the local development services' project (infra/docker-compose.yml) on the
+# founder's PC, and the two must never be mistaken for each other.
+name: eccs-server
+
+x-logging: &logging
+  # Each container keeps at most 5 files of 10 MB of log; the oldest is dropped.
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  # HTTPS for the three addresses in .env. Caddy gets and renews the certificates itself
+  # (Let's Encrypt); ports 80 and 443 must be open to the internet for that.
+  caddy:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    environment:
+      API_HOST: ${API_HOST:?Set API_HOST in .env}
+      CONSOLE_HOST: ${CONSOLE_HOST:?Set CONSOLE_HOST in .env}
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The certificates and their keys: kept across restarts, so Let's Encrypt is not asked again.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    mem_limit: 128m
+    logging: *logging
+
+  # The API. Exactly one copy: its timed jobs (reminders, invoices, plan visits, the daily
+  # digest, clean-ups) run inside it, and two copies would run each job twice. The fixed
+  # container name makes `docker compose up --scale api=2` refuse.
+  api:
+    image: eccs-api:${ECCS_TAG:-current}
+    container_name: eccs-api
+    restart: unless-stopped
+    # Every setting the API reads (apps/api/src/config/env.ts).
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      API_PORT: "4000"
+      # Every request reaches the API through Caddy (or the console): take the visitor's own
+      # address from X-Forwarded-For, trusted only from inside the server (apps/api/src/main.ts).
+      TRUST_PROXY: "on"
+      # Plain log lines, without the colour codes meant for a terminal.
+      NO_COLOR: "1"
+    # Chromium (the PDFs) needs more shared memory than Docker's 64 MB default.
+    shm_size: 256m
+    depends_on:
+      postgres:
+        condition: service_healthy
+        # The test server's own database; the live server uses the managed one instead.
+        required: false
+    mem_limit: 1536m
+    logging: *logging
+
+  # The console, the customer QR pages, the quote pages and the legal pages.
+  web:
+    image: eccs-web:${ECCS_TAG:-current}
+    restart: unless-stopped
+    environment:
+      # The customer pages ask the API inside the server, not over the internet.
+      API_INTERNAL_URL: http://api:4000/v1
+      PUBLIC_PAGE_BASE_URL: ${PUBLIC_PAGE_BASE_URL:?Set PUBLIC_PAGE_BASE_URL in .env}
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 384m
+    logging: *logging
+
+  # One-off: `docker compose run --rm migrate` applies the migrations (prisma migrate deploy),
+  # and `docker compose run --rm migrate npm run seed:live -- --phone ... --name "..."` loads the
+  # library and the first Super Admin. Never started by `up` (the "tools" profile).
+  # It reads the same settings as the API: the sample loaders of a test server need PIN_SECRET
+  # and the file store's settings.
+  migrate:
+    image: eccs-migrate:${ECCS_TAG:-current}
+    profiles: ["tools"]
+    restart: "no"
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+    mem_limit: 512m
+    logging: *logging
+
+  # The test server's database, only with COMPOSE_PROFILES=testing in .env. The live server
+  # uses Lightsail's managed PostgreSQL (backups, restore to any minute) and leaves this off.
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["testing"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eccs
+      POSTGRES_DB: eccs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eccs -d eccs"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    mem_limit: 512m
+    logging: *logging
+
+volumes:
+  caddy-data:
+  caddy-config:
+  postgres-data:

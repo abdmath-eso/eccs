@@ -1,0 +1,49 @@
+# Caddy for ECCS (Stage H, 19 Oct 2026). Three addresses, each from /opt/eccs/.env:
+#   API_HOST      the API the apps and the console call          (e.g. api.example.in)
+#   CONSOLE_HOST  the console for ECCS's office                  (e.g. console.example.in)
+#   PUBLIC_HOST   what printed QR codes and quote links hold     (e.g. example.in); it must be
+#                 the host of PUBLIC_PAGE_BASE_URL, and differ from CONSOLE_HOST
+# Caddy gets a free certificate for each from Let's Encrypt and renews it by itself. A name
+# ending in .localhost (the test on the founder's PC) gets one from Caddy's own authority.
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+{$API_HOST} {
+	import common
+	# The apps' uploads. The API refuses anything over its own limits (10 MB a file); this only
+	# stops a far larger body before it reaches the API.
+	request_body {
+		max_size 50MB
+	}
+	reverse_proxy api:4000
+}
+
+{$CONSOLE_HOST} {
+	import common
+	header X-Frame-Options "DENY"
+	reverse_proxy web:3000
+}
+
+# The pages anyone may open: the customer QR page (/k/<token>), a quote (/q/<token>) and the
+# legal documents (/legal/<key>). Anything else here goes to the console.
+{$PUBLIC_HOST} {
+	import common
+	@pages path /k/* /q/* /legal/* /favicon.ico
+	handle @pages {
+		reverse_proxy web:3000
+	}
+	handle {
+		redir https://{$CONSOLE_HOST}{uri}
+	}
+}

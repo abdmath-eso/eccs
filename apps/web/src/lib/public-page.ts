@@ -50,6 +50,16 @@ import {
 /** Where this web server finds the API. On a hosted server set API_INTERNAL_URL to the API's address inside the network. */
 export const API_URL = (process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1").replace(/\/+$/, "");
 
+/**
+ * The visitor's own address, passed on when this server asks the API for a public page. The
+ * API limits how often one caller may ask; on a server it trusts this header from inside the
+ * network (TRUST_PROXY), so without it every diner would count as this web server.
+ */
+export function visitorHeaders(request: Request): Record<string, string> {
+  const forwarded = request.headers.get("x-forwarded-for");
+  return forwarded ? { "X-Forwarded-For": forwarded } : {};
+}
+
 /** What a link's token looks like; anything else is answered without asking the API. */
 export const TOKEN_PATTERN = /^[A-Za-z0-9_-]{10,64}$/;
 

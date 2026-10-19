@@ -9,6 +9,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createPrismaClient, pinLookup, type Prisma } from "../src/index.js";
+import { loadEccsServices } from "./eccs-services.js";
 import { loadInspectionTemplate } from "./inspection-template.js";
 import { loadChecklistLibrary } from "./library.js";
 import { loadNewServices } from "./new-services.js";
@@ -23,6 +24,11 @@ const rootEnvFile = resolve(import.meta.dirname, "../../../.env");
 if (existsSync(rootEnvFile)) process.loadEnvFile(rootEnvFile);
 const PIN_SECRET = process.env["PIN_SECRET"];
 if (!PIN_SECRET) throw new Error("PIN_SECRET is not set (copy .env.example to .env at the repo root)");
+// The server images run with NODE_ENV=production. There, only a test server holding sample data
+// (SAMPLE_SERVER=on) may be wiped; the live database starts with seed:live instead.
+if (process.env["NODE_ENV"] === "production" && process.env["SAMPLE_SERVER"] !== "on") {
+  throw new Error("This seed wipes the whole database, so on a server it runs only with SAMPLE_SERVER=on. For the live database use: npm run seed:live");
+}
 
 const prisma = createPrismaClient();
 
@@ -238,53 +244,7 @@ async function seedSopsAndChecklists() {
     },
   });
 
-  const pestService = await prisma.checklistTemplate.create({
-    data: {
-      kind: "SERVICE",
-      title: t("Pest control visit", "పెస్ట్ కంట్రోల్ సందర్శన", "पेस्ट कंट्रोल विज़िट"),
-      items: {
-        create: items([
-          { section: "Inspection", label: t("Entry points inspected", "ప్రవేశ మార్గాలు తనిఖీ చేయబడ్డాయి", "प्रवेश बिंदुओं की जांच की गई") },
-          { section: "Inspection", label: t("Activity found (describe)", "కనుగొన్న కార్యకలాపం (వివరించండి)", "पाई गई गतिविधि (वर्णन करें)"), type: "TEXT" },
-          { section: "Treatment", label: t("Gel bait applied in kitchen", "వంటగదిలో జెల్ బైట్ వేయబడింది", "रसोई में जेल बेट लगाया गया") },
-          { section: "Treatment", label: t("Rodent stations checked and refilled", "ఎలుకల స్టేషన్లు తనిఖీ చేసి నింపబడ్డాయి", "चूहा स्टेशनों की जांच और रीफिल") },
-          { section: "Treatment", label: t("Fly traps serviced", "ఈగల ట్రాప్‌లు సర్వీస్ చేయబడ్డాయి", "मक्खी ट्रैप की सर्विस की गई") },
-          { section: "Close-out", label: t("Food contact surfaces protected during treatment", "చికిత్స సమయంలో ఆహార ఉపరితలాలు రక్షించబడ్డాయి", "उपचार के दौरान खाद्य सतहें सुरक्षित रखी गईं") },
-        ]),
-      },
-    },
-  });
-
-  const deepCleanService = await prisma.checklistTemplate.create({
-    data: {
-      kind: "SERVICE",
-      title: t("Kitchen deep clean", "వంటగది డీప్ క్లీన్", "रसोई डीप क्लीन"),
-      items: {
-        create: items([
-          { section: "Cooking line", label: t("Ranges, grills and fryers degreased", "స్టవ్‌లు, గ్రిల్‌లు, ఫ్రయర్‌లు శుభ్రం చేయబడ్డాయి", "रेंज, ग्रिल और फ्रायर की ग्रीस हटाई गई"), photoRequired: true },
-          { section: "Cooking line", label: t("Walls and splashbacks cleaned", "గోడలు శుభ్రం చేయబడ్డాయి", "दीवारें साफ की गईं") },
-          { section: "Floors and drains", label: t("Floors scrubbed, drains cleared", "నేలలు రుద్ది, డ్రైన్‌లు శుభ్రం చేయబడ్డాయి", "फर्श रगड़े गए, नालियां साफ की गईं"), photoRequired: true },
-          { section: "Cold storage", label: t("Fridges and freezers cleaned inside", "ఫ్రిజ్‌లు, ఫ్రీజర్‌లు లోపల శుభ్రం చేయబడ్డాయి", "फ्रिज और फ्रीज़र अंदर से साफ किए गए") },
-          { section: "Close-out", label: t("All surfaces sanitised and rinsed", "అన్ని ఉపరితలాలు శానిటైజ్ చేసి కడగబడ్డాయి", "सभी सतहें सैनिटाइज़ करके धोई गईं") },
-        ]),
-      },
-    },
-  });
-
-  const chimneyService = await prisma.checklistTemplate.create({
-    data: {
-      kind: "SERVICE",
-      title: t("Chimney and hood cleaning", "చిమ్నీ మరియు హుడ్ క్లీనింగ్", "चिमनी और हुड की सफाई"),
-      items: {
-        create: items([
-          { section: "Hood", label: t("Filters removed, soaked and degreased", "ఫిల్టర్లు తీసి, నానబెట్టి, శుభ్రం చేయబడ్డాయి", "फ़िल्टर निकालकर भिगोए और साफ किए गए"), photoRequired: true },
-          { section: "Hood", label: t("Hood interior scraped and washed", "హుడ్ లోపలి భాగం శుభ్రం చేయబడింది", "हुड का अंदरूनी भाग साफ किया गया"), photoRequired: true },
-          { section: "Duct", label: t("Duct cleaned to accessible length", "డక్ట్ అందుబాటులో ఉన్నంత వరకు శుభ్రం చేయబడింది", "डक्ट पहुंच योग्य लंबाई तक साफ की गई") },
-          { section: "Fan", label: t("Exhaust fan running without noise or vibration", "ఎగ్జాస్ట్ ఫ్యాన్ శబ్దం లేకుండా నడుస్తోంది", "एग्ज़ॉस्ट फैन बिना आवाज़ के चल रहा है") },
-        ]),
-      },
-    },
-  });
+  // The service visits' task lists (pest control, deep clean, chimney) are in eccs-services.ts.
 
   const inspection = await prisma.checklistTemplate.create({
     data: {
@@ -305,79 +265,12 @@ async function seedSopsAndChecklists() {
     },
   });
 
-  return { opening, closing, pestService, deepCleanService, chimneyService, inspection };
+  return { opening, closing, inspection };
 }
 
-async function seedServices(templates: Awaited<ReturnType<typeof seedSopsAndChecklists>>) {
-  // SAC codes and prices are placeholders to be confirmed by the founder and their accountant.
-  const pest = await prisma.serviceType.create({
-    data: {
-      code: "PEST", sacCode: "998531", category: "PEST", checklistTemplateId: templates.pestService.id,
-      issuesCertificate: true, certificateValidDays: 15,
-      name: t("Pest control", "పెస్ట్ కంట్రోల్", "पेस्ट कंट्रोल"),
-    },
-  });
-  const deepClean = await prisma.serviceType.create({
-    data: {
-      code: "DEEP_CLEAN", sacCode: "998533", checklistTemplateId: templates.deepCleanService.id,
-      issuesCertificate: true, certificateValidDays: 30,
-      name: t("Kitchen deep clean", "వంటగది డీప్ క్లీన్", "रसोई डीप क्लीन"),
-    },
-  });
-  const chimney = await prisma.serviceType.create({
-    data: {
-      code: "CHIMNEY", sacCode: "998533", checklistTemplateId: templates.chimneyService.id,
-      issuesCertificate: true, certificateValidDays: 90,
-      name: t("Chimney and hood cleaning", "చిమ్నీ మరియు హుడ్ క్లీనింగ్", "चिमनी और हुड की सफाई"),
-    },
-  });
-  const safety = await prisma.serviceType.create({
-    data: {
-      code: "SAFETY_INSPECTION", sacCode: "998349", category: "TESTING",
-      name: t("Fire and equipment safety inspection", "అగ్ని మరియు పరికరాల భద్రతా తనిఖీ", "अग्नि और उपकरण सुरक्षा निरीक्षण"),
-    },
-  });
-
-  await prisma.serviceCatalogItem.createMany({
-    data: [
-      { serviceTypeId: pest.id, pricePaise: rupees(1800), durationMinutes: 60, name: t("Pest control, single visit", "పెస్ట్ కంట్రోల్, ఒక సందర్శన", "पेस्ट कंट्रोल, एक विज़िट") },
-      { serviceTypeId: deepClean.id, pricePaise: rupees(9500), durationMinutes: 360, name: t("Kitchen deep clean", "వంటగది డీప్ క్లీన్", "रसोई डीप क्लीन") },
-      { serviceTypeId: chimney.id, pricePaise: rupees(4500), durationMinutes: 180, name: t("Chimney and hood cleaning", "చిమ్నీ మరియు హుడ్ క్లీనింగ్", "चिमनी और हुड की सफाई") },
-      { serviceTypeId: safety.id, pricePaise: rupees(2500), durationMinutes: 90, name: t("Safety inspection", "భద్రతా తనిఖీ", "सुरक्षा निरीक्षण") },
-    ],
-  });
-
-  const essential = await prisma.plan.create({
-    data: {
-      code: "ESSENTIAL", pricePaise: rupees(6000), billingCycle: "MONTHLY",
-      name: t("Essential", "ఎసెన్షియల్", "एसेंशियल"),
-      description: t("Pest control every 15 days and a quarterly chimney clean.", "ప్రతి 15 రోజులకు పెస్ట్ కంట్రోల్, మూడు నెలలకు ఒకసారి చిమ్నీ క్లీన్.", "हर 15 दिन पेस्ट कंट्रोल और हर तिमाही चिमनी सफाई।"),
-      lines: {
-        create: [
-          { serviceTypeId: pest.id, intervalDays: 15 },
-          { serviceTypeId: chimney.id, intervalDays: 90 },
-        ],
-      },
-    },
-    include: { lines: true },
-  });
-
-  const complete = await prisma.plan.create({
-    data: {
-      code: "COMPLETE", pricePaise: rupees(15000), billingCycle: "MONTHLY",
-      name: t("Complete", "కంప్లీట్", "कम्प्लीट"),
-      description: t("Pest control every 15 days, monthly deep clean, chimney clean every 45 days and a quarterly safety inspection.", "ప్రతి 15 రోజులకు పెస్ట్ కంట్రోల్, నెలవారీ డీప్ క్లీన్, 45 రోజులకు చిమ్నీ క్లీన్, మూడు నెలలకు భద్రతా తనిఖీ.", "हर 15 दिन पेस्ट कंट्रोल, मासिक डीप क्लीन, हर 45 दिन चिमनी सफाई और तिमाही सुरक्षा निरीक्षण।"),
-      lines: {
-        create: [
-          { serviceTypeId: pest.id, intervalDays: 15 },
-          { serviceTypeId: deepClean.id, intervalDays: 30 },
-          { serviceTypeId: chimney.id, intervalDays: 45 },
-          { serviceTypeId: safety.id, intervalDays: 90 },
-        ],
-      },
-    },
-    include: { lines: true },
-  });
+async function seedServices() {
+  // The services, their task lists and the two plans are shared with the live start (seed-live.ts).
+  const { plans } = await loadEccsServices(prisma);
 
   await prisma.chemical.createMany({
     data: [
@@ -388,7 +281,7 @@ async function seedServices(templates: Awaited<ReturnType<typeof seedSopsAndChec
     ],
   });
 
-  return { plans: { essential, complete }, serviceTypes: { pest, deepClean, chimney, safety } };
+  return { plans };
 }
 
 async function seedOutletData(
@@ -473,7 +366,7 @@ async function main() {
   const { supervisor } = await seedUsers();
   const { outlets } = await seedClients();
   const templates = await seedSopsAndChecklists();
-  const services = await seedServices(templates);
+  const services = await seedServices();
   await seedOutletData(outlets, templates, services, supervisor.id);
   await addSampleVisits(prisma);
   // The services added on 9 Oct 2026. Not in the two sample plans, so they come after the plan visits.

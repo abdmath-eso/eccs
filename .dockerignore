@@ -1,0 +1,47 @@
+# What `docker build` may see of this repo (infra/docker/*.Dockerfile build from the repo root).
+# Everything the images need is rebuilt inside Docker, so builds, installed packages and
+# anything private stay out.
+
+# Installed packages and builds: made again inside the image
+**/node_modules
+**/dist
+**/dist-*
+**/.next
+**/.turbo
+**/.expo
+**/coverage
+**/*.tsbuildinfo
+packages/db/generated
+
+# Secrets and local settings: never in an image
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*firebase-adminsdk*.json
+*service-account*.json
+
+# The phone app is not part of the server. Its package.json stays, because the lockfile
+# lists it as a workspace member; its dependencies are never installed.
+apps/mobile/*
+!apps/mobile/package.json
+*.apk
+*.aab
+*.ipa
+
+# Not needed to build or run the server
+.git
+.claude
+.agents
+.work
+docs
+reports
+research_notes
+infra/server
+infra/scripts
+apps/api/test
+apps/api/models/*.part
+*.traineddata
+*.log
+image.png

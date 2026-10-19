@@ -1,7 +1,7 @@
 import { isLinkPreviewAgent, type PublicQuoteDto } from "@eccs/shared";
 import type { NextRequest } from "next/server";
 
-import { API_URL, TOKEN_PATTERN } from "@/lib/public-page";
+import { API_URL, TOKEN_PATTERN, visitorHeaders } from "@/lib/public-page";
 import { quotePageHeaders, renderQuoteNotFound, renderQuotePage } from "@/lib/quote-page";
 
 // A quote's public page: /q/<token> (15 Oct 2026). A route handler, not a React page, so
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
 
   let quote: PublicQuoteDto | null = null;
   try {
-    const response = await fetch(`${API_URL}/public/quotes/${encodeURIComponent(token)}`, { cache: "no-store" });
+    const response = await fetch(`${API_URL}/public/quotes/${encodeURIComponent(token)}`, { cache: "no-store", headers: visitorHeaders(request) });
     if (response.ok) quote = (await response.json()) as PublicQuoteDto;
     else if (response.status !== 404) throw new Error(`The API answered ${response.status}`);
   } catch {
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
       // The visitor's browser name goes along, so the API can tell a robot too. A failure here never stops the page.
       await fetch(`${API_URL}/public/quotes/${encodeURIComponent(token)}/opened`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...visitorHeaders(request) },
         body: JSON.stringify({ agent: agent?.slice(0, 400) ?? null }),
         cache: "no-store",
         signal: AbortSignal.timeout(3000),

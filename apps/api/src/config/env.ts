@@ -125,9 +125,19 @@ const schema = z
       .string()
       .regex(/^\d{6}$/)
       .optional(),
+    // "on" marks a test server that holds sample data only (19 Oct 2026): it runs with
+    // NODE_ENV=production like the live server, but may still accept DEV_FIXED_OTP, so the
+    // founder and BD demos can log in without SMS. Never on a server with real restaurants.
+    SAMPLE_SERVER: z.enum(['on', 'off']).default('off'),
+    // "on" behind Caddy on a server (infra/server/compose.yml sets it): a request's address is the
+    // visitor's own, read from X-Forwarded-For as passed on by Caddy and the console, trusted only
+    // from loopback and private addresses inside the server. "off" (the default, this PC): the
+    // address is whoever connected. The customer page's and quotes' per-caller limits, the Logs
+    // and the legal acceptances all use it.
+    TRUST_PROXY: z.enum(['on', 'off']).default('off'),
   })
-  .refine((env) => !(env.NODE_ENV === 'production' && env.DEV_FIXED_OTP), {
-    message: 'DEV_FIXED_OTP must not be set in production',
+  .refine((env) => !(env.NODE_ENV === 'production' && env.DEV_FIXED_OTP && env.SAMPLE_SERVER !== 'on'), {
+    message: 'DEV_FIXED_OTP must not be set in production (only a sample-data test server may use it, with SAMPLE_SERVER=on)',
   })
   .refine(
     (env) =>

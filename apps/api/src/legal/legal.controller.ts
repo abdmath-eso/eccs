@@ -52,8 +52,8 @@ export class LegalController {
     @Body(new ZodValidationPipe(acceptLegalSchema)) body: AcceptLegalInput,
     @Req() request: AuthenticatedRequest,
   ): Promise<LegalStatusDto> {
-    // The address the request came from. The API does not trust X-Forwarded-For anywhere
-    // (no "trust proxy"), so behind a proxy this is the proxy's address until that is set up.
+    // The address the request came from: on a server behind Caddy the visitor's own
+    // (TRUST_PROXY=on, main.ts); on this PC whoever connected.
     const userAgent = request.headers['user-agent'];
     // Which documents and versions, for the activity log (the agreement itself is kept in LegalAcceptance).
     noteActivity({ details: { documents: body.documents.map((document) => `${document.key} ${document.version}`) } });

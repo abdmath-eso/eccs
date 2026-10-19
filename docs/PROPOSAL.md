@@ -67,7 +67,7 @@ Each has the assumption I have planned around. Correct any that are wrong; quest
 | PDFs | HTML templates rendered to PDF with headless Chromium in the worker | Service reports and certificates share branding with the web UI. |
 | Payments (Phase 2) | **Razorpay** payment links and UPI | Standard for Indian B2B collections. |
 | Translations | **i18next**, with `en`, `te`, `hi` (the app's own screens are also in Tamil, Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi, Odia and Urdu) | SOP and checklist text is stored per language in the database so ECCS can edit it without a release. |
-| Hosting | **AWS Mumbai (ap-south-1)**: API and worker on ECS Fargate, RDS PostgreSQL, ElastiCache Redis, S3. Web on the same cluster behind CloudFront | Data stays in India, one vendor, room to grow. Infrastructure defined in Terraform. |
+| Hosting | **AWS Mumbai (ap-south-1)**: API and worker on ECS Fargate, RDS PostgreSQL, ElastiCache Redis, S3. Web on the same cluster behind CloudFront | Data stays in India, one vendor, room to grow. Infrastructure defined in Terraform. **19 Oct 2026, awaiting the founder:** `docs/HOSTING_PLAN.md` proposes starting simpler, still AWS Mumbai: one Lightsail server, a Lightsail managed PostgreSQL and S3 (the code does not use Redis, and its timed jobs run inside the API), with this setup as the step up at about 100 restaurants. |
 | CI/CD and monitoring | GitHub Actions, EAS Build for Android, Sentry for errors | |
 
 **Things with lead time that should start early**

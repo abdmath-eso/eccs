@@ -398,7 +398,7 @@ Do not put real ID numbers, bank details or documents into the sample. A whole A
 
 Buddy uses the real AI: the API needs the Anthropic key it already has for the AI features, and each message costs about ₹0.08 against the day's AI limit. First restart the API (`pnpm --filter @eccs/api start`; Claude has built it) and the console, and reload the app in the Expo terminal (or open it in the browser).
 
-1. **As the Owner** (Spice Route, PIN `2580` with either Spice code): tap the round sparkle button at the top of Home (or the "Ask ECCS Buddy" card, or More > ECCS Buddy). The suggested questions fit your day: tap one.
+1. **As the Owner** (Spice Route, PIN `2580` with either Spice code): tap the round Buddy button at the top of Home (the chef-hat bubble; a sparkle in APKs before the next one) (or the "Ask ECCS Buddy" card, or More > ECCS Buddy). The suggested questions fit your day: tap one.
 2. **Your day:** "What is left to do today?", "When is my next ECCS visit?", "Which licences need renewing?". The answer comes first, then an Open button to the screen.
 3. **A change:** "Book a deep clean for Saturday morning". A card shows the service, the day and time, and the price with GST; nothing is booked until you tap **Book** (it then waits for ECCS under Services, and the Ops Manager sees it in the console's Visits). Also try "Add 'Fridge 5°C or below' to the opening checklist" and "Write an SOP for closing the kitchen". **Change** puts "Change it:" in the box; **Cancel** changes nothing.
 4. **Kitchen questions:** "How long does cooked rice keep in the fridge?", "How often should we change frying oil?". Hindi or Telugu work too: type in them, or change the app language in My profile.

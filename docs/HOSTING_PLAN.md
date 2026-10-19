@@ -71,12 +71,12 @@ The plan's budget was up to ₹15,000 a month for the pilot (PROPOSAL, 5 Oct). N
   3. **Create an RDS database,** then delete it.
   4. **Make a Lambda function with a URL.**
   5. **Ask a question in the Bedrock playground.**
-- **On the account's first day, nearly everything was denied, and not by the Free plan.** Lightsail, EC2, RDS, Lambda, CloudWatch and listing S3 buckets were refused, both before and after the upgrade to the Paid plan. The refusals come from an AWS Organization the account belongs to, whose management account uses the founder's email. It turned out to be AWS's new sign-up experience (AWS Settings and a Builder ID). After the founder activated its advanced features, one region rule remained, allowing only Sydney; Mumbai is added by editing that rule (STATUS section 6).
+- **On the account's first day, nearly everything was denied, and not by the Free plan.** Lightsail, EC2, RDS, Lambda, CloudWatch and listing S3 buckets were refused, both before and after the upgrade to the Paid plan. The refusals come from an AWS Organization the account belongs to, whose management account uses the founder's email. It turned out to be AWS's new sign-up experience (AWS Settings and a Builder ID). After the founder activated its advanced features, one region rule remained, allowing only Sydney; the founder added Mumbai to it on 19 Oct, and everything answers there now (STATUS section 6). After advanced features only the budget task was still offered (done, +US$20); the other four were not.
 - **Never enable AWS Organizations or Control Tower,** and never set up IAM Identity Center in a way that turns Organizations on. Any of these ends the credits at once. Use a plain IAM user for the day-to-day admin login.
 
 ## 6. Before going online
 
-**Claude's work** (no AWS account needed until the last step):
+**Claude's work** (no AWS account needed until the last step). Items 1 to 5 were built and tested in Docker on 19 Oct (Stage H; `infra/RUNBOOK.md` and the files in `infra/`); item 6 waits for the server.
 
 1. **Package the app for a server.** No server packaging exists yet; the only Docker file today runs the local database, Redis and S3 stand-in. Needed:
    - the API as a container, with Chromium, the Telugu and Hindi fonts its PDFs need, and the face models;

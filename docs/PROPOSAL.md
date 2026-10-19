@@ -508,7 +508,10 @@ eccs/
 │  └─ config/              shared ESLint, TypeScript and Prettier settings
 ├─ infra/
 │  ├─ docker-compose.yml   local Postgres, Redis, SeaweedFS (S3)
-│  └─ terraform/           AWS environments
+│  ├─ docker/              the API, migrate and console images (19 Oct 2026)
+│  ├─ server/              the server's compose file, Caddyfile, settings template, set-up script
+│  ├─ scripts/             deploy.ps1 (with rollback), new-secrets.mjs
+│  └─ RUNBOOK.md           putting ECCS on a server, step by step (Terraform is left for the step up; see docs/HOSTING_PLAN.md)
 ├─ docs/
 │  ├─ PROPOSAL.md          this file
 │  ├─ adr/                 architecture decision records

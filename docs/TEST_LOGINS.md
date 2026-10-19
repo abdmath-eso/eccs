@@ -312,7 +312,7 @@ First: the key must be in `.env` as `ANTHROPIC_API_KEY=...` (it is). Stop the AP
 5. **The camera nudge** (app, any restaurant login): open today's checklist and take a photo of the ceiling, or with a finger over the lens. A moment later, under the photo: "This photo looks too dark. Retake?" with **Retake** and **Keep it**. A clear photo shows nothing. Then, as the Owner, add your own item "Water bottles empty and clean" and photograph a bottle with water in it: "This may not be done yet: ..." with the reason in your language. Tap **Keep it**: nothing changes. The checklist can always be submitted. (This needs the 6:06 pm APK of 14 Oct or later, or the Expo terminal.)
 6. **The inspection summary** (app, as the Supervisor, ECCS staff login `9000000003`): finish an inspection as in section 7, open its report, tap **Draft with AI**, change a word, take an item off "Fix these first", then **Save summary**. Approve it in the console as the Super Admin: the PDF has the summary and "Drafted with AI help and checked by the inspector."
 7. **The daily digest** (console, as the Super Admin `9000000001` or Ops Manager): Monitoring. The card at the top names the outlets needing attention; each name jumps to its row. **Update** works at most once an hour.
-8. **Switching it off:** put `AI_FEATURES=off` in `.env` and restart the API: every screen works as before, without the AI parts. To switch off just the nudge: `AI_DISABLED_FEATURES=photo-check`.
+8. **Switching it off:** since 19 Oct, in the console: Business > AI usage > Settings (section 30). From the server, `AI_FEATURES=off` in `.env` (and a restart) still switches everything off, whatever the console says: every screen works as before, without the AI parts.
 
 ## 23. Trying the Logs page
 
@@ -407,6 +407,21 @@ Buddy uses the real AI: the API needs the Anthropic key it already has for the A
 7. **As a Manager** (Jubilee Hills, PIN `4821` with `SPICE-JH2K7M`): only Jubilee Hills. **As a Head Chef** (`7306`): no Buddy button at all.
 8. **The mic:** in the browser preview (Chrome or Edge), tap the mic, allow it and speak: the words appear in the box, to check before Send. On the phone it needs a new APK; in Expo Go, use the keyboard's own mic.
 9. **Recent chats** (the clock at the top): chats are removed 30 days after their last message; **New chat** (the pencil) starts again.
+
+## 30. Trying AI usage
+
+First, **when Claude says no builder is changing the code**: stop the API terminal and start it again (`pnpm --filter @eccs/api start`; Claude has built it). The console needs nothing. The page shows the real AI spending from the request log, not sample data.
+
+1. **Console, as the Super Admin** (`9000000001`): Business > **AI usage**. The five cards, spend per day with the dashed daily limit, Switches and limits, then By helper, By restaurant and By model.
+2. **Filters:** the period chips (October, Last 7 days, Today, September, Dates), then Restaurant, Outlet, Helper, Model, Where it runs, Result. Copy the page address into a new tab: the same view opens.
+3. Under By restaurant, click **Spice Route, Jubilee Hills**: its own panel, its days against its own cap, its helpers; **Show only this outlet**.
+4. **Log**: every request, newest first. **Export the log**: a CSV opens in Excel; it has no words of any question or answer.
+5. **Settings**, switching a helper off: switch off **Why this score?**. In the app as the Owner (PIN `2580`), reload: "Why this score?" is gone from Home. Switch it back on.
+6. **A model:** set **Camera nudge** to Sonnet 5.5 and Save; take a checklist photo in the app; the Log shows the nudge on Sonnet 5.5. Set it back to Haiku 5.5.
+7. **A limit:** type `300` in "A day, everything" and Save: "The daily limit can be at most US$200". Type `3` and Save: it applies from the next request.
+8. **Latest changes**, at the bottom, lists who changed what, from and to; the **Logs** page has the same.
+9. **About the key:** type the monthly cap you have set in Anthropic's console, if any; the credit card on Overview is the app's own count (Anthropic's console has the exact balance).
+10. **As the Ops Manager** (`9000000002`): AI usage is there, with Settings read-only. As Ravi (`9000000004`) or the Supervisor: no AI usage.
 10. **In the console** (Super Admin, `9000000001`): Logs, the Buddy counts per day and per restaurant (chats, changes, not helpful, refused, paused, cost). Never what anyone wrote.
 
 The sample Owner of Deccan Biryani (`3917`) has Telugu as the app language, so Buddy answers in Telugu.

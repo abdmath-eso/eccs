@@ -251,13 +251,14 @@ The six AI features (14 Oct 2026) send nothing of their own to restaurants: a tr
 
 | # | When | Who | Says | Channel (suggested) | Status |
 |---|---|---|---|---|---|
-| AI1 | The day's AI spending limit is reached, overall or for one outlet (from 16 Oct this also pauses the shop-board reader, so BDEs type their leads) | Adm | "AI features are paused until tomorrow: today's limit was reached." / "AI is paused at {outlet} until tomorrow." | In-app | not built |
+| AI1 | The day's AI spending limit is reached, overall or for one outlet, or (from 19 Oct, when one is set on the AI usage page) the month's (from 16 Oct this also pauses the shop-board reader, so BDEs type their leads) | Adm | "AI features are paused until tomorrow: today's limit was reached." / "AI is paused at {outlet} until tomorrow." / "AI features are paused until the 1st: this month's limit was reached." | In-app | not built |
 | AI2 | Anthropic refuses every request (the key is wrong or withdrawn, or the monthly limit set in Anthropic's console is reached) | Adm | "AI features are not working: {reason}." | Push + in-app | not built |
 | AI3 | Each morning, the monitoring board's digest is ready (the founder to decide) | Adm | "Today's summary of the monitoring board is ready." | Push | not built |
 | AI4 | A day's AI spend passes the warning share of the daily limit (80% unless changed on the AI usage page, Stage F) | Adm | "AI spend today is at {percent}% of the daily limit (₹{spent} of ₹{limit})." | In-app | not built |
 | AI5 | The month's AI spend passes the warning share of the monthly limit, if one is set (Stage F) | Adm | "AI spend this month is at {percent}% of the monthly limit." | In-app | not built |
 | AI6 | The credit left on the Anthropic key, by the app's own count, falls under the warning amount (US$20 unless changed; Stage F) | Adm | "About US${left} of AI credit is left: top it up in Anthropic's console." | Push + in-app | not built |
 | AI7 | Someone changes an AI setting on the AI usage page (a helper off, a model, a limit) (Stage F; the founder to decide) | Adm | "{name} changed {setting} from {from} to {to}." | In-app | not built |
+| AI8 | An AI helper fails more than 10% of today's tries (at least 3) (Stage F) | Adm, Ops | "{helper} is failing: {failed} of {tries} tries today." | In-app | not built |
 
 
 ## 16c. Logs
@@ -382,6 +383,7 @@ ECCS Buddy (16 Oct 2026) sends nothing of its own. A card the person taps does w
 | 11 Oct 2026 | Face attendance: T1 withdrawn, T5 to T9 added. |
 | 19 Oct 2026 | ECCS Buddy: no notification for a crisis message, on purpose (section 16h). |
 | 19 Oct 2026 | AI usage page (Stage F, started): AI4 to AI7 added to section 16b, from the design's "Alert me when". None built. |
+| 19 Oct 2026 | AI usage page (Stage F, built): AI1 widened to the new monthly limit; AI8 added (a helper failing). The page shows AI4 to AI6 and AI8 as warnings at its top, and their number beside AI usage in the menu, meanwhile. None built. |
 | 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |
 | 9 Oct 2026 | Added section 16 (staff, food labels, customer page), none built. |
 | 9 Oct 2026 | Added section 15 (new services and photo integrity), none built. |

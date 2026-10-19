@@ -6,6 +6,7 @@ import { StyleSheet, useColorScheme } from 'react-native';
 import { DirectionView } from '@/components/direction-view';
 import { SnackbarProvider } from '@/components/ui/snackbar';
 import { useDirection } from '@/lib/direction';
+import { KeyboardRoot } from '@/lib/keyboard';
 import { SessionProvider, useSession } from '@/lib/session';
 
 SplashScreen.preventAutoHideAsync();
@@ -13,15 +14,18 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <SessionProvider>
-        <Mirrored>
-          <SnackbarProvider>
-            <RootNavigator />
-          </SnackbarProvider>
-        </Mirrored>
-      </SessionProvider>
-    </ThemeProvider>
+    // Keeps what is being typed in view above the keyboard, on every screen (lib/keyboard).
+    <KeyboardRoot>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <SessionProvider>
+          <Mirrored>
+            <SnackbarProvider>
+              <RootNavigator />
+            </SnackbarProvider>
+          </Mirrored>
+        </SessionProvider>
+      </ThemeProvider>
+    </KeyboardRoot>
   );
 }
 

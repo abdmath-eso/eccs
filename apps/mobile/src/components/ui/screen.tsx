@@ -1,8 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, usePathname } from 'expo-router';
 import { useState, type ReactNode, type RefObject } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, StyleSheet, View, type ScrollView } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BuddyButton } from '@/components/buddy-button';
 import { ThemedText } from '@/components/themed-text';
@@ -10,6 +10,7 @@ import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useDirection } from '@/lib/direction';
 import { showsBuddy } from '@/lib/buddy';
+import { KeyboardFooter, KeyboardScrollView, keyboardHandled } from '@/lib/keyboard';
 import { isTabRoute, normalizePath } from '@/lib/navigation';
 import { useSession } from '@/lib/session';
 
@@ -70,6 +71,13 @@ export function Screen({
   // A main section is reached from the bottom bar and has nowhere to go "back" to,
   // unless the screen steps back within itself.
   const showBack = back && (!aboveBottomBar || onBack !== undefined);
+  // While typing, the box being typed in is scrolled to just above the keyboard (lib/keyboard), and the
+  // footer rides up with the keyboard so the main button or Buddy's message box stays in view; the body
+  // then keeps the box above the footer too. Above the bottom bar the footer stays put under the keyboard,
+  // as bottom bars do, so it can never sit on top of the box.
+  const insets = useSafeAreaInsets();
+  const [footerHeight, setFooterHeight] = useState(0);
+  const stickyFooter = Boolean(footer) && !aboveBottomBar;
 
   async function refresh() {
     if (!onRefresh) return;
@@ -86,7 +94,8 @@ export function Screen({
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
       <SafeAreaView style={styles.safeArea} edges={aboveBottomBar ? ['top', 'left', 'right'] : undefined}>
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* Where lib/keyboard handles the keyboard (the APK), this one stands aside; elsewhere it works on iPhones only. */}
+        <KeyboardAvoidingView style={styles.flex} enabled={!keyboardHandled} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {(showBack || headerRight || (buddy && !title)) && (
             <View style={styles.header}>
               {showBack ? (
@@ -109,12 +118,13 @@ export function Screen({
               </View>
             </View>
           )}
-          <ScrollView
+          <KeyboardScrollView
             // A screen often shows a loading state first, without `scrollRef`, and passes it
             // once its data has arrived. The browser build only hands over the scroll view
             // when it is first created, so make a fresh one when a ref appears.
             key={scrollRef ? 'scrollable-from-outside' : 'plain'}
             ref={scrollRef}
+            bottomOffset={Spacing.four + (stickyFooter ? footerHeight : 0)}
             style={styles.flex}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
@@ -149,8 +159,18 @@ export function Screen({
               </ThemedText>
             )}
             {children}
-          </ScrollView>
-          {footer && <View style={[styles.footer, { borderColor: theme.border, backgroundColor: theme.background }]}>{footer}</View>}
+          </KeyboardScrollView>
+          {footer &&
+            (stickyFooter ? (
+              <KeyboardFooter
+                bottomInset={insets.bottom}
+                onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
+                style={[styles.footer, { borderColor: theme.border, backgroundColor: theme.background }]}>
+                {footer}
+              </KeyboardFooter>
+            ) : (
+              <View style={[styles.footer, { borderColor: theme.border, backgroundColor: theme.background }]}>{footer}</View>
+            ))}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>

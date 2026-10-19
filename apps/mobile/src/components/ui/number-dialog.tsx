@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { KeyboardDialogFrame } from '@/lib/keyboard';
 import { useSession } from '@/lib/session';
 
 interface NumberDialogProps {
@@ -45,35 +46,39 @@ export function NumberDialog({ title, value, max, rangeMessage, confirmLabel, on
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
-      <DirectionView style={styles.backdrop}>
-        <View style={[styles.card, { backgroundColor: theme.background }]}>
-          <ThemedText type="default" style={styles.title}>
-            {title}
-          </ThemedText>
-          <TextField
-            accessibilityLabel={title}
-            value={typed}
-            onChangeText={(next) => {
-              setTyped(next);
-              setError(null);
-            }}
-            error={error}
-            keyboardType="number-pad"
-            maxLength={4}
-            autoFocus
-            selectTextOnFocus
-            returnKeyType="done"
-            onSubmitEditing={confirm}
-          />
-          <Button label={confirmLabel} onPress={confirm} />
-          <Button label={t('common.cancel')} variant="secondary" onPress={onCancel} />
-        </View>
-      </DirectionView>
+      {/* Stays above the keyboard while typing. */}
+      <KeyboardDialogFrame style={styles.frame}>
+        <DirectionView style={styles.backdrop}>
+          <View style={[styles.card, { backgroundColor: theme.background }]}>
+            <ThemedText type="default" style={styles.title}>
+              {title}
+            </ThemedText>
+            <TextField
+              accessibilityLabel={title}
+              value={typed}
+              onChangeText={(next) => {
+                setTyped(next);
+                setError(null);
+              }}
+              error={error}
+              keyboardType="number-pad"
+              maxLength={4}
+              autoFocus
+              selectTextOnFocus
+              returnKeyType="done"
+              onSubmitEditing={confirm}
+            />
+            <Button label={confirmLabel} onPress={confirm} />
+            <Button label={t('common.cancel')} variant="secondary" onPress={onCancel} />
+          </View>
+        </DirectionView>
+      </KeyboardDialogFrame>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  frame: { flex: 1 },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

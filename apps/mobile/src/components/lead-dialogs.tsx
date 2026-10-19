@@ -13,6 +13,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { addDays, formatDayShort, formatTime, indiaToday, maskTypedDate, parseTypedDate, toTypedDate } from '@/lib/format';
 import { dayWords } from '@/lib/sales';
+import { KeyboardDialogFrame } from '@/lib/keyboard';
 import { useSession } from '@/lib/session';
 
 // The small forms a step on a lead needs (B2): a note, when a free check is and who goes,
@@ -39,19 +40,22 @@ export function LeadSheet({ title, confirmLabel, danger, error, children, onConf
   const insets = useSafeAreaInsets();
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
-      <DirectionView style={[styles.backdrop, { paddingTop: Spacing.five + insets.top }]}>
-        <View style={[styles.card, { backgroundColor: theme.background }]}>
-          <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-            <ThemedText type="default" style={styles.title}>
-              {title}
-            </ThemedText>
-            {children}
-            <ErrorText message={error ?? null} />
-            <Button label={confirmLabel} variant={danger ? 'danger' : 'primary'} onPress={onConfirm} />
-            <Button label={t('common.cancel')} variant="secondary" onPress={onCancel} />
-          </ScrollView>
-        </View>
-      </DirectionView>
+      {/* Shrinks above the keyboard while typing, so the buttons can still be scrolled to. */}
+      <KeyboardDialogFrame style={styles.frame}>
+        <DirectionView style={[styles.backdrop, { paddingTop: Spacing.five + insets.top }]}>
+          <View style={[styles.card, { backgroundColor: theme.background }]}>
+            <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+              <ThemedText type="default" style={styles.title}>
+                {title}
+              </ThemedText>
+              {children}
+              <ErrorText message={error ?? null} />
+              <Button label={confirmLabel} variant={danger ? 'danger' : 'primary'} onPress={onConfirm} />
+              <Button label={t('common.cancel')} variant="secondary" onPress={onCancel} />
+            </ScrollView>
+          </View>
+        </DirectionView>
+      </KeyboardDialogFrame>
     </Modal>
   );
 }
@@ -209,6 +213,7 @@ export function LoseDialog({ onSave, onCancel }: { onSave: (reason: string) => v
 }
 
 const styles = StyleSheet.create({
+  frame: { flex: 1 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'flex-start', padding: Spacing.three },
   card: { width: '100%', maxWidth: MaxContentWidth - Spacing.four, maxHeight: '92%', borderRadius: Spacing.four },
   body: { padding: Spacing.four, gap: Spacing.three },

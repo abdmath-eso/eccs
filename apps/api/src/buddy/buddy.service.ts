@@ -20,6 +20,8 @@ import {
   buddyScreenSchema,
   buddyStarters,
   BUDDY_SCREEN_JSON_SCHEMA,
+  buddyAnswerProblemIsScope,
+  buddyNumberShape,
   checkBuddyAnswer,
   hidePhoneNumbers,
   hideSecrets,
@@ -432,13 +434,18 @@ export class BuddyService implements OnModuleInit, OnModuleDestroy {
 
     let answer = plainBuddyText(words.join('\n\n')) || say(user, finished ? 'buddy.answer.cards' : 'buddy.answer.unfinished');
     // The check on every answer before it is kept or shown (OWASP LLM05, LLM07). A failed answer is
-    // replaced by the fixed line, its cards are withdrawn, and the event is counted.
-    const problem = checkBuddyAnswer(answer, { canary: CANARY, allowedNumbers: [env.SUPPORT_PHONE, env.SUPPORT_WHATSAPP], secrets });
+    // replaced by a fixed line, its cards are withdrawn, and the event is counted. Code or a leak means
+    // the answer went off topic; a number, a link or the length is a slip in a real answer, which must
+    // not tell the person their question was off topic (19 Oct 2026: a booking question was).
+    const supportNumbers = [env.SUPPORT_PHONE, env.SUPPORT_WHATSAPP];
+    const problem = checkBuddyAnswer(answer, { canary: CANARY, allowedNumbers: supportNumbers, secrets });
     if (problem) {
-      answer = say(user, 'buddy.outOfScope');
+      // For a number, the record keeps its shape ("AA-9999-99999"), never the number or the answer.
+      const detail = problem === 'NUMBER' ? `NUMBER ${buddyNumberShape(answer, supportNumbers)}` : problem;
+      answer = say(user, buddyAnswerProblemIsScope(problem) ? 'buddy.outOfScope' : 'buddy.answer.unfinished');
       if (turn.cardIds.length > 0) await this.db.buddyCard.updateMany({ where: { id: { in: turn.cardIds } }, data: { status: 'CANCELLED' } });
       turn.opens.length = 0;
-      await this.block(user, outlet, 'ANSWER', problem);
+      await this.block(user, outlet, 'ANSWER', detail);
       noteActivity({ details: { answerReplaced: problem } });
     }
     const userMessage = await this.db.buddyMessage.create({

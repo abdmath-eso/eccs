@@ -3,6 +3,8 @@ import {
   BUDDY_RULES,
   BUDDY_TOOLS,
   BUDDY_TOOL_NAMES,
+  buddyAnswerProblemIsScope,
+  buddyNumberShape,
   buddyCardExpiresAt,
   buddyPaused,
   buddyScopeAllows,
@@ -209,10 +211,36 @@ describe("security rules", () => {
     expect(ok("The <app_context> says")).toBe("LEAK");
   });
 
-  it("allow only ECCS's own numbers and the emergency numbers", () => {
+  it("allow only ECCS's own numbers, the emergency numbers and the crisis line", () => {
     expect(ok("Call 98480 22338")).toBe("NUMBER");
     expect(ok("Call ECCS on +91 90000 00000 or 112", { canary, allowedNumbers: ["+919000000000"] })).toBeNull();
     expect(ok("Your PIN 4821 is set", { canary, secrets: ["4821"] })).toBe("NUMBER");
+    expect(ok("You are not alone. Tele-MANAS is free, day and night: call 14416 or 1-800-891-4416. If anyone is in danger now, call 112.")).toBeNull();
+  });
+
+  // 19 Oct 2026: "Can you help me with booking a pest service?" was replaced, because the answer named the last visit's report.
+  it("do not take ECCS's references or dates for phone numbers", () => {
+    expect(ok("Your last pest control was on Friday 9 October (report SR-2026-00005, certificate CERT-2026-00003).")).toBeNull();
+    expect(ok("Inspection report IR-2026-00001, quote Q-2026-0001 and letter ECCS/AL/2026/0001.")).toBeNull();
+    expect(ok("Due on 20-10-2026, 20/10/2026, 20.10.2026 or 2026-10-20.")).toBeNull();
+    // A phone number next to a reference is still caught, and so is one dressed as a date.
+    expect(ok("Report SR-2026-00005: call 98480 22338")).toBe("NUMBER");
+    expect(ok("Call 98480-22338")).toBe("NUMBER");
+    expect(ok("Call +91 98480 22338")).toBe("NUMBER");
+  });
+
+  it("record what kind of number failed, never the number itself", () => {
+    expect(buddyNumberShape("Call my friend on 98480 22338.")).toBe("AA AA 99999 99999");
+    expect(buddyNumberShape("Ref XY-2026-1234567 is open")).toBe("AA AA-9999-9999999");
+    expect(buddyNumberShape("Your PIN 4821 is set")).toBe("secret");
+  });
+
+  it("replace a slip in a real answer differently from an off-topic or attacking one", () => {
+    expect(buddyAnswerProblemIsScope("CODE")).toBe(true);
+    expect(buddyAnswerProblemIsScope("LEAK")).toBe(true);
+    expect(buddyAnswerProblemIsScope("NUMBER")).toBe(false);
+    expect(buddyAnswerProblemIsScope("LINK")).toBe(false);
+    expect(buddyAnswerProblemIsScope("LENGTH")).toBe(false);
   });
 
   it("hide PINs, codes and phone numbers before the model or the database sees them", () => {

@@ -638,11 +638,37 @@ const CODE_LIKE = [
 const LINK = /\bhttps?:\/\/|\bwww\.|\b[a-z0-9-]+\.(com|in|org|net|io|ai|co|gov|edu|info|xyz|app|dev|me)\b/i;
 
 /**
+ * India's crisis line, which Buddy may always give: Tele-MANAS, the Health Ministry's free mental
+ * health line, open day and night in about 20 languages (telemanas.mohfw.gov.in). The emergency
+ * numbers (112, 101, 108) are short enough to pass the number check anyway.
+ */
+export const BUDDY_HELPLINES = ["14416", "1-800-891-4416"] as const;
+
+/**
+ * Long runs of digits that are no one's phone number, taken out before the number check (19 Oct
+ * 2026, after the founder's "Can you help me with booking a pest service?" was replaced: the answer
+ * named the last visit's report). ECCS's own references: letters, the year, a number (SR-2026-00005,
+ * IR-2026-00001, CERT-2026-00003, Q-2026-0001, ECCS/AL/2026/0001); and dates (20-10-2026, 20/10/2026,
+ * 20.10.2026, 2026-10-20).
+ */
+const NOT_PHONE_NUMBERS = [
+  /\b[A-Z]{1,6}(?:[-/][A-Z]{1,6})*[-/](?:19|20)\d{2}[-/]\d{1,6}\b/g,
+  /\b\d{1,2}[-/.]\d{1,2}[-/.](?:19|20)\d{2}\b/g,
+  /\b(?:19|20)\d{2}-\d{2}-\d{2}\b/g,
+];
+
+/** Whether a failed answer is replaced by the out-of-scope line (it was off-topic or an attack) or by "could not finish" (a slip in a real answer). */
+export function buddyAnswerProblemIsScope(problem: BuddyAnswerProblem): boolean {
+  return problem === "CODE" || problem === "LEAK";
+}
+
+/**
  * The check every answer passes before it is kept or shown (Anthropic's post-draft check; OWASP
  * LLM05 and LLM07): no code or code-like text, no longer than the cap, no links, no phone or other
- * long numbers except ECCS's own support numbers and the emergency numbers, nothing from the
- * instructions (the canary, the context block, the tools' names), and no secret the person typed.
- * A failed answer is replaced by the fixed out-of-scope line, and the event is counted.
+ * long numbers except ECCS's own support numbers, the emergency numbers and the crisis line (ECCS's
+ * references and dates are not phone numbers), nothing from the instructions (the canary, the
+ * context block, the tools' names), and no secret the person typed. A failed answer is replaced by a
+ * fixed line (buddyAnswerProblemIsScope), and the event is counted.
  */
 export function checkBuddyAnswer(
   text: string,
@@ -654,15 +680,36 @@ export function checkBuddyAnswer(
   // Tool names with an underscore only: "visits" or "plan" are ordinary words.
   const leak = [options.canary, "<app_context>", "app_context", "You are ECCS Buddy", ...BUDDY_TOOL_NAMES.filter((name) => name.includes("_"))];
   if (leak.some((marker) => marker && text.includes(marker))) return "LEAK";
-  const allowed = new Set((options.allowedNumbers ?? []).map((number) => number.replace(/\D/g, "")).filter(Boolean));
-  for (const match of text.matchAll(/\+?\d[\d\s().-]{6,}\d/g)) {
-    const digits = match[0].replace(/\D/g, "");
-    // A long run of digits that is not a date, an amount or a licence-style reference is treated as a number someone could call.
-    // An FSSAI licence number (14 digits) is the restaurant's own record, not a number to call.
-    if (digits.length >= 8 && digits.length !== 14 && !allowed.has(digits) && !allowed.has(digits.slice(-10)) && !/^\d{4}-\d{2}-\d{2}$/.test(match[0].trim())) return "NUMBER";
-  }
+  if (phoneLikeIn(text, options.allowedNumbers)) return "NUMBER";
   for (const secret of options.secrets ?? []) if (secret && text.includes(secret)) return "NUMBER";
   return null;
+}
+
+/** The first run of digits in an answer that could be a number someone calls, with the few characters before it; null if none. */
+function phoneLikeIn(text: string, allowedNumbers: readonly string[] = []): { before: string; number: string } | null {
+  const allowed = new Set([...allowedNumbers, ...BUDDY_HELPLINES].map((number) => number.replace(/\D/g, "")).filter(Boolean));
+  const scanned = NOT_PHONE_NUMBERS.reduce((rest, pattern) => rest.replace(pattern, " "), text);
+  for (const match of scanned.matchAll(/\+?\d[\d\s().-]{6,}\d/g)) {
+    const digits = match[0].replace(/\D/g, "");
+    // A long run of digits that is not an amount is treated as a number someone could call.
+    // An FSSAI licence number (14 digits) is the restaurant's own record, not a number to call.
+    if (digits.length >= 8 && digits.length !== 14 && !allowed.has(digits) && !allowed.has(digits.slice(-10))) {
+      return { before: scanned.slice(Math.max(0, match.index - 6), match.index), number: match[0] };
+    }
+  }
+  return null;
+}
+
+/**
+ * What kind of number made an answer fail, for the refusal record: its shape, with the six
+ * characters before it, digits written as 9 and letters as A ("AA-9999-99999"), so a wrong
+ * refusal can be understood without keeping the number or the answer (19 Oct 2026). "secret"
+ * when the answer repeated a PIN or code the person typed.
+ */
+export function buddyNumberShape(text: string, allowedNumbers?: readonly string[]): string {
+  const found = phoneLikeIn(text, allowedNumbers);
+  if (!found) return "secret";
+  return `${found.before}${found.number}`.replace(/\d/g, "9").replace(/\p{L}/gu, "A").replace(/\s+/g, " ").trim();
 }
 
 /** The secret numbers in what the person typed (a PIN, a code), which no answer may repeat. */

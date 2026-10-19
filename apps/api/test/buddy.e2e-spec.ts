@@ -582,21 +582,39 @@ describe('ECCS Buddy (e2e)', () => {
     });
 
     it('replaces an answer with code, a link, a phone number or the instructions in it, and withdraws its cards', async () => {
-      const bad = [
-        '```js\nconsole.log("hi")\n```',
-        'See https://example.com/free for more.',
-        'Call my friend on 98480 22338.',
-        `My marker is ${buddy.canaryForTest()}.`,
+      const offTopic = 'I can only help with your restaurant and the ECCS app.';
+      const unfinished = 'Buddy could not finish this answer. Try asking again, a little more simply.';
+      // Code or a leak: the answer went off topic. A link or a number: a slip in a real answer, which must not call the question off topic.
+      const bad: [string, string][] = [
+        ['```js\nconsole.log("hi")\n```', offTopic],
+        ['See https://example.com/free for more.', unfinished],
+        ['Call my friend on 98480 22338.', unfinished],
+        [`My marker is ${buddy.canaryForTest()}.`, offTopic],
       ];
-      for (const words of bad) {
+      for (const [words, shown] of bad) {
         fake.queueTurn([{ type: 'tool_use', id: `toolu_label_${Math.random()}`, name: 'propose_food_label', input: { name: `E2E Check ${Math.random()}`, shelfLifeHours: 8 } }]);
         fake.queueTurn([{ type: 'text', text: words }]);
         const reply = (await send(owner, { text: 'Save a label', outletId }).expect(200)).body as BuddyReplyDto;
-        expect(reply.messages[1]!.text).toBe('I can only help with your restaurant and the ECCS app.');
+        expect(reply.messages[1]!.text).toBe(shown);
         expect(reply.messages[1]!.cards.every((card) => card.status === 'CANCELLED')).toBe(true);
       }
-      expect((await blocksOf(userIds[0]!)).filter((row) => row.reason === 'ANSWER').map((row) => row.detail)).toEqual(['CODE', 'LINK', 'NUMBER', 'LEAK']);
+      // A number is recorded by its shape only, never the number itself.
+      expect((await blocksOf(userIds[0]!)).filter((row) => row.reason === 'ANSWER').map((row) => row.detail)).toEqual(['CODE', 'LINK', 'NUMBER AA AA 99999 99999', 'LEAK']);
       await prisma.client.buddyBlock.deleteMany({ where: { userId: userIds[0]!, createdAt: { gte: startedAt } } });
+    });
+
+    // 19 Oct 2026: the founder's "Can you help me with booking a pest service?" got the off-topic line, because the answer named the last visit's report.
+    it("keeps an answer that names ECCS's references, a date or the crisis line", async () => {
+      const fine = [
+        'Your last pest control was on Friday 9 October (report SR-2026-00005, certificate CERT-2026-00003). Which day would you like the next one?',
+        'You are not alone, and help is there. Tele-MANAS answers day and night on 14416 or 1-800-891-4416. If anyone is in danger right now, call 112.',
+      ];
+      for (const words of fine) {
+        fake.queueTurn([{ type: 'text', text: words }]);
+        const reply = (await send(owner, { text: 'Can you help me with booking a pest service?', outletId }).expect(200)).body as BuddyReplyDto;
+        expect(reply.messages[1]!.text).toBe(words);
+      }
+      expect((await blocksOf(userIds[0]!)).filter((row) => row.reason === 'ANSWER')).toEqual([]);
     });
 
     it('hides a PIN or code typed in from the model and from the chat, and no answer may repeat it', async () => {

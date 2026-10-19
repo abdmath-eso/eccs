@@ -121,6 +121,7 @@ export function ScoreCard({ outletId, stamp }: { outletId: string; stamp: number
   const [loaded, setLoaded] = useState<HygieneScoreDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [pressed, setPressed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +157,7 @@ export function ScoreCard({ outletId, stamp }: { outletId: string; stamp: number
   }
 
   const factors = score.detail ? topScoreFactors(score.detail.components) : [];
-  const body = (
+  const head = (
     <>
       <ThemedText type="smallBold" themeColor="textSecondary">
         {t('score.title')}
@@ -177,30 +178,38 @@ export function ScoreCard({ outletId, stamp }: { outletId: string; stamp: number
           ))}
         </View>
       )}
-      {/* "Why this score?" for the Owner and Manager, when AI is on and something is costing points. */}
-      <ScoreExplain score={score} />
-      {score.detail && (
-        <View style={styles.more}>
-          <ThemedText type="smallBold" themeColor="primary" style={styles.factorText}>
-            {t('score.seeDetails')}
-          </ThemedText>
-          <Ionicons name={forwardIcon} size={18} color={theme.primary} />
-        </View>
-      )}
     </>
   );
 
   // The Head Chef has no breakdown to open.
-  if (!score.detail) return <View style={[styles.card, { borderColor: theme.border }]}>{body}</View>;
+  if (!score.detail) return <View style={[styles.card, { borderColor: theme.border }]}>{head}</View>;
+
+  // The card still opens the breakdown from anywhere but "Why this score?", and lights up as a
+  // whole when pressed. It is flat rather than one big button, because "Why this score?" and its
+  // thumbs are buttons too: a button inside a button is invalid on the web ("<button> cannot
+  // contain a nested <button>") and screen readers then reach only the outer one (axe's rule
+  // "Interactive controls must not be nested"). So the score and its reasons are a tap area for
+  // fingers only, and "See how it is worked out" is the button screen readers and keyboards use.
+  // The score screen works on one outlet at a time and remembers which.
+  const openBreakdown = {
+    onPress: () => void rememberOutlet(outletId).then(() => router.push('/score')),
+    onPressIn: () => setPressed(true),
+    onPressOut: () => setPressed(false),
+  };
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityHint={t('score.seeDetails')}
-      // The score screen works on one outlet at a time and remembers which.
-      onPress={() => void rememberOutlet(outletId).then(() => router.push('/score'))}
-      style={({ pressed }) => [styles.card, { borderColor: theme.outline }, pressed && { backgroundColor: theme.backgroundElement }]}>
-      {body}
-    </Pressable>
+    <View style={[styles.card, { borderColor: theme.outline }, pressed && { backgroundColor: theme.backgroundElement }]}>
+      <Pressable accessible={false} focusable={false} style={styles.cardPart} {...openBreakdown}>
+        {head}
+      </Pressable>
+      {/* "Why this score?" for the Owner and Manager, when AI is on and something is costing points. */}
+      <ScoreExplain score={score} />
+      <Pressable accessibilityRole="button" style={styles.more} {...openBreakdown}>
+        <ThemedText type="smallBold" themeColor="primary" style={styles.factorText}>
+          {t('score.seeDetails')}
+        </ThemedText>
+        <Ionicons name={forwardIcon} size={18} color={theme.primary} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -334,7 +343,8 @@ const styles = StyleSheet.create({
   factors: { gap: Spacing.one },
   factor: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one + Spacing.half },
   factorText: { flex: 1 },
-  more: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, marginTop: Spacing.one },
+  cardPart: { gap: Spacing.two },
+  more: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, minHeight: MinTouchSize },
   trend: { flexDirection: 'row', gap: Spacing.two },
   trendScale: { height: TREND_HEIGHT, justifyContent: 'space-between', alignItems: 'flex-end' },
   trendBody: { flex: 1, gap: Spacing.one },

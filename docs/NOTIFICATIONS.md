@@ -347,6 +347,8 @@ ECCS Buddy (16 Oct 2026) sends nothing of its own. A card the person taps does w
 | BU1 | Buddy pauses someone at a restaurant after 5 refused messages in a day | Adm; Ops Manager | "ECCS Buddy paused a user at {restaurant} today after messages it could not help with." | In-app | not built |
 | BU2 | Several of Buddy's answers in a day are marked not helpful (the founder to say how many) | Adm | "{count} ECCS Buddy answers were marked not helpful today." | In-app | not built |
 
+**On purpose, none for a crisis message (19 Oct 2026).** When someone writes to Buddy that they want to die or to hurt themselves or someone else, Buddy gives the Tele-MANAS line and 112 in the chat and tells no one else: it is the person's private health. Whether ECCS should ever be told is for the founder and the lawyer (`docs/LEGAL_NOTES.md` point 12).
+
 ## 17. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
@@ -374,6 +376,7 @@ ECCS Buddy (16 Oct 2026) sends nothing of its own. A card the person taps does w
 | 13 Oct 2026 | Customer page rebuilt: Q1, Q2, Q5 and Q6 reworded, Q7 and Q8 added. |
 | 12 Oct 2026 | Pay rules: T10 to T12 added. |
 | 11 Oct 2026 | Face attendance: T1 withdrawn, T5 to T9 added. |
+| 19 Oct 2026 | ECCS Buddy: no notification for a crisis message, on purpose (section 16h). |
 | 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |
 | 9 Oct 2026 | Added section 16 (staff, food labels, customer page), none built. |
 | 9 Oct 2026 | Added section 15 (new services and photo integrity), none built. |

@@ -12,6 +12,20 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Monday 19 October 2026
+
+*In progress. To be written up at the next end of day.*
+
+**So far**
+
+- The founder asked for a briefing document like the one of 13 Oct, with all the updates in the app since. Claude made **version 2 of `docs/ECCS briefing for the BD team.pdf`**, in the same style: 24 pages, was 15. It has a "What is new since version 1" page; the agreement at first login; "Why this score?", the camera check, the AI licence reader and translation; two pages on ECCS Buddy; the console's new pages; the BDE's own tools (the phone screens, leads, the free check, quotes, Sales in the console and how a week is counted); new answers about AI and Buddy and new words; and the page on what is ready and what is not, brought up to date. While it was being written, the founder said to leave out onboarding ("Don't keep joining eccs thing, keep everything else").
+- The restaurant app's pictures were taken again on test copies (API on 4001, preview on 8082), as the sample Spice Route Owner, with Buddy's answers from the real AI (US$0.004). The booking card was not tapped. The two chats, the card, the one refused question and the throwaway phone were removed afterwards. The pictures of the BDE's screens, the camera check, the licence reader and the console were reused from 15 and 16 Oct (sample or drawn data), cropped.
+- Two things were kept out of the pictures. The sample Owner on this database has been renamed, perhaps with a real person's name, so the pictures show the seed's name, "Sample Owner (Spice Route)"; nothing was changed on the server. The Licences screen showed an FSSAI number that looks real, so version 1's sample picture of that screen was used instead.
+- Found while writing it: the APK of 15 Oct (3:44 pm) is a standalone build, so it has neither ECCS Buddy nor the BDE's screens, and it points at the PC's old Wi-Fi address. The briefing says these come with the next version of the test app; showing them on a phone needs a new APK.
+- Checked: the build reports that every page fits, and every page was looked at as a picture. That look found several faults, all fixed: pictures clipped by the phone frame; a phone number on a drawn shop board that could belong to someone; a test lead named after a real Hyderabad restaurant; a test login's name on a photo's label; and the console picture cut mid-row under a notifications banner. The number and names were replaced with obvious samples.
+
+---
+
 ## Saturday 17 October 2026
 
 A short session just after midnight, at the end of Friday's work: ECCS Buddy's tests were re-run on its final instructions, and the day was closed. 2 commits. Pushed to GitHub at the end of the day, with the work of 15 and 16 Oct.

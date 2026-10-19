@@ -26,7 +26,7 @@ cd C:\Users\eosfera\eccs\apps\mobile
 
 Things to know:
 
-- **The API's address is built into the APK.** By default it is this PC's Wi-Fi address (today `192.168.1.40`), port 4000. The phone must be on the same Wi-Fi, the PC on, and the API terminal running. If the PC's address changes, build again. For another address: `.\build-apk.ps1 -ApiUrl "https://your-server/v1"`.
+- **The API's address is built into the APK.** By default it is this PC's Wi-Fi address (`192.168.1.21` since 16 Oct 2026; before that `192.168.1.40`), port 4000. The phone must be on the same Wi-Fi, the PC on, and the API terminal running. If the PC's address changes, build again. For another address: `.\build-apk.ps1 -ApiUrl "https://your-server/v1"`.
 - **The virtual phone:** open Android Studio > More Actions > Virtual Device Manager and press the play button, then `.\build-apk.ps1 -Install`. It is heavy on memory alongside Docker and the terminals.
 - **Java:** the build must use Java 17, which the script finds by itself. Android Studio's own Java (25) is too new and fails with "A restricted method in java.lang.System has been called".
 - **If Windows Firewall asks** whether Node may accept connections on private networks, allow it; otherwise the phone cannot reach the API.
@@ -194,7 +194,7 @@ Choose, in order: `Android` → the build profile it offers (`preview`; Expo's o
 
 ### Step 8. Check the PC's address, then commit
 
-The address of the API is built into the APK. It is in `apps/mobile/eas.json`, under `preview` → `env` → `EXPO_PUBLIC_API_URL`, and today says `http://192.168.1.40:4000/v1`.
+The address of the API is built into the APK. It is in `apps/mobile/eas.json`, under `preview` → `env` → `EXPO_PUBLIC_API_URL`, and today says `http://192.168.1.21:4000/v1`.
 
 Check the PC still has that address:
 
@@ -202,7 +202,7 @@ Check the PC still has that address:
 ipconfig
 ```
 
-Look under "Wireless LAN adapter Wi-Fi" for **IPv4 Address**. If it is not `192.168.1.40`, change the number in `eas.json` (keep `http://`, `:4000/v1`) before building.
+Look under "Wireless LAN adapter Wi-Fi" for **IPv4 Address**. If it is not `192.168.1.21`, change the number in `eas.json` (keep `http://`, `:4000/v1`) before building.
 
 Then ask Claude to commit (`google-services.json`, `app.json`, and `eas.json` if changed). The cloud build is made from the files Git knows about.
 
@@ -245,7 +245,7 @@ A later build installs over this one and keeps the phone linked and logged in, a
 2. On the phone's browser open:
 
    ```
-   http://192.168.1.40:4000/v1/health
+   http://192.168.1.21:4000/v1/health
    ```
 
    It should show `{"status":"ok"}`. If it does, the app will work too.
@@ -280,7 +280,7 @@ If it does not load:
 2. Put it in `apps/mobile/eas.json` (`EXPO_PUBLIC_API_URL`), and in `apps/mobile/.env.local` for Expo Go.
 3. Commit, build again (step 9) and install again (step 10). This uses one of the month's 15 builds.
 
-To avoid this, give the PC a fixed address in the router ("DHCP reservation" / "static lease" for this PC), so it always gets `192.168.1.40`.
+To avoid this, give the PC a fixed address in the router ("DHCP reservation" / "static lease" for this PC), so it always gets `192.168.1.21`.
 
 ### Step 12. Switch push on in the API
 

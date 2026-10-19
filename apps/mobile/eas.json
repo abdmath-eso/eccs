@@ -24,7 +24,7 @@
         //   - the PC's address changes (run `ipconfig`, look for "IPv4 Address" under Wi-Fi), or
         //   - there is a real server (then use its https address and remove ECCS_ALLOW_HTTP below).
         // The cloud build does not read apps/mobile/.env.local; only this line counts.
-        "EXPO_PUBLIC_API_URL": "http://192.168.1.40:4000/v1",
+        "EXPO_PUBLIC_API_URL": "http://192.168.1.21:4000/v1",
         // Lets the app use a plain "http://" address, which Android otherwise refuses (see app.config.js).
         "ECCS_ALLOW_HTTP": "1"
       }

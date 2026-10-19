@@ -1,6 +1,6 @@
 # Hosting ECCS on AWS
 
-**A plan for the founder to approve (19 Oct 2026). Nothing is created or paid for yet.**
+**A plan for the founder to approve (19 Oct 2026).** The founder opened the AWS account on 19 Oct (Free plan, US$100 of credits); nothing else is created or paid for yet. The server packaging (section 6, Claude's part) started the same day.
 
 Prices are AWS's list prices for Mumbai (ap-south-1). Lightsail's come from AWS's own pricing page, read on 19 Oct 2026; EC2, RDS and S3 come from third-party listings, because AWS's own pages could not be read (sources at the end). Rupees are at ₹88 to the US dollar. AWS India adds 18% GST to every bill; once ECCS has a GSTIN, it can claim that back as input tax credit (check with the CA).
 
@@ -62,6 +62,16 @@ The plan's budget was up to ₹15,000 a month for the pilot (PROPOSAL, 5 Oct). N
   - The account starts on AWS's "Free plan", which closes after 6 months or when the credits run out, and may not include every service.
   - If Lightsail is not offered on it, upgrade the account to the "Paid plan". The unused credits still count for up to 12 months from sign-up.
 - **Lightsail bills a stopped server:** a server that is not needed must be deleted (keep a snapshot), not just stopped.
+
+**Found on 19 Oct, once the account was open:**
+- **Lightsail is not on the Free plan.** A user reports AWS saying "you will need to upgrade to a paid account plan to access Lightsail". Upgrade when the first server is created, not before. The credits carry over for up to 12 months from sign-up, and no charge reaches the card while credits remain. Upgrading cannot be undone.
+- **Earn up to US$100 more first, while on the Free plan.** Each of five short guided tasks in the console's "Explore AWS" panel gives US$20:
+  1. **Set a cost budget in AWS Budgets.** Do this anyway.
+  2. **Launch and terminate an EC2 server.**
+  3. **Create an RDS database,** then delete it.
+  4. **Make a Lambda function with a URL.**
+  5. **Ask a question in the Bedrock playground.**
+- **Never enable AWS Organizations or Control Tower,** and never set up IAM Identity Center in a way that turns Organizations on. Any of these ends the credits at once. Use a plain IAM user for the day-to-day admin login.
 
 ## 6. Before going online
 

@@ -3,13 +3,19 @@
 import { useState } from "react";
 
 import { Button, Card, HowItWorks, Switch } from "@/components/ui";
-import { playSound, setSound, showDesktop, turnOffDesktop, turnOnDesktop, unlockSound, useAlertState } from "@/lib/desktop-alerts";
+import { setSound, showDesktop, turnOffDesktop, turnOnDesktop, useAlertState } from "@/lib/desktop-alerts";
+
+/** Where Windows decides whether a browser's pop-ups appear and make a sound. */
+const WINDOWS_SETTINGS =
+  "In Windows Settings, under System, Notifications: turn Notifications on and Do not disturb off, then open your browser (Chrome or Edge) in the list of apps and turn on both its notifications and “Play a sound when a notification arrives”.";
 
 /**
  * Notifications on this PC: the switch for desktop notifications, the switch
- * for the sound, and a way to try each. The choices belong to this browser on
- * this computer, not to the person's login, because the browser's own
- * permission does too.
+ * for their sound, and a test. The pop-up and its sound are Windows' own (20 Oct
+ * 2026, the founder), so they come through the PC's speakers like any other app's,
+ * with the browser in the background or minimised. The choices belong to this
+ * browser on this computer, not to the person's login, because the browser's
+ * own permission does too.
  */
 export function DesktopAlertsCard() {
   const state = useAlertState();
@@ -28,27 +34,12 @@ export function DesktopAlertsCard() {
   }
 
   function testDesktop() {
-    unlockSound();
     const shown = showDesktop("Test notification", "This is how a new ECCS notification appears on this PC.", "eccs-test", () => undefined);
-    if (state.sound) playSound();
     setTried(
       shown
-        ? "Sent to this PC. If nothing appeared, Windows is holding it back: check Do not disturb and that notifications are allowed for your browser in Windows Settings (see “If nothing appears” below)."
+        ? `Sent to Windows${state.sound ? ", with its notification sound" : ", without a sound"}. If nothing appeared or you heard nothing: ${WINDOWS_SETTINGS} Also check the PC’s volume.`
         : "The browser would not show it.",
     );
-  }
-
-  function testSound() {
-    // A click is what lets the browser make sound; the first click may only wake it, so it is tried again a moment later.
-    unlockSound();
-    if (playSound()) return setTried("Played. If you heard nothing, check the PC’s volume and that this browser tab is not muted.");
-    window.setTimeout(() => {
-      setTried(
-        playSound()
-          ? "Played. If you heard nothing, check the PC’s volume and that this browser tab is not muted."
-          : "The browser would not play a sound. Check that sound is allowed for this site in the browser’s site settings.",
-      );
-    }, 300);
   }
 
   const status: { label: string; good: boolean; text: string } =
@@ -67,7 +58,11 @@ export function DesktopAlertsCard() {
               text: "Notifications from this site are blocked in this browser, so the console cannot show any and cannot ask again. To unblock: click the icon at the left end of the address bar (a padlock or sliders), find Notifications, and choose Allow; then reload this page.",
             }
           : state.desktopOn
-            ? { label: "On", good: true, text: "A pop-up appears on this PC for each new notification while the console is open in a tab, even in the background." }
+            ? {
+                label: "On",
+                good: true,
+                text: "Windows shows a pop-up for each new notification while the console is open in a tab, even with the browser in the background or minimised.",
+              }
             : { label: "Off", good: false, text: "New notifications show only inside the console: on the bell and in a message at the bottom of the page." };
 
   const canAsk = state.permission === "default" || (state.permission === "granted" && !state.wanted);
@@ -76,7 +71,7 @@ export function DesktopAlertsCard() {
     <Card className="flex flex-col gap-4">
       <div>
         <h2 className="text-lg font-semibold">Notifications on this PC</h2>
-        <p className="text-sm text-muted">Get a pop-up and a sound for each new notification while the console is open in this browser.</p>
+        <p className="text-sm text-muted">Get a Windows pop-up, with Windows&apos; notification sound, for each new notification while the console is open in this browser.</p>
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
@@ -110,19 +105,13 @@ export function DesktopAlertsCard() {
         <p className="text-sm text-muted">Your browser will then ask whether to allow notifications from this site. Choose Allow.</p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-border pt-4">
-        <div>
-          <Switch label="Sound for each new notification" checked={state.sound} onChange={setSound} />
-          {state.sound && !state.soundReady && (
-            <p className="mt-1 max-w-2xl text-sm text-muted">
-              Browsers keep a page silent until you have clicked or typed in it. After opening or reloading the console, click anywhere in it once
-              and the sound will play from then on.
-            </p>
-          )}
-        </div>
-        <Button variant="secondary" onClick={testSound}>
-          Play test sound
-        </Button>
+      <div className="border-t border-border pt-4">
+        <Switch label="Windows notification sound with each pop-up" checked={state.sound} onChange={setSound} />
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          {state.desktopOn
+            ? "The sound is Windows’ own and comes through the PC’s speakers, like any other app’s notification. “Show a test notification” tries both."
+            : "The sound comes with Windows’ pop-up, so it needs desktop notifications on."}
+        </p>
       </div>
 
       {tried && (
@@ -146,10 +135,10 @@ export function DesktopAlertsCard() {
           front and opens the visit or issue it is about.
         </p>
         <p>
-          <span className="font-semibold text-foreground">If nothing appears:</span> Windows decides whether a browser&apos;s notifications are
-          shown. In Windows Settings, under System, Notifications: turn Notifications on, turn Do not disturb off, and make sure your browser
-          (Chrome or Edge) is switched on in the list of apps. Some browsers put tabs that have not been used for a while to sleep to save memory;
-          if notifications stop after a long quiet spell, add this site to the browser&apos;s list of sites that are always kept active.
+          <span className="font-semibold text-foreground">If nothing appears, or there is no sound:</span> Windows decides whether a
+          browser&apos;s pop-ups are shown and make a sound. {WINDOWS_SETTINGS} Some browsers put tabs that have not been used for a while to
+          sleep to save memory; if notifications stop after a long quiet spell, add this site to the browser&apos;s list of sites that are always
+          kept active.
         </p>
       </HowItWorks>
     </Card>

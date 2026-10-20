@@ -8,7 +8,7 @@ import { createContext, use, useEffect, useRef, useState, type ReactNode } from 
 import { useToast } from "@/components/toast";
 
 import { api } from "./api";
-import { alertState, claim, playSound, showDesktop, unlockSound } from "./desktop-alerts";
+import { alertState, claim, showDesktop } from "./desktop-alerts";
 import { useNavCounts } from "./nav-counts";
 import { hrefFor } from "./notification-link";
 
@@ -135,7 +135,7 @@ export function LiveNotifications({ children }: { children: ReactNode }) {
       if (together) tools.current.notify(summary, { kind: "news", href: "/notifications" });
       else tools.current.notify(newest.title, { kind: "news", detail: newest.body, href: hrefFor(newest.link) ?? "/notifications" });
 
-      // On the desktop and through the speakers: one tab only.
+      // On the desktop, with Windows' own notification sound (unless turned off): one tab only.
       const state = alertState();
       if (state.desktopOn) {
         if (together) {
@@ -146,8 +146,6 @@ export function LiveNotifications({ children }: { children: ReactNode }) {
           }
         }
       }
-      // One sound for whatever arrived together. Only a tab the browser allows to make sound puts itself forward.
-      if (state.sound && state.soundReady) void claim("sound", newest.id).then((mine) => mine && playSound());
     }
 
     if (channel) {
@@ -204,24 +202,10 @@ export function LiveNotifications({ children }: { children: ReactNode }) {
         .catch(() => undefined);
     window.addEventListener(NOTIFICATIONS_CHANGED, recount);
 
-    // Browsers keep a page silent until the person has clicked or typed in it. The first click or key
-    // press anywhere in the console is used to allow the sound, so nobody has to press a special button after a reload.
-    const allowSound = () => {
-      if (alertState().sound) unlockSound();
-      if (alertState().soundReady) {
-        window.removeEventListener("pointerdown", allowSound, true);
-        window.removeEventListener("keydown", allowSound, true);
-      }
-    };
-    window.addEventListener("pointerdown", allowSound, true);
-    window.addEventListener("keydown", allowSound, true);
-
     return () => {
       stop.abort();
       channel?.close();
       window.removeEventListener(NOTIFICATIONS_CHANGED, recount);
-      window.removeEventListener("pointerdown", allowSound, true);
-      window.removeEventListener("keydown", allowSound, true);
     };
   }, []);
 

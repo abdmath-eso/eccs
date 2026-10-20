@@ -1,6 +1,13 @@
-// Notifications on the PC: the browser's own desktop notification and a short
-// sound, for a console left open in a tab. Nothing here knows about React; the
-// part that watches for new notifications is `live-notifications.tsx`.
+// Notifications on the PC: the browser's own desktop notification, which Windows
+// shows as its own pop-up with its own notification sound, for a console left
+// open in a tab. Nothing here knows about React; the part that watches for new
+// notifications is `live-notifications.tsx`.
+//
+// The sound is Windows' (20 Oct 2026, the founder: the sound should come from Windows, not from
+// inside the browser, also when the browser is in the background). The pop-up is shown with
+// `silent: false`, so the system plays its notification sound; the page makes no sound of its
+// own, so nothing depends on a click in the tab having "unlocked" audio. The Notifications API
+// can only turn the system's sound on or off, not choose it (MDN, "Notification: silent").
 //
 // What this can and cannot do: it works while the console is open in a tab,
 // even a background or minimised one. With the browser closed nothing is
@@ -10,7 +17,7 @@
 import { useSyncExternalStore } from "react";
 
 // The person's two choices, remembered in this browser. Desktop notifications
-// are off until they turn them on; the sound is on until they turn it off.
+// are off until they turn them on; their sound is on until they turn it off.
 const DESKTOP_KEY = "eccs.console.alerts.desktop";
 const SOUND_KEY = "eccs.console.alerts.sound";
 const DISMISSED_KEY = "eccs.console.alerts.offer-dismissed";
@@ -38,10 +45,8 @@ export interface AlertState {
   wanted: boolean;
   /** Desktop notifications will actually appear: wanted, and allowed by the browser. */
   desktopOn: boolean;
-  /** The person's choice for the sound. */
+  /** The person's choice: Windows plays its notification sound with each pop-up. */
   sound: boolean;
-  /** The browser lets this tab make sound, which it only does after a click or key press in the tab. */
-  soundReady: boolean;
   /** The one-line offer at the top of the console was closed. */
   offerDismissed: boolean;
 }
@@ -71,66 +76,14 @@ export function desktopPermission(): DesktopPermission {
   return Notification.permission;
 }
 
-// ───────────────────────── Sound ─────────────────────────
-
-let audio: AudioContext | null = null;
-
-/**
- * Lets this tab make sound. Browsers keep a page silent until the person has
- * clicked or pressed a key in it, so this must be called from inside such a
- * click or key press; calling it again does no harm.
- */
-export function unlockSound() {
-  try {
-    if (!audio) {
-      audio = new AudioContext();
-      audio.addEventListener("statechange", () => window.dispatchEvent(new Event(CHANGED)));
-    }
-    if (audio.state === "suspended") void audio.resume().catch(() => undefined);
-  } catch {
-    // No sound on this browser; desktop notifications still work.
-  }
-}
-
-const soundReady = () => audio?.state === "running";
-
-/**
- * Plays the notification sound: two soft rising notes, about half a second,
- * made here with the browser's sound generator, so there is no audio file to
- * ship or to license. Returns false if the browser would not let it play.
- */
-export function playSound(): boolean {
-  if (!audio || audio.state !== "running") return false;
-  const start = audio.currentTime;
-  const notes: [frequency: number, at: number][] = [
-    [880, 0],
-    [1174.66, 0.16],
-  ];
-  for (const [frequency, at] of notes) {
-    const tone = audio.createOscillator();
-    const volume = audio.createGain();
-    tone.type = "sine";
-    tone.frequency.value = frequency;
-    // A quick rise and a slow fade, so each note sounds like a chime and not a beep.
-    volume.gain.setValueAtTime(0.0001, start + at);
-    volume.gain.exponentialRampToValueAtTime(0.25, start + at + 0.02);
-    volume.gain.exponentialRampToValueAtTime(0.0001, start + at + 0.45);
-    tone.connect(volume).connect(audio.destination);
-    tone.start(start + at);
-    tone.stop(start + at + 0.5);
-  }
-  return true;
-}
-
 // ───────────────────────── The person's choices ─────────────────────────
 
 /**
  * The click on "Turn on desktop notifications". This is the only place the
  * browser's permission question is asked, so it always follows a click and the
- * console's own explanation. The same click lets the tab make sound.
+ * console's own explanation.
  */
 export async function turnOnDesktop(): Promise<DesktopPermission> {
-  unlockSound();
   let permission = desktopPermission();
   if (permission === "default") {
     try {
@@ -148,25 +101,27 @@ export async function turnOnDesktop(): Promise<DesktopPermission> {
 
 export const turnOffDesktop = () => write(DESKTOP_KEY, null);
 
-export function setSound(on: boolean) {
-  if (on) unlockSound();
-  write(SOUND_KEY, on ? null : "off");
-}
+export const setSound = (on: boolean) => write(SOUND_KEY, on ? null : "off");
 
 export const dismissOffer = () => write(DISMISSED_KEY, "yes");
 
 // ───────────────────────── Showing one ─────────────────────────
 
 /**
- * Shows a desktop notification. `tag` names what it is about: the browser
- * keeps one notification per tag, which also stops two tabs showing the same
- * one twice. It is always silent as far as the browser goes, because the
- * console plays its own sound, which has its own switch.
+ * Shows a desktop notification, which Windows (or the PC's own system) shows
+ * as its pop-up and, unless the person turned the sound off, announces with
+ * its own notification sound, whether or not the browser is in front. `tag`
+ * names what it is about: the browser keeps one notification per tag, which
+ * also stops two tabs showing the same one twice. `renotify` makes a pop-up
+ * that replaces one with the same tag ("3 new notifications" again, a second
+ * test) sound again, as a new one does.
  */
 export function showDesktop(title: string, body: string, tag: string, onClick: () => void): boolean {
   if (desktopPermission() !== "granted") return false;
   try {
-    const shown = new Notification(title, { body, tag, silent: true, icon: "/favicon.ico" });
+    // `renotify` is in the Notifications standard and Chrome and Edge honour it; TypeScript's own list of options leaves it out.
+    const options: NotificationOptions & { renotify: boolean } = { body, tag, renotify: true, silent: read(SOUND_KEY) === "off", icon: "/favicon.ico" };
+    const shown = new Notification(title, options);
     shown.addEventListener("click", () => {
       // Brings the console's window and tab to the front, then opens what the notification is about.
       window.focus();
@@ -184,7 +139,7 @@ export function showDesktop(title: string, body: string, tag: string, onClick: (
  * True for exactly one of the open console tabs: the one that should announce
  * this notification in this way. The others get false and stay quiet.
  */
-export async function claim(what: "desktop" | "sound", id: string): Promise<boolean> {
+export async function claim(what: "desktop", id: string): Promise<boolean> {
   const key = `${DONE_KEY}.${what}`;
   const take = () => {
     let done: string[] = [];
@@ -225,7 +180,6 @@ const SERVER_STATE: AlertState = {
   wanted: false,
   desktopOn: false,
   sound: true,
-  soundReady: false,
   offerDismissed: true,
 };
 
@@ -239,7 +193,6 @@ function currentState(): AlertState {
     wanted,
     desktopOn: wanted && permission === "granted",
     sound: read(SOUND_KEY) !== "off",
-    soundReady: soundReady(),
     offerDismissed: read(DISMISSED_KEY) === "yes",
   };
   // The same object is handed back while nothing has changed, as React requires.

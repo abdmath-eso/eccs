@@ -19,6 +19,7 @@ Every message the platform should send to a person without them opening the app 
 - A phone is registered for a person when they log in to the installed app and allow notifications, and is unregistered on Lock or logout, so a shared phone shows push notifications only for whoever is logged in (after Lock, none). The server also sends nothing to a person who is not logged in anywhere.
 - No SMS, WhatsApp or email. A further channel is added in one place: `outsideChannels` in `apps/api/src/notifications/notifications.service.ts` (push is `push.service.ts` beside it).
 - Push does not work in Expo Go or the browser preview. It needs the app built and installed on the phone: `docs/APK_BUILD.md`. ECCS admins can send a test push from the console's Notifications page.
+- On the PC, the console shows each new notification as a Windows pop-up while it is open in a browser tab (even in the background or minimised), with **Windows' own notification sound** (since 20 Oct 2026; before that the page played its own chime, which only worked after a click in the tab). The sound can be turned off on the console's Notifications page; Windows' own settings (Do not disturb, the browser's notifications and "Play a sound when a notification arrives") come first.
 
 **Decisions still to make (founder)**
 
@@ -385,6 +386,7 @@ ECCS Buddy (16 Oct 2026) sends nothing of its own. A card the person taps does w
 | 19 Oct 2026 | AI usage page (Stage F, started): AI4 to AI7 added to section 16b, from the design's "Alert me when". None built. |
 | 19 Oct 2026 | AI usage page (Stage F, built): AI1 widened to the new monthly limit; AI8 added (a helper failing). The page shows AI4 to AI6 and AI8 as warnings at its top, and their number beside AI usage in the menu, meanwhile. None built. |
 | 20 Oct 2026 | The console's Licences page removed and Monitoring without checklists and licences: L4 and M3 dropped; L3 unused. |
+| 20 Oct 2026 | The console's notification sound is Windows' own, played with the pop-up (`silent: false`, `renotify`), not a chime from inside the page (the founder). |
 | 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |
 | 9 Oct 2026 | Added section 16 (staff, food labels, customer page), none built. |
 | 9 Oct 2026 | Added section 15 (new services and photo integrity), none built. |

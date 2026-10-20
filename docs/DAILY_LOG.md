@@ -12,6 +12,16 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Tuesday 20 October 2026
+
+*In progress. To be written up at the next end of day.*
+
+**So far**
+
+- **The ECCS server on AWS** (the founder: deploy today, on their domain `eosfera.in`, with only the seeded data, no sample restaurants or test logins, and Buddy on; every login code 123456 until SMS exists, as there is no DLT registration yet). The founder signed the CLI in to the project account "Big Ideas Live Here" (profile `eccs`, IAM user `abdmath`) and to the management account (default profile, IAM user `abdmath01`); Mumbai was only hidden in the console by the account's "Visible Regions" setting, not blocked. `eosfera.in` and `www` already serve the founder's Eosfera website, so ECCS uses `api.`, `console.` and `eccs.eosfera.in` (the QR pages, quotes and legal pages) and leaves the site alone. AWS refused the 4 GB Lightsail plan for this new account ("can not create an instance using this Lightsail plan size"), so the server is on the 2 GB plan (US$12 a month) with 2 GB of swap. Created by Claude with the founder's go-ahead, in Mumbai: the server `eccs-live` (Ubuntu 24.04, static IP 15.206.236.36, firewall SSH, 80 and 443 only, nightly snapshots at 2:30 am India time), the bucket `eccs-files-412611737507` (private, versioned, encrypted, old versions dropped after 90 days) and the IAM user `eccs-server` reaching only that bucket. The server is prepared (Docker, swap, its own firewall, automatic security updates) and restarted. The settings file is `Documents\eccs-server\eccs.env` on this PC (secrets made there and never shown); the SSH key is `.ssh\eccs-lightsail`. Waiting on the founder: three DNS records at GoDaddy and the Anthropic key in the settings file.
+
+---
+
 ## Monday 19 October 2026
 
 A long day: version 2 of the BD briefing; three faults the founder found in the app (a button inside a button on Home, Buddy refusing a real question, the keyboard hiding what is typed) fixed, and an APK; a mascot for Buddy; the AI usage page and every AI setting in the console (Stage F); and the start of hosting on AWS: a plan with costs, the founder's account set up, and the app packaged to run on one server (Stage H). 20 commits. Pushed to GitHub at the end of the day.

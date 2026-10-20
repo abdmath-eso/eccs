@@ -1,6 +1,6 @@
 # Hosting ECCS on AWS
 
-**A plan for the founder to approve (19 Oct 2026).** The founder opened the AWS account on 19 Oct (Free plan, US$100 of credits); nothing else is created or paid for yet. The server packaging (section 6, Claude's part) started the same day.
+**Running since 20 Oct 2026** on a 2 GB Lightsail server in Mumbai (AWS refused the 4 GB plan for the new account; US$12 a month, about US$14 in all with the snapshots and S3, from the credits), at `console.eosfera.in`, `api.eosfera.in` and `eccs.eosfera.in` (STATUS section 6). The plan as first written (19 Oct): The founder opened the AWS account on 19 Oct (Free plan, US$100 of credits); nothing else is created or paid for yet. The server packaging (section 6, Claude's part) started the same day.
 
 Prices are AWS's list prices for Mumbai (ap-south-1). Lightsail's come from AWS's own pricing page, read on 19 Oct 2026; EC2, RDS and S3 come from third-party listings, because AWS's own pages could not be read (sources at the end). Rupees are at ₹88 to the US dollar. AWS India adds 18% GST to every bill; once ECCS has a GSTIN, it can claim that back as input tax credit (check with the CA).
 

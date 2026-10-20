@@ -408,6 +408,15 @@ Buddy uses the real AI: the API needs the Anthropic key it already has for the A
 8. **The mic:** in the browser preview (Chrome or Edge), tap the mic, allow it and speak: the words appear in the box, to check before Send. On the phone it needs a new APK; in Expo Go, use the keyboard's own mic.
 9. **Recent chats** (the clock at the top): chats are removed 30 days after their last message; **New chat** (the pencil) starts again.
 
+## 30a. The ECCS server on AWS (20 Oct 2026)
+
+Separate from this PC's copy: its own database with **no sample data**, only ECCS's library and three Super Admins. None of the sample logins above exist there.
+
+- **Console:** `https://console.eosfera.in`, ECCS staff login, with the phone number of Abdul Matheen (…5544), Sonu Jopat (…9819) or Krishna Deshpande (…7059), all Super Admins. **Every login code is 123456** until SMS exists; no SMS is sent.
+- **App:** the APK built on 20 Oct calls `https://api.eosfera.in/v1`, so it works on mobile data or any Wi-Fi. Restaurants, outlets, codes and PINs exist only once they are added from the console (Clients > add a client).
+- **QR pages, quotes and legal pages:** `https://eccs.eosfera.in` (for example `https://eccs.eosfera.in/legal/privacy`).
+- **Never** load the sample data there (`npm run seed` would wipe it).
+
 ## 30. Trying AI usage
 
 First, **when Claude says no builder is changing the code**: stop the API terminal and start it again (`pnpm --filter @eccs/api start`; Claude has built it). The console needs nothing. The page shows the real AI spending from the request log, not sample data.

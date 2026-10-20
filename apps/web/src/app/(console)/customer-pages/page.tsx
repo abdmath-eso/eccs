@@ -1,17 +1,14 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { Loading } from "@/components/ui";
-
-import CustomerPagesScreen from "./customer-pages-screen";
-
-// The browser tab reads "Customer pages · ECCS Console" (the second half comes from the root layout).
-export const metadata: Metadata = { title: "Customer pages" };
-
-export default function Page() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <CustomerPagesScreen />
-    </Suspense>
-  );
+// The customer-page photos moved into Quality → Photos on 20 Oct 2026 (console plan step 3,
+// decision 4), and Customer pages left the menu. An old address, a bookmark or a link in a
+// message still works: it opens that queue with the same filter (show=).
+export default async function Page({ searchParams }: PageProps<"/customer-pages">) {
+  const asked = await searchParams;
+  const kept = new URLSearchParams({ tab: "photos", queue: "customer" });
+  for (const [key, value] of Object.entries(asked)) {
+    if (key === "tab" || key === "queue") continue;
+    for (const one of Array.isArray(value) ? value : [value]) if (one !== undefined) kept.append(key, one);
+  }
+  redirect(`/quality?${kept.toString()}`);
 }

@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { CERTIFICATE_MAX_VALID_DAYS } from "./certificates.js";
 import type { LocalizedText } from "./checklists.js";
+import { carryItemsSchema } from "./day-sheet.js";
 import { SERVICE_CATEGORIES, type ServiceCategory } from "./services.js";
 
 export const CATALOG_MAX_PRICE_RUPEES = 1_000_000;
@@ -154,6 +155,12 @@ export const updateServiceKindSchema = z.object({
   sacCode: taxCode.optional(),
   gstRatePercent: gstRatePercent.optional(),
   partnerDelivered: z.boolean().optional(),
+  /**
+   * What the crew takes to a visit of this kind, one thing per entry ("Ladder", "Harness"), for the
+   * Supervisor's day's sheet (20 Oct 2026). Blank entries and repeats are dropped. Saving it makes
+   * it the office's own list, no longer the sample.
+   */
+  carryItems: carryItemsSchema.optional(),
 });
 export type UpdateServiceKindInput = z.input<typeof updateServiceKindSchema>;
 
@@ -224,6 +231,10 @@ export interface ServiceKindAdminDto {
   gstRatePercent: number;
   /** True when an outside partner delivers part of it. */
   partnerDelivered: boolean;
+  /** What to carry to a visit of this kind, in the order packed (the day's sheet). */
+  carryItems: string[];
+  /** True while that list is the sample one loaded with the sample services, not yet the office's own. */
+  carrySample: boolean;
 }
 
 export interface CatalogAdminDto {

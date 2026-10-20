@@ -1,0 +1,14 @@
+{
+  "_note": "SAMPLE lists of what the crew carries to a visit of each kind of service, for the Supervisor's day's sheet (20 Oct 2026). Placeholders until the founder writes the real ones in Catalogue; each shows as 'Sample list' there until edited. Keyed by the kind's code. Loaded by `pnpm carry:sample` (and the seed) only where a kind has no list yet.",
+  "CHIMNEY": ["Ladder", "Safety harness", "Hood brushes", "Degreaser", "Drop sheets", "Gloves and goggles"],
+  "DEEP_CLEAN": ["Degreaser", "Sanitiser", "Scrubber pads", "Floor squeegee", "Gloves and goggles", "Bin liners"],
+  "PEST": ["Gel bait applicator", "Sprayer", "Rodent bait boxes", "Torch", "Mask", "Gloves and goggles"],
+  "GREASE_TRAP": ["Grease drum, empty", "Scoop and bucket", "Drain cleaner", "Gumboots", "Gloves and goggles"],
+  "OIL_TEST": ["Oil test meter, charged", "Wipes", "Gloves and goggles"],
+  "WATER_TEST": ["Sample bottles", "Cool box", "Labels and marker"],
+  "SAFETY_INSPECTION": ["Inspection checklist", "Torch", "Tape measure"],
+  "CHEMICAL_REFILL": ["Chemical cans for the order", "Delivery note"],
+  "FSS_TRAINING": ["Training handouts", "Attendance sheet"],
+  "STAFF_MEDICAL": ["Attendance sheet", "Consent forms"],
+  "RATING_READINESS": ["Audit checklist", "Torch", "Thermometer"]
+}

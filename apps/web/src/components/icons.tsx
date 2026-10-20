@@ -181,12 +181,14 @@ export const TeamIcon = () => (
   </Icon>
 );
 
-/** A framed picture on a stand: the customer pages and their photos. */
-export const CustomerPagesIcon = () => (
+/**
+ * A shield with a tick: Quality, the follow-ups, photos to judge and incidents (20 Oct 2026, the
+ * founder's design). It took the place of Customer pages, whose photos moved into Quality.
+ */
+export const QualityIcon = () => (
   <Icon>
-    <rect x="3" y="4" width="18" height="14" rx="2" />
-    <path d="m3 15 4.5-4.5 3.5 3.5 2.5-2.5L18 15" />
-    <path d="M8 21h8" />
+    <path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6L12 3z" />
+    <path d="m9 12 2.2 2.2L15.5 10" />
   </Icon>
 );
 

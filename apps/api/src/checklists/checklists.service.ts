@@ -5,9 +5,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Prisma } from '@eccs/db';
+import { Prisma } from '@eccs/db';
 import {
   can,
+  checklistSpeedFlag,
   type Action,
   type AiLanguage,
   type ChecklistRunDto,
@@ -276,9 +277,17 @@ export class ChecklistsService {
       throw new BadRequestException(missing === 1 ? '1 item is not done yet' : `${missing} items are not done yet`);
     }
 
+    // Ticked faster than its checks can be done: marked for ECCS to look at in Quality > Photos (20 Oct 2026).
+    // Like every photo-integrity mark it never refuses anything and does not change the score.
+    const tooFast = checklistSpeedFlag(items.map((item) => responses.get(item.id)?.capturedAt ?? null));
     await this.db.checklistRun.update({
       where: { id: runId },
-      data: { status: 'SUBMITTED', submittedById: user.id, submittedAt: new Date() },
+      data: {
+        status: 'SUBMITTED',
+        submittedById: user.id,
+        submittedAt: new Date(),
+        integrityFlags: tooFast ? ([tooFast] as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+      },
     });
     await this.notify.checklistSubmitted(user, runId);
     return this.getRun(user, runId);

@@ -44,3 +44,5 @@ export * from "./console-sections.js";
 export * from "./outlet-onboarding.js";
 export * from "./week-board.js";
 export * from "./today.js";
+export * from "./quality.js";
+export * from "./day-sheet.js";

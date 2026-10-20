@@ -109,3 +109,40 @@ dialog::backdrop {
     background: white;
   }
 }
+
+/*
+ * Printing one Supervisor's day's sheet from Today ("Print" on its card): that sheet alone, black
+ * on white. While the print dialog is open the page marks the sheet with `data-printing` and the
+ * root with `data-printing-sheet`; everything that is not the sheet, inside it, or holding it is
+ * left out, and what holds it loses its layout so the sheet starts at the top of the paper. The
+ * carry list's empty tick boxes show only on paper (`print:inline-block` in day-sheet.tsx).
+ */
+@media print {
+  html[data-printing-sheet] body *:not([data-printing], [data-printing] *, :has([data-printing])) {
+    display: none !important;
+  }
+
+  html[data-printing-sheet] body *:has([data-printing]) {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: white !important;
+  }
+
+  html[data-printing-sheet] [data-printing],
+  html[data-printing-sheet] [data-printing] * {
+    color: black !important;
+    background: white !important;
+    border-color: black !important;
+  }
+
+  html[data-printing-sheet] [data-printing] {
+    border: 0 !important;
+  }
+
+  /* A visit is never split across two sheets of paper. */
+  html[data-printing-sheet] [data-printing] li {
+    break-inside: avoid;
+  }
+}

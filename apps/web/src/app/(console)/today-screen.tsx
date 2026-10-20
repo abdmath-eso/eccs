@@ -22,6 +22,7 @@ import { api } from "@/lib/api";
 import { describe } from "@/lib/format";
 import { NOTIFICATION_ARRIVED } from "@/lib/live-notifications";
 
+import { DaySheets, SheetsAction } from "./day-sheet";
 import { slotStart, STATUS, timeOfDay } from "./visits/visit-parts";
 
 // Pattern followed: the field-service "home" of Jobber (today's appointments in start-time order
@@ -63,6 +64,13 @@ function hrefFor(target: TodayTarget): string {
       return `/team/${encodeURIComponent(target.userId)}`;
     case "TEAM":
       return "/team";
+    // Quality's three (console plan step 3): a follow-up opens beside its tab's list, an incident on its own page.
+    case "FOLLOW_UP":
+      return `/quality?tab=follow-ups&followUp=${encodeURIComponent(target.followUpId)}`;
+    case "QUALITY_PHOTOS":
+      return "/quality?tab=photos";
+    case "INCIDENT":
+      return `/quality/incidents/${encodeURIComponent(target.incidentId)}`;
   }
 }
 
@@ -79,8 +87,9 @@ const RELOAD_AFTER_MS = 5_000;
 
 /**
  * Today, the console's home: what needs the office today, in one glance. The headline, the
- * day's visits and free checks, Needs you (one button each; an item goes once its work is done),
- * Also today, and the Evening close (in full from 4 pm). A Supervisor sees their own day.
+ * day's visits and free checks, each Supervisor's day's sheet (day-sheet.tsx, with Send beside the
+ * headline), Needs you (one button each; an item goes once its work is done), Also today, and the
+ * Evening close (in full from 4 pm). A Supervisor sees their own day and their own sheet.
  * Everything is worked out by the server (GET /today) from the other pages' records.
  */
 export default function TodayScreen() {
@@ -133,6 +142,8 @@ export default function TodayScreen() {
   }
 
   const own = page.scope === "own";
+  // An API from before the day's sheet (console plan step 3) sends none: the page works without them.
+  const sheets = page.sheets ?? [];
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -143,6 +154,8 @@ export default function TodayScreen() {
           </>
         }
         description={`${dayName(page.date)} · ${indiaTimeWords(page.at)}`}
+        // "Send the day's sheet" beside the headline (docs/CONSOLE_PLAN.md 4.1, part 4): the office only.
+        action={!own && <SheetsAction sheets={sheets} onSent={reload} />}
         how={
           <>
             <p>
@@ -158,13 +171,22 @@ export default function TodayScreen() {
               <p>
                 Needs you brings in: a booking not placed after {TODAY_RULES.bookingWaitHours} hours; today&apos;s and tomorrow&apos;s visits with no
                 Supervisor; a sign-off, a report or an issue waiting {TODAY_RULES.signOffWaitDays} days; an overdue invoice where the crew is today; a new
-                outlet not live after 24 hours. The Evening close shows in full from 4 pm.
+                outlet not live after 24 hours; and from Quality, a follow-up with nothing booked, the photos waiting to be judged, and each open
+                incident. The Evening close shows in full from 4 pm.
+              </p>
+            )}
+            {own ? (
+              <p>Your day&apos;s sheet is under your visits: the visits in time order with their addresses and notes, and what to carry.</p>
+            ) : (
+              <p>
+                Under the visits is each Supervisor&apos;s day&apos;s sheet: their visits in time order with the address, a map link and the note from
+                the last visit, and what to carry, from each service&apos;s list in Catalogue. Send the day&apos;s sheet puts it on their phone; once
+                sent, it says when, and offers Send again only if their visits have changed since. Print gives that sheet alone on paper.
               </p>
             )}
           </>
         }
       />
-      {/* Step 3 of the console plan: "Send the day's sheet" for each Supervisor goes here, beside the headline (docs/CONSOLE_PLAN.md 4.1, part 4). */}
       {error && <LoadError message={error} onRetry={reload} />}
 
       {/*
@@ -175,7 +197,8 @@ export default function TodayScreen() {
       <div className="grid items-start gap-6 lg:grid-cols-5 lg:grid-rows-[auto_1fr]">
         <div className="flex min-w-0 flex-col gap-6 lg:col-span-3 lg:row-start-1">
           <VisitsCard page={page} />
-          {/* Step 3 of the console plan: the day's sheet for each Supervisor (what to carry, the route, the notes) goes here. */}
+          {/* The day's sheet for each Supervisor with visits today (a Supervisor's own): the visits, the notes and what to carry. */}
+          {sheets.length > 0 && <DaySheets sheets={sheets} canOpenCatalogue={!own} onSent={reload} />}
         </div>
         <div className="flex min-w-0 flex-col gap-6 lg:col-span-2 lg:col-start-4 lg:row-span-2 lg:row-start-1">
           <NeedsYou items={page.needsYou} onChanged={reload} />

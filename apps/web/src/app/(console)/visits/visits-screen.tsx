@@ -672,6 +672,8 @@ function VisitDetail({
           {(visit.booked || visit.fromPlan) && (
             <p className="text-sm text-muted">{visit.booked ? "Booked by the restaurant" : "From their plan"}</p>
           )}
+          {/* Booked from Quality → Follow-ups (20 Oct 2026): never invoiced, and its report changes no score. */}
+          {visit.free && <p className="text-sm font-semibold">Free follow-up visit: no invoice</p>}
         </div>
         <StatusBadge status={visit.status} />
       </div>

@@ -159,6 +159,27 @@ import type { VendorDirectoryDto, VendorDto } from "@eccs/shared";
 // week-board-types: the Visits week board and its capacity setting (20 Oct 2026)
 import type { VisitCapacityInput, VisitSettingsDto, WeekBoardDto } from "@eccs/shared";
 import type { DayClosedDto, SignOffRemindedDto, TodayDto } from "@eccs/shared";
+// Quality and the day's sheet (console plan step 3, 20 Oct 2026).
+import type {
+  BookFollowUpVisitInput,
+  CloseFollowUpInput,
+  CloseIncidentInput,
+  CreateIncidentInput,
+  DaySheetDto,
+  DaySheetSentDto,
+  FollowUpDto,
+  FollowUpsDto,
+  IncidentDto,
+  IncidentsDto,
+  JudgePhotosInput,
+  LogFollowUpCallInput,
+  PhotoJudgedDto,
+  PhotoQueueDto,
+  QualityCountsDto,
+  QualitySummaryDto,
+  RejectPhotosInput,
+  UpdateIncidentInput,
+} from "@eccs/shared";
 // legal-types: terms and privacy acceptance (14 Oct 2026)
 import type { AcceptLegalInput, LegalDocumentDto, LegalDocumentKey, LegalStatusDto } from "@eccs/shared";
 import { LEGAL_ERROR } from "@eccs/shared";
@@ -827,6 +848,48 @@ export function createApiClient(options: ApiClientOptions) {
     today: {
       get: () => call<TodayDto>("GET", "/today"),
       close: (date: string) => call<DayClosedDto>("POST", "/today/close", { date }),
+      /**
+       * Sends a Supervisor their day's sheet (the DAY_SHEET_SENT notification), and records when.
+       * The Super Admin or the Ops Manager; again once the visits have changed since (409 otherwise).
+       */
+      sendSheet: (supervisorId: string, date: string) => call<DaySheetSentDto>("POST", `/today/sheets/${id(supervisorId)}/send`, { date }),
+      /** The Supervisor's own sheet for today, with "Still to do today": the top of the phone's jobs list. */
+      mySheet: () => call<DaySheetDto>("GET", "/today/sheet"),
+    },
+    /**
+     * Quality (console plan step 3, 20 Oct 2026): Follow-ups, Photos and Incidents, for the Super
+     * Admin and the Ops Manager. The customer-page photos on the Photos tab stay under `publicPage`.
+     */
+    quality: {
+      /** The headline, the counts behind the tabs and the menu's badge, and the month strip. */
+      summary: () => call<QualitySummaryDto>("GET", "/quality"),
+      counts: () => call<QualityCountsDto>("GET", "/quality/counts"),
+      /** "open": the queue. "done": done or closed in the last 30 days. */
+      followUps: (state: "open" | "done" = "open") => call<FollowUpsDto>("GET", `/quality/follow-ups${query({ state })}`),
+      followUp: (followUpId: string) => call<FollowUpDto>("GET", `/quality/follow-ups/${id(followUpId)}`),
+      logCall: (followUpId: string, input: LogFollowUpCallInput) => call<FollowUpDto>("POST", `/quality/follow-ups/${id(followUpId)}/calls`, input),
+      /** Books a free redo or check-in visit: a normal visit in the diary, marked free (no invoice, no score). */
+      bookVisit: (followUpId: string, input: BookFollowUpVisitInput) => call<FollowUpDto>("POST", `/quality/follow-ups/${id(followUpId)}/visit`, input),
+      close: (followUpId: string, input: CloseFollowUpInput) => call<FollowUpDto>("POST", `/quality/follow-ups/${id(followUpId)}/close`, input),
+      /** Doubtful photos and checklists ticked too fast, waiting to be judged, oldest first. */
+      photos: () => call<PhotoQueueDto>("GET", "/quality/photos"),
+      acceptPhotos: (input: JudgePhotosInput) => call<PhotoJudgedDto>("POST", "/quality/photos/accept", input),
+      /** Rejects and asks for a retake: the outlet's Manager (a checklist) or the visit's Supervisor is told. */
+      rejectPhotos: (input: RejectPhotosInput) => call<PhotoJudgedDto>("POST", "/quality/photos/reject", input),
+      /** "open": open ones only; "all": open first, then the rest, newest first. */
+      incidents: (state: "open" | "all" = "all") => call<IncidentsDto>("GET", `/quality/incidents${query({ state })}`),
+      incident: (incidentId: string) => call<IncidentDto>("GET", `/quality/incidents/${id(incidentId)}`),
+      /** Photos and files are uploaded first with `attachments.upload` for the outlet, then named here. */
+      addIncident: (input: CreateIncidentInput) => call<IncidentDto>("POST", "/quality/incidents", input),
+      updateIncident: (incidentId: string, input: UpdateIncidentInput) => call<IncidentDto>("PATCH", `/quality/incidents/${id(incidentId)}`, input),
+      closeIncident: (incidentId: string, input: CloseIncidentInput) => call<IncidentDto>("POST", `/quality/incidents/${id(incidentId)}/close`, input),
+      reopenIncident: (incidentId: string) => call<IncidentDto>("POST", `/quality/incidents/${id(incidentId)}/reopen`),
+      /** The incident as a PDF, for an insurer or a lawyer: its whole story, with its photos. */
+      async incidentPdf(incidentId: string): Promise<{ blob: Blob; fileName: string }> {
+        const { blob, headers } = await download(`/quality/incidents/${id(incidentId)}/pdf`);
+        const named = /filename="([^"]+)"/.exec(headers.get("Content-Disposition") ?? "")?.[1];
+        return { blob, fileName: named ?? "Incident.pdf" };
+      },
     },
     // notifications-api: the notifications worker adds `notifications: { ... },` on the next line
     /** The person's own notifications: the list behind the bell. */

@@ -3,8 +3,10 @@
 import {
   addServiceTaskSchema,
   can,
+  cleanCarryList,
   createCatalogItemSchema,
   createServiceKindSchema,
+  DAY_SHEET_RULES,
   SERVICE_CATEGORIES,
   SERVICE_CATEGORY_ENGLISH,
   serviceCodeFromName,
@@ -153,6 +155,10 @@ export default function CatalogueScreen() {
             <p>
               Nothing is ever deleted here, because bookings and finished visits refer to it: you stop offering a service or retire a
               task, and can bring either back.
+            </p>
+            <p>
+              Each kind of service also lists what to carry to its visits. Today&apos;s day&apos;s sheet for each Supervisor puts the lists of their
+              visits together, each thing once with the visits that need it. A list marked Sample list came with the sample services.
             </p>
             <p>Plans and their prices are on the Plans page.</p>
           </>
@@ -647,6 +653,7 @@ function KindCard({
 
       <KindCertificate kind={kind} onChange={onChange} />
       <KindTax kind={kind} onChange={onChange} />
+      <KindCarry kind={kind} onChange={onChange} />
 
       {inUse.length === 0 ? (
         <p className="text-muted">
@@ -931,6 +938,91 @@ function KindTax({ kind, onChange }: { kind: ServiceKindAdminDto; onChange: Chan
             Cancel
           </Button>
         </div>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * What the crew takes to a visit of this kind (ladder, harness, hood brushes), for the
+ * Supervisor's day's sheet on Today, where the day's lists are merged so each thing is
+ * listed once with the visits that need it. Shown as one line, marked "Sample list" while
+ * it is the list loaded with the sample services; "Change" opens a box with one thing per
+ * line, the way a packing list is typed. Saving makes it the office's own.
+ * Pattern followed: a job's materials pick list (Jobber, ServiceTitan), kept per kind of job.
+ */
+function KindCarry({ kind, onChange }: { kind: ServiceKindAdminDto; onChange: Change }) {
+  const name = english(kind.name);
+  // An API from before "What to carry" (console plan step 3) sends none.
+  const listed = kind.carryItems ?? [];
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    // One thing per line; blank lines and repeats are dropped (here and again by the server).
+    const carryItems = cleanCarryList((formValues(form).carryItems ?? "").split("\n"));
+    const found = checkAgainst(updateServiceKindSchema, { carryItems });
+    setErrors(found);
+    if (hasErrors(found)) return focusFirstError(form, found);
+
+    setBusy(true);
+    const failed = await onChange(
+      () => api.catalogue.updateKind(kind.code, { carryItems }),
+      carryItems.length === 0 ? `Saved: nothing to carry for ${name}` : `Saved: ${carryItems.length} thing${carryItems.length === 1 ? "" : "s"} to carry for ${name}`,
+    );
+    setBusy(false);
+    setError(failed);
+    if (!failed) setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-1 text-sm">
+        <span className="font-semibold">What to carry:</span>
+        <span>{listed.length > 0 ? listed.join(", ") : "nothing listed"}</span>
+        {kind.carrySample && listed.length > 0 && (
+          <span className="ml-1">
+            <Tag>Sample list</Tag>
+          </span>
+        )}
+        <Button
+          variant="link"
+          aria-label={`Change what to carry for ${name}`}
+          onClick={() => {
+            setError(null);
+            setErrors({});
+            setEditing(true);
+          }}
+        >
+          Change
+        </Button>
+      </p>
+    );
+  }
+
+  return (
+    <form onSubmit={save} noValidate aria-label={`What to carry for ${name}`} className="flex max-w-xl flex-col gap-3 rounded-lg border border-primary p-3">
+      <TextAreaField
+        label="What to carry, one thing per line"
+        name="carryItems"
+        rows={Math.min(DAY_SHEET_RULES.maxCarryItems, Math.max(4, listed.length + 1))}
+        autoFocus
+        defaultValue={listed.join("\n")}
+        hint={`At most ${DAY_SHEET_RULES.maxCarryItems} things, each under ${DAY_SHEET_RULES.carryItemMax} letters. They show on the Supervisor's day's sheet for every visit of this kind.${kind.carrySample ? " This is the sample list; saving makes it your own." : ""}`}
+        error={errors.carryItems}
+      />
+      <ErrorMessage message={error} />
+      <div className="flex gap-3">
+        <Button type="submit" loading={busy}>
+          Save
+        </Button>
+        <Button type="button" variant="secondary" disabled={busy} onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
       </div>
     </form>
   );

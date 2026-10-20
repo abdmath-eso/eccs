@@ -234,11 +234,14 @@ export class IssuesService {
     if (!fromEccs && status !== 'CLOSED' && status !== 'OPEN') {
       throw new ForbiddenException('Only ECCS can set this status');
     }
+    // Reopened after ECCS resolved it or it was closed: kept, so Quality > Follow-ups brings the outlet in once per reopening.
+    const reopened = status === 'OPEN' && (issue.status === 'RESOLVED' || issue.status === 'CLOSED');
     await this.db.issue.update({
       where: { id: issue.id },
       data: {
         status,
         resolvedAt: status === 'RESOLVED' || status === 'CLOSED' ? (issue.resolvedAt ?? new Date()) : null,
+        ...(reopened && { reopenedAt: new Date(), reopenCount: { increment: 1 } }),
       },
     });
     await this.notify.issueStatusChanged(user, issue.id, issue.status);

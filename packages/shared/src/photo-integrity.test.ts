@@ -3,7 +3,9 @@ import { MONITORING_RULES, photoLevel } from "./monitoring.js";
 import { parseCoordinates, updateOutletSchema } from "./outlets.js";
 import {
   assessPhoto,
+  checklistSpeedFlag,
   describePhotoFlag,
+  shortDuration,
   duplicateFlag,
   fingerprintDistance,
   formatDistance,
@@ -399,5 +401,35 @@ describe("an outlet's location", () => {
     expect(updateOutletSchema.safeParse({ latitude: 17.4 }).success).toBe(false);
     expect(updateOutletSchema.safeParse({ latitude: 17.4, longitude: null }).success).toBe(false);
     expect(updateOutletSchema.safeParse({ latitude: 117.4, longitude: 78.4 }).success).toBe(false);
+  });
+});
+
+describe("a checklist finished too fast (20 Oct 2026)", () => {
+  const at = (seconds: number) => new Date(Date.UTC(2026, 9, 20, 18, 0, seconds));
+
+  it("flags a list ticked at under 10 seconds a check", () => {
+    // 12 checks in 1 min 40 s: the founder's example.
+    const times = Array.from({ length: 12 }, (_, index) => at(Math.round((index * 100) / 11)));
+    expect(checklistSpeedFlag(times)).toEqual({ code: "TOO_FAST", certain: false, checks: 12, seconds: 100 });
+  });
+
+  it("leaves a list answered at a working pace, a short list, and answers with no time", () => {
+    expect(checklistSpeedFlag(Array.from({ length: 12 }, (_, index) => at(index * 15)))).toBeNull();
+    expect(checklistSpeedFlag([at(0), at(1), at(2), at(3)])).toBeNull();
+    expect(checklistSpeedFlag([at(0), null, null, null, null, at(1)])).toBeNull();
+  });
+
+  it("says it in words", () => {
+    expect(describePhotoFlag({ code: "TOO_FAST", certain: false, checks: 12, seconds: 100 })).toBe("Checklist finished too fast: 12 checks ticked in 1 min 40 s");
+    expect(shortDuration(45)).toBe("45 s");
+    expect(shortDuration(180)).toBe("3 min");
+  });
+});
+
+describe("photoLevel with Quality's judgements (20 Oct 2026)", () => {
+  it("needs attention once the office has rejected a photo, even with nothing doubtful left", () => {
+    expect(photoLevel({ checked: 40, doubtful: 0, certain: 0, fromChecklists: 0, rejected: 1 })).toBe("ATTENTION");
+    expect(photoLevel({ checked: 0, doubtful: 0, certain: 0, fromChecklists: 0, rejected: 1 })).toBe("ATTENTION");
+    expect(photoLevel({ checked: 40, doubtful: 1, certain: 0, fromChecklists: 0, rejected: 0 })).toBe("WATCH");
   });
 });

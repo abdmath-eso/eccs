@@ -18,6 +18,9 @@ import type { LocalizedText } from "./checklists.js";
  * CLOCK_AHEAD: the phone's time for the photo is later than the moment our server received it.
  * TAKEN_BEFORE: the phone's time for the photo is before the work it belongs to began.
  * NOT_CAMERA: the photo was picked from files instead of taken with the app's camera (only possible in the browser preview).
+ * TOO_FAST: the checklist the photo belongs to was ticked faster than its checks can be done (20 Oct 2026).
+ *   It is a mark on the checklist run as a whole (ChecklistRun.integrityFlags), worked out when the run
+ *   is handed in by `checklistSpeedFlag` below, and shown in Quality > Photos with the run's photos.
  */
 export const PHOTO_FLAG_CODES = [
   "SAME_FILE",
@@ -27,6 +30,7 @@ export const PHOTO_FLAG_CODES = [
   "CLOCK_AHEAD",
   "TAKEN_BEFORE",
   "NOT_CAMERA",
+  "TOO_FAST",
 ] as const;
 export type PhotoFlagCode = (typeof PHOTO_FLAG_CODES)[number];
 
@@ -72,6 +76,17 @@ export const PHOTO_INTEGRITY_RULES = {
      */
     minContrast: 24,
   },
+  speed: {
+    /**
+     * A checklist handed in with its checks ticked at under this many seconds each, on average, from
+     * the first answer to the last, is "finished too fast". Checking a fridge's temperature, a counter
+     * or a drain and ticking it takes longer than this; ticking a list from memory at the end of a
+     * shift does not. A soft sign: someone who did the round first and ticked after is flagged too.
+     */
+    secondsPerCheck: 10,
+    /** A list shorter than this is never judged by speed: three ticks in ten seconds can be honest. */
+    minChecks: 5,
+  },
 } as const;
 
 /** What a proof photo was proof for. */
@@ -101,6 +116,9 @@ export interface PhotoFlagDto {
   distanceMetres?: number;
   /** CLOCK_AHEAD: minutes the phone was ahead. TAKEN_BEFORE: minutes before the work began. */
   minutes?: number;
+  /** TOO_FAST: how many checks were ticked, and in how many seconds from the first to the last. */
+  checks?: number;
+  seconds?: number;
 }
 
 /** Where the phone was when a photo was taken, as the phone reported it. */
@@ -293,6 +311,32 @@ export function timeFlags(input: {
   return { gapSeconds, flags: [] };
 }
 
+// ───────────────────────── Speed (a whole checklist) ─────────────────────────
+
+/**
+ * Was a checklist ticked too fast to be real? `answeredAt` holds the phone's time of each
+ * answer in the run. The span from the first answer to the last, shared over the checks
+ * answered, is compared with PHOTO_INTEGRITY_RULES.speed. A short list, or answers with no
+ * time, are never flagged; a run answered over the morning is never flagged either.
+ */
+export function checklistSpeedFlag(answeredAt: readonly (Date | null)[]): PhotoFlagDto | null {
+  const rules = PHOTO_INTEGRITY_RULES.speed;
+  const times = answeredAt.filter((at): at is Date => at !== null && !Number.isNaN(at.getTime())).map((at) => at.getTime());
+  if (times.length < rules.minChecks) return null;
+  const seconds = Math.round((Math.max(...times) - Math.min(...times)) / 1000);
+  if (seconds >= rules.secondsPerCheck * times.length) return null;
+  return { code: "TOO_FAST", certain: false, checks: times.length, seconds };
+}
+
+/** "1 min 40 s", "45 s", "3 min". */
+export function shortDuration(seconds: number): string {
+  const whole = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(whole / 60);
+  const rest = whole % 60;
+  if (minutes === 0) return `${rest} s`;
+  return rest === 0 ? `${minutes} min` : `${minutes} min ${rest} s`;
+}
+
 // ───────────────────────── All together ─────────────────────────
 
 export interface PhotoAssessmentInput {
@@ -390,5 +434,7 @@ export function describePhotoFlag(flag: PhotoFlagDto): string {
       return `Phone's time for the photo is ${formatSpan(flag.minutes ?? 0)} before this work began`;
     case "NOT_CAMERA":
       return "Picked from files, not taken with the app's camera";
+    case "TOO_FAST":
+      return `Checklist finished too fast: ${flag.checks ?? 0} checks ticked in ${shortDuration(flag.seconds ?? 0)}`;
   }
 }

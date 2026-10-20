@@ -151,10 +151,12 @@ function cellText(outlet: MonitoringOutletDto, area: MonitoringArea): { main: st
     }
     case "photos": {
       const p = outlet.photos;
-      if (p.checked === 0) return { main: "No proof photos", more: [] };
+      // Rejected in Quality → Photos and a retake asked for (20 Oct 2026); missing on a board saved before.
+      const rejected = (p.rejected ?? 0) > 0 && `${p.rejected} rejected`;
+      if (p.checked === 0) return { main: "No proof photos", more: [rejected].filter(isText) };
       return {
         main: p.doubtful === 0 ? `None doubtful of ${p.checked}` : `${p.doubtful} doubtful of ${p.checked}`,
-        more: [p.certain > 0 && `${p.certain} certain`].filter(isText),
+        more: [p.certain > 0 && `${p.certain} certain`, rejected].filter(isText),
       };
     }
   }
@@ -652,8 +654,9 @@ function Rules() {
           How far the proof photos of the period can be trusted. A photo is doubtful when it is the same as one used before, was taken far from
           the outlet or with a faked location, or carries a time that cannot be right. Needs attention when a photo is doubtful for a reason
           with no innocent explanation (the identical file again, a faked location), when {r.photos.attentionCount} or more are doubtful, or
-          when {r.photos.attentionPercent}% or more are (from {r.photos.percentFromPhotos} photos up). Watch when any is doubtful. A doubtful
-          photo is never refused and does not change the hygiene score; a missing location is not held against anyone.
+          when {r.photos.attentionPercent}% or more are (from {r.photos.percentFromPhotos} photos up), and whenever the office rejected a photo
+          in Quality and asked for a retake. Watch when any is doubtful; one the office accepted in Quality no longer counts. Neither a doubtful
+          photo nor a rejection changes the hygiene score, and a photo is never refused by the app; a missing location is not held against anyone.
         </dd>
       </dl>
     </details>

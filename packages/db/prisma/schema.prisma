@@ -115,6 +115,10 @@ model Outlet {
   publicProfile            PublicProfile?
   /// Its first ten days, from "won" to "running on its own" (Clients, New outlets; 20 Oct 2026).
   onboarding               OutletOnboarding?
+  /// Quality (20 Oct 2026, console plan step 3): follow-ups, photo judgements and incidents.
+  followUps                FollowUp[]
+  photoReviews             PhotoReview[]
+  incidents                Incident[]
 
   @@index([organizationId])
 }
@@ -399,6 +403,11 @@ model ChecklistRun {
   reviewedById      String?
   reviewedAt        DateTime?
   createdAt         DateTime           @default(now())
+  /// Reasons to doubt the run as a whole, as PhotoFlagDto (20 Oct 2026): "TOO_FAST" when its checks
+  /// were ticked faster than PHOTO_INTEGRITY_RULES.speed allows. Worked out when it is handed in.
+  integrityFlags    Json?
+  /// The judgement in Quality > Photos that covered the run's speed (PhotoReview.id); empty until judged.
+  photoReviewId     String?
 
   outletChecklist OutletChecklist     @relation(fields: [outletChecklistId], references: [id])
   outlet          Outlet              @relation(fields: [outletId], references: [id])
@@ -483,13 +492,18 @@ model Attachment {
   doubtful         Boolean   @default(false)
   /// When the checks were run: the moment the photo became evidence for something.
   integrityCheckedAt DateTime?
+  /// The judgement in Quality > Photos that covered this doubtful photo (PhotoReview.id); empty until judged.
+  photoReviewId    String?
 
   checklistResponseId String?
   jobId               String?
   issueId             String?
   inspectionFindingId String?
+  /// A photo or file of an incident (Quality > Incidents, 20 Oct 2026).
+  incidentId          String?
 
   outlet            Outlet?            @relation(fields: [outletId], references: [id])
+  incident          Incident?          @relation(fields: [incidentId], references: [id], onDelete: SetNull)
   checklistResponse ChecklistResponse? @relation(fields: [checklistResponseId], references: [id])
   job               Job?               @relation(fields: [jobId], references: [id])
   issue             Issue?             @relation(fields: [issueId], references: [id])
@@ -508,6 +522,7 @@ model Attachment {
   @@index([issueId])
   @@index([outletId, contentHash])
   @@index([outletId, doubtful])
+  @@index([incidentId])
 }
 
 // ───────────────────────── Services, booking, scheduling ─────────────────────────
@@ -557,6 +572,11 @@ model ServiceType {
   checklistTemplateId  String?
   issuesCertificate    Boolean  @default(false)
   certificateValidDays Int?
+  /// What the crew takes to a visit of this kind ("Ladder", "Harness", "Hood brushes"), for the
+  /// Supervisor's day's sheet (20 Oct 2026). Short items in English, in the order they are packed.
+  carryItems           String[] @default([])
+  /// True while carryItems is the sample list loaded with the sample services; editing it clears it.
+  carrySample          Boolean  @default(false)
   isActive             Boolean  @default(true)
   createdAt            DateTime @default(now())
 
@@ -720,6 +740,10 @@ model Job {
   /// restaurant's sign-off, and who (20 Oct 2026). Remind is offered once a day per visit.
   signOffRemindedAt   DateTime?
   signOffRemindedById String?
+  /// A free redo or check-in visit booked from Quality > Follow-ups (20 Oct 2026): never invoiced.
+  free             Boolean   @default(false)
+  /// How many times ECCS sent the report back for correction, for "approved first time".
+  returnedCount    Int       @default(0)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -737,6 +761,8 @@ model Job {
   issues         Issue[]
   /// Costs entered against this visit on the Finance page (its job margin).
   expenses       Expense[]
+  /// Incidents that happened on this visit.
+  incidents      Incident[]
 
   @@unique([scheduleId, plannedFor])
   @@index([outletId, scheduledDate])
@@ -910,6 +936,8 @@ model Inspection {
   /// True when the saved summary started from an AI draft; the report then says so.
   summaryAiDrafted Boolean   @default(false)
   summaryUpdatedAt DateTime?
+  /// How many times ECCS sent it back for correction, for "approved first time" (20 Oct 2026).
+  returnedCount Int              @default(0)
   createdById   String?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -1042,6 +1070,10 @@ model Issue {
   jobId               String?
   inspectionFindingId String?
   resolvedAt          DateTime?
+  /// The last time the restaurant reopened it after it was resolved or closed, and how many times
+  /// it has been (20 Oct 2026): each reopening brings the outlet into Quality > Follow-ups once.
+  reopenedAt          DateTime?
+  reopenCount         Int           @default(0)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
   /// The description's AI translations: { source, to: { te: "...", ... } } (StoredTranslations).
@@ -2688,4 +2720,132 @@ model BuddyBlock {
 
   @@index([userId, createdAt])
   @@index([createdAt])
+}
+
+// ───────────────────────── Quality and the day's sheet (20 Oct 2026, console plan step 3) ─────────────────────────
+
+/// One outlet in Quality > Follow-ups: an unhappy kitchen to call back. Made once per cause
+/// (`causeKey` is unique), by the rules in packages/shared/src/quality.ts: a visit rated 3 or
+/// fewer, an issue reopened, a hygiene score fallen 15 points in a week, an inspection approved
+/// with no grade. Nothing here changes a score (no re-inspection, 7 Oct 2026). It leaves the
+/// queue when its free visit is done (DONE) or it is closed with a note (CLOSED).
+model FollowUp {
+  id           String    @id @default(uuid())
+  outletId     String
+  /// RATING, ISSUE_REOPENED, SCORE_DROP or INSPECTION (FOLLOW_UP_CAUSES).
+  cause        String
+  /// "RATING:<visit>", "ISSUE_REOPENED:<issue>:<n>", "SCORE_DROP:<outlet>:<day of the high>", "INSPECTION:<inspection>".
+  causeKey     String    @unique
+  /// What caused it, by id (no foreign keys: the record can go without taking this with it).
+  jobId        String?
+  issueId      String?
+  inspectionId String?
+  /// The facts it was made from, for its words (FollowUpFacts).
+  facts        Json
+  /// When the cause happened.
+  causedAt     DateTime
+  /// OPEN, DONE (its free visit was done) or CLOSED (closed with a note).
+  status       String    @default("OPEN")
+  /// The free redo or check-in visit booked for it.
+  visitId      String?   @unique
+  closedAt     DateTime?
+  closedById   String?
+  closeNote    String?
+  createdAt    DateTime  @default(now())
+
+  outlet Outlet         @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  calls  FollowUpCall[]
+
+  @@index([status])
+  @@index([outletId])
+}
+
+/// A call logged on a follow-up: who called and what was said ("a free redo offered").
+model FollowUpCall {
+  id          String   @id @default(uuid())
+  followUpId  String
+  note        String
+  /// Who made the call (an ECCS person), and who wrote it down.
+  calledById  String
+  loggedById  String
+  at          DateTime @default(now())
+
+  followUp FollowUp @relation(fields: [followUpId], references: [id], onDelete: Cascade)
+
+  @@index([followUpId])
+}
+
+/// A judgement in Quality > Photos: the office accepted, or rejected and asked for a retake,
+/// the doubtful proof of one checklist or one visit. The photos it covered point back to it
+/// (Attachment.photoReviewId), and so does a checklist run judged for its speed.
+model PhotoReview {
+  id           String   @id @default(uuid())
+  outletId     String
+  /// CHECKLIST (a restaurant's checklist) or VISIT (an ECCS visit's before and after photos).
+  kind         String
+  runId        String?
+  jobId        String?
+  /// ACCEPTED or REJECTED.
+  verdict      String
+  /// The reason given with a rejection, which the person told reads.
+  note         String?
+  /// The photos judged, and the reasons for doubt as they stood.
+  photoIds     String[]
+  reasons      Json
+  /// How many people were told of a rejection.
+  told         Int      @default(0)
+  reviewedById String
+  reviewedAt   DateTime @default(now())
+
+  outlet Outlet @relation(fields: [outletId], references: [id], onDelete: Cascade)
+
+  @@index([outletId, reviewedAt])
+  @@index([reviewedAt])
+}
+
+/// Quality > Incidents: anything that could become a claim, a complaint or a lesson (an injury,
+/// damage, a missing item). Added and closed by the office; its page and its PDF tell the whole story.
+model Incident {
+  id           String    @id @default(uuid())
+  /// Running number shown as "INC-0003".
+  reference    Int       @unique @default(autoincrement())
+  outletId     String
+  /// The visit it happened on, if any.
+  jobId        String?
+  /// The day it happened (India date).
+  happenedOn   DateTime  @db.Date
+  whatHappened String
+  whatWasDone  String?
+  /// What it cost ECCS (a replacement, a clinic), in paise; empty when nothing.
+  costPaise    Int?
+  /// OPEN or CLOSED.
+  status       String    @default("OPEN")
+  createdById  String
+  closedById   String?
+  closedAt     DateTime?
+  closeNote    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  outlet      Outlet       @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  job         Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  attachments Attachment[]
+
+  @@index([status])
+  @@index([outletId])
+}
+
+/// "Send the day's sheet" on Today: each time the office sent a Supervisor their day's sheet.
+/// `visitsKey` is the day's visits as they stood, so a later change shows as "changed since".
+model DaySheetSend {
+  id           String   @id @default(uuid())
+  date         DateTime @db.Date
+  supervisorId String
+  sentById     String
+  sentAt       DateTime
+  /// The sheet's visits when sent (daySheetKey in packages/shared/src/day-sheet.ts).
+  visitsKey    String
+  visitCount   Int
+
+  @@index([date, supervisorId])
 }

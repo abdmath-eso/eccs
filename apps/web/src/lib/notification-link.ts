@@ -11,7 +11,11 @@ export function hrefFor(link: NotificationLink | null, type?: NotificationType |
       return `/visits?visit=${encodeURIComponent(link.visitId)}`;
     case "services":
       // A restaurant's request waits on Visits' Waiting tab until it is placed (20 Oct 2026).
-      return type === "BOOKING_REQUESTED" ? "/visits?view=waiting" : "/visits";
+      if (type === "BOOKING_REQUESTED") return "/visits?view=waiting";
+      // The day's sheet is on Today, for a Supervisor reading it in the console (20 Oct 2026).
+      // A rejected visit photo (PHOTO_REJECTED) carries a visit link and opens the visit above.
+      if (type === "DAY_SHEET_SENT") return "/";
+      return "/visits";
     case "issue":
       return `/issues?issue=${encodeURIComponent(link.issueId)}`;
     default:

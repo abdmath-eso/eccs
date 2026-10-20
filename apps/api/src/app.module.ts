@@ -31,6 +31,7 @@ import { TeamModule } from './team/team.module.js';
 import { TodayModule } from './today/today.module.js';
 import { FoodLabelsModule } from './food-labels/food-labels.module.js';
 import { PublicPageModule } from './public-page/public-page.module.js';
+import { QualityModule } from './quality/quality.module.js';
 import { ServicesModule } from './services/services.module.js';
 import { RestaurantUsersModule } from './restaurant-users/restaurant-users.module.js';
 import { SopsModule } from './sops/sops.module.js';
@@ -79,6 +80,7 @@ import { VendorsModule } from './vendors/vendors.module.js';
     BuddyModule,
     // Today, the console's home (20 Oct 2026): reads from the parts above.
     TodayModule,
+    QualityModule,
   ],
   controllers: [AppController],
 })

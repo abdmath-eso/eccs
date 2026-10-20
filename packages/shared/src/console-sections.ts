@@ -46,6 +46,9 @@ export const CONSOLE_SECTIONS: readonly ConsoleSection[] = [
   { key: "visits", label: "Visits", href: "/visits", group: "Daily work", needs: { resource: "jobs", action: "read" }, about: "the visit diary and the week board" },
   { key: "inspections", label: "Inspections", href: "/inspections", group: "Daily work", needs: { resource: "inspections", action: "read" }, about: "inspection reports" },
   { key: "issues", label: "Issues", href: "/issues", group: "Daily work", needs: { resource: "issues", action: "read" }, about: "issues raised by restaurants" },
+  // Step 3 of the console plan (20 Oct 2026): three work queues, Follow-ups, Photos and Incidents. The
+  // customer-page photos moved into its Photos tab, so Customer pages left the menu (it stays at 16).
+  { key: "quality", label: "Quality", href: "/quality", group: "Daily work", needs: { resource: "quality", action: "read" }, about: "follow-ups, photos to judge and incidents" },
   {
     key: "clients",
     label: "Clients",
@@ -63,7 +66,6 @@ export const CONSOLE_SECTIONS: readonly ConsoleSection[] = [
   { key: "invoices", label: "Invoices", href: "/invoices", group: "Clients", needs: { resource: "invoices", action: "update" }, about: "invoices and payments" },
   // No Licences page since 20 Oct 2026: licences are the restaurant's own, kept in its app.
   { key: "certificates", label: "Certificates", href: "/certificates", group: "Clients", needs: { resource: "reports", action: "read" }, about: "service certificates" },
-  { key: "customerPages", label: "Customer pages", href: "/customer-pages", group: "Clients", needs: { resource: "publicPage", action: "approve" }, about: "photos for the restaurants' QR pages" },
   { key: "sales", label: "Sales", href: "/sales", group: "Business", needs: { resource: "sales", action: "read" }, about: "leads and quotes" },
   { key: "finance", label: "Finance", href: "/finance", group: "Business", needs: { resource: "finance", action: "read" }, about: "ECCS's own money" },
   { key: "team", label: "Team", href: "/team", group: "Business", needs: { resource: "team", action: "read" }, about: "ECCS's own team" },

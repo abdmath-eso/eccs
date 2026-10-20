@@ -231,6 +231,7 @@ export class CatalogService {
       sacCode?: string | undefined;
       gstRatePercent?: number | undefined;
       partnerDelivered?: boolean | undefined;
+      carryItems?: string[] | undefined;
     },
   ): Promise<CatalogAdminDto> {
     const kind = await this.requireKind(code);
@@ -253,6 +254,8 @@ export class CatalogService {
         ...(input.sacCode !== undefined && { sacCode: input.sacCode }),
         ...(input.gstRatePercent !== undefined && { gstRatePercent: input.gstRatePercent }),
         ...(input.partnerDelivered !== undefined && { partnerDelivered: input.partnerDelivered }),
+        // "What to carry" for the day's sheet; once the office saves it, it is theirs, no longer the sample.
+        ...(input.carryItems !== undefined && { carryItems: input.carryItems, carrySample: false }),
       },
     });
     return this.overview();
@@ -381,5 +384,7 @@ function toKindDto(kind: KindRow): ServiceKindAdminDto {
     sacCode: kind.sacCode,
     gstRatePercent: kind.gstRatePercent,
     partnerDelivered: kind.partnerDelivered,
+    carryItems: kind.carryItems,
+    carrySample: kind.carrySample,
   };
 }

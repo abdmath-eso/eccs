@@ -453,7 +453,8 @@ export class InspectionsService {
     const inspection = await this.requireInReview(user, inspectionId);
     await this.db.inspection.update({
       where: { id: inspection.id },
-      data: { status: 'DRAFT', completedAt: null, overallScore: null, grade: null, reviewNote: note },
+      // Counted for Quality's "reports approved first time".
+      data: { status: 'DRAFT', completedAt: null, overallScore: null, grade: null, reviewNote: note, returnedCount: { increment: 1 } },
     });
     return this.get(user, inspection.id);
   }

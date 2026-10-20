@@ -34,6 +34,7 @@ export const RESOURCES = [
   "sales", // leads, their steps and quotes, and the BDEs' targets (the console's Sales page)
   "team", // ECCS's own team: who is in, their week, leave and salaries (the console's Team page)
   "aiUsage", // what the AI helpers cost, the request log, and the AI settings (the console's AI usage page)
+  "quality", // follow-ups, photo judgements and incidents (the console's Quality page)
 ] as const;
 
 export type Resource = (typeof RESOURCES)[number];
@@ -105,6 +106,11 @@ const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A:
 // its export, and the AI settings read-only; U = change the AI settings (switches, models, limits,
 // warnings, Buddy, the key's facts). The Super Admin has both; the Ops Manager reads (as for Logs);
 // nobody else sees the page.
+// For quality (the Quality page, 20 Oct 2026, console plan step 3): R = the follow-ups, the photos
+// waiting to be judged and the incidents, with an incident's page and PDF; C = log a call, book a free
+// visit, add an incident; U = close a follow-up, judge a photo (accept, or reject and ask for a
+// retake), change or close an incident. The Super Admin and the Ops Manager; nobody else (the plan:
+// "SA, OM"). The customer-page photos shown on the same page keep their own grant, publicPage A.
 const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
   SUPER_ADMIN: {
     clients: "CRU", eccsUsers: "CRU", restaurantUsers: "CRU", sopTemplates: "CRU",
@@ -112,7 +118,7 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     subscriptions: "CRU", schedule: "CRU", jobs: "CRUA", inspections: "CRUA", reports: "CRA",
     publicPage: "RUA", licences: "CRU", documents: "CRU", scores: "R",
     invoices: "CRU", payments: "CRU", auditLog: "R", settings: "RU", finance: "CRU", sales: "CRUA",
-    team: "CRUA", aiUsage: "RU",
+    team: "CRUA", aiUsage: "RU", quality: "CRU",
   },
   OPS_MANAGER: {
     clients: "CRU", eccsUsers: "R", restaurantUsers: "CRU", sopTemplates: "CRU",
@@ -120,6 +126,7 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     subscriptions: "CRU", schedule: "CRU", jobs: "CRUA", inspections: "CRUA", reports: "CRA",
     publicPage: "RUA", licences: "CRU", documents: "CRU", scores: "R",
     invoices: "CRU", payments: "CRU", auditLog: "R", sales: "CRU", team: "CRU", aiUsage: "R",
+    quality: "CRU",
   },
   BDE: {
     sales: "CRU",

@@ -34,13 +34,26 @@ export function StageTag({ stage, status }: { stage: LeadStage; status: LeadStat
 }
 
 /** A small button for a row: a picture and a word, as tall as every tap target in the app. */
-export function CompactAction({ label, icon, onPress, primary }: { label: string; icon: IconName; onPress: () => void; primary?: boolean }) {
+export function CompactAction({
+  label,
+  icon,
+  onPress,
+  primary,
+  accessibilityLabel,
+}: {
+  label: string;
+  icon: IconName;
+  onPress: () => void;
+  primary?: boolean;
+  /** What a screen reader says when the word alone does not tell which row it is for ("Map" for which outlet). */
+  accessibilityLabel?: string;
+}) {
   const theme = useTheme();
   const color = primary ? theme.onPrimary : theme.primary;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       onPress={onPress}
       style={({ pressed }) => [
         styles.compact,

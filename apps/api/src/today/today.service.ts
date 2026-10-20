@@ -44,10 +44,14 @@ import {
 import type { AuthUser } from '../auth/auth.types.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { OutletOnboardingService } from '../outlet-onboarding/outlet-onboarding.service.js';
+import { FollowUpsService } from '../quality/follow-ups.service.js';
+import { IncidentsService } from '../quality/incidents.service.js';
+import { PhotoReviewsService } from '../quality/photo-reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SalesService } from '../sales/sales.service.js';
 import { WeekBoardService } from '../services/week-board.service.js';
 import { TeamService } from '../team/team.service.js';
+import { DaySheetService } from './day-sheet.service.js';
 
 // Today, the console's home (20 Oct 2026; docs/CONSOLE_PLAN.md 4.1). One endpoint works the
 // whole page out from the records the other pages already keep, through their own services
@@ -93,6 +97,10 @@ export class TodayService {
     private readonly sales: SalesService,
     private readonly team: TeamService,
     private readonly notifications: NotificationsService,
+    private readonly followUps: FollowUpsService,
+    private readonly photoReviews: PhotoReviewsService,
+    private readonly incidents: IncidentsService,
+    private readonly daySheets: DaySheetService,
   ) {}
 
   private get db() {
@@ -112,7 +120,7 @@ export class TodayService {
     const outletIds = [...new Set(visits.map((visit) => visit.outletId))];
     // Read once: the rows' warnings and the Needs you item both come from it.
     const owing = seesMoney ? this.overdueAt(outletIds, today) : Promise.resolve(new Map<string, OverdueAtOutlet>());
-    const [checks, overdue, lastNotes, capacity, needsYou, alsoToday, close] = await Promise.all([
+    const [checks, overdue, lastNotes, capacity, needsYou, alsoToday, close, sheets] = await Promise.all([
       seesChecks
         ? this.db.lead.findMany({
             where: { checkAt: { gte: indiaMoment(today), lt: indiaMoment(addDays(today, 1)) }, checkDoneAt: null, status: 'OPEN' },
@@ -125,6 +133,7 @@ export class TodayService {
       this.needsYou(user, scope, now, visits, owing),
       office ? this.alsoToday(user, now) : Promise.resolve([]),
       this.close(user, scope, now, visits),
+      this.daySheets.sheets(user, today),
     ]);
 
     const rows: TodayVisitDto[] = [
@@ -178,6 +187,7 @@ export class TodayService {
       needsYou,
       alsoToday,
       close,
+      sheets,
     };
   }
 
@@ -405,6 +415,28 @@ export class TodayService {
         })),
       SIGN_OFF_WAITING: async () => (await waitingVisits()).signOffs,
       REPORT_TO_APPROVE: async () => (await waitingVisits()).reports,
+      // Quality's three (console plan step 3), read through its own services.
+      FOLLOW_UP_DUE: async () =>
+        (await this.followUps.due(now)).map((row) => ({
+          kind: 'FOLLOW_UP_DUE' as const,
+          followUpId: row.id,
+          outletName: row.outletName,
+          reason: row.reason,
+          causedAt: row.causedAt,
+        })),
+      PHOTO_FLAGGED: async () => {
+        const waiting = await this.photoReviews.waitingFacts(now);
+        return waiting ? [{ kind: 'PHOTO_FLAGGED' as const, ...waiting }] : [];
+      },
+      INCIDENT_OPEN: async () =>
+        (await this.incidents.open()).map((incident) => ({
+          kind: 'INCIDENT_OPEN' as const,
+          incidentId: incident.id,
+          reference: incident.reference,
+          outletName: incident.outletName,
+          whatHappened: incident.whatHappened,
+          happenedOn: incident.happenedOn,
+        })),
     };
 
     const kinds = (Object.keys(gatherers) as TodayItemKind[]).filter(shown);

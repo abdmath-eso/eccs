@@ -16,12 +16,14 @@ import { useEffect, useState } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
-import { Button, Card, EmptyState, ErrorMessage, LoadError, Loading, NoAccess, PageHeader, SelectField, TextAreaField, ToggleGroup } from "@/components/ui";
+import { Button, Card, EmptyState, ErrorMessage, HowItWorks, LoadError, Loading, SelectField, TextAreaField } from "@/components/ui";
 import { api } from "@/lib/api";
 import { describe, longDay, when } from "@/lib/format";
 import { useNavCounts } from "@/lib/nav-counts";
 import { useQuery } from "@/lib/query";
 import { useSession } from "@/lib/session";
+
+import { Segmented } from "../finance/finance-parts";
 
 /** What a photo shows, in the console's English. The diner's page words these in their own language. */
 export const CAPTION: Record<PublicPhotoCaption, string> = {
@@ -50,7 +52,7 @@ const SHOWS: readonly { value: PublicPhotoStatus; label: string }[] = [
 const OTHER = "other";
 
 /**
- * Customer pages: the photos proposed for restaurants' public QR pages, by
+ * The customer-page photos: those proposed for restaurants' public QR pages, by
  * ECCS Supervisors from their visits and by restaurants from their own daily
  * checks, waiting for ECCS's decision, the longest-waiting first.
  *
@@ -60,9 +62,12 @@ const OTHER = "other";
  * beside it instead of living in someone's head; approving is one click, and
  * rejecting asks for the reason, which whoever proposed the photo is shown.
  *
- * The filter is kept in the web address as `show=`.
+ * Since 20 Oct 2026 (console plan step 3, decision 4) the queue is part of Quality → Photos
+ * (`queue=customer`), unchanged in what it does; the old Customer pages address redirects
+ * there, and Quality shows it only to those who may approve. The filter is kept in the web
+ * address as `show=`. `onDecided` lets Quality bring its headline and tab counts up to date.
  */
-export default function CustomerPagesScreen() {
+export default function CustomerPhotosQueue({ onDecided }: { onDecided?: () => void }) {
   const { user } = useSession();
   const notify = useToast();
   const confirm = useConfirm();
@@ -98,7 +103,7 @@ export default function CustomerPagesScreen() {
   }, [mayDecide, show, attempt]);
 
   if (!mayDecide) {
-    return <NoAccess title="Customer pages">Photos for customer pages are approved by Super Admins and Operations Managers.</NoAccess>;
+    return <p className="text-muted">Photos for customer pages are approved by Super Admins and Operations Managers.</p>;
   }
 
   /** Makes one decision, then takes the photo out of the list it was in. */
@@ -111,6 +116,7 @@ export default function CustomerPagesScreen() {
       setRejecting(null);
       notify(done, { detail: `${photo.organizationName}, ${photo.outletName}` });
       refreshCounts();
+      onDecided?.();
     } catch (e) {
       setRowError({ id: photo.id, message: describe(e) });
     } finally {
@@ -132,40 +138,38 @@ export default function CustomerPagesScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Customer pages"
-        description="Photos proposed for restaurants' public QR pages. Nothing appears to a diner until it is approved here."
-        how={
-          <>
-            <p>
-              A Supervisor proposes photos from a finished visit or inspection, or takes one for the purpose. A restaurant&apos;s Owner or Manager
-              puts forward proof photos from their own daily checks of the last {PUBLIC_PAGE_RULES.checkPhotoDays} days, and only of checks marked
-              as fine. Each waits here until a Super Admin or Operations Manager approves or rejects it, and each says where it came from.
-            </p>
-            <p>
-              A restaurant&apos;s checklist photos are otherwise not open to ECCS: only the ones it puts forward appear here. A page shows its
-              newest {PUBLIC_PAGE_RULES.maxPhotos} approved photos, and a photo drops off by itself {PUBLIC_PAGE_RULES.photoShownDays} days after
-              the day it was taken.
-            </p>
-            <p>
-              The restaurant&apos;s Owner can remove any approved photo from their page at any time, and so can ECCS. A decision is final: a rejected
-              or removed photo cannot be proposed again.
-            </p>
-            <p>Whether a client&apos;s page is on, its link, and the switch to take it down are on the client&apos;s outlet, under Clients.</p>
-          </>
-        }
-      />
-
-      <ToggleGroup
-        label="Which photos to show"
-        value={show}
-        options={SHOWS}
-        onChange={(next) => {
-          setPhotos(null);
-          setRejecting(null);
-          query.set({ show: next === "PROPOSED" ? null : next }, "replace");
-        }}
-      />
+      {/* The filter first; how the queue works is folded away (Quality's own explanation is in its header). */}
+      <div className="flex flex-col gap-2">
+        <Segmented
+          label="Which customer-page photos to show"
+          showLabel={false}
+          value={show}
+          options={SHOWS}
+          onChange={(next) => {
+            setPhotos(null);
+            setRejecting(null);
+            query.set({ show: next === "PROPOSED" ? null : next }, "replace");
+          }}
+        />
+        <HowItWorks label="How customer-page photos work">
+          <p>Photos proposed for restaurants&apos; public QR pages. Nothing appears to a diner until it is approved here.</p>
+          <p>
+            A Supervisor proposes photos from a finished visit or inspection, or takes one for the purpose. A restaurant&apos;s Owner or Manager
+            puts forward proof photos from their own daily checks of the last {PUBLIC_PAGE_RULES.checkPhotoDays} days, and only of checks marked
+            as fine. Each waits here until a Super Admin or Operations Manager approves or rejects it, and each says where it came from.
+          </p>
+          <p>
+            A restaurant&apos;s checklist photos are otherwise not open to ECCS: only the ones it puts forward appear here. A page shows its
+            newest {PUBLIC_PAGE_RULES.maxPhotos} approved photos, and a photo drops off by itself {PUBLIC_PAGE_RULES.photoShownDays} days after
+            the day it was taken.
+          </p>
+          <p>
+            The restaurant&apos;s Owner can remove any approved photo from their page at any time, and so can ECCS. A decision is final: a rejected
+            or removed photo cannot be proposed again.
+          </p>
+          <p>Whether a client&apos;s page is on, its link, and the switch to take it down are on the client&apos;s outlet, under Clients.</p>
+        </HowItWorks>
+      </div>
 
       <LoadError message={error} onRetry={() => setAttempt((current) => current + 1)} />
       {photos === null && !error && <Loading />}

@@ -1,9 +1,18 @@
-import { isEccsRole, isVisitAhead, localize, type BookingDto, type OutletPlanDto, type VisitSummaryDto } from '@eccs/shared';
+import {
+  isEccsRole,
+  isVisitAhead,
+  localize,
+  type BookingDto,
+  type DaySheetDto,
+  type OutletPlanDto,
+  type VisitSummaryDto,
+} from '@eccs/shared';
 import type { ApiClient } from '@eccs/api-client';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { DaySheet } from '@/components/day-sheet';
 import { FieldMark, SavedCopyNote } from '@/components/field-sync-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -17,6 +26,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { dayBucket, formatDayShort, formatSlot, indiaToday } from '@/lib/format';
+import { todaysSheet } from '@/lib/offline/day-sheet';
 import { fieldCache } from '@/lib/offline/field-cache';
 import { fieldSummary } from '@/lib/offline/field-ops';
 import { isNoSignal, outbox, useOutbox } from '@/lib/offline/outbox';
@@ -32,6 +42,10 @@ const MAX_PAST = 10;
 // within the last few minutes is not fetched again.
 const KEEP_FOR_OFFLINE = 15;
 const FRESH_MS = 5 * 60_000;
+
+// A Supervisor's day's sheet, kept on the phone beside the lists. One copy per person, replaced
+// each time the list loads; a copy from an earlier day is not shown (todaysSheet).
+const SHEET_LIST = 'daySheet';
 
 /** Everything this screen shows, as the server last sent it. Kept on the phone under the outlet's name. */
 interface VisitLists {
@@ -74,6 +88,8 @@ export default function ServicesScreen() {
   const { outletId, outlets, loading: outletLoading, choose } = useOutlet();
   const role = user?.memberships[0]?.role;
   const eccs = role !== undefined && isEccsRole(role);
+  // Only a Supervisor has a day's sheet: the office sends it to them.
+  const supervisor = role === 'SUPERVISOR';
 
   const box = useOutbox();
   const userId = user?.id ?? null;
@@ -83,6 +99,8 @@ export default function ServicesScreen() {
   /** A request that could not be cancelled, so the message shows on that request. */
   const [cancelFailed, setCancelFailed] = useState<{ id: string; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // When the list last loaded, for the sheet's "Still to do today", which shows from 4 pm.
+  const [loadedAt, setLoadedAt] = useState(() => Date.now());
 
   // ECCS staff see every outlet they work at; a restaurant looks at one outlet at a time.
   const forOutlet = eccs ? undefined : (outletId ?? undefined);
@@ -96,18 +114,23 @@ export default function ServicesScreen() {
   const past = saved?.data.past ?? [];
   const requests = saved?.data.requests ?? [];
   const plan = saved?.data.plan ?? null;
+  const getSheet = useCallback(() => fieldCache.getList<DaySheetDto>(SHEET_LIST), []);
+  const savedSheet = useSyncExternalStore(fieldCache.subscribe, getSheet, getSheet);
 
   const load = useCallback(async () => {
     if (!ready || !userId) return;
+    setLoadedAt(Date.now());
     await fieldCache.load(userId);
     const filter = forOutlet ? { outletId: forOutlet } : {};
     try {
-      const [upcoming, closed, asked, onPlan] = await Promise.all([
+      const [upcoming, closed, asked, onPlan, daySheet] = await Promise.all([
         api.visits.list({ ...filter, state: 'open' }),
         api.visits.list({ ...filter, state: 'closed' }),
         eccs ? Promise.resolve([]) : api.bookings.list({ ...filter, requestedOnly: true }),
         // The plan is extra: if it cannot be read, the visits still show.
         !eccs && forOutlet ? api.plans.forOutlet(forOutlet).catch(() => null) : Promise.resolve(null),
+        // So is the day's sheet; if it cannot be read, the copy already on the phone stays.
+        supervisor ? api.today.mySheet().catch(() => null) : Promise.resolve(null),
       ]);
       fieldCache.putList(listName, {
         open: upcoming,
@@ -115,6 +138,7 @@ export default function ServicesScreen() {
         requests: asked,
         plan: onPlan,
       } satisfies VisitLists);
+      if (daySheet) fieldCache.putList(SHEET_LIST, daySheet);
       outbox.noteReachable(true);
       setError(null);
       // In the background, so the list does not wait for it.
@@ -126,7 +150,7 @@ export default function ServicesScreen() {
       setError(noSignal ? (fieldCache.getList(listName) ? null : t('offline.listNotOnPhone')) : errorMessage(e, t));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, eccs, forOutlet, listName, ready, userId]);
+  }, [api, eccs, forOutlet, listName, ready, supervisor, userId]);
 
   // Reloads on coming back, so a new request or a signed-off visit shows.
   useFocusEffect(
@@ -168,6 +192,8 @@ export default function ServicesScreen() {
   const planned = all.filter((visit) => !underWay.includes(visit) && !awaiting.includes(visit));
   const onDay = (bucket: ReturnType<typeof dayBucket>) =>
     planned.filter((visit) => dayBucket(visit.date, today) === bucket);
+  // The day's sheet, when the Supervisor has visits today: the morning's view, above the list.
+  const sheet = supervisor ? todaysSheet(savedSheet?.data, today) : null;
 
   const heading = (text: string) => (
     <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
@@ -224,6 +250,8 @@ export default function ServicesScreen() {
       {/* No signal: this is the phone's own copy, and how old it is. */}
       {!hasSignal && saved && <SavedCopyNote at={saved.at} />}
       {(outletLoading || (open === null && !error)) && <ActivityIndicator color={theme.primary} />}
+
+      {sheet && sheet.visits.length > 0 && <DaySheet sheet={sheet} now={loadedAt} />}
 
       {group(t('svc.toSignOff'), toSignOff)}
 

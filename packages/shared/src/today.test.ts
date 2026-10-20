@@ -261,3 +261,52 @@ describe("where a visit stands (shared with the monitoring board)", () => {
     expect(visitStanding({ ...base, status: "CANCELLED" }, TODAY)).toEqual({ stage: "CLOSED" });
   });
 });
+
+describe("Quality's three kinds (console plan step 3)", () => {
+  it("brings in an open follow-up with nothing booked, opening it in Quality", () => {
+    const made = item({ kind: "FOLLOW_UP_DUE", followUpId: "f1", outletName: "Mehfil Dhaba", reason: "Kitchen deep clean on 19 Oct rated 2 stars", causedAt: hoursAgo(26) });
+    expect(made).toMatchObject({
+      key: "FOLLOW_UP_DUE:f1",
+      title: "Mehfil Dhaba: follow-up due",
+      detail: "Kitchen deep clean on 19 Oct rated 2 stars. Nothing booked yet.",
+      button: "Open",
+      waitedHours: 26,
+      target: { kind: "FOLLOW_UP", followUpId: "f1" },
+    });
+  });
+
+  it("puts every flagged photo in one line, with Review opening Quality's Photos", () => {
+    const one = item({ kind: "PHOTO_FLAGGED", items: 1, outletNames: ["Cafe Nilgiri"], firstWhat: "Opening checklist", firstReason: "Same photo as on 18 Oct", oldestAt: hoursAgo(3) });
+    expect(one).toMatchObject({ key: "PHOTO_FLAGGED", title: "1 photo flagged for review", detail: "Cafe Nilgiri, Opening checklist: Same photo as on 18 Oct.", button: "Review", target: { kind: "QUALITY_PHOTOS" } });
+    const two = item({ kind: "PHOTO_FLAGGED", items: 2, outletNames: ["Cafe Nilgiri", "Cafe Nilgiri"], firstWhat: "Opening checklist", firstReason: "Same photo", oldestAt: hoursAgo(3) });
+    expect(two?.title).toBe("2 photos flagged for review");
+    expect(two?.detail).toBe("Cafe Nilgiri (2). The oldest: Opening checklist, Same photo.");
+    expect(item({ kind: "PHOTO_FLAGGED", items: 0, outletNames: [], firstWhat: "", firstReason: "", oldestAt: hoursAgo(1) })).toBeNull();
+  });
+
+  it("lists every open incident, opening its page", () => {
+    const made = item({ kind: "INCIDENT_OPEN", incidentId: "x1", reference: "INC-0003", outletName: "Dum Pukht Express", whatHappened: "Degreaser splash on a forearm.", happenedOn: "2026-10-17" });
+    expect(made).toMatchObject({ title: "Dum Pukht Express: incident INC-0003 open", detail: "Degreaser splash on a forearm. Open 3 days.", button: "Open", target: { kind: "INCIDENT", incidentId: "x1" } });
+  });
+
+  it("ranks them among the others: follow-ups after issues, photos after reports, incidents before sign-offs", () => {
+    const order = sortTodayItems(
+      [
+        item({ kind: "SIGN_OFF_WAITING", visitId: "s", outletName: "A", serviceName: "Pest", finishedOn: "2026-10-10", remindedAt: null })!,
+        item({ kind: "INCIDENT_OPEN", incidentId: "x", reference: "INC-0001", outletName: "B", whatHappened: "Tray missing", happenedOn: "2026-10-19" })!,
+        item({ kind: "PHOTO_FLAGGED", items: 1, outletNames: ["C"], firstWhat: "Opening checklist", firstReason: "Same photo", oldestAt: hoursAgo(2) })!,
+        item({ kind: "REPORT_TO_APPROVE", visitId: "r", outletName: "D", serviceName: "Pest", signedOffOn: "2026-10-17" })!,
+        item({ kind: "FOLLOW_UP_DUE", followUpId: "f", outletName: "E", reason: "Rated 2 stars", causedAt: hoursAgo(5) })!,
+        item({ kind: "ISSUE_NOT_PICKED_UP", issueId: "i", reference: "ECCS-1", outletName: "F", category: "Other", raisedAt: hoursAgo(80) })!,
+      ].filter(Boolean),
+    ).map((entry) => entry.kind);
+    expect(order).toEqual(["ISSUE_NOT_PICKED_UP", "FOLLOW_UP_DUE", "REPORT_TO_APPROVE", "PHOTO_FLAGGED", "INCIDENT_OPEN", "SIGN_OFF_WAITING"]);
+  });
+
+  it("are the office's only, behind Quality's grant", () => {
+    for (const kind of ["FOLLOW_UP_DUE", "PHOTO_FLAGGED", "INCIDENT_OPEN"] as const) {
+      expect(TODAY_ITEM_KINDS).toContain(kind);
+      expect(TODAY_ITEMS[kind]).toMatchObject({ mine: false, needs: { resource: "quality" } });
+    }
+  });
+});

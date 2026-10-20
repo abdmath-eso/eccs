@@ -179,7 +179,10 @@ export class MonitoringService {
     // Supervisor's board leaves this area empty. Only facts about a photo are read (when, what it was
     // for, why it is doubtful), never the picture or what a checklist problem was.
     const photosSince = { ...inOutlets, createdAt: { gte: new Date(`${from}T00:00:00.000+05:30`) }, ...EVIDENCE_WHERE };
-    const [photoCounts, doubtfulPhotos] = everything
+    // Judgements in Quality > Photos (20 Oct 2026): a doubtful photo the office accepted is no longer
+    // counted as doubtful, and each rejection in the period counts on its own.
+    const reviewedSince = { ...inOutlets, reviewedAt: { gte: new Date(`${from}T00:00:00.000+05:30`) } };
+    const [photoCounts, doubtfulPhotos, accepted, rejections] = everything
       ? await Promise.all([
           this.db.attachment.groupBy({ by: ['outletId'], where: photosSince, _count: { _all: true } }),
           this.db.attachment.findMany({
@@ -189,17 +192,23 @@ export class MonitoringService {
               outletId: true,
               createdAt: true,
               integrityFlags: true,
+              photoReviewId: true,
               checklistResponse: { select: { run: { select: { outletChecklist: { select: { template: { select: { title: true } } } } } } } },
               job: { select: { id: true, serviceType: { select: { name: true } } } },
               inspectionFinding: { select: { inspectionId: true } },
             },
             orderBy: { createdAt: 'desc' },
           }),
+          this.db.photoReview.findMany({ where: { ...inOutlets, verdict: 'ACCEPTED' }, select: { id: true } }),
+          this.db.photoReview.groupBy({ by: ['outletId'], where: { ...reviewedSince, verdict: 'REJECTED' }, _count: { _all: true } }),
         ])
-      : [[], []];
+      : [[], [], [], []];
+    const acceptedIds = new Set(accepted.map((review) => review.id));
+    const rejectedBy = new Map(rejections.map((row) => [row.outletId, row._count._all]));
     const photoCountBy = new Map(photoCounts.map((row) => [row.outletId, row._count._all]));
     const doubtfulBy = new Map<string, typeof doubtfulPhotos>();
     for (const photo of doubtfulPhotos) {
+      if (photo.photoReviewId && acceptedIds.has(photo.photoReviewId)) continue;
       if (photo.outletId) doubtfulBy.set(photo.outletId, [...(doubtfulBy.get(photo.outletId) ?? []), photo]);
     }
 
@@ -221,6 +230,7 @@ export class MonitoringService {
         doubtful: items.length,
         certain: items.filter((item) => item.flags.some((flag) => flag.certain)).length,
         fromChecklists: items.filter((item) => item.what.kind === 'CHECKLIST').length,
+        rejected: rejectedBy.get(outletId) ?? 0,
       };
       return { ...facts, items: items.slice(0, MAX_PHOTO_ITEMS), level: photoLevel(facts) };
     };

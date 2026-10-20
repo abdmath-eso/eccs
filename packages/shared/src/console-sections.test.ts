@@ -33,6 +33,21 @@ describe("consoleSectionsFor", () => {
     expect(labels("SUPER_ADMIN")).toEqual(CONSOLE_SECTIONS.map((section) => section.label));
   });
 
+  it("stays at 16 entries, with Quality after Issues and no Customer pages (console plan step 3)", () => {
+    expect(CONSOLE_SECTIONS).toHaveLength(16);
+    const keys = CONSOLE_SECTIONS.map((section) => section.key);
+    expect(keys.indexOf("quality")).toBe(keys.indexOf("issues") + 1);
+    expect(keys).not.toContain("customerPages");
+    expect(CONSOLE_SECTIONS.find((section) => section.key === "quality")).toMatchObject({ href: "/quality", group: "Daily work" });
+  });
+
+  it("gives Quality to the Super Admin and the Ops Manager only", () => {
+    expect(labels("SUPER_ADMIN")).toContain("Quality");
+    expect(labels("OPS_MANAGER")).toContain("Quality");
+    expect(labels("SUPERVISOR")).not.toContain("Quality");
+    expect(labels("BDE")).not.toContain("Quality");
+  });
+
   it("agrees with the menu's own check", () => {
     for (const role of ["SUPER_ADMIN", "OPS_MANAGER", "SUPERVISOR", "BDE"] as const) {
       expect(CONSOLE_SECTIONS.filter((section) => opensSection(as(role), section)).map((section) => section.label)).toEqual(labels(role));

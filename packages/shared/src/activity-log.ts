@@ -113,6 +113,7 @@ export const ACTIVITY_CATEGORIES = {
   finance: "Money and budget",
   sales: "Sales and leads",
   team: "ECCS team",
+  quality: "Quality",
 } as const;
 export type ActivityCategory = keyof typeof ACTIVITY_CATEGORIES;
 export const ACTIVITY_CATEGORY_KEYS = Object.keys(ACTIVITY_CATEGORIES) as ActivityCategory[];
@@ -213,6 +214,8 @@ export const ACTIVITY_ACTIONS = {
   // Today, the console's home (20 Oct 2026).
   "visits.signOff.reminded": ["visits", "Reminded a restaurant to sign off a visit"],
   "visits.day.closed": ["visits", "Closed the day"],
+  // The day's sheet (console plan step 3, 20 Oct 2026).
+  "visits.daySheet.sent": ["visits", "Sent a Supervisor the day's sheet"],
   "visits.plans.ran": ["visits", "Added plan visits to the diary (timed job)"],
 
   // Inspections
@@ -456,6 +459,18 @@ export const ACTIVITY_ACTIONS = {
   "team.onboarding.templateTaskMoved": ["team", "Moved a task of an onboarding checklist template"],
   "team.onboarding.templateDocumentsChanged": ["team", "Changed the documents an onboarding checklist asks for"],
   "team.onboarding.letterSettingsChanged": ["team", "Changed the appointment letter's terms"],
+
+  // Quality: follow-ups, photos and incidents (console plan step 3, 20 Oct 2026)
+  "quality.followUp.called": ["quality", "Logged a call on a follow-up"],
+  "quality.followUp.booked": ["quality", "Booked a free visit for a follow-up"],
+  "quality.followUp.closed": ["quality", "Closed a follow-up"],
+  "quality.photo.accepted": ["quality", "Accepted a doubtful photo"],
+  "quality.photo.rejected": ["quality", "Rejected a photo and asked for a retake"],
+  "quality.incident.added": ["quality", "Added an incident"],
+  "quality.incident.changed": ["quality", "Changed an incident"],
+  "quality.incident.closed": ["quality", "Closed an incident"],
+  "quality.incident.reopened": ["quality", "Reopened an incident"],
+  "quality.incident.pdf": ["quality", "Opened an incident's PDF"],
 } as const satisfies Record<string, ActionEntry>;
 
 export type ActivityAction = keyof typeof ACTIVITY_ACTIONS;

@@ -17,8 +17,11 @@ export interface NavCounts {
   issues: number | null;
   /** Invoices past their due date with money still owed. */
   invoices: number | null;
-  /** Photos proposed for customer pages and waiting for ECCS's approval. */
-  publicPhotos: number | null;
+  /**
+   * Quality: open follow-ups with nothing booked, photos to judge (the customer-page photos among them,
+   * for those who approve them) and open incidents (20 Oct 2026; they replaced Customer pages' count).
+   */
+  quality: number | null;
   /** Sales: today's to-dos for the leads the person reaches (Do today). */
   sales: number | null;
   /** Team: people on ECCS's own team with something to keep an eye on. */
@@ -31,7 +34,7 @@ export interface NavCounts {
   newOutlets: number | null;
 }
 
-const EMPTY: NavCounts = { visits: null, issues: null, invoices: null, publicPhotos: null, sales: null, team: null, ai: null, joining: null, newOutlets: null };
+const EMPTY: NavCounts = { visits: null, issues: null, invoices: null, quality: null, sales: null, team: null, ai: null, joining: null, newOutlets: null };
 
 const NavCountsContext = createContext<{ counts: NavCounts; refresh: () => void } | null>(null);
 
@@ -47,12 +50,13 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
   const skipped = Promise.reject(new Error("not part of this role"));
   skipped.catch(() => undefined);
   // Each is fetched on its own, so one that fails (a Supervisor may not list requests) does not hide the others.
-  const [requests, visits, issues, billing, photos, sales, team, ai, joining, newOutlets] = await Promise.allSettled([
+  const [requests, visits, issues, billing, quality, sales, team, ai, joining, newOutlets] = await Promise.allSettled([
     operations ? api.bookings.list({ requestedOnly: true }) : skipped,
     operations ? api.visits.list({ state: "open" }) : skipped,
     operations ? api.issues.list({ openOnly: true }) : skipped,
     operations ? api.billing.totals() : skipped,
-    operations ? api.publicPage.photosWaiting() : skipped,
+    // The Super Admin and the Ops Manager only; one number for the three tabs.
+    can(memberships, "quality", "read") ? api.quality.counts() : skipped,
     can(memberships, "sales", "read") ? api.sales.doToday() : skipped,
     can(memberships, "team", "read") ? api.eccsTeam.list() : skipped,
     can(memberships, "aiUsage", "read") ? api.aiUsage.alerts() : skipped,
@@ -66,7 +70,7 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
     visits: visits.status === "fulfilled" ? waiting + visits.value.filter((visit) => visit.status === "SCHEDULED" || visit.status === "IN_REVIEW").length : null,
     issues: issues.status === "fulfilled" ? issues.value.length : null,
     invoices: billing.status === "fulfilled" ? billing.value.overdueCount : null,
-    publicPhotos: photos.status === "fulfilled" ? photos.value.waiting : null,
+    quality: quality.status === "fulfilled" ? quality.value.total : null,
     sales: sales.status === "fulfilled" ? sales.value.items.length : null,
     team: team.status === "fulfilled" ? team.value.flagged : null,
     ai: ai.status === "fulfilled" ? ai.value.warnings.length : null,

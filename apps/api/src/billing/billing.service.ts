@@ -220,6 +220,7 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
         scheduleId: true,
         scheduledDate: true,
         checkInAt: true,
+        free: true,
         outlet: { select: { name: true, organizationId: true } },
         serviceReport: { select: { number: true } },
         serviceType: { select: { sacCode: true, gstRatePercent: true } },
@@ -229,7 +230,8 @@ export class BillingService implements OnModuleInit, OnModuleDestroy {
     // Only a signed-off visit whose report ECCS has approved.
     if (!visit || visit.status !== 'APPROVED' || !visit.reviewedAt) return null;
     // A plan's visit is paid for by the plan. A visit ECCS added itself, with no booking, has no agreed price to invoice.
-    if (visit.scheduleId || !visit.booking) return null;
+    // A free follow-up visit (Quality, 20 Oct 2026) is never invoiced, whatever it came from.
+    if (visit.scheduleId || !visit.booking || visit.free) return null;
     const price = visit.booking.catalogItem.pricePaise;
     if (price <= 0) return null;
 

@@ -346,10 +346,13 @@ export class ServicesService {
     return this.toDto(user, visit, await this.visitDocuments(user, visit));
   }
 
-  /** ECCS puts a visit in the diary without a request from the restaurant. */
+  /**
+   * ECCS puts a visit in the diary without a request from the restaurant. `free` marks a free redo
+   * or check-in visit booked from Quality > Follow-ups: it is never invoiced (decision 3, 20 Oct 2026).
+   */
   async createVisit(
     user: AuthUser,
-    input: { outletId: string; serviceCode: string; date: string; slot: VisitSlot; supervisorId?: string | null | undefined },
+    input: { outletId: string; serviceCode: string; date: string; slot: VisitSlot; supervisorId?: string | null | undefined; free?: boolean },
   ): Promise<VisitDto> {
     if (!this.isEccsAdmin(user)) throw new ForbiddenException('Only ECCS can schedule a visit');
     const [outlet, serviceType] = await Promise.all([
@@ -372,6 +375,7 @@ export class ServicesService {
         scheduledSlot: input.slot,
         status: supervisorId ? 'ASSIGNED' : 'SCHEDULED',
         supervisorId,
+        free: input.free === true,
       },
     });
     await this.notify.visitCreated(user, visit.id);
@@ -778,7 +782,8 @@ export class ServicesService {
     // The restaurant's sign-off and rating are kept; they do not sign again after the correction.
     await this.db.job.update({
       where: { id: visit.id },
-      data: { status: 'IN_PROGRESS', completedAt: null, reviewNote: note },
+      // Counted for Quality's "reports approved first time".
+      data: { status: 'IN_PROGRESS', completedAt: null, reviewNote: note, returnedCount: { increment: 1 } },
     });
     await this.notify.reportReturned(user, visit.id);
     return this.getVisit(user, visit.id);
@@ -1016,6 +1021,7 @@ function toSummary(visit: VisitRow, forRestaurant: boolean): VisitSummaryDto {
     booked: visit.bookingId !== null,
     fromPlan: visit.scheduleId !== null,
     reportNumber: visit.serviceReport?.number ?? null,
+    free: visit.free,
   };
 }
 

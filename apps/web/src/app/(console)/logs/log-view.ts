@@ -324,7 +324,8 @@ export function recordLink(entry: {
     case "plan":
       return { href: "/plans", label: "Open Plans" };
     case "publicPhoto":
-      return { href: "/customer-pages", label: "Open Customer pages" };
+      // The customer-page photos are in Quality → Photos since 20 Oct 2026.
+      return { href: "/quality?tab=photos&queue=customer", label: "Open the customer-page photos" };
     case "catalogItem":
     case "serviceKind":
     case "serviceTask":
@@ -342,6 +343,13 @@ export function recordLink(entry: {
       return entry.entityId ? { href: `/sales/leads/${encodeURIComponent(entry.entityId)}`, label: "Open the lead" } : null;
     case "quote":
       return { href: "/sales/leads", label: "Open the leads" };
+    // Quality (20 Oct 2026): a follow-up opens in its tab, an incident on its own page.
+    case "followUp":
+      return id ? { href: `/quality?tab=follow-ups&followUp=${q(id)}`, label: "Open the follow-up" } : null;
+    case "photoReview":
+      return { href: "/quality?tab=photos", label: "Open Quality's photos" };
+    case "incident":
+      return id ? { href: `/quality/incidents/${q(id)}`, label: "Open the incident" } : null;
     default:
       return null;
   }

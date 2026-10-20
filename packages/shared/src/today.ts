@@ -3,6 +3,7 @@ import type { Action, Resource } from "./permissions.js";
 import { daysFrom } from "./finance.js";
 import { indiaDay } from "./food-labels.js";
 import { clockWords, indiaClock, recentDay, salesRupees, shortDate } from "./sales.js";
+import type { DaySheetDto } from "./day-sheet.js";
 import { visitSlotWindow, type VisitSlot, type VisitStatus } from "./services.js";
 
 // Today, the console's home (20 Oct 2026; docs/CONSOLE_PLAN.md section 4.1, the founder's
@@ -41,17 +42,20 @@ export const TODAY_RULES = {
 // ───────────────────────── Needs you ─────────────────────────
 
 /**
- * The kinds of Needs you item, in one list (the plan's table in section 4.1). Step 3 of the
- * console plan adds PHOTO_FLAGGED, FOLLOW_UP_DUE and INCIDENT_OPEN here, each with its entry
- * in TODAY_ITEMS, its facts below and its gatherer in the API; nothing else changes shape.
+ * The kinds of Needs you item, in one list (the plan's table in section 4.1), in the order they
+ * rank: each with its entry in TODAY_ITEMS, its facts below and its gatherer in the API. Step 3 of
+ * the console plan (20 Oct 2026) added FOLLOW_UP_DUE, PHOTO_FLAGGED and INCIDENT_OPEN (Quality).
  */
 export const TODAY_ITEM_KINDS = [
   "VISIT_NO_SUPERVISOR",
   "INVOICE_OVERDUE_VISIT_TODAY",
   "BOOKING_WAITING",
   "ISSUE_NOT_PICKED_UP",
+  "FOLLOW_UP_DUE",
   "REPORT_TO_APPROVE",
+  "PHOTO_FLAGGED",
   "OUTLET_STUCK",
+  "INCIDENT_OPEN",
   "SIGN_OFF_WAITING",
 ] as const;
 export type TodayItemKind = (typeof TODAY_ITEM_KINDS)[number];
@@ -69,6 +73,10 @@ export const TODAY_ITEMS: Record<TodayItemKind, { button: string; needs: { resou
   REPORT_TO_APPROVE: { button: "Approve", needs: { resource: "jobs", action: "create" }, mine: false },
   OUTLET_STUCK: { button: "Act", needs: { resource: "clients", action: "create" }, mine: false },
   SIGN_OFF_WAITING: { button: "Remind", needs: { resource: "jobs", action: "update" }, mine: true },
+  // Quality's three (step 3): each opens Quality, which only the Super Admin and the Ops Manager have.
+  FOLLOW_UP_DUE: { button: "Open", needs: { resource: "quality", action: "create" }, mine: false },
+  PHOTO_FLAGGED: { button: "Review", needs: { resource: "quality", action: "update" }, mine: false },
+  INCIDENT_OPEN: { button: "Open", needs: { resource: "quality", action: "update" }, mine: false },
 };
 
 /** Where an item's button (or a line's link) leads. The console turns it into an address. */
@@ -86,7 +94,10 @@ export type TodayTarget =
   | { kind: "LEAD"; leadId: string }
   | { kind: "SALES" }
   | { kind: "TEAM_PERSON"; userId: string }
-  | { kind: "TEAM" };
+  | { kind: "TEAM" }
+  | { kind: "FOLLOW_UP"; followUpId: string }
+  | { kind: "QUALITY_PHOTOS" }
+  | { kind: "INCIDENT"; incidentId: string };
 
 /** The facts one item is made from, as the API reads them. Dates are India dates; moments are ISO. */
 export type TodayItemFacts =
@@ -96,7 +107,12 @@ export type TodayItemFacts =
   | { kind: "REPORT_TO_APPROVE"; visitId: string; outletName: string; serviceName: string; signedOffOn: string }
   | { kind: "INVOICE_OVERDUE_VISIT_TODAY"; invoiceId: string; outletName: string; duePaise: number; overdueDays: number; invoices: number; visitSlot: VisitSlot | null }
   | { kind: "ISSUE_NOT_PICKED_UP"; issueId: string; reference: string; outletName: string; category: string; raisedAt: string }
-  | { kind: "OUTLET_STUCK"; outletId: string; outletName: string; hoursSinceAdded: number };
+  | { kind: "OUTLET_STUCK"; outletId: string; outletName: string; hoursSinceAdded: number }
+  /** An open follow-up with nothing booked: `reason` is its words in Quality ("... rated 2 stars"). */
+  | { kind: "FOLLOW_UP_DUE"; followUpId: string; outletName: string; reason: string; causedAt: string }
+  /** Every doubtful-photo item waiting in Quality > Photos, as one line. */
+  | { kind: "PHOTO_FLAGGED"; items: number; outletNames: string[]; firstReason: string; firstWhat: string; oldestAt: string }
+  | { kind: "INCIDENT_OPEN"; incidentId: string; reference: string; outletName: string; whatHappened: string; happenedOn: string };
 
 export interface TodayItemDto {
   /** The kind and the record ("SIGN_OFF_WAITING:<visit id>"): the same item keeps its key from one load to the next. */
@@ -240,6 +256,40 @@ export function todayItem(facts: TodayItemFacts, now: Date): TodayItemDto | null
         waitedHours: facts.hoursSinceAdded,
         target: { kind: "NEW_OUTLETS" },
       };
+    case "FOLLOW_UP_DUE":
+      return {
+        ...base,
+        key: `${facts.kind}:${facts.followUpId}`,
+        title: `${facts.outletName}: follow-up due`,
+        detail: `${facts.reason}. Nothing booked yet.`,
+        waitedHours: hoursBetween(facts.causedAt, now),
+        target: { kind: "FOLLOW_UP", followUpId: facts.followUpId },
+      };
+    case "PHOTO_FLAGGED": {
+      if (facts.items <= 0) return null;
+      const where = namesWords(facts.outletNames);
+      return {
+        ...base,
+        // One line for the whole queue: the same key while photos wait, whichever they are.
+        key: facts.kind,
+        title: `${plural(facts.items, "photo")} flagged for review`,
+        detail: facts.items === 1 ? `${where}, ${facts.firstWhat}: ${facts.firstReason}.` : `${where}. The oldest: ${facts.firstWhat}, ${facts.firstReason}.`,
+        waitedHours: hoursBetween(facts.oldestAt, now),
+        target: { kind: "QUALITY_PHOTOS" },
+      };
+    }
+    case "INCIDENT_OPEN": {
+      const days = Math.max(0, daysFrom(facts.happenedOn, today));
+      const happened = facts.whatHappened.length > 90 ? `${facts.whatHappened.slice(0, 89).trimEnd()}…` : facts.whatHappened;
+      return {
+        ...base,
+        key: `${facts.kind}:${facts.incidentId}`,
+        title: `${facts.outletName}: incident ${facts.reference} open`,
+        detail: `${happened.replace(/[.s]+$/, "")}. ${days === 0 ? "Happened today." : `Open ${plural(days, "day")}.`}`,
+        waitedHours: days * 24,
+        target: { kind: "INCIDENT", incidentId: facts.incidentId },
+      };
+    }
   }
 }
 
@@ -515,6 +565,11 @@ export interface TodayDto {
   needsYou: TodayItemDto[];
   alsoToday: TodayNoteDto[];
   close: TodayCloseDto;
+  /**
+   * The day's sheet for each Supervisor with visits today (console plan step 3), in the order of
+   * their first visit: the office sees every Supervisor's, a Supervisor their own.
+   */
+  sheets: DaySheetDto[];
 }
 
 /** What Remind answers. */

@@ -296,6 +296,8 @@ export interface VisitSummaryDto {
   fromPlan: boolean;
   /** The service report's number, once the work is completed. */
   reportNumber: string | null;
+  /** A free redo or check-in visit booked from Quality > Follow-ups (20 Oct 2026): never invoiced. Missing on older phones' saved copies. */
+  free?: boolean;
 }
 
 export interface VisitTaskDto {

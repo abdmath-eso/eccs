@@ -20,6 +20,7 @@
     "library:load": "tsx prisma/load-library.ts",
     "visits:load": "tsx prisma/load-sample-visits.ts",
     "services:load": "tsx prisma/load-new-services.ts",
+    "carry:sample": "tsx prisma/load-carry-sample.ts",
     "sops:load": "tsx prisma/load-sops.ts",
     "inspection:load": "tsx prisma/load-inspection-template.ts",
     "soplibrary:import": "node scripts/import-sop-library.mjs",

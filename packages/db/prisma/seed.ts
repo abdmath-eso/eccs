@@ -9,6 +9,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { createPrismaClient, pinLookup, type Prisma } from "../src/index.js";
+import { loadCarrySample } from "./carry-sample.js";
 import { loadEccsServices } from "./eccs-services.js";
 import { loadInspectionTemplate } from "./inspection-template.js";
 import { loadChecklistLibrary } from "./library.js";
@@ -371,6 +372,8 @@ async function main() {
   await addSampleVisits(prisma);
   // The services added on 9 Oct 2026. Not in the two sample plans, so they come after the plan visits.
   await loadNewServices(prisma);
+  // The sample "What to carry" lists for the day's sheet (20 Oct 2026).
+  await loadCarrySample(prisma);
   await loadSampleSops(prisma);
   await loadSopLibrary(prisma);
   await loadInspectionTemplate(prisma);

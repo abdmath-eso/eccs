@@ -91,6 +91,19 @@ export interface NotificationParamsByType {
   DEVICE_LINKED: { outlet: string };
   /** A2: a phone was locked after five wrong PINs. */
   PIN_LOCKED: { outlet: string };
+  /**
+   * S20: the office sent a Supervisor the day's sheet (Today, 20 Oct 2026): the day's visits in
+   * order and what to carry. It opens the jobs list, where the sheet is at the top. `count` is the
+   * number of visits on it.
+   */
+  DAY_SHEET_SENT: { date: string; count: number };
+  /**
+   * Q1: ECCS did not accept a doubtful photo and asks for it to be taken again (Quality > Photos,
+   * 20 Oct 2026). To the outlet's Manager for a checklist's photo (the Owner when the outlet has no
+   * Manager), to the visit's Supervisor for a visit's photo. `what` is the checklist's or the
+   * service's name; `note` is the reason ECCS gave.
+   */
+  PHOTO_REJECTED: { outlet: string; what: LocalizedText; note: string };
 }
 
 export type NotificationType = keyof NotificationParamsByType;
@@ -131,6 +144,8 @@ const TYPE_LIST: Record<NotificationType, true> = {
   DOCUMENT_ADDED: true,
   DEVICE_LINKED: true,
   PIN_LOCKED: true,
+  DAY_SHEET_SENT: true,
+  PHOTO_REJECTED: true,
 };
 export const NOTIFICATION_TYPES = Object.keys(TYPE_LIST) as NotificationType[];
 

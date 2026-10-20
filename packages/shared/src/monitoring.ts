@@ -80,6 +80,8 @@ export const MONITORING_RULES = {
     attentionPercent: 10,
     /** Fewer proof photos than this in the period and the share is not used (one doubtful photo of two is not "50%"). */
     percentFromPhotos: 10,
+    /** This many photo judgements in Quality that rejected the proof, or more, in the period: needs attention. */
+    attentionRejected: 1,
   },
 } as const;
 
@@ -153,6 +155,12 @@ export interface MonitoringPhotoFacts {
   certain: number;
   /** Of the doubtful, how many are the restaurant's own checklist photos; the rest were taken by ECCS's Supervisors. */
   fromChecklists: number;
+  /**
+   * Judgements in Quality > Photos in the period that rejected the proof and asked for a retake
+   * (20 Oct 2026). A doubtful photo the office accepted is no longer counted as doubtful.
+   * Optional so a board saved before it reads as none.
+   */
+  rejected?: number;
 }
 
 // ───────────────────────── The rules ─────────────────────────
@@ -244,11 +252,14 @@ export function scoreLevel(facts: MonitoringScoreFacts): MonitoringLevel {
  * ATTENTION: any photo is doubtful for a reason with no innocent explanation (the identical file used again,
  * a location the phone reports as faked); or 3 or more are doubtful; or, once there are at least 10 photos,
  * 10% or more of them are.
- * WATCH: any photo is doubtful.
+ * Also ATTENTION: the office rejected a photo or a checklist in Quality > Photos in the period.
+ * WATCH: any photo is doubtful (and not accepted in Quality).
  * NONE: no proof photo was received in the period.
  */
 export function photoLevel(facts: MonitoringPhotoFacts): MonitoringLevel {
   const rules = MONITORING_RULES.photos;
+  // A rejection is ECCS's own judgement that the proof was not good enough: it needs attention whatever else.
+  if ((facts.rejected ?? 0) >= rules.attentionRejected) return "ATTENTION";
   if (facts.checked === 0) return "NONE";
   if (facts.doubtful === 0) return "OK";
   if (facts.certain > 0 || facts.doubtful >= rules.attentionCount) return "ATTENTION";

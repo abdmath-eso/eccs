@@ -130,7 +130,7 @@ export function OutletPublicPage({ outlet }: { outlet: Outlet }) {
             : "No hygiene score on the page for the last week. ")}
         {inspection} Photos on the page: {page.photos.filter((photo) => photo.shown).length}.{" "}
         {page.photosWaiting > 0 && (
-          <Link href="/customer-pages" className="font-semibold text-primary underline">
+          <Link href="/quality?tab=photos&queue=customer" className="font-semibold text-primary underline">
             {page.photosWaiting} waiting for approval
           </Link>
         )}

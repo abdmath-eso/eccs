@@ -57,6 +57,8 @@ const ENGLISH: Record<NotificationType, { title: string; body: string }> = {
   DOCUMENT_ADDED: { title: 'Documents updated', body: 'ECCS added or updated {title} in your licences and documents.' },
   DEVICE_LINKED: { title: 'New phone linked', body: 'A new phone was linked to {outlet}.' },
   PIN_LOCKED: { title: 'Wrong PIN five times', body: 'Someone tried a wrong PIN five times at {outlet}.' },
+  DAY_SHEET_SENT: { title: "Your day's sheet", body: 'Your sheet for {date} is ready: the visits in order and what to carry.' },
+  PHOTO_REJECTED: { title: 'Photo not accepted: please retake', body: '{outlet}, {what}: {note}. Please take the photo again.' },
 };
 
 const CATEGORY: Record<IssueCategory, string> = {

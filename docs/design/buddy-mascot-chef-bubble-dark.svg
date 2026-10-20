@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
+  <title>ECCS Buddy: Chef Bubble (dark mode)</title>
+  <!-- ECCS Buddy's mascot (20 Oct 2026), in the app's dark-mode colours, for dark backgrounds. The app
+       draws the same shapes in apps/mobile/src/components/buddy-mascot.tsx, in the theme's colours. -->
+  <!-- The bubble and its tail. -->
+  <rect x="7" y="24" width="50" height="33" rx="14" fill="#2BB5A5"/>
+  <path d="M17 52 L12 63 L29 55 Z" fill="#2BB5A5"/>
+  <!-- The chef's hat: its outline, then the white hat. -->
+  <circle cx="24.5" cy="14" r="8.8" fill="#2BB5A5"/>
+  <circle cx="32" cy="10.5" r="10.4" fill="#2BB5A5"/>
+  <circle cx="39.5" cy="14" r="8.8" fill="#2BB5A5"/>
+  <rect x="19.4" y="12.4" width="25.2" height="17.2" rx="2.2" fill="#2BB5A5"/>
+  <circle cx="24.5" cy="14" r="6.2" fill="#FFFFFF"/>
+  <circle cx="32" cy="10.5" r="7.8" fill="#FFFFFF"/>
+  <circle cx="39.5" cy="14" r="6.2" fill="#FFFFFF"/>
+  <rect x="22" y="15" width="20" height="12" rx="2.2" fill="#FFFFFF"/>
+  <path d="M26 22.8 H38" stroke="#2BB5A5" stroke-width="1.6" stroke-linecap="round" opacity="0.55"/>
+  <!-- The face. -->
+  <circle cx="24" cy="39" r="3.3" fill="#06201D"/>
+  <circle cx="40" cy="39" r="3.3" fill="#06201D"/>
+  <path d="M24.5 46 Q32 52 39.5 46" fill="none" stroke="#06201D" stroke-width="3.4" stroke-linecap="round"/>
+</svg>

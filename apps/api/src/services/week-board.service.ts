@@ -6,6 +6,7 @@ import {
   boardMonday,
   busyStreak,
   can,
+  capacityOn,
   dayLoadsFrom,
   indiaClock,
   indiaDay,
@@ -16,6 +17,7 @@ import {
   weekHeadline,
   weekUse,
   type BoardWeekday,
+  type DayLoad,
   type LocalizedText,
   type VisitCapacity,
   type VisitSettingsDto,
@@ -70,6 +72,19 @@ export class WeekBoardService {
       capacity: { MON: row.capacityMon, TUE: row.capacityTue, WED: row.capacityWed, THU: row.capacityThu, FRI: row.capacityFri, SAT: row.capacitySat },
       updatedAt: row.updatedAt,
     };
+  }
+
+  /**
+   * One day's visits against what the crew can take, counted as the board counts them (every
+   * visit that day, whoever's, cancelled ones aside): the Today page's "4 of 5 slots".
+   */
+  async dayLoad(date: string): Promise<DayLoad> {
+    const [{ capacity }, booked] = await Promise.all([
+      this.capacity(),
+      this.db.job.count({ where: { scheduledDate: toDbDate(date), status: { not: 'CANCELLED' } } }),
+    ]);
+    const dayCapacity = capacityOn(capacity, date);
+    return { date, booked, capacity: dayCapacity, over: booked > dayCapacity };
   }
 
   async settings(user: AuthUser): Promise<VisitSettingsDto> {

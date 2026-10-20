@@ -158,6 +158,7 @@ import type { CertificateDto } from "@eccs/shared";
 import type { VendorDirectoryDto, VendorDto } from "@eccs/shared";
 // week-board-types: the Visits week board and its capacity setting (20 Oct 2026)
 import type { VisitCapacityInput, VisitSettingsDto, WeekBoardDto } from "@eccs/shared";
+import type { DayClosedDto, SignOffRemindedDto, TodayDto } from "@eccs/shared";
 // legal-types: terms and privacy acceptance (14 Oct 2026)
 import type { AcceptLegalInput, LegalDocumentDto, LegalDocumentKey, LegalStatusDto } from "@eccs/shared";
 import { LEGAL_ERROR } from "@eccs/shared";
@@ -812,6 +813,20 @@ export function createApiClient(options: ApiClientOptions) {
       /** The restaurant's Owner or Manager confirms the work was done and rates it out of five. */
       signOff: (visitId: string, input: SignOffVisitInput) =>
         call<VisitDto>("POST", `/visits/${id(visitId)}/sign-off`, input),
+      /**
+       * ECCS reminds the outlet's Owner and Managers that a finished visit waits for their sign-off
+       * (the SIGN_OFF_WAITING notification). Once a day per visit; again the same day fails with 409.
+       */
+      remindSignOff: (visitId: string) => call<SignOffRemindedDto>("POST", `/visits/${id(visitId)}/remind-sign-off`),
+    },
+    /**
+     * Today, the console's home (20 Oct 2026): the whole page, worked out on the server for the
+     * person (a Supervisor gets their own visits and items). `close` records Close the day, once
+     * per day, by the Super Admin or the Ops Manager.
+     */
+    today: {
+      get: () => call<TodayDto>("GET", "/today"),
+      close: (date: string) => call<DayClosedDto>("POST", "/today/close", { date }),
     },
     // notifications-api: the notifications worker adds `notifications: { ... },` on the next line
     /** The person's own notifications: the list behind the bell. */

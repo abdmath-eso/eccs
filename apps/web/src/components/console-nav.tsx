@@ -26,6 +26,7 @@ import {
   SalesIcon,
   SopsIcon,
   TeamIcon,
+  TodayIcon,
   VisitsIcon,
 } from "./icons";
 
@@ -46,6 +47,8 @@ interface NavItem {
 
 /** Each section's picture, and the number shown beside it with what it means in words. */
 const LOOKS: Record<string, { icon: ReactNode; count?: keyof NavCounts; waiting?: string }> = {
+  // No number: Today's own headline gives the count, and the sections below keep theirs.
+  today: { icon: <TodayIcon /> },
   visits: { icon: <VisitsIcon />, count: "visits", waiting: "waiting for a date, a Supervisor or a report check" },
   inspections: { icon: <InspectionsIcon /> },
   issues: { icon: <IssuesIcon />, count: "issues", waiting: "open" },
@@ -70,24 +73,26 @@ const LOOKS: Record<string, { icon: ReactNode; count?: keyof NavCounts; waiting?
  * changed rarely. The groups, entries and the grant each needs come from
  * CONSOLE_SECTIONS in packages/shared (the console plan's map, 20 Oct 2026),
  * which the Team page's access card reads too. A Supervisor or a BDE is shown
- * only the sections they can use.
+ * only the sections they can use. Today, the home page, stands first with no
+ * heading (an empty label).
  */
+const sectionItems = (group: (typeof CONSOLE_SECTIONS)[number]["group"]): NavItem[] =>
+  CONSOLE_SECTIONS.filter((section) => section.group === group).map((section) => ({
+    href: section.href,
+    label: section.label,
+    ...LOOKS[section.key],
+    icon: LOOKS[section.key]?.icon ?? null,
+    needs: (memberships: Memberships) => opensSection(memberships, section),
+  }));
+
 const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
+  { label: "", items: sectionItems(null) },
   {
     // A new team member's own joining page (16 Oct 2026), first while their onboarding is open.
     label: "You",
     items: [{ href: "/joining", label: "Joining ECCS", icon: <JoiningIcon />, count: "joining", waiting: "joining steps left", shown: (counts) => counts.joining !== null }],
   },
-  ...CONSOLE_GROUPS.map((group) => ({
-    label: group,
-    items: CONSOLE_SECTIONS.filter((section) => section.group === group).map((section) => ({
-      href: section.href,
-      label: section.label,
-      ...LOOKS[section.key],
-      icon: LOOKS[section.key]?.icon ?? null,
-      needs: (memberships: Memberships) => opensSection(memberships, section),
-    })),
-  })),
+  ...CONSOLE_GROUPS.map((group) => ({ label: group, items: sectionItems(group) })),
 ];
 
 // A badge has room for two digits; anything more is shown as "99+".
@@ -110,17 +115,19 @@ function SectionList({ memberships, collapsed = false, onNavigate }: { membershi
         const items = group.items.filter((item) => (!item.needs || item.needs(memberships)) && (!item.shown || item.shown(counts)));
         if (items.length === 0) return null;
         return (
-          <div key={group.label}>
+          <div key={group.label || "home"}>
             {/* Collapsed, the heading becomes a line between the groups; a screen reader still hears its name. */}
             {/* A label for the list below, not a heading of the page: the page's own headings start at its title. */}
-            <p
-              id={`${headingId}-${index}`}
-              className={collapsed ? "sr-only" : "mb-1 px-3 text-xs font-semibold tracking-wide text-muted"}
-            >
-              {group.label}
-            </p>
+            {group.label && (
+              <p
+                id={`${headingId}-${index}`}
+                className={collapsed ? "sr-only" : "mb-1 px-3 text-xs font-semibold tracking-wide text-muted"}
+              >
+                {group.label}
+              </p>
+            )}
             {collapsed && index > 0 && <hr className="mx-3 mb-3 border-border" />}
-            <ul aria-labelledby={`${headingId}-${index}`} className="flex flex-col gap-0.5">
+            <ul aria-labelledby={group.label ? `${headingId}-${index}` : undefined} className="flex flex-col gap-0.5">
               {items.map((item) => {
                 // "/visits" is current on "/visits?view=week" too, but "/sales" must not light up "/sales-something".
                 const current = pathname === item.href || pathname.startsWith(`${item.href}/`);

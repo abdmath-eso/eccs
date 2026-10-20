@@ -13,6 +13,8 @@ export interface ConfirmOptions {
   confirmLabel: string;
   /** The button that changes nothing, saying so, e.g. "Keep the visit". */
   cancelLabel: string;
+  /** Red only for something destructive (the default); "primary" when going ahead loses nothing. */
+  tone?: "danger" | "primary";
 }
 
 type Ask = (options: ConfirmOptions) => Promise<boolean>;
@@ -83,7 +85,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               <Button ref={safeButtonRef} type="button" variant="secondary" onClick={() => answer(false)}>
                 {request.options.cancelLabel}
               </Button>
-              <Button type="button" variant="danger" onClick={() => answer(true)}>
+              <Button type="button" variant={request.options.tone ?? "danger"} onClick={() => answer(true)}>
                 {request.options.confirmLabel}
               </Button>
             </div>

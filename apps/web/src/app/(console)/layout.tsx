@@ -1,6 +1,6 @@
 "use client";
 
-import { can } from "@eccs/shared";
+import { can, CONSOLE_SECTIONS, opensSection } from "@eccs/shared";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -35,16 +35,15 @@ export default function ConsoleLayout({ children }: LayoutProps<"/">) {
   const pathname = usePathname();
   const { status, user, signOut } = useSession();
 
-  // Where each person starts (the console plan, 20 Oct 2026). The Super Admin and the Ops Manager
-  // start on "/", which is Clients until the Today page takes its place. Anyone else who reads
-  // clients (a Supervisor) starts on Clients' Health tab, their own outlets; anyone else (a BDE,
-  // sales only) on Sales.
+  // Where each person starts (the console plan, 20 Oct 2026): the Super Admin, the Ops Manager and
+  // a Supervisor on Today ("/"), the Supervisor's showing their own day; a BDE (sales only), who
+  // has no Today, on Sales. A new hire with an open onboarding is sent to Joining by the login page.
   const memberships = user?.memberships ?? [];
-  const onboards = can(memberships, "clients", "create");
+  const opensToday = opensSection(memberships, CONSOLE_SECTIONS.find((section) => section.key === "today")!);
   const readsClients = can(memberships, "clients", "read");
-  const home = onboards ? "/" : readsClients ? "/clients?tab=health" : "/sales";
-  // "/" and Clients are not for someone who cannot read clients at all: they are sent home, which is never one of them.
-  const sendHome = status === "signedIn" && !onboards && (pathname === "/" || (!readsClients && pathname === "/clients"));
+  const home = opensToday ? "/" : readsClients ? "/clients?tab=health" : "/sales";
+  // Today and Clients are not for someone without their grants: they are sent home, which is never one of them.
+  const sendHome = status === "signedIn" && ((pathname === "/" && !opensToday) || (!readsClients && pathname === "/clients"));
 
   useEffect(() => {
     if (status === "signedOut") router.replace("/login");

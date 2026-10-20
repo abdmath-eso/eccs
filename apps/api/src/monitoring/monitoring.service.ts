@@ -14,6 +14,7 @@ import {
   readPhotoFlags,
   scoreLevel,
   visitLevel,
+  visitStanding,
   type InspectionGrade,
   type LocalizedText,
   type MonitoringArea,
@@ -301,33 +302,44 @@ export class MonitoringService {
 
       for (const job of jobsBy.get(outletId) ?? []) {
         const date = fromDbDate(job.scheduledDate);
-        if (job.status === 'COMPLETED') {
+        // The same reading of a visit as the Today page's (packages/shared/src/monitoring.ts).
+        const standing = visitStanding(
+          {
+            status: job.status,
+            date,
+            finishedOn: job.completedAt ? indiaDate(job.completedAt) : null,
+            signedOffOn: job.approvedAt ? indiaDate(job.approvedAt) : null,
+            hasSignOff: job.signOff !== null,
+            // Approved reports are not read here.
+            reviewed: false,
+          },
+          today,
+        );
+        if (standing.stage === 'AWAITING_SIGN_OFF') {
           // Finished by the Supervisor; the restaurant has not signed it off yet.
-          const waited = daysBetween(indiaDate(job.completedAt ?? job.scheduledDate), today);
           facts.awaitingSignOff += 1;
-          facts.oldestSignOffDays = Math.max(facts.oldestSignOffDays ?? 0, waited);
-          flag(job, 'AWAITING_SIGN_OFF', waited);
-        } else if (job.status === 'APPROVED') {
+          facts.oldestSignOffDays = Math.max(facts.oldestSignOffDays ?? 0, standing.waitingDays);
+          flag(job, 'AWAITING_SIGN_OFF', standing.waitingDays);
+        } else if (standing.stage === 'REPORT_TO_APPROVE') {
           // Signed off by the restaurant; ECCS has not approved the report yet.
-          const waited = daysBetween(indiaDate(job.approvedAt ?? job.scheduledDate), today);
           facts.reportsToApprove += 1;
-          facts.oldestApprovalDays = Math.max(facts.oldestApprovalDays ?? 0, waited);
-          flag(job, 'REPORT_TO_APPROVE', waited);
-        } else if (job.status === 'IN_PROGRESS' && job.signOff) {
+          facts.oldestApprovalDays = Math.max(facts.oldestApprovalDays ?? 0, standing.waitingDays);
+          flag(job, 'REPORT_TO_APPROVE', standing.waitingDays);
+        } else if (standing.stage === 'REPORT_RETURNED') {
           // ECCS sent the signed-off report back to the Supervisor to correct. The work itself is done, so it is not overdue.
           facts.reportsReturned += 1;
           flag(job, 'REPORT_RETURNED', null);
-        } else {
+        } else if (standing.stage === 'TO_DO') {
           // Still to do, or the Supervisor has checked in and not finished.
-          if (date < today) {
+          if (standing.daysLate > 0) {
             facts.overdue += 1;
-            flag(job, 'OVERDUE', daysBetween(date, today));
+            flag(job, 'OVERDUE', standing.daysLate);
           } else if (nextDate === null || date < nextDate) {
             nextDate = date;
           }
           if (job.supervisorId === null) {
             facts.unassigned += 1;
-            if (daysBetween(today, date) <= rules.unassignedAttentionWithinDays) facts.unassignedSoon += 1;
+            if (standing.daysAhead <= rules.unassignedAttentionWithinDays) facts.unassignedSoon += 1;
             flag(job, 'UNASSIGNED', null);
           }
         }

@@ -13,6 +13,7 @@ import { TeamService } from './team.service.js';
   imports: [SalesModule, PdfModule],
   controllers: [TeamController, OnboardingController],
   providers: [TeamService, TeamSalaryService, OnboardingService, OnboardingPapersService],
-  exports: [TeamSalaryService],
+  // The Today page (20 Oct 2026) reads the team's documents due from TeamService.
+  exports: [TeamSalaryService, TeamService],
 })
 export class TeamModule {}

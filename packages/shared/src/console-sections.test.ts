@@ -10,8 +10,8 @@ describe("consoleSectionsFor", () => {
     expect(labels("BDE")).toEqual(["Sales"]);
   });
 
-  it("gives the Supervisor the field sections and Clients' Health tab only", () => {
-    expect(labels("SUPERVISOR")).toEqual(["Visits", "Inspections", "Issues", "Clients", "Certificates", "SOPs"]);
+  it("gives the Supervisor Today, the field sections and Clients' Health tab only", () => {
+    expect(labels("SUPERVISOR")).toEqual(["Today", "Visits", "Inspections", "Issues", "Clients", "Certificates", "SOPs"]);
     const clients = consoleSectionsFor("SUPERVISOR").find((section) => section.key === "clients");
     expect(clients?.tabsNotOpened).toEqual(["All clients", "New outlets"]);
     expect(clients?.onlyTab).toBe("Health");
@@ -21,6 +21,12 @@ describe("consoleSectionsFor", () => {
     expect(labels("OPS_MANAGER")).not.toContain("Finance");
     expect(labels("OPS_MANAGER")).toContain("Logs");
     expect(consoleSectionsFor("OPS_MANAGER").find((section) => section.key === "clients")?.tabsNotOpened).toEqual([]);
+  });
+
+  it("puts Today first, above the groups, for everyone but the BDE", () => {
+    expect(CONSOLE_SECTIONS[0]).toMatchObject({ key: "today", href: "/", group: null });
+    for (const role of ["SUPER_ADMIN", "OPS_MANAGER", "SUPERVISOR"] as const) expect(labels(role)[0]).toBe("Today");
+    expect(labels("BDE")).not.toContain("Today");
   });
 
   it("gives the Super Admin every section", () => {

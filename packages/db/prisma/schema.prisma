@@ -716,6 +716,10 @@ model Job {
   /// The outside partner that did the partner's share of the work (the lab, clinic,
   /// training partner or audit agency), as typed by ECCS. Empty for ECCS's own work.
   partnerName      String?
+  /// When the office last pressed Remind on Today for a finished visit waiting for the
+  /// restaurant's sign-off, and who (20 Oct 2026). Remind is offered once a day per visit.
+  signOffRemindedAt   DateTime?
+  signOffRemindedById String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -752,6 +756,18 @@ model VisitSettings {
   capacitySat Int      @default(4)
   updatedById String?
   updatedAt   DateTime @updatedAt
+}
+
+/// "Close the day" on the Today page (20 Oct 2026): who closed which India day, and when, with
+/// the Evening close's lines still open at that moment. Once per day; it warns and never refuses.
+model DayClose {
+  id         String   @id @default(uuid())
+  date       DateTime @unique @db.Date
+  closedById String
+  closedAt   DateTime
+  /// The lines still open when it was closed: [{ key, label, words }].
+  openLines  Json
+  createdAt  DateTime @default(now())
 }
 
 model JobTaskResponse {

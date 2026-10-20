@@ -8,6 +8,16 @@ import type { AiTranslationDto } from "./ai.js";
 export const ISSUE_CATEGORIES = ["PEST_SIGHTING", "CHIMNEY", "EQUIPMENT", "HYGIENE", "SUPPORT", "OTHER"] as const;
 export type IssueCategory = (typeof ISSUE_CATEGORIES)[number];
 
+/** Each kind of issue in a few English words, as the console's Issues page says them (used by the Today page, 20 Oct 2026). */
+export const ISSUE_CATEGORY_LABELS: Record<IssueCategory, string> = {
+  PEST_SIGHTING: "Pest sighting",
+  CHIMNEY: "Chimney or exhaust",
+  EQUIPMENT: "Equipment",
+  HYGIENE: "Cleaning or hygiene",
+  SUPPORT: "Help with the app or service",
+  OTHER: "Something else",
+};
+
 export const ISSUE_STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const;
 export type IssueStatus = (typeof ISSUE_STATUSES)[number];
 

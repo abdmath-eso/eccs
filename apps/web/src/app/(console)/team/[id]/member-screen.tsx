@@ -343,8 +343,9 @@ function AccessCard({ member, onMarkLeft }: { member: TeamMemberDto; onMarkLeft:
         <Detail label="Opens">
           <ul className="flex flex-col gap-0.5">
             {access.groups.map((group) => (
-              <li key={group.label}>
-                <span className="text-muted">{group.label}: </span>
+              <li key={group.label ?? "home"}>
+                {/* Today stands above the menu's groups, with no group name. */}
+                {group.label && <span className="text-muted">{group.label}: </span>}
                 {group.sections.map((section) => (section.note ? `${section.label} (${section.note})` : section.label)).join(", ")}
               </li>
             ))}

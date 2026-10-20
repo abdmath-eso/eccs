@@ -24,7 +24,8 @@ export interface ConsoleSection {
   key: string;
   label: string;
   href: string;
-  group: ConsoleGroupLabel;
+  /** The menu group it is listed under; null for Today, which stands above the groups with no heading. */
+  group: ConsoleGroupLabel | null;
   /** The grant the page reads with: the menu shows the entry only to people who have it. */
   needs: ConsoleGrant;
   /** What it is for, in a few plain words, for the access card. */
@@ -37,8 +38,11 @@ export interface ConsoleSection {
 export const CONSOLE_GROUPS = ["Daily work", "Clients", "Business", "Set-up"] as const;
 export type ConsoleGroupLabel = (typeof CONSOLE_GROUPS)[number];
 
-/** In menu order: what needs doing today first, then the clients, the business, and what is set up once. */
+/** In menu order: Today, then what needs doing today, then the clients, the business, and what is set up once. */
 export const CONSOLE_SECTIONS: readonly ConsoleSection[] = [
+  // The home page (step 2 of the console plan, 20 Oct 2026). The visit grant opens it, so the Super
+  // Admin, the Ops Manager and a Supervisor (their own day) have it and a BDE, who starts on Sales, does not.
+  { key: "today", label: "Today", href: "/", group: null, needs: { resource: "jobs", action: "read" }, about: "what needs doing today" },
   { key: "visits", label: "Visits", href: "/visits", group: "Daily work", needs: { resource: "jobs", action: "read" }, about: "the visit diary and the week board" },
   { key: "inspections", label: "Inspections", href: "/inspections", group: "Daily work", needs: { resource: "inspections", action: "read" }, about: "inspection reports" },
   { key: "issues", label: "Issues", href: "/issues", group: "Daily work", needs: { resource: "issues", action: "read" }, about: "issues raised by restaurants" },
@@ -78,7 +82,7 @@ export const opensSection = (memberships: readonly MembershipScope[], section: P
 export interface RoleSection {
   key: string;
   label: string;
-  group: ConsoleGroupLabel;
+  group: ConsoleGroupLabel | null;
   about: string;
   /** The tabs of the section this role cannot open ("All clients", "New outlets"); empty when it opens all. */
   tabsNotOpened: string[];

@@ -1,4 +1,5 @@
 import type { LocalizedText } from "./checklists.js";
+import { daysFrom } from "./finance.js";
 import type { InspectionGrade } from "./inspections.js";
 import type { IssueCategory, IssueStatus } from "./issues.js";
 import type { PhotoFlagDto, PhotoSubjectDto } from "./photo-integrity.js";
@@ -255,6 +256,47 @@ export function photoLevel(facts: MonitoringPhotoFacts): MonitoringLevel {
     return "ATTENTION";
   }
   return "WATCH";
+}
+
+/** What the board needs to know about one visit not yet finished with, to say what it is waiting on. */
+export interface VisitStandingFacts {
+  /** As stored: SCHEDULED, ASSIGNED, IN_PROGRESS, COMPLETED, APPROVED or CANCELLED. */
+  status: string;
+  /** YYYY-MM-DD the visit is in the diary for. */
+  date: string;
+  /** India date the Supervisor finished it; null while not finished. */
+  finishedOn: string | null;
+  /** India date the restaurant signed it off; null while not signed off. */
+  signedOffOn: string | null;
+  /** The restaurant has signed it off (a report sent back for correction keeps its sign-off). */
+  hasSignOff: boolean;
+  /** ECCS has approved the report. */
+  reviewed: boolean;
+}
+
+/**
+ * Where a visit stands and for how long, in whole India days. The one reading of a visit's
+ * status that the monitoring board and the Today page (20 Oct 2026) share:
+ * AWAITING_SIGN_OFF = finished, the restaurant has not signed it off (days since finished);
+ * REPORT_TO_APPROVE = signed off, ECCS has not approved the report (days since signed off);
+ * REPORT_RETURNED = ECCS sent the signed-off report back to the Supervisor to correct;
+ * TO_DO = still to do, or under way (days late, or days ahead);
+ * CLOSED = cancelled, or approved by ECCS.
+ */
+export type VisitStanding =
+  | { stage: "AWAITING_SIGN_OFF" | "REPORT_TO_APPROVE"; waitingDays: number }
+  | { stage: "REPORT_RETURNED" }
+  | { stage: "TO_DO"; daysLate: number; daysAhead: number }
+  | { stage: "CLOSED" };
+
+export function visitStanding(visit: VisitStandingFacts, today: string): VisitStanding {
+  if (visit.status === "CANCELLED" || (visit.status === "APPROVED" && visit.reviewed)) return { stage: "CLOSED" };
+  if (visit.status === "COMPLETED") return { stage: "AWAITING_SIGN_OFF", waitingDays: daysFrom(visit.finishedOn ?? visit.date, today) };
+  if (visit.status === "APPROVED") return { stage: "REPORT_TO_APPROVE", waitingDays: daysFrom(visit.signedOffOn ?? visit.date, today) };
+  // The work itself is done, so a report sent back is never late.
+  if (visit.status === "IN_PROGRESS" && visit.hasSignOff) return { stage: "REPORT_RETURNED" };
+  const ahead = daysFrom(today, visit.date);
+  return { stage: "TO_DO", daysLate: Math.max(0, -ahead), daysAhead: Math.max(0, ahead) };
 }
 
 /**

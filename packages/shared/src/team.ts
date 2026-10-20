@@ -714,8 +714,8 @@ export interface ConsoleAccessSectionDto {
 export interface ConsoleAccessDto {
   role: TeamMemberRole;
   roleLabel: string;
-  /** The sections the role opens, under the menu's group names, in menu order. */
-  groups: { label: ConsoleGroupLabel; sections: ConsoleAccessSectionDto[] }[];
+  /** The sections the role opens, under the menu's group names, in menu order. Today comes first, under no group (label null). */
+  groups: { label: ConsoleGroupLabel | null; sections: ConsoleAccessSectionDto[] }[];
   /** False once the login is switched off (marked as left). */
   loginOn: boolean;
   /** The latest time any of their logins was used, from the console or the phone app; null if never. */
@@ -730,7 +730,7 @@ const orList = (items: readonly string[]) => (items.length <= 1 ? (items[0] ?? "
 /** What a role opens in the console, grouped as the menu. */
 export function consoleAccessGroups(role: TeamMemberRole): ConsoleAccessDto["groups"] {
   const sections = consoleSectionsFor(role);
-  return CONSOLE_GROUPS.map((label) => ({
+  return [null, ...CONSOLE_GROUPS].map((label) => ({
     label,
     sections: sections
       .filter((section) => section.group === label)

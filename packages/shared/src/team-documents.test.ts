@@ -117,6 +117,7 @@ describe("documents on the Team list", () => {
 describe("console access", () => {
   it("says what a Supervisor's role opens, grouped as the menu, with the tabs it does not", () => {
     expect(consoleAccessGroups("SUPERVISOR")).toEqual([
+      { label: null, sections: [{ label: "Today", about: "what needs doing today", note: null }] },
       {
         label: "Daily work",
         sections: [

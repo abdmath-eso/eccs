@@ -210,6 +210,9 @@ export const ACTIVITY_ACTIONS = {
   "visits.report.opened": ["visits", "Opened a service report PDF"],
   "visits.diary.filled": ["visits", "Filled the diary from plans"],
   "visits.capacity.changed": ["visits", "Changed the visits a day the crew can take"],
+  // Today, the console's home (20 Oct 2026).
+  "visits.signOff.reminded": ["visits", "Reminded a restaurant to sign off a visit"],
+  "visits.day.closed": ["visits", "Closed the day"],
   "visits.plans.ran": ["visits", "Added plan visits to the diary (timed job)"],
 
   // Inspections

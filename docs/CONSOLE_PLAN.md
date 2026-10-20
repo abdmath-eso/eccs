@@ -1,6 +1,6 @@
 # The ECCS console: pages, dashboards and how people work in them
 
-**A plan for the founder to approve (20 Oct 2026). Nothing in it is built yet.**
+**Agreed by the founder on 20 Oct 2026, with the decisions in section 8 as recommended (crew clock-in not now; fixed roles). Nothing in it is built yet.** Web page: https://claude.ai/artifact/21EHRgSY3M32KCgm84Cgsz
 
 It answers the founder's request:
 - research where the eight pages of `docs/design/2026-10-20 Console operations (founder's design).pdf` fit (Today, Dispatch, Supplies, Partners, Quality, People, Quotes, Onboarding);

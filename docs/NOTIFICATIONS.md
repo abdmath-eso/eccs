@@ -56,6 +56,9 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 | S18 | Plan visits are added to the diary without a Supervisor | Adm (not the admin who has just set the plan) | "New plan visits without a Supervisor: {count}." | Console badge (exists as a count) | built 7 Oct (in-app list only; not tested by the founder) |
 | S19 | An outlet is put on a plan, its plan is changed, or its plan is stopped | O, M | "{outlet} is now on the {plan} plan. First visit: {date}." / "The {plan} plan at {outlet} has ended." (Changing a plan sends only the first.) | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
 | S17 | A visit in the next two days has no Supervisor | Adm | "{service} at {outlet} on {date} has no Supervisor yet." | Console badge (exists as a count) | not built |
+| S26 | The office sends a Supervisor the day's sheet from Today (each send is its own notification, Send again after a change included) (20 Oct 2026, section 16k) | Sup | "Your day's sheet: Your sheet for {date} is ready: the visits in order and what to carry." Opens the Visits list, with the sheet at the top. | Push + in-app | built 20 Oct (`DAY_SHEET_SENT`; not tested by the founder; its phone wording needs the next APK) |
+| S27 | The day's sheet is not sent by 7 am | Ops Manager | "Today's sheets are not sent yet: {names}." | Push + in-app | not built |
+| S28 | A visit on a sheet already sent changes (added, removed, moved or given to someone else) | Sup | "Your sheet for today has changed: {change}." (Today only the ordinary S5 or S7 is sent.) | Push + in-app | not built |
 
 ## 2. Daily checklists
 
@@ -389,6 +392,22 @@ Today (20 Oct 2026) sends one notification, by hand: **Remind**, on a sign-off w
 
 TY4 overlaps M4 (a report waiting more than 2 days) and S17 (a visit in the next two days with no Supervisor), neither built: build one of each pair.
 
+## 16k. Console plan, step 3 (Quality and the day's sheet)
+
+Step 3 (20 Oct 2026) built two notifications, through the existing service, worded in all 12 language files and the server's English copy: **S26** (`DAY_SHEET_SENT`, section 1), the day's sheet sent to the Supervisor, which also covers much of S9 (the morning of a visit, not built); and **QY1** (`PHOTO_REJECTED`) below. Neither is tested by the founder, and their phone wording needs the next APK. Booking a free follow-up visit sends the Supervisor the ordinary S7 (`VISIT_ASSIGNED`). **Numbering:** the code's comments call these two S20 and Q1, numbers this register had already given to the water test (section 15) and the customer-page photo (section 16); here they are S26 and QY1. Suggested, besides:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| QY1 | ECCS rejects a doubtful photo in Quality > Photos and asks for a retake | the outlet's Manager for a checklist's photo (its Owner when there is no Manager); the visit's Supervisor for a visit's photo | "Photo not accepted: please retake: {outlet}, {what}: {note}. Please take the photo again." | Push + in-app | built 20 Oct (`PHOTO_REJECTED`; not tested by the founder; its phone wording needs the next APK) |
+| QY2 | A new follow-up comes in | Ops Manager | "{outlet} needs a follow-up: {cause}." | Push + in-app | not built |
+| QY3 | A follow-up has had nothing booked for 2 days | Ops Manager | "{outlet}'s follow-up has had nothing booked for 2 days." | In-app | not built |
+| QY4 | A free follow-up visit is booked | O, M of the outlet (told nothing today) | "ECCS will come back on {date} for a free {service} visit." | Push + in-app | not built |
+| QY5 | An incident is added | Super Admin | "Incident INC-{number} at {outlet}: {what happened}." | Push + in-app | not built |
+| QY6 | An incident is still open after 7 days | Super Admin | "INC-{number} at {outlet} has been open 7 days." | In-app | not built |
+| QY7 | A checklist marked "too fast" is rejected (QY1 says "photo" even when there is no photo to retake) | as QY1 | "{checklist} at {outlet} was ticked too fast to be real: please do the checks again." | Push + in-app | not built |
+
+I1 and I2 (section 15: a proof photo with a certain flag, outlets with doubtful photos) are the alerts that would bring people to Quality > Photos; they are still not built.
+
 ## 17. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
@@ -423,6 +442,7 @@ TY4 overlaps M4 (a report waiting more than 2 days) and S17 (a visit in the next
 | 20 Oct 2026 | The console's notification sound is Windows' own, played with the pop-up (`silent: false`, `renotify`), not a chime from inside the page (the founder). |
 | 20 Oct 2026 | Console plan step 1: section 16i added (WK1 to WK3, QT1 to QT3, OL1 to OL3, TD1 to TD3). Moving a visit on Visits > Week sends S5 and S7 through the existing path (S5 reworded); S2 opens Visits > Waiting. None of the new rows built. |
 | 20 Oct 2026 | Console plan step 2 (Today): Remind built, sending S12 again by hand at most once a day per visit (S12 updated); section 16j added (TY1 to TY4), not built. |
+| 20 Oct 2026 | Console plan step 3 (Quality and the day's sheet): S26 (`DAY_SHEET_SENT`) and QY1 (`PHOTO_REJECTED`) built, not tested by the founder, their phone wording waiting for the next APK (the code's comments call them S20 and Q1, numbers already taken here); S27, S28 and section 16k (QY2 to QY7) added, not built. |
 | 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |
 | 9 Oct 2026 | Added section 16 (staff, food labels, customer page), none built. |
 | 9 Oct 2026 | Added section 15 (new services and photo integrity), none built. |

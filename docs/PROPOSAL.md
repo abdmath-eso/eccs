@@ -344,7 +344,7 @@ Weights are configuration, so they can be tuned during the pilot.
 - Recurring service schedules, automatic job generation, supervisor assignment, calendar view
 - Supervisor mobile flow, working offline: job list, check-in with GPS, service checklist, chemicals used, before and after photos, customer signature
 - Auto-generated PDF service report, supervisor approval
-- Monitoring board: missed checklists, low scores, overdue services, open issues
+- Monitoring board: what ECCS acts on: open issues, visits (overdue, without a Supervisor, waiting for sign-off or approval, low ratings), inspections, the hygiene score and doubtful proof photos. Not the restaurant's own checklists or licences (20 Oct 2026); there is no Licences page in the console, licences live in the restaurant app
 - Service catalogue, subscription plans, booking confirmation
 - GST invoicing, payment tracking, dues follow-up
 - Certificates generated per service (pest control, deep clean, chimney)

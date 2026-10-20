@@ -84,8 +84,8 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 |---|---|---|---|---|---|
 | L1 | A licence expires in 30, 15, 7 and 1 days (one first seen between two of these gets the reminder it has just passed) | O, M | "{licence} expires on {date}. Days left: {days}." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
 | L2 | A licence has expired (repeated every 7 days until it is renewed) | O, M | "{licence} expired on {date}. Renew it and add the new copy." | Push + in-app, repeated weekly | built 7 Oct (in-app list only; not tested by the founder) |
-| L3 | ECCS adds or replaces a licence or document for the outlet, or changes a licence's details | O, M | "ECCS added or updated {title} in your licences and documents." | In-app | built 7 Oct (in-app list only; not tested by the founder) |
-| L4 | A client's licence is expired or expiring | Adm | "{count} licences need attention." | Console badge (exists as a count) | not built |
+| L3 | ECCS adds or replaces a licence or document for the outlet, or changes a licence's details | O, M | "ECCS added or updated {title} in your licences and documents." | In-app | built 7 Oct (in-app list only; not tested by the founder); unused since 20 Oct 2026: the console has no Licences page, so ECCS no longer adds licences or documents |
+| L4 | ~~A client's licence is expired or expiring~~ | Adm | – | – | dropped 20 Oct 2026: ECCS no longer watches restaurants' licences (the founder); the restaurant gets L1 and L2 |
 | L5 | A service report PDF is filed in the outlet's documents | O, M | Covered by S1 | – | see S1 |
 
 ## 5. Logins and staff
@@ -131,7 +131,7 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 |---|---|---|---|---|---|
 | M1 | Each morning | Adm | "{count} outlets need attention today: {names}." | In-app or email | not built |
 | M2 | An outlet first reaches "needs attention" | Adm | "{outlet} now needs attention: {area}." | Push + in-app | not built |
-| M3 | Checklists missed two days running at an outlet | Adm | "{outlet} has missed its checklists for 2 days." | In-app | not built |
+| M3 | ~~Checklists missed two days running at an outlet~~ | Adm | – | – | dropped 20 Oct 2026: checklists are not on the Monitoring board (the founder) |
 | M4 | A report or inspection report has waited more than 2 days for approval | Adm | "{count} reports are waiting for approval." | Console badge + in-app | not built |
 
 ## 10. Changes ECCS makes in the console
@@ -384,6 +384,7 @@ ECCS Buddy (16 Oct 2026) sends nothing of its own. A card the person taps does w
 | 19 Oct 2026 | ECCS Buddy: no notification for a crisis message, on purpose (section 16h). |
 | 19 Oct 2026 | AI usage page (Stage F, started): AI4 to AI7 added to section 16b, from the design's "Alert me when". None built. |
 | 19 Oct 2026 | AI usage page (Stage F, built): AI1 widened to the new monthly limit; AI8 added (a helper failing). The page shows AI4 to AI6 and AI8 as warnings at its top, and their number beside AI usage in the menu, meanwhile. None built. |
+| 20 Oct 2026 | The console's Licences page removed and Monitoring without checklists and licences: L4 and M3 dropped; L3 unused. |
 | 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |
 | 9 Oct 2026 | Added section 16 (staff, food labels, customer page), none built. |
 | 9 Oct 2026 | Added section 15 (new services and photo integrity), none built. |

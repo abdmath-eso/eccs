@@ -102,6 +102,8 @@ Technicians do not get the app; the Supervisor records the visit on their behalf
 
 **AI usage and AI settings (added 19 Oct 2026):** the console's AI usage page (Business > AI usage) shows what the AI helpers cost and holds every AI setting. The Super Admin sees and changes it; the Ops Manager sees it, read-only; nobody else sees it.
 
+**The console's menu and where each role lands (changed 20 Oct 2026, the console plan in `docs/CONSOLE_PLAN.md`, step 1 built):** four groups. **Daily work:** Visits (List, Week, Waiting), Inspections, Issues. **Clients:** Clients (Health, All clients, New outlets), Invoices, Certificates, Customer pages. **Business:** Sales (Overview, Leads, Quotes), Finance, Team, AI usage. **Set-up:** Catalogue, Plans, SOPs, Logs. Monitoring is now **Clients > Health**; the founder's design's Dispatch is Visits' **Week** and **Waiting** tabs, its Quotes a **Sales tab**, its Onboarding Clients' **New outlets**; Logs moved into Set-up; there is **no People page** (its useful part, document dates and console access, is in Team). Each entry is shown only to roles whose permission its page checks. **Landing:** the Super Admin and Ops Manager land on Clients > Health, the Supervisor on Health (their own outlets, without the other two tabs; Visits > Week read-only, with only their own visits as cards), a BDE on Sales, a new hire on their Joining page. The plan's next step makes **Today** the home page for the Super Admin, Ops Manager and Supervisor. **Roles stay fixed** (no per-login sections, no CA login yet; the founder, 20 Oct 2026): each person's Team page has a **console access card** with their role, the sections it opens in plain words ("Clients (Health only)"), the last login in either app, whether the login is on, and Mark as left, which switches the login off and ends every session.
+
 ### Restaurant (client side)
 
 | Role | Purpose |
@@ -176,7 +178,7 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 
 ### Tenancy and people
 - **Organization**: a restaurant brand (the client). Has GSTIN, billing address.
-- **Outlet**: belongs to an Organization. Address, geo-location, kitchen type, FSSAI number.
+- **Outlet**: belongs to an Organization. Address, geo-location, kitchen type, FSSAI number, and an **area** (such as Jubilee Hills; added 20 Oct 2026, for the Week board).
 - **User**: phone, name, preferred language, PIN hash.
 - **Membership**: User + role + scope (ECCS / Organization / Outlet).
 
@@ -258,6 +260,13 @@ Roles are stored as a membership: a user, a role, and a scope (all of ECCS, one 
 - **Inspection** gains `summary`, `fixFirst` (the findings to fix first, by id), `summaryAiDrafted` and `summaryUpdatedAt`.
 - **ECCS Buddy (added 16 Oct 2026)**: the AI helper in the restaurant app for the Owner and Manager. **BuddyChat** (one person's chat, its outlet and title, removed 30 days after its last message), **BuddyMessage** (the person's words with PINs and phone numbers hidden, Buddy's answer, its Open buttons, helpful or not), **BuddyCard** (a change waiting for the person's tap: the action, its checked input, the details shown, 30 minutes to use it, done once), **BuddyBlock** (a refused message or a replaced answer: the reason only, for the pause and ECCS's counts). Each step of an answer is one AiRequest under the same switches and limits as the other AI features.
 - **AI settings (added 19 Oct 2026)**: **AiSettings**, one row of every AI setting changed in the console (each helper's switch and model, the limits for a day, a month and an outlet, the warnings, Buddy's own settings, the facts about the key), with its latest 30 changes. **AiRequest** gains the prompt cache's tokens and `source` (where the request came from).
+
+### Console plan, step 1 (added 20 Oct 2026)
+- **Outlet.area** (above): the Week board colours each visit by it.
+- **VisitSettings**: one row, "default": how many visits a day the crew can take, Monday to Saturday (5, 5, 5, 5, 5 and 4 when there is no row). Changed by the Super Admin only. The Week board counts booked visits against it (cancelled visits and free checks do not count), turns a day over it amber, and counts the weeks in a row at 80% or more, the founder's rule of thumb for a second crew.
+- **Quote** gains `outcome` (won or declined), `outcomeAt`, `outcomeById` and `outcomeReason`. `status` stays draft or sent, so the quote's public page, its open tracking and sending are unchanged. A quote's state is **DRAFT**, **SENT**, **WON**, **DECLINED** or **EXPIRED** (worked out: sent and past its valid-until date with no outcome). Won and Declined are marked only on a sent or expired quote, and can be taken back; the lead's latest sent quote is won by itself when the lead is linked to a client or reaches its first job or plan. Revise makes a new quote and keeps the old one. A BDE sees only their own quotes.
+- **OutletOnboarding** (one per new outlet, started inside the same write that adds the outlet, deleted with it) and **OutletOnboardingEntry** (a step logged by hand, with a note and who logged it; can be undone). Of the nine steps, 1 to 6 are read live from the existing records (the outlet and its code; the Owner's PIN and login; a Manager's and a Head Chef's PINs; terms and privacy agreed by everyone at the outlet; every licence with a copy and an FSSAI licence; the first handed-in checklist with a proof photo) and never stored; 7 to 9 (the day-3 call, the QR posters, the day-10 call) are entries. An outlet is live when steps 1 to 6 are done, shows "Act" after 24 hours without being live, and leaves Clients > New outlets after day 10.
+- **JoiningDocument.expiresOn**: a document's own date, given when it is accepted or changed later by the Super Admin. Medical fitness proposes a year from its upload. A document is **due** when its date has passed or is within 30 days, or when a required document is still missing after the day it was expected; due documents show on the person's page and the Team list.
 
 
 ### Cross-cutting
@@ -344,7 +353,8 @@ Weights are configuration, so they can be tuned during the pilot.
 - Recurring service schedules, automatic job generation, supervisor assignment, calendar view
 - Supervisor mobile flow, working offline: job list, check-in with GPS, service checklist, chemicals used, before and after photos, customer signature
 - Auto-generated PDF service report, supervisor approval
-- Monitoring board: what ECCS acts on: open issues, visits (overdue, without a Supervisor, waiting for sign-off or approval, low ratings), inspections, the hygiene score and doubtful proof photos. Not the restaurant's own checklists or licences (20 Oct 2026); there is no Licences page in the console, licences live in the restaurant app
+- Monitoring board (since 20 Oct 2026 the console's Clients > Health): what ECCS acts on: open issues, visits (overdue, without a Supervisor, waiting for sign-off or approval, low ratings), inspections, the hygiene score and doubtful proof photos. Not the restaurant's own checklists or licences (20 Oct 2026); there is no Licences page in the console, licences live in the restaurant app
+- Console plan, step 1 (added 20 Oct 2026, `docs/CONSOLE_PLAN.md`): Visits > Week (a Monday-to-Saturday board of visits against the crew's capacity per day, coloured by area, moved by drag or Move, printable) and Waiting (restaurants' requests not yet placed); Sales > Quotes (every quote with its state, a PDF, Build now from a free check with its fixes pre-ticked, won or declined); Clients > New outlets (each new outlet's first ten days in nine steps, with the day-3 and day-10 calls); Team's document dates and console access card. Next: Today as the home page, then Quality and the day's sheet on the Supervisor's phone
 - Service catalogue, subscription plans, booking confirmation
 - GST invoicing, payment tracking, dues follow-up
 - Certificates generated per service (pest control, deep clean, chimney)

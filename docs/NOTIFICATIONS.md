@@ -41,7 +41,7 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 | S2 | A restaurant sends a booking request | Adm | "{outlet} asked for {service} on {date}, {time}." | Console badge (exists as a count) + push | built 7 Oct (in-app list only; not tested by the founder) |
 | S3 | ECCS confirms a request | O, M | "ECCS confirmed {service} for {date}, {time}." (The Supervisor's name is not in the wording yet; it is on the visit.) | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
 | S4 | ECCS turns down a request it has not confirmed (cancelling one already confirmed is S6) | O, M | "ECCS could not take your request for {service} on {date}. Call us to rearrange." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
-| S5 | ECCS moves a visit to another day or time | O, M; Sup | "{service} has moved to {date}, {time}." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
+| S5 | ECCS moves a visit to another day or time (also by dragging it or Move on the console's Visits > Week, 20 Oct 2026: section 16i) | O, M; Sup | "{service} has moved to {date}, {time}." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
 | S6 | ECCS cancels a visit | O, M; Sup | "{service} on {date} has been cancelled." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
 | S7 | A visit is given to a Supervisor (when ECCS confirms a request, adds a visit, changes who does it, or a plan visit is created with a Supervisor), or taken away | Sup | "New visit for you: {service} at {outlet}, {date}, {time}." / "{service} at {outlet} on {date} has been given to someone else or cancelled." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
 | S8 | The day before a visit | O, M; Sup | "Reminder: ECCS {service} tomorrow, {time}." | Push | built 7 Oct (in-app list only; not tested by the founder) |
@@ -355,6 +355,27 @@ ECCS Buddy (16 Oct 2026) sends nothing of its own. A card the person taps does w
 
 **On purpose, none for a crisis message (19 Oct 2026).** When someone writes to Buddy that they want to die or to hurt themselves or someone else, Buddy gives the Tele-MANAS line and 112 in the chat and tells no one else: it is the person's private health. Whether ECCS should ever be told is for the founder and the lawyer (`docs/LEGAL_NOTES.md` point 12).
 
+## 16i. Console plan, step 1 (Week board, Quotes, New outlets, Team documents)
+
+Step 1 of the console plan (20 Oct 2026) adds no notification of its own. **Moving a visit on Visits > Week** (drag or Move) goes through the same change as the visit's "change date" (`PATCH /visits/:id`, which calls `visitChanged`), so it already sends what that sends: a new date or time sends S5 (`VISIT_MOVED`) to the outlet's Owner and Manager, and to the Supervisor if unchanged; a new Supervisor sends S7 (`VISIT_UNASSIGNED` to the old one, `VISIT_ASSIGNED` to the new one); whoever made the change is not told. S2 (a booking request) now opens Visits > Waiting. The console's menu counts new outlets not live after 24 hours (Clients) and documents due (Team). Suggested:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| WK1 | A day on the Week board goes over the crew's capacity | Adm | "{day} has {booked} visits booked, over the crew's {capacity}." | In-app | not built |
+| WK2 | The Super Admin changes the capacity | Ops Manager | "The crew's capacity is now {capacity} visits a week." | In-app | not built |
+| WK3 | Each week, the busy streak | Super Admin | "{weeks} weeks in a row at 80% or more of capacity." | In-app | not built |
+| QT1 | A sent quote has not been opened 5 days after sending, with nothing logged since (the new Do today line) | the lead's BDE | "Quote Q-… for {business}: no reply in 5 days." | Push + in-app | not built |
+| QT2 | A quote is won (the lead became a client, or someone marked it) | the lead's BDE | "{business} became a client: quote Q-… won." | Push + in-app | not built |
+| QT3 | Optional: a quote is marked declined | Adm | "Quote Q-… for {business} was declined: {reason}." | In-app | not built |
+| OL1 | A new outlet is still not live 24 hours after it was added | Adm; perhaps the BDE who won it | "{outlet} is not live yet: visit and set it up, or call the Owner." | Console badge (exists as a count) + push | not built |
+| OL2 | The day-3 or day-10 call to a new outlet is due | Adm | "Day-3 call due: {outlet}." | In-app | not built |
+| OL3 | Optional: a new outlet goes live (steps 1 to 6 done) | the BDE who won it | "{outlet} is live on the ECCS app." | In-app | not built |
+| TD1 | A team member's document runs out: 30 days before its date, and on the day | Adm | "{name}'s {document} runs out on {date}." | Console badge (Team's count includes it) + in-app | not built |
+| TD2 | The same, to the person | the team member | "Your {document} runs out on {date}: upload a new one on Joining ECCS." | Push + in-app | not built |
+| TD3 | A required document is still missing after the day it was expected | Super Admin | "{name} has not given their {document} yet." | In-app | not built |
+
+SL5 (a lead reached First job or On a plan) and SL9 (a quote close to its end date) are near QT2 and QT1: the founder may want only one of each pair.
+
 ## 17. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
@@ -387,6 +408,7 @@ ECCS Buddy (16 Oct 2026) sends nothing of its own. A card the person taps does w
 | 19 Oct 2026 | AI usage page (Stage F, built): AI1 widened to the new monthly limit; AI8 added (a helper failing). The page shows AI4 to AI6 and AI8 as warnings at its top, and their number beside AI usage in the menu, meanwhile. None built. |
 | 20 Oct 2026 | The console's Licences page removed and Monitoring without checklists and licences: L4 and M3 dropped; L3 unused. |
 | 20 Oct 2026 | The console's notification sound is Windows' own, played with the pop-up (`silent: false`, `renotify`), not a chime from inside the page (the founder). |
+| 20 Oct 2026 | Console plan step 1: section 16i added (WK1 to WK3, QT1 to QT3, OL1 to OL3, TD1 to TD3). Moving a visit on Visits > Week sends S5 and S7 through the existing path (S5 reworded); S2 opens Visits > Waiting. None of the new rows built. |
 | 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |
 | 9 Oct 2026 | Added section 16 (staff, food labels, customer page), none built. |
 | 9 Oct 2026 | Added section 15 (new services and photo integrity), none built. |

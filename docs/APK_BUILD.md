@@ -26,6 +26,7 @@ cd C:\Users\eosfera\eccs\apps\mobile
 
 Things to know:
 
+- **For the ECCS server on AWS (since 20 Oct 2026):** `.\build-apk.ps1 -ApiUrl "https://api.eosfera.in/v1"`. That APK works on mobile data or any Wi-Fi, with the server's own data (not this PC's samples). The APK of 20 Oct, 12:41 pm is this one. (Its first build stopped in the Android compile step; the same step run again succeeded, and the cause was not kept. If it happens, run the build again.)
 - **The API's address is built into the APK.** By default it is this PC's Wi-Fi address (`192.168.1.21` since 16 Oct 2026; before that `192.168.1.40`), port 4000. The phone must be on the same Wi-Fi, the PC on, and the API terminal running. If the PC's address changes, build again. For another address: `.\build-apk.ps1 -ApiUrl "https://your-server/v1"`.
 - **The virtual phone:** open Android Studio > More Actions > Virtual Device Manager and press the play button, then `.\build-apk.ps1 -Install`. It is heavy on memory alongside Docker and the terminals.
 - **Java:** the build must use Java 17, which the script finds by itself. Android Studio's own Java (25) is too new and fails with "A restricted method in java.lang.System has been called".

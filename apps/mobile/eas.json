@@ -29,8 +29,8 @@
         "ECCS_ALLOW_HTTP": "1"
       }
     },
-    // The build for the Play Store. A stub for now: before using it, set the real server's
-    // https address here and raise "versionCode" in app.json.
+    // The build for the Play Store: the ECCS server on AWS (20 Oct 2026). Raise "versionCode"
+    // in app.json before each one.
     "production": {
       "android": {
         "buildType": "app-bundle"
@@ -38,7 +38,7 @@
       "node": "24.21.0",
       "pnpm": "12.9.1",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-THE-REAL-SERVER/v1"
+        "EXPO_PUBLIC_API_URL": "https://api.eosfera.in/v1"
       }
     }
   }

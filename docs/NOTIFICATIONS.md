@@ -48,7 +48,7 @@ Roles: **O** Owner, **M** Manager, **HC** Head Chef (restaurant side); **Adm** S
 | S9 | The morning of a visit | Sup | "Today: {count} visits. First: {outlet}, {time}." | Push | not built |
 | S10 | The Supervisor checks in at the outlet | O, M | "The ECCS team has arrived for {service}." | Push | built 7 Oct (in-app list only; not tested by the founder) |
 | S11 | The Supervisor finishes the visit (not when a report ECCS sent back after sign-off is finished again: that returns to ECCS) | O, M | "{service} is finished. Check the photos and sign off." | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
-| S12 | A finished visit is still not signed off after a day (sent once) | O, M | "{service} from {date} is waiting for your sign-off." | Push | built 7 Oct (in-app list only; not tested by the founder) |
+| S12 | A finished visit is still not signed off after a day (sent once); and again each time ECCS presses **Remind** on the console's Today, at most once a day per visit (20 Oct 2026, section 16j) | O, M | "{service} from {date} is waiting for your sign-off." | Push | built 7 Oct (in-app list only; not tested by the founder); Remind built 20 Oct (not tested by the founder) |
 | S13 | The restaurant signs off | Adm; Sup (for one or two stars the admins get S14 instead, the Supervisor still gets this) | "{outlet} signed off {service}: {stars} out of 5 stars. The report is ready to approve." | Console badge (exists as a count) + push | built 7 Oct (in-app list only; not tested by the founder) |
 | S14 | The restaurant gives one or two stars | Adm, in place of S13 | "{outlet} gave {service} {stars} out of 5 stars. '{comment}'" | Push, straight away | built 7 Oct (in-app list only; not tested by the founder) |
 | S15 | ECCS sends a report back for correction | Sup | "ECCS asked for a correction on {service} at {outlet}: {note}" | Push + in-app | built 7 Oct (in-app list only; not tested by the founder) |
@@ -376,6 +376,19 @@ Step 1 of the console plan (20 Oct 2026) adds no notification of its own. **Movi
 
 SL5 (a lead reached First job or On a plan) and SL9 (a quote close to its end date) are near QT2 and QT1: the founder may want only one of each pair.
 
+## 16j. Console plan, step 2 (Today)
+
+Today (20 Oct 2026) sends one notification, by hand: **Remind**, on a sign-off waiting 2 days in Needs you, sends the existing S12 (`SIGN_OFF_WAITING`) again to the outlet's Owner and Managers, at most once a day per visit (a Supervisor only for their own visits). It has its own key (`sign-off-reminded:<visit>:<day>`); the automatic S12 keeps its own. Built 20 Oct; not tested by the founder. Every other button on Today opens the page where the work is done, which sends what that page sends. Suggested:
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| TY1 | The day is not closed by 7 pm | Adm | "Today is not closed yet: {count} lines still open." | Push + in-app | not built |
+| TY2 | The day is closed with lines still open | Super Admin | "{name} closed today with {count} lines open: {lines}." | In-app | not built |
+| TY3 | Each morning, an overdue invoice at an outlet with a visit today | that visit's Sup | "{outlet} owes {amount}, {days} days overdue: ask the manager." | Push | not built |
+| TY4 | Office follow-ups: a report waiting 2 days for approval; an issue nobody has picked up after 2 days; at 5 pm, tomorrow's visits without a Supervisor | Ops Manager | "{count} reports have waited 2 days for approval." / "{reference} at {outlet} has not been picked up in 2 days." / "{count} of tomorrow's visits have no Supervisor yet." | Push + in-app | not built |
+
+TY4 overlaps M4 (a report waiting more than 2 days) and S17 (a visit in the next two days with no Supervisor), neither built: build one of each pair.
+
 ## 17. Features not built yet (to fill in when they are)
 
 | Feature | Notifications to expect |
@@ -409,6 +422,7 @@ SL5 (a lead reached First job or On a plan) and SL9 (a quote close to its end da
 | 20 Oct 2026 | The console's Licences page removed and Monitoring without checklists and licences: L4 and M3 dropped; L3 unused. |
 | 20 Oct 2026 | The console's notification sound is Windows' own, played with the pop-up (`silent: false`, `renotify`), not a chime from inside the page (the founder). |
 | 20 Oct 2026 | Console plan step 1: section 16i added (WK1 to WK3, QT1 to QT3, OL1 to OL3, TD1 to TD3). Moving a visit on Visits > Week sends S5 and S7 through the existing path (S5 reworded); S2 opens Visits > Waiting. None of the new rows built. |
+| 20 Oct 2026 | Console plan step 2 (Today): Remind built, sending S12 again by hand at most once a day per visit (S12 updated); section 16j added (TY1 to TY4), not built. |
 | 9 Oct 2026 | Food labels rebuilt as a print list: F1 to F3 withdrawn, F5 added. |
 | 9 Oct 2026 | Added section 16 (staff, food labels, customer page), none built. |
 | 9 Oct 2026 | Added section 15 (new services and photo integrity), none built. |

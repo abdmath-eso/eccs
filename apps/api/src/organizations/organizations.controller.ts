@@ -8,7 +8,8 @@ import {
 } from '@eccs/shared';
 import type { z } from 'zod';
 import { Activity } from '../activity-log/activity.decorator.js';
-import { RequirePermission } from '../auth/auth.decorators.js';
+import { CurrentUser, RequirePermission } from '../auth/auth.decorators.js';
+import type { AuthUser } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { OrganizationsService } from './organizations.service.js';
 
@@ -28,18 +29,20 @@ export class OrganizationsController {
   @Post()
   @RequirePermission('clients', 'create')
   @Activity('clients.client.added', { entity: 'organization', from: 'answer' })
-  create(@Body(new ZodValidationPipe(createOrganizationSchema)) body: z.output<typeof createOrganizationSchema>) {
-    return this.organizations.create(body);
+  create(@CurrentUser() user: AuthUser, @Body(new ZodValidationPipe(createOrganizationSchema)) body: z.output<typeof createOrganizationSchema>) {
+    // Who onboarded it is kept with the outlet's onboarding, as its step 1.
+    return this.organizations.create(body, user.id);
   }
 
   @Post(':id/outlets')
   @RequirePermission('clients', 'create')
   @Activity('clients.outlet.added', { entity: 'outlet', from: 'answer' })
   addOutlet(
+    @CurrentUser() user: AuthUser,
     @Param('id') id: string,
     @Body(new ZodValidationPipe(createOutletSchema)) body: z.output<typeof createOutletSchema>,
   ) {
-    return this.organizations.addOutlet(id, body);
+    return this.organizations.addOutlet(id, body, user.id);
   }
 
   // ───────── Changing a client afterwards. Each answers with the whole client as it now stands. ─────────

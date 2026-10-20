@@ -11,6 +11,13 @@ import {
   conversionRates,
   doToday,
   doTodayFor,
+  freeCheckPicks,
+  mayMarkQuote,
+  quoteDeclinedSchema,
+  quoteFollowUp,
+  quoteListQuerySchema,
+  quoteRowAction,
+  quoteState,
   expectedSoFar,
   forecastEnd,
   indiaClock,
@@ -197,9 +204,25 @@ describe("Do today", () => {
     const item = doTodayFor(opened, NOW);
     expect(item).toMatchObject({ bucket: "OVERDUE", kind: "QUOTE_NO_REPLY", days: 2, action: "CALL" });
     expect(item?.line).toBe("Quote ₹8,500 sent 21 Nov. Owner opened it twice, no reply.");
-    // A call after the first open is a reply; an open only yesterday is not overdue yet.
+    // A call after the first open is a reply; an open only yesterday of a quote sent three days ago is not overdue yet.
     expect(doTodayFor({ ...opened, lastActivityAt: at("2026-11-25") }, NOW)).toBeNull();
-    expect(doTodayFor({ ...opened, quote: quote({ openCount: 1, firstOpenedAt: at("2026-11-25") }) }, NOW)).toBeNull();
+    expect(doTodayFor({ ...opened, lastActivityAt: at("2026-11-23"), quote: quote({ sentAt: at("2026-11-23"), openCount: 1, firstOpenedAt: at("2026-11-25") }) }, NOW)).toBeNull();
+    // A quote won or declined needs no follow-up.
+    expect(doTodayFor({ ...opened, quote: quote({ openCount: 2, firstOpenedAt: at("2026-11-24", "19:00"), outcome: "DECLINED" }) }, NOW)).toBeNull();
+  });
+
+  it("flags a quote sent five days ago with nothing logged since, opened or not (20 Oct 2026)", () => {
+    const sent = lead({ stage: "QUOTED", lastActivityAt: at("2026-11-21"), quote: quote({ sentAt: at("2026-11-21") }) });
+    const item = doTodayFor(sent, NOW);
+    expect(item).toMatchObject({ bucket: "OVERDUE", kind: "QUOTE_NOT_OPENED", days: 5, action: "CALL", params: { totalPaise: 850_000, sentOn: "2026-11-21", opens: 0 } });
+    expect(item?.line).toBe("Quote ₹8,500 sent 21 Nov. Not opened yet, no reply.");
+    // Opened only yesterday, but sent five days ago with no reply: still a follow-up, worded as opened.
+    expect(doTodayFor({ ...sent, quote: quote({ sentAt: at("2026-11-21"), openCount: 1, firstOpenedAt: at("2026-11-25") }) }, NOW)).toMatchObject({ kind: "QUOTE_NO_REPLY", days: 5 });
+    // Four days is not yet; a call logged after sending is a reply.
+    expect(doTodayFor({ ...sent, lastActivityAt: at("2026-11-22"), quote: quote({ sentAt: at("2026-11-22") }) }, NOW)).toBeNull();
+    expect(doTodayFor({ ...sent, lastActivityAt: at("2026-11-23") }, NOW)).toBeNull();
+    // Won by the app or marked: nothing to chase.
+    expect(doTodayFor({ ...sent, quote: quote({ sentAt: at("2026-11-21"), outcome: "WON" }) }, NOW)).toBeNull();
   });
 
   it("lists today's free check at its time, and a check with no quote as Send quote", () => {
@@ -505,5 +528,71 @@ describe("words", () => {
     expect(recentDay("2026-11-24", "2026-11-26")).toBe("Tuesday");
     expect(recentDay("2026-11-25", "2026-11-26")).toBe("yesterday");
     expect(recentDay("2026-11-10", "2026-11-26")).toBe("10 Nov");
+  });
+});
+
+describe("what came of a quote (20 Oct 2026)", () => {
+  const sent = { status: "SENT", outcome: null, validUntil: "2026-12-05" };
+
+  it("is a draft until sent, then sent until its day has gone", () => {
+    expect(quoteState({ status: "DRAFT", outcome: null, validUntil: null }, "2026-11-26")).toBe("DRAFT");
+    expect(quoteState(sent, "2026-11-26")).toBe("SENT");
+    // Valid on its last day; expired the day after.
+    expect(quoteState(sent, "2026-12-05")).toBe("SENT");
+    expect(quoteState(sent, "2026-12-06")).toBe("EXPIRED");
+  });
+
+  it("keeps won and declined after the validity has gone", () => {
+    expect(quoteState({ ...sent, outcome: "WON" }, "2026-12-20")).toBe("WON");
+    expect(quoteState({ ...sent, outcome: "DECLINED" }, "2026-12-20")).toBe("DECLINED");
+    // Anything else stored is ignored.
+    expect(quoteState({ ...sent, outcome: "MAYBE" }, "2026-11-26")).toBe("SENT");
+    expect(mayMarkQuote("SENT")).toBe(true);
+    expect(mayMarkQuote("EXPIRED")).toBe(true);
+    expect(mayMarkQuote("DRAFT")).toBe(false);
+    expect(mayMarkQuote("WON")).toBe(false);
+  });
+
+  it("counts the days a sent quote waits for a reply", () => {
+    const quoteSent = { sentAt: at("2026-11-21"), openCount: 0, firstOpenedAt: null };
+    expect(quoteFollowUp(quoteSent, at("2026-11-21"), "2026-11-25")).toBeNull();
+    expect(quoteFollowUp(quoteSent, at("2026-11-21"), "2026-11-26")).toEqual({ days: 5, opened: false });
+    expect(quoteFollowUp({ ...quoteSent, openCount: 1, firstOpenedAt: at("2026-11-22") }, at("2026-11-21"), "2026-11-24")).toEqual({ days: 2, opened: true });
+    expect(quoteFollowUp({ ...quoteSent, outcome: "DECLINED" }, at("2026-11-21"), "2026-12-01")).toBeNull();
+  });
+
+  it("gives each row one button: Send a draft, Revise the latest when it waits or has expired, else Open", () => {
+    expect(quoteRowAction("DRAFT", { latest: true, waiting: false })).toBe("SEND");
+    expect(quoteRowAction("SENT", { latest: true, waiting: true })).toBe("REVISE");
+    expect(quoteRowAction("SENT", { latest: true, waiting: false })).toBe("OPEN");
+    expect(quoteRowAction("EXPIRED", { latest: true, waiting: false })).toBe("REVISE");
+    // An older quote the lead has a newer one beside is only opened.
+    expect(quoteRowAction("EXPIRED", { latest: false, waiting: false })).toBe("OPEN");
+    expect(quoteRowAction("WON", { latest: true, waiting: false })).toBe("OPEN");
+    expect(quoteRowAction("DECLINED", { latest: true, waiting: true })).toBe("OPEN");
+  });
+
+  it("starts a quote from the free check with the services that fix what it found, as the phone does", () => {
+    const options = [
+      { kind: "PLAN" as const, refId: "plan", serviceCode: null },
+      { kind: "SERVICE" as const, refId: "chimney-small", serviceCode: "CHIMNEY" },
+      { kind: "SERVICE" as const, refId: "chimney-large", serviceCode: "CHIMNEY" },
+      { kind: "SERVICE" as const, refId: "pest", serviceCode: "PEST" },
+    ];
+    const answers = FREE_CHECK_POINTS.map((point) => ({ point, answer: (["HOOD", "PESTS", "STORAGE", "DRAINS"].includes(point) ? "FIX" : "OK") as "FIX" | "OK" }));
+    // The hood and pests have a service each (the first of each kind); labels are fixed in the app; no grease-trap service is offered here.
+    expect(freeCheckPicks(options, answers)).toEqual([
+      { refId: "chimney-small", quantity: 1 },
+      { refId: "pest", quantity: 1 },
+    ]);
+    expect(freeCheckPicks(options, FREE_CHECK_POINTS.map((point) => ({ point, answer: "OK" as const })))).toEqual([]);
+  });
+
+  it("takes a reason for a decline and the list's filters", () => {
+    expect(quoteDeclinedSchema.safeParse({ reason: "Went with their old vendor" }).success).toBe(true);
+    expect(quoteDeclinedSchema.safeParse({ reason: "  " }).success).toBe(false);
+    expect(quoteDeclinedSchema.safeParse({ reason: "x".repeat(101) }).success).toBe(false);
+    expect(quoteListQuerySchema.parse({ state: "BUILD" })).toEqual({ state: "BUILD" });
+    expect(quoteListQuerySchema.safeParse({ state: "OPENED" }).success).toBe(false);
   });
 });

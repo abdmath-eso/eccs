@@ -4,14 +4,12 @@ import {
   can,
   isVisitAhead,
   VISIT_SLOTS,
-  visitSlotWindow,
   type BookingDto,
   type OrganizationDto,
   type ServiceTypeDto,
   type SupervisorDto,
   type VisitDto,
   type VisitSlot,
-  type VisitStatus,
   type VisitSummaryDto,
 } from "@eccs/shared";
 import Link from "next/link";
@@ -21,41 +19,25 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { MasterDetail } from "@/components/master-detail";
 import { PhotoFlags } from "@/components/photo-flags";
 import { useToast } from "@/components/toast";
-import { Button, Card, ErrorMessage, Field, Loading, PageHeader, SelectField, ToggleGroup } from "@/components/ui";
+import { Button, Card, ErrorMessage, LoadError, Loading, PageHeader, PageTabs, SelectField, ToggleGroup } from "@/components/ui";
 import { api } from "@/lib/api";
 import { focusFirstError, hasErrors, type FieldErrors } from "@/lib/forms";
-import { addDays, describe, english, rupees, shortDay, today, when } from "@/lib/format";
+import { addDays, describe, english, shortDay, today, when } from "@/lib/format";
 import { useNavCounts } from "@/lib/nav-counts";
 import { isPlainClick, useQuery, useQueryField } from "@/lib/query";
 import { useSession } from "@/lib/session";
 
+import { checkDate, slotName, StatusBadge, WhenAndWho } from "./visit-parts";
 import { TaskReading, VisitResults } from "./visit-results";
+import { WaitingRequests } from "./waiting-requests";
+import { WeekBoard } from "./week-board";
 
-const clock = (hhmm: string) => {
-  const [hours, minutes] = hhmm.split(":").map(Number) as [number, number];
-  return new Intl.DateTimeFormat("en-IN", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(
-    new Date(Date.UTC(2000, 0, 1, hours, minutes)),
-  );
-};
-
-/** A two-hour arrival window as people read it, e.g. "10:00 am – 12:00 pm". */
-const slotName = (slot: VisitSlot) => {
-  const window = visitSlotWindow(slot);
-  return window ? `${clock(window.start)} – ${clock(window.end)}` : "After closing";
-};
+/** The page's tabs, kept in the web address as `view=` (the List has none). */
+const VIEWS = ["list", "week", "waiting"] as const;
+type View = (typeof VIEWS)[number];
 
 /** The word shown with each number of stars, the same as in the app. */
 const RATING_WORDS = ["Poor", "Fair", "Good", "Very good", "Excellent"];
-
-const STATUS: Record<VisitStatus, { label: string; style: string }> = {
-  SCHEDULED: { label: "No Supervisor yet", style: "border-danger text-danger" },
-  ASSIGNED: { label: "Assigned", style: "border-foreground text-foreground" },
-  IN_PROGRESS: { label: "In progress", style: "border-primary text-primary" },
-  IN_REVIEW: { label: "Report to approve", style: "border-danger text-danger" },
-  COMPLETED: { label: "Waiting for sign-off", style: "border-foreground text-foreground" },
-  APPROVED: { label: "Signed off", style: "border-primary text-primary" },
-  CANCELLED: { label: "Cancelled", style: "border-border-strong text-muted" },
-};
 
 /** The quick filters over the diary. They are kept in the web address as `show=`. */
 const SHOW = ["all", "unassigned", "overdue", "today"] as const;
@@ -111,68 +93,14 @@ function groupByDay(visits: VisitSummaryDto[], closed: boolean, todayIso: string
   return overdue.visits.length > 0 ? [overdue, ...days] : days;
 }
 
-function StatusBadge({ status }: { status: VisitStatus }) {
-  return (
-    <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${STATUS[status].style}`}>
-      {STATUS[status].label}
-    </span>
-  );
-}
-
-/** A visit cannot be put on a day that has gone, except that one already overdue may keep its day. */
-function checkDate(date: string, earliest: string): string | undefined {
-  if (!date) return "Choose a date.";
-  if (date < earliest) return "Choose today or a later date.";
-  return undefined;
-}
-
-/** The day, time of day and Supervisor of a visit: used to confirm a request, add a visit and change one. */
-function WhenAndWho({
-  date,
-  slot,
-  supervisorId,
-  supervisors,
-  earliest,
-  dateError,
-  onChange,
-}: {
-  date: string;
-  slot: VisitSlot;
-  supervisorId: string;
-  supervisors: SupervisorDto[];
-  /** The first day the calendar offers. */
-  earliest: string;
-  dateError?: string;
-  onChange: (next: { date?: string; slot?: VisitSlot; supervisorId?: string }) => void;
-}) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Field label="Date" name="date" type="date" required min={earliest} value={date} error={dateError} onChange={(e) => onChange({ date: e.target.value })} />
-      <SelectField label="Arrival time" name="slot" value={slot} onChange={(e) => onChange({ slot: e.target.value as VisitSlot })}>
-        {VISIT_SLOTS.map((value) => (
-          <option key={value} value={value}>
-            {slotName(value)}
-          </option>
-        ))}
-      </SelectField>
-      <SelectField label="Supervisor" name="supervisorId" value={supervisorId} onChange={(e) => onChange({ supervisorId: e.target.value })}>
-        <option value="">Decide later</option>
-        {supervisors.map((person) => (
-          <option key={person.id} value={person.id}>
-            {person.name}
-          </option>
-        ))}
-      </SelectField>
-    </div>
-  );
-}
-
 /**
- * The service diary. Requests restaurants have sent from the app wait at the
- * top to be confirmed; below them are the visits to come and those done.
- * A Supervisor records each visit in the mobile app, and the restaurant signs it off there.
+ * The service diary, in three tabs (20 Oct 2026): the List of visits to come and
+ * those done, with the open visit beside it; the Week board; and Waiting, the
+ * requests restaurants have sent from the app, to be placed. A Supervisor records
+ * each visit in the mobile app, and the restaurant signs it off there.
  *
- * What is being looked at lives in the web address: `state=closed` for the
+ * What is being looked at lives in the web address: `view=week` or `view=waiting`
+ * for the tab (with `week=` for the board's Monday), `state=closed` for the
  * finished visits, `show=` and `supervisor=` for the filters, `visit=` for the
  * visit that is open and `new=1` while one is being added.
  */
@@ -184,6 +112,9 @@ export default function VisitsScreen() {
   // The server only lets the people who can add visits fill the diary from the plans, so only they are shown the button.
   const mayFillDiary = user ? can(user.memberships, "jobs", "create") : false;
 
+  const askedView = query.get("view") as View;
+  // A visit being opened or added is shown beside the list, so either one brings the List back.
+  const view: View = query.get("visit") || query.get("new") === "1" ? "list" : VIEWS.includes(askedView) ? askedView : "list";
   const closed = query.get("state") === "closed";
   const asked = query.get("show") as Show;
   // "No Supervisor" and "Overdue" only make sense for visits still to be done.
@@ -204,20 +135,23 @@ export default function VisitsScreen() {
   const [version, setVersion] = useState(0);
   const [detailAttempt, setDetailAttempt] = useState(0);
 
+  const listing = view === "list";
+
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.bookings.list({ requestedOnly: true }), api.visits.list({ state: closed ? "closed" : "open" })])
+    // The requests are read on every tab: Waiting's number is on its tab. The diary only for the List.
+    Promise.all([api.bookings.list({ requestedOnly: true }), listing ? api.visits.list({ state: closed ? "closed" : "open" }) : null])
       .then(([waiting, list]) => {
         if (cancelled) return;
         setRequests(waiting);
-        setLoaded({ closed, list });
+        if (list) setLoaded({ closed, list });
         setListError(null);
       })
       .catch((e) => !cancelled && setListError(describe(e)));
     return () => {
       cancelled = true;
     };
-  }, [closed, version]);
+  }, [closed, version, listing]);
 
   useEffect(() => {
     // A Supervisor may look at this page but cannot assign visits, so the list stays empty for them.
@@ -324,254 +258,195 @@ export default function VisitsScreen() {
     </Card>
   ) : null;
 
+  const tabs = (
+    <PageTabs
+      label="Visits"
+      tabs={[
+        { href: query.hrefWith({ view: null, week: null }), label: "List", current: view === "list" },
+        { href: query.hrefWith({ view: "week", visit: null, new: null }), label: "Week", current: view === "week" },
+        {
+          href: query.hrefWith({ view: "waiting", visit: null, new: null, week: null }),
+          label: "Waiting",
+          current: view === "waiting",
+          count: requests?.length ?? null,
+          countLabel: "booked in the app and not yet placed",
+        },
+      ]}
+    />
+  );
+
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Visits"
-        description="Confirm what restaurants have asked for, and see every visit in the diary."
-        secondary={
-          mayFillDiary && (
-            <Button variant="secondary" loading={checkingPlans} onClick={() => void checkPlans()}>
-              Check plans now
-            </Button>
-          )
-        }
-        action={!adding && <Button onClick={() => query.set({ new: "1", visit: null })}>Add a visit</Button>}
-      />
+      <div className="print:hidden">
+        <PageHeader
+          title="Visits"
+          description="Every visit in the diary, the week on one board, and what restaurants have booked."
+          secondary={
+            mayFillDiary && (
+              <Button variant="secondary" loading={checkingPlans} onClick={() => void checkPlans()}>
+                Check plans now
+              </Button>
+            )
+          }
+          action={!adding && <Button onClick={() => query.set({ new: "1", visit: null, view: null })}>Add a visit</Button>}
+        />
+      </div>
 
       {/* A failure stays here, under the button that caused it, until the next try. */}
       <ErrorMessage message={plansError} />
 
-      {requests && requests.length > 0 && (
-        <section className={`${besideDetail} flex-col gap-3`}>
-          <h2 className="text-lg font-bold">Requests waiting for you ({requests.length})</h2>
-          <div className="grid gap-3 xl:grid-cols-2">
-            {requests.map((booking) => (
-              <RequestCard key={booking.id} booking={booking} supervisors={supervisors} onDone={(message) => changed(message)} />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* On a narrow screen an open visit takes the whole page, the tabs included; "Back to list" brings them back. */}
+      <div className={detailOpen ? "hidden lg:block" : undefined}>{tabs}</div>
 
-      <div className={`${besideDetail} flex-col gap-4`}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-lg font-bold">{closed ? "Signed off and cancelled" : "The diary"}</h2>
-          <ToggleGroup
-            label="Which visits to show"
-            value={closed ? "closed" : "open"}
-            options={[
-              { value: "open", label: "To do" },
-              { value: "closed", label: "Finished" },
-            ]}
-            onChange={(value) => query.set({ state: value === "closed" ? "closed" : null, show: null }, "replace")}
-          />
-        </div>
+      {view === "week" && <WeekBoard onChanged={(message) => changed(message)} />}
 
-        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-          {!closed && (
-            <ToggleGroup
-              label="Filter the diary"
-              value={show}
-              options={[
-                { value: "all", label: "All", count: matching.all.length },
-                { value: "unassigned", label: "No Supervisor", count: matching.unassigned.length },
-                { value: "overdue", label: "Overdue", count: matching.overdue.length },
-                { value: "today", label: "Today", count: matching.today.length },
-              ]}
-              onChange={(value) => query.set({ show: value === "all" ? null : value }, "replace")}
-            />
-          )}
-          {supervisorOptions.length > 0 && (
-            <SelectField
-              label="Supervisor"
-              value={supervisorFilter}
-              onChange={(e) => setSupervisorFilter(e.target.value)}
-              wrapperClassName="min-w-52"
-            >
-              <option value="">All Supervisors</option>
-              {supervisorOptions.map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </SelectField>
-          )}
-        </div>
-      </div>
+      {view === "waiting" &&
+        (requests === null && listError ? (
+          <LoadError message={listError} onRetry={() => setVersion((current) => current + 1)} />
+        ) : (
+          <WaitingRequests requests={requests} supervisors={supervisors} onDone={(message) => changed(message)} />
+        ))}
 
-      <MasterDetail
-        detail={detailPanel}
-        detailLabel={adding ? "Add a visit" : "Visit details"}
-        placeholder="Select a visit to change it or read its report."
-        backHref={query.hrefWith({ visit: null, new: null })}
-        onBack={() => query.set({ visit: null, new: null })}
-        list={
-          <>
-            {listError && (
-              <div className="flex flex-col items-start gap-3">
-                <ErrorMessage message={listError} />
-                <Button variant="secondary" onClick={() => setVersion((current) => current + 1)}>
-                  Try again
-                </Button>
-              </div>
-            )}
-            {visits === null && !listError && <Loading />}
-            {visits?.length === 0 && <p className="text-muted">{closed ? "No finished visits yet." : "Nothing in the diary."}</p>}
-            {visits && visits.length > 0 && filtered && (
-              <div className="flex flex-wrap items-center gap-x-2">
-                <p role="status" className="text-sm text-muted">
-                  {matching[show].length === 0 ? "No visits match these filters." : `Showing ${matching[show].length} of ${visits.length} visits.`}
-                </p>
-                <Button
-                  variant="link"
-                  className="text-sm"
-                  onClick={() => {
-                    setSupervisorFilter("");
-                    query.set({ show: null }, "replace");
-                  }}
+      {view === "list" && (
+        <>
+          <div className={`${besideDetail} flex-col gap-4`}>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="text-lg font-bold">{closed ? "Signed off and cancelled" : "The diary"}</h2>
+              <ToggleGroup
+                label="Which visits to show"
+                value={closed ? "closed" : "open"}
+                options={[
+                  { value: "open", label: "To do" },
+                  { value: "closed", label: "Finished" },
+                ]}
+                onChange={(value) => query.set({ state: value === "closed" ? "closed" : null, show: null }, "replace")}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+              {!closed && (
+                <ToggleGroup
+                  label="Filter the diary"
+                  value={show}
+                  options={[
+                    { value: "all", label: "All", count: matching.all.length },
+                    { value: "unassigned", label: "No Supervisor", count: matching.unassigned.length },
+                    { value: "overdue", label: "Overdue", count: matching.overdue.length },
+                    { value: "today", label: "Today", count: matching.today.length },
+                  ]}
+                  onChange={(value) => query.set({ show: value === "all" ? null : value }, "replace")}
+                />
+              )}
+              {supervisorOptions.length > 0 && (
+                <SelectField
+                  label="Supervisor"
+                  value={supervisorFilter}
+                  onChange={(e) => setSupervisorFilter(e.target.value)}
+                  wrapperClassName="min-w-52"
                 >
-                  Show all visits
-                </Button>
-              </div>
-            )}
-            {groups.map((group) => (
-              <section key={group.key} aria-labelledby={`day-${group.key}`} className="flex flex-col gap-2">
-                <h3 id={`day-${group.key}`} className={`text-sm font-bold ${group.key === "overdue" ? "text-danger" : ""}`}>
-                  {group.title} <span className="font-normal text-muted">({group.visits.length})</span>
-                </h3>
-                <ul className="flex flex-col gap-2">
-                  {group.visits.map((visit) => {
-                    const selected = visit.id === visitId;
-                    const opening = selected && !openVisit && !openError;
-                    return (
-                      <li key={visit.id}>
-                        <a
-                          href={query.hrefWith({ visit: visit.id, new: null })}
-                          onClick={(event) => {
-                            if (!isPlainClick(event)) return;
-                            event.preventDefault();
-                            if (!selected) query.set({ visit: visit.id, new: null });
-                          }}
-                          aria-current={selected ? "true" : undefined}
-                          aria-busy={opening || undefined}
-                          className={`block rounded-xl border bg-surface p-4 hover:border-primary ${
-                            selected ? "border-primary ring-2 ring-primary" : "border-border"
-                          }`}
-                        >
-                          <span className="flex items-start justify-between gap-3">
-                            <span className="font-semibold">{english(visit.serviceName)}</span>
-                            <StatusBadge status={visit.status} />
-                          </span>
-                          <span className="mt-1 block text-sm">
-                            {visit.organizationName} · {visit.outletName}
-                          </span>
-                          <span className="mt-2 block text-sm text-muted">
-                            {group.showDate ? `${shortDay(visit.date)} · ` : ""}
-                            {visit.slot ? `${slotName(visit.slot)} · ` : ""}
-                            {visit.supervisorName ?? "No Supervisor"}
-                            {visit.booked ? " · Booked by the restaurant" : ""}
-                            {visit.fromPlan ? " · From their plan" : ""}
-                            {visit.reportNumber ? ` · ${visit.reportNumber}` : ""}
-                          </span>
-                          {opening && (
-                            <span role="status" className="mt-2 block text-sm font-semibold text-primary">
-                              Opening…
-                            </span>
-                          )}
-                        </a>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
-          </>
-        }
-      />
+                  <option value="">All Supervisors</option>
+                  {supervisorOptions.map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </SelectField>
+              )}
+            </div>
+          </div>
+
+          <MasterDetail
+            detail={detailPanel}
+            detailLabel={adding ? "Add a visit" : "Visit details"}
+            placeholder="Select a visit to change it or read its report."
+            backHref={query.hrefWith({ visit: null, new: null })}
+            onBack={() => query.set({ visit: null, new: null })}
+            list={
+              <>
+                {listError && (
+                  <div className="flex flex-col items-start gap-3">
+                    <ErrorMessage message={listError} />
+                    <Button variant="secondary" onClick={() => setVersion((current) => current + 1)}>
+                      Try again
+                    </Button>
+                  </div>
+                )}
+                {visits === null && !listError && <Loading />}
+                {visits?.length === 0 && <p className="text-muted">{closed ? "No finished visits yet." : "Nothing in the diary."}</p>}
+                {visits && visits.length > 0 && filtered && (
+                  <div className="flex flex-wrap items-center gap-x-2">
+                    <p role="status" className="text-sm text-muted">
+                      {matching[show].length === 0 ? "No visits match these filters." : `Showing ${matching[show].length} of ${visits.length} visits.`}
+                    </p>
+                    <Button
+                      variant="link"
+                      className="text-sm"
+                      onClick={() => {
+                        setSupervisorFilter("");
+                        query.set({ show: null }, "replace");
+                      }}
+                    >
+                      Show all visits
+                    </Button>
+                  </div>
+                )}
+                {groups.map((group) => (
+                  <section key={group.key} aria-labelledby={`day-${group.key}`} className="flex flex-col gap-2">
+                    <h3 id={`day-${group.key}`} className={`text-sm font-bold ${group.key === "overdue" ? "text-danger" : ""}`}>
+                      {group.title} <span className="font-normal text-muted">({group.visits.length})</span>
+                    </h3>
+                    <ul className="flex flex-col gap-2">
+                      {group.visits.map((visit) => {
+                        const selected = visit.id === visitId;
+                        const opening = selected && !openVisit && !openError;
+                        return (
+                          <li key={visit.id}>
+                            <a
+                              href={query.hrefWith({ visit: visit.id, new: null })}
+                              onClick={(event) => {
+                                if (!isPlainClick(event)) return;
+                                event.preventDefault();
+                                if (!selected) query.set({ visit: visit.id, new: null });
+                              }}
+                              aria-current={selected ? "true" : undefined}
+                              aria-busy={opening || undefined}
+                              className={`block rounded-xl border bg-surface p-4 hover:border-primary ${
+                                selected ? "border-primary ring-2 ring-primary" : "border-border"
+                              }`}
+                            >
+                              <span className="flex items-start justify-between gap-3">
+                                <span className="font-semibold">{english(visit.serviceName)}</span>
+                                <StatusBadge status={visit.status} />
+                              </span>
+                              <span className="mt-1 block text-sm">
+                                {visit.organizationName} · {visit.outletName}
+                              </span>
+                              <span className="mt-2 block text-sm text-muted">
+                                {group.showDate ? `${shortDay(visit.date)} · ` : ""}
+                                {visit.slot ? `${slotName(visit.slot)} · ` : ""}
+                                {visit.supervisorName ?? "No Supervisor"}
+                                {visit.booked ? " · Booked by the restaurant" : ""}
+                                {visit.fromPlan ? " · From their plan" : ""}
+                                {visit.reportNumber ? ` · ${visit.reportNumber}` : ""}
+                              </span>
+                              {opening && (
+                                <span role="status" className="mt-2 block text-sm font-semibold text-primary">
+                                  Opening…
+                                </span>
+                              )}
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ))}
+              </>
+            }
+          />
+        </>
+      )}
     </div>
-  );
-}
-
-function RequestCard({ booking, supervisors, onDone }: { booking: BookingDto; supervisors: SupervisorDto[]; onDone: (message: string) => void }) {
-  const confirm = useConfirm();
-  // Offer what the restaurant asked for, unless that day has already gone.
-  const [date, setDate] = useState(booking.preferredDate < today() ? today() : booking.preferredDate);
-  const [slot, setSlot] = useState<VisitSlot>(booking.preferredSlot ?? "1000");
-  const [supervisorId, setSupervisorId] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [errors, setErrors] = useState<FieldErrors>({});
-
-  async function act(action: () => Promise<unknown>, message: string) {
-    setBusy(true);
-    setError(null);
-    try {
-      await action();
-      onDone(message);
-    } catch (e) {
-      setError(describe(e));
-      setBusy(false);
-    }
-  }
-
-  function confirmVisit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const dateError = checkDate(date, today());
-    const found: FieldErrors = dateError ? { date: dateError } : {};
-    setErrors(found);
-    if (hasErrors(found)) return focusFirstError(event.currentTarget, found);
-    void act(() => api.bookings.confirm(booking.id, { date, slot, supervisorId: supervisorId || null }), `Visit confirmed for ${shortDay(date)}`);
-  }
-
-  async function turnDown() {
-    const sure = await confirm({
-      title: "Turn down this request?",
-      body: `${booking.organizationName} will see their request for ${english(booking.serviceName)} as cancelled.`,
-      confirmLabel: "Turn down the request",
-      cancelLabel: "Keep the request",
-    });
-    if (sure) void act(() => api.bookings.cancel(booking.id), "Request turned down");
-  }
-
-  return (
-    <Card>
-      <form onSubmit={confirmVisit} noValidate className="flex flex-col gap-3">
-        <div>
-          <h3 className="font-bold">{english(booking.serviceName)}</h3>
-          <p className="text-sm">
-            {booking.organizationName} · {booking.outletName}
-          </p>
-          <p className="mt-1 text-sm text-muted">
-            Asked for {shortDay(booking.preferredDate)}
-            {booking.preferredSlot ? `, ${slotName(booking.preferredSlot).toLowerCase()}` : ""} · {rupees(booking.pricePaise)} + GST ·{" "}
-            {booking.requestedByName}, {when(booking.createdAt)}
-          </p>
-          {booking.notes && <p className="mt-2 rounded-lg bg-background p-2 text-sm whitespace-pre-wrap">{booking.notes}</p>}
-        </div>
-        <WhenAndWho
-          date={date}
-          slot={slot}
-          supervisorId={supervisorId}
-          supervisors={supervisors}
-          earliest={today()}
-          dateError={errors.date}
-          onChange={(next) => {
-            if (next.date !== undefined) setDate(next.date);
-            if (next.slot !== undefined) setSlot(next.slot);
-            if (next.supervisorId !== undefined) setSupervisorId(next.supervisorId);
-          }}
-        />
-        <ErrorMessage message={error} />
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" loading={busy}>
-            Confirm the visit
-          </Button>
-          <Button type="button" variant="secondary" disabled={busy} onClick={() => void turnDown()}>
-            Turn down
-          </Button>
-        </div>
-      </form>
-    </Card>
   );
 }
 

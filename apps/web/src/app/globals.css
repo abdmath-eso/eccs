@@ -92,3 +92,20 @@ dialog::backdrop {
 .skip-link:focus {
   top: 0.5rem;
 }
+
+/*
+ * Printing a page (the Visits week board's "Print the week") leaves out the console's
+ * frame: the top bar, the side menu and the skip link. Each page hides its own buttons
+ * with Tailwind's `print:hidden`.
+ */
+@media print {
+  header.sticky,
+  aside.sticky,
+  .skip-link {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+  }
+}

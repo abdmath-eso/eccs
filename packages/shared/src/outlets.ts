@@ -68,6 +68,9 @@ export type CreateOutletInput = z.input<typeof createOutletSchema>;
 // ───────── Changing a client afterwards ─────────
 // Only what is sent changes. A box sent empty clears that detail.
 
+/** The longest an outlet's area may be: a locality's name, not an address. */
+export const OUTLET_AREA_MAX = 40;
+
 const gstinOrEmpty = z
   .string()
   .trim()
@@ -93,6 +96,8 @@ export const updateOutletSchema = z.object({
     .regex(/^(\d{6})?$/, "PIN code must be 6 digits")
     .optional(),
   fssaiNumber: z.string().trim().max(20).optional(),
+  /** The part of the city, in a few words ("Jubilee Hills"), for the Visits week board. Sent empty, it clears it. */
+  area: z.string().trim().max(OUTLET_AREA_MAX, `Keep the area to ${OUTLET_AREA_MAX} characters`).optional(),
   isActive: z.boolean().optional(),
   /**
    * Where the kitchen is, in decimal degrees, for comparing with where proof photos are taken.
@@ -164,6 +169,8 @@ export interface OrganizationOutletDto {
   city: string;
   pincode: string | null;
   fssaiNumber: string | null;
+  /** The part of the city it is in ("Jubilee Hills"); null until ECCS sets it. Colours its visits on the week board. */
+  area: string | null;
   isActive: boolean;
   /** Where the kitchen is; both `null` until ECCS sets it. */
   latitude: number | null;

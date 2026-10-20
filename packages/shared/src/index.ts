@@ -40,3 +40,6 @@ export * from "./free-check.js";
 export * from "./team.js";
 export * from "./onboarding.js";
 export * from "./buddy.js";
+export * from "./console-sections.js";
+export * from "./outlet-onboarding.js";
+export * from "./week-board.js";

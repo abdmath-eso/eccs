@@ -80,6 +80,9 @@ model Outlet {
   longitude      Float?
   fssaiNumber    String?
   kitchenType    String?
+  /// The part of the city it is in, in a few words ("Jubilee Hills"), for the Visits week board's
+  /// coloured edges (20 Oct 2026). Free text; the console offers the areas already in use.
+  area           String?
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -110,6 +113,8 @@ model Outlet {
   foodLabels               FoodLabel[]
   attachments              Attachment[]
   publicProfile            PublicProfile?
+  /// Its first ten days, from "won" to "running on its own" (Clients, New outlets; 20 Oct 2026).
+  onboarding               OutletOnboarding?
 
   @@index([organizationId])
 }
@@ -733,6 +738,20 @@ model Job {
   @@index([outletId, scheduledDate])
   @@index([supervisorId, scheduledDate])
   @@index([status])
+}
+
+/// The Visits week board's settings, one row ("default"; 20 Oct 2026): how many visits a day
+/// the crew can take, Monday to Saturday. Changed by the Super Admin; no row means the defaults.
+model VisitSettings {
+  id          String   @id @default("default")
+  capacityMon Int      @default(5)
+  capacityTue Int      @default(5)
+  capacityWed Int      @default(5)
+  capacityThu Int      @default(5)
+  capacityFri Int      @default(5)
+  capacitySat Int      @default(4)
+  updatedById String?
+  updatedAt   DateTime @updatedAt
 }
 
 model JobTaskResponse {
@@ -2132,8 +2151,16 @@ model Quote {
   subtotalPaise Int
   gstPaise      Int
   totalPaise    Int
-  /// DRAFT or SENT.
+  /// DRAFT or SENT. What came of a sent quote is `outcome`; "expired" is worked out from validUntil.
   status        String    @default("DRAFT")
+  /// What came of it (20 Oct 2026): WON (the lead became a client with it, or marked by hand) or
+  /// DECLINED (marked by hand, with a reason). Empty while it is still open.
+  outcome       String?
+  outcomeAt     DateTime?
+  /// Who marked it; empty when the app set it (the lead won).
+  outcomeById   String?
+  /// Why it was declined, in a few words.
+  outcomeReason String?
   /// The public link's secret part (/q/<token>): long and random.
   token         String    @unique
   sentAt        DateTime?
@@ -2423,6 +2450,9 @@ model JoiningDocument {
   uploadedById String?
   reviewedAt   DateTime?
   reviewedById String?
+  /// When it runs out or must be renewed (20 Oct 2026), if it does: medical fitness a year
+  /// after it was given, a police verification, an ID with an end date. Empty for one that never does.
+  expiresOn    DateTime? @db.Date
   isSample     Boolean   @default(false)
   createdAt    DateTime  @default(now())
 
@@ -2495,6 +2525,45 @@ model OnboardingSettings {
   id        String   @id @default("default")
   letter    Json
   updatedAt DateTime @updatedAt
+}
+
+// ───────────────────────── Onboarding a new outlet ─────────────────────────
+//
+// New outlets (20 Oct 2026; Clients, New outlets): an outlet's first ten days, from "won" to
+// "running on its own", in nine steps. Steps 1 to 6 tick themselves from what the apps already
+// record (the outlet and its code, logins and PINs, legal agreements, licences with a copy,
+// the first checklist with photos), so nothing about them is stored here. Only what a person
+// does is kept, as entries: the day-3 call, the QR posters delivered, the day-10 call, and
+// notes. Rules: packages/shared/src/outlet-onboarding.ts.
+
+/// One outlet's onboarding (one at most). Removed with its outlet.
+model OutletOnboarding {
+  id          String   @id @default(uuid())
+  outletId    String   @unique
+  /// When it started: the outlet's own creation time when started with it, else the press of "Start onboarding".
+  startedAt   DateTime
+  startedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  outlet  Outlet                  @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  entries OutletOnboardingEntry[]
+}
+
+/// Something a person did for an outlet's onboarding, logged in one tap.
+model OutletOnboardingEntry {
+  id           String   @id @default(uuid())
+  onboardingId String
+  /// DAY3_CALL, POSTERS, DAY10_CALL, or NOTE (for instance "Visit and set up in person").
+  kind         String
+  note         String?
+  at           DateTime @default(now())
+  byId         String?
+  createdAt    DateTime @default(now())
+
+  onboarding OutletOnboarding @relation(fields: [onboardingId], references: [id], onDelete: Cascade)
+
+  @@index([onboardingId, kind])
 }
 
 // ───────────────────────── ECCS Buddy (16 Oct 2026) ─────────────────────────

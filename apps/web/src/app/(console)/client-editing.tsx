@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  normaliseArea,
+  OUTLET_AREA_MAX,
   parseCoordinates,
   updateOrganizationSchema,
   updateOutletSchema,
@@ -432,6 +434,33 @@ function PhoneList({
  * What can be done to one outlet, shown under its row: change its details,
  * issue a new restaurant code, see and unlink its phones, switch it off or on.
  */
+/**
+ * The areas outlets already have, across every client, for the area box's suggestions.
+ * Read once the form opens; without them the box still takes any area typed.
+ */
+function useAreasInUse(wanted: boolean): string[] {
+  const [areas, setAreas] = useState<string[]>([]);
+  useEffect(() => {
+    if (!wanted) return;
+    let cancelled = false;
+    api.organizations
+      .list()
+      .then((clients) => {
+        if (cancelled) return;
+        const byName = new Map<string, string>();
+        for (const outlet of clients.flatMap((client) => client.outlets)) {
+          if (outlet.area && !byName.has(normaliseArea(outlet.area))) byName.set(normaliseArea(outlet.area), outlet.area);
+        }
+        setAreas([...byName.values()].sort((a, b) => a.localeCompare(b)));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [wanted]);
+  return areas;
+}
+
 export function OutletEditing({
   client,
   outlet,
@@ -454,6 +483,7 @@ export function OutletEditing({
   const [newCode, setNewCode] = useState<string | null>(null);
 
   const phones = linked.phones?.filter((phone) => phone.outletId === outlet.id) ?? null;
+  const areas = useAreasInUse(editing);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -477,6 +507,7 @@ export function OutletEditing({
           city: values.city,
           pincode: values.pincode,
           fssaiNumber: values.fssaiNumber,
+          area: values.area,
           latitude: place?.latitude ?? null,
           longitude: place?.longitude ?? null,
         }),
@@ -564,6 +595,22 @@ export function OutletEditing({
         />
         <Field label="FSSAI licence number" name="fssaiNumber" maxLength={20} defaultValue={outlet.fssaiNumber ?? ""} error={errors.fssaiNumber} />
         <Field
+          label="Area"
+          name="area"
+          maxLength={OUTLET_AREA_MAX}
+          defaultValue={outlet.area ?? ""}
+          list={`areas-${outlet.id}`}
+          autoComplete="off"
+          hint="The part of the city, for example Jubilee Hills. It colours this outlet's visits on the Visits week board."
+          error={errors.area}
+        />
+        {/* The areas already in use are offered as the box is typed in, so one area is not spelt two ways. */}
+        <datalist id={`areas-${outlet.id}`}>
+          {areas.map((area) => (
+            <option key={area} value={area} />
+          ))}
+        </datalist>
+        <Field
           label="Location of the kitchen"
           name="location"
           maxLength={200}
@@ -592,6 +639,7 @@ export function OutletEditing({
           plan visits. Everything on record is kept.
         </p>
       )}
+      <p className="text-muted">Area: {outlet.area ?? "not set (it colours this outlet's visits on the Visits week board)"}</p>
       <p className="text-muted">
         {outlet.latitude !== null && outlet.longitude !== null ? (
           <>

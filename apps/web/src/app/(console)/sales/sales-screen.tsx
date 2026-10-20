@@ -24,7 +24,7 @@ import { useSession } from "@/lib/session";
 
 import { count, Legend, longWeekday, money, Panel, SampleBadge, Segmented } from "../finance/finance-parts";
 import { GrowthLines, WonBars } from "./sales-charts";
-import { DoTodayList, LeadSheet, LINE, ParkSheet, StageBar, StageTag, StatusDot, Sparkline } from "./sales-parts";
+import { DoTodayList, LeadSheet, LINE, ParkSheet, SalesTabs, StageBar, StageTag, StatusDot, Sparkline } from "./sales-parts";
 import { TargetsSheet } from "./targets-sheet";
 
 // The Sales page (15 Oct 2026): leads, the day's to-dos and how sales are growing, for the
@@ -87,6 +87,7 @@ function Sales() {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title="Sales" description="Leads, today's to-dos and how sales are growing." />
+        <SalesTabs current="overview" />
         {failure ? <LoadError message={failure} onRetry={() => setAttempt((value) => value + 1)} /> : <Loading />}
       </div>
     );
@@ -111,19 +112,15 @@ function Sales() {
       <PageHeader
         title={headline}
         secondary={
-          <>
-            <Link href="/sales/leads" className="rounded-lg border border-border-strong bg-surface px-4 py-2.5 font-semibold hover:bg-background">
-              All leads
-            </Link>
-            {manages && (
-              <Button variant="secondary" onClick={() => setTargets(true)}>
-                Targets
-              </Button>
-            )}
-          </>
+          manages && (
+            <Button variant="secondary" onClick={() => setTargets(true)}>
+              Targets
+            </Button>
+          )
         }
         action={<Button onClick={() => setAdding(true)}>Add lead</Button>}
       />
+      <SalesTabs current="overview" />
 
       {sees && (
         <Segmented

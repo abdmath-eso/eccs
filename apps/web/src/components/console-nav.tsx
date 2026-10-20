@@ -1,6 +1,6 @@
 "use client";
 
-import { can, type CurrentUserDto } from "@eccs/shared";
+import { CONSOLE_GROUPS, CONSOLE_SECTIONS, opensSection, type CurrentUserDto } from "@eccs/shared";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useSyncExternalStore, type ReactNode } from "react";
@@ -22,7 +22,6 @@ import {
   JoiningIcon,
   LogsIcon,
   MenuIcon,
-  MonitoringIcon,
   PlansIcon,
   SalesIcon,
   SopsIcon,
@@ -45,11 +44,33 @@ interface NavItem {
   shown?: (counts: NavCounts) => boolean;
 }
 
+/** Each section's picture, and the number shown beside it with what it means in words. */
+const LOOKS: Record<string, { icon: ReactNode; count?: keyof NavCounts; waiting?: string }> = {
+  visits: { icon: <VisitsIcon />, count: "visits", waiting: "waiting for a date, a Supervisor or a report check" },
+  inspections: { icon: <InspectionsIcon /> },
+  issues: { icon: <IssuesIcon />, count: "issues", waiting: "open" },
+  clients: { icon: <ClientsIcon />, count: "newOutlets", waiting: "new outlets not live after 24 hours" },
+  invoices: { icon: <InvoicesIcon />, count: "invoices", waiting: "overdue" },
+  certificates: { icon: <CertificatesIcon /> },
+  customerPages: { icon: <CustomerPagesIcon />, count: "publicPhotos", waiting: "photos waiting for approval" },
+  sales: { icon: <SalesIcon />, count: "sales", waiting: "things to do today" },
+  finance: { icon: <FinanceIcon /> },
+  team: { icon: <TeamIcon />, count: "team", waiting: "people to keep an eye on" },
+  aiUsage: { icon: <AiUsageIcon />, count: "ai", waiting: "AI warnings" },
+  catalogue: { icon: <CatalogueIcon /> },
+  plans: { icon: <PlansIcon /> },
+  sops: { icon: <SopsIcon /> },
+  logs: { icon: <LogsIcon /> },
+};
+
 /**
  * The console's sections, grouped by how ECCS works through a day and listed
  * in the order they are reached for: first what needs doing today, then the
- * clients and their paperwork, then what is set up once and changed rarely.
- * A Supervisor is shown only the sections they can use.
+ * clients and their paperwork, the business, and what is set up once and
+ * changed rarely. The groups, entries and the grant each needs come from
+ * CONSOLE_SECTIONS in packages/shared (the console plan's map, 20 Oct 2026),
+ * which the Team page's access card reads too. A Supervisor or a BDE is shown
+ * only the sections they can use.
  */
 const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
   {
@@ -57,49 +78,16 @@ const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
     label: "You",
     items: [{ href: "/joining", label: "Joining ECCS", icon: <JoiningIcon />, count: "joining", waiting: "joining steps left", shown: (counts) => counts.joining !== null }],
   },
-  {
-    label: "Daily work",
-    // Each `needs` is the grant its page reads with, so a BDE (sales only) is not shown them.
-    items: [
-      { href: "/monitoring", label: "Monitoring", icon: <MonitoringIcon />, needs: (m) => can(m, "clients", "read") },
-      { href: "/visits", label: "Visits", icon: <VisitsIcon />, count: "visits", waiting: "waiting for a date, a Supervisor or a report check", needs: (m) => can(m, "jobs", "read") },
-      { href: "/inspections", label: "Inspections", icon: <InspectionsIcon />, needs: (m) => can(m, "inspections", "read") },
-      { href: "/issues", label: "Issues", icon: <IssuesIcon />, count: "issues", waiting: "open", needs: (m) => can(m, "issues", "read") },
-    ],
-  },
-  {
-    label: "Client records",
-    items: [
-      { href: "/", label: "Clients", icon: <ClientsIcon />, needs: (m) => can(m, "clients", "create") },
-      { href: "/invoices", label: "Invoices", icon: <InvoicesIcon />, count: "invoices", waiting: "overdue", needs: (m) => can(m, "invoices", "update") },
-      // No Licences page since 20 Oct 2026: licences are the restaurant's own, kept in its app (the founder: "we don't need that").
-      { href: "/certificates", label: "Certificates", icon: <CertificatesIcon />, needs: (m) => can(m, "reports", "read") },
-      { href: "/customer-pages", label: "Customer pages", icon: <CustomerPagesIcon />, count: "publicPhotos", waiting: "photos waiting for approval", needs: (m) => can(m, "publicPage", "approve") },
-    ],
-  },
-  {
-    // The founders' own business pages (15 and 16 Oct 2026): Finance, Sales and Team; AI usage (19 Oct 2026).
-    label: "Business",
-    items: [
-      { href: "/finance", label: "Finance", icon: <FinanceIcon />, needs: (m) => can(m, "finance", "read") },
-      { href: "/sales", label: "Sales", icon: <SalesIcon />, count: "sales", waiting: "things to do today", needs: (m) => can(m, "sales", "read") },
-      { href: "/team", label: "Team", icon: <TeamIcon />, count: "team", waiting: "people to keep an eye on", needs: (m) => can(m, "team", "read") },
-      { href: "/ai-usage", label: "AI usage", icon: <AiUsageIcon />, count: "ai", waiting: "AI warnings", needs: (m) => can(m, "aiUsage", "read") },
-    ],
-  },
-  {
-    label: "Set-up",
-    items: [
-      { href: "/catalogue", label: "Catalogue", icon: <CatalogueIcon />, needs: (m) => can(m, "catalog", "update") },
-      { href: "/plans", label: "Plans", icon: <PlansIcon />, needs: (m) => can(m, "catalog", "update") },
-      { href: "/sops", label: "SOPs", icon: <SopsIcon />, needs: (m) => can(m, "sopTemplates", "read") },
-    ],
-  },
-  {
-    // The record of everything that happened, for the Super Admin and Ops Manager (the auditLog grant).
-    label: "Oversight",
-    items: [{ href: "/logs", label: "Logs", icon: <LogsIcon />, needs: (m) => can(m, "auditLog", "read") }],
-  },
+  ...CONSOLE_GROUPS.map((group) => ({
+    label: group,
+    items: CONSOLE_SECTIONS.filter((section) => section.group === group).map((section) => ({
+      href: section.href,
+      label: section.label,
+      ...LOOKS[section.key],
+      icon: LOOKS[section.key]?.icon ?? null,
+      needs: (memberships: Memberships) => opensSection(memberships, section),
+    })),
+  })),
 ];
 
 // A badge has room for two digits; anything more is shown as "99+".
@@ -134,7 +122,8 @@ function SectionList({ memberships, collapsed = false, onNavigate }: { membershi
             {collapsed && index > 0 && <hr className="mx-3 mb-3 border-border" />}
             <ul aria-labelledby={`${headingId}-${index}`} className="flex flex-col gap-0.5">
               {items.map((item) => {
-                const current = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                // "/visits" is current on "/visits?view=week" too, but "/sales" must not light up "/sales-something".
+                const current = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 const count = item.count ? counts[item.count] : null;
                 return (
                   <li key={item.href}>

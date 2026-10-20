@@ -2,7 +2,7 @@
 
 import { can, createOrganizationSchema, createOutletSchema, type LeadDetailDto, type OrganizationDto } from "@eccs/shared";
 import Link from "next/link";
-import { Fragment, useEffect, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { useToast } from "@/components/toast";
 import { Button, Card, Code, ErrorMessage, Field, Loading, NoAccess, PageHeader } from "@/components/ui";
@@ -38,8 +38,10 @@ function pinStatus(client: OrganizationDto) {
  * onboarding. Opening a row shows that client's outlets and restaurant codes.
  *
  * The search (`q=`) and the open row (`client=`) are kept in the web address.
+ * Since 20 Oct 2026 this is Clients' "All clients" tab, at /clients?tab=all;
+ * `tabs` is the row of Clients' tabs, shown under the title.
  */
-export default function ClientsScreen() {
+export default function ClientsScreen({ tabs }: { tabs?: ReactNode }) {
   const { user } = useSession();
   const query = useQuery();
   const notify = useToast();
@@ -132,6 +134,7 @@ export default function ClientsScreen() {
         description="Restaurants, their outlets and the codes their staff use to link a phone."
         action={!onboarding && <Button onClick={() => setOnboarding(true)}>Onboard a restaurant</Button>}
       />
+      {tabs}
 
       {justCreated && <HandoverCard client={justCreated} onDismiss={() => setJustCreated(null)} />}
       {justCreated && leadId && (
@@ -284,6 +287,14 @@ function HandoverCard({ client, onDismiss }: { client: OrganizationDto; onDismis
           person types it once on their own phone, then logs in with the PIN the owner gives them.
         </li>
       </ol>
+      {/* Its first ten days are followed on New outlets, where each step ticks itself as the restaurant uses the app. */}
+      <p className="mt-3 text-sm text-muted">
+        Its first ten days are followed under{" "}
+        <Link href="/clients?tab=new" className="font-semibold text-primary hover:underline">
+          New outlets
+        </Link>
+        .
+      </p>
       <Button variant="secondary" className="mt-4" onClick={onDismiss}>
         Done
       </Button>

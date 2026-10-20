@@ -14,21 +14,43 @@ import {
   type LeadInput,
   type LeadSource,
   type LeadStage,
+  QUOTE_STATE_LABELS,
+  type QuoteState,
   type SalesPersonDto,
 } from "@eccs/shared";
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
 
 import { useToast } from "@/components/toast";
-import { Button, ErrorMessage, Field, SelectField } from "@/components/ui";
+import { Button, ErrorMessage, Field, PageTabs, SelectField } from "@/components/ui";
 import { api } from "@/lib/api";
 import { checkAgainst, focusFirstError, hasErrors, type FieldErrors } from "@/lib/forms";
 import { addDays, describe, today } from "@/lib/format";
 
-import { money, Sheet } from "../finance/finance-parts";
+import { money, saveFile, Sheet } from "../finance/finance-parts";
 
 // Pieces the Sales pages share (15 Oct 2026): the stage colours, the stage bar and the
 // small weekly bars on the cards, the lead form, Park, and Call (which also logs the call).
+
+// ───────────────────────── The tabs ─────────────────────────
+
+/**
+ * Sales' three tabs (the console plan, 20 Oct 2026: Overview · Leads · Quotes), each its own
+ * address, so a link to the Quotes list or a filtered Leads list works as before. They
+ * replace the buttons that led between the Sales page and All leads.
+ */
+export function SalesTabs({ current }: { current: "overview" | "leads" | "quotes" }) {
+  return (
+    <PageTabs
+      label="Sales"
+      tabs={[
+        { href: "/sales", label: "Overview", current: current === "overview" },
+        { href: "/sales/leads", label: "Leads", current: current === "leads" },
+        { href: "/sales/quotes", label: "Quotes", current: current === "quotes" },
+      ]}
+    />
+  );
+}
 
 // ───────────────────────── Colours ─────────────────────────
 
@@ -170,6 +192,34 @@ export function StatusDot({ status }: { status: keyof typeof STATUS }) {
       <span className="sr-only">{STATUS[status].words}</span>
     </span>
   );
+}
+
+/**
+ * Where a quote stands, as a badge with its word (Zoho Books' and Jobber's quote states):
+ * the word always shows, and the border and weight only add to it, so colour is never alone.
+ */
+const QUOTE_STATE_STYLE: Record<QuoteState, string> = {
+  DRAFT: "border-dashed border-border-strong text-muted",
+  SENT: "border-foreground text-foreground",
+  WON: "border-primary bg-primary/10 font-bold text-primary",
+  DECLINED: "border-border-strong text-muted",
+  EXPIRED: "border-amber-600 text-amber-800",
+};
+
+export function QuoteStateBadge({ state }: { state: QuoteState }) {
+  return <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${QUOTE_STATE_STYLE[state]}`}>{QUOTE_STATE_LABELS[state]}</span>;
+}
+
+/** "Not opened yet", "Opened twice, last 25 Nov, 7:10 pm". */
+export const openedWords = (quote: { openCount: number; lastOpenedAt: string | null }) =>
+  quote.openCount === 0
+    ? "Not opened yet"
+    : `Opened ${quote.openCount === 1 ? "once" : quote.openCount === 2 ? "twice" : `${quote.openCount} times`}${quote.lastOpenedAt ? `, last ${shortMoment(quote.lastOpenedAt)}` : ""}`;
+
+/** Downloads a quote's PDF under its own name. */
+export async function downloadQuotePdf(quoteId: string) {
+  const { blob, fileName } = await api.sales.quotePdf(quoteId);
+  saveFile(blob, fileName);
 }
 
 // ───────────────────────── Call ─────────────────────────

@@ -31,7 +31,7 @@ import { indiaDay } from "./food-labels.js";
 import type { Role, MembershipScope } from "./roles.js";
 import { roleCan } from "./permissions.js";
 import { BILLING_CYCLES, CYCLE_MONTHS, type BillingCycle } from "./subscriptions.js";
-import { freeCheckSchema, type FreeCheckDto } from "./free-check.js";
+import { freeCheckSchema, freeCheckServices, type FreeCheckAnswer, type FreeCheckDto, type FreeCheckPoint } from "./free-check.js";
 
 // ───────────────────────── Stages, sources, kinds of step ─────────────────────────
 
@@ -184,6 +184,11 @@ export const SALES_RULES = {
   staleDays: 5,
   /** A quote the owner opened and nobody followed up for this many days is overdue. */
   quoteNoReplyDays: 2,
+  /**
+   * A quote sent this many days ago with nothing logged on the lead since, opened or not, is
+   * overdue too (the console plan, 20 Oct 2026: "No reply, 5 days" prompts a follow-up).
+   */
+  quoteFollowUpDays: 5,
   /** The call after a client's first job: "how is the app going, ask for a rating". */
   day10CallDays: 10,
   /** A client on a plan with more kitchens is pitched again once nothing has been logged for this long. */
@@ -349,8 +354,8 @@ export interface LeadFacts {
   planAt: string | null;
   /** The last call or visit logged. */
   lastContactAt: string | null;
-  /** The latest quote sent. */
-  quote: { totalPaise: number; sentAt: string; openCount: number; firstOpenedAt: string | null; lastOpenedAt: string | null; hasPlan: boolean } | null;
+  /** The latest quote sent. `outcome` is what came of it, once won or declined (20 Oct 2026). */
+  quote: { totalPaise: number; sentAt: string; openCount: number; firstOpenedAt: string | null; lastOpenedAt: string | null; hasPlan: boolean; outcome?: QuoteOutcome | null } | null;
   askedQuote: boolean;
   askedMonthlyPrice: boolean;
   /** The first job, once there is one: how the restaurant rated it and whether they signed off the day it was done. */
@@ -442,6 +447,8 @@ export const DO_TODAY_KINDS = [
   "PARKED_DUE",
   "NEXT_ACTION_OVERDUE",
   "QUOTE_NO_REPLY",
+  // A quote sent five days ago that the owner has not opened, with nothing logged since (20 Oct 2026).
+  "QUOTE_NOT_OPENED",
   "CHECK_TODAY",
   "QUOTE_NOT_SENT",
   "OFFER_PLAN",
@@ -561,21 +568,21 @@ export function doTodayFor(lead: LeadFacts, now: Date): DoTodayItem | null {
     };
   }
 
-  // The owner opened the quote and nobody has been in touch since.
-  if (lead.stage === "QUOTED" && lead.quote?.firstOpenedAt) {
-    const waited = daysFrom(indiaDay(lead.quote.firstOpenedAt), today);
-    if (waited >= SALES_RULES.quoteNoReplyDays && lead.lastActivityAt < lead.quote.firstOpenedAt) {
-      return {
-        ...base,
-        bucket: "OVERDUE",
-        kind: "QUOTE_NO_REPLY",
-        days: waited,
-        time: null,
-        line: `Quote ${salesRupees(lead.quote.totalPaise)} sent ${shortDate(indiaDay(lead.quote.sentAt))}. Owner opened it ${timesWord(lead.quote.openCount)}, no reply.`,
-        params: { totalPaise: lead.quote.totalPaise, sentOn: indiaDay(lead.quote.sentAt), opens: lead.quote.openCount },
-        action: call,
-      };
-    }
+  // The owner opened the quote and nobody has been in touch since; or it went five days ago,
+  // opened or not, with nothing logged since (quoteFollowUp).
+  const followUp = lead.stage === "QUOTED" && lead.quote ? quoteFollowUp(lead.quote, lead.lastActivityAt, today) : null;
+  if (followUp && lead.quote) {
+    const sent = `Quote ${salesRupees(lead.quote.totalPaise)} sent ${shortDate(indiaDay(lead.quote.sentAt))}.`;
+    return {
+      ...base,
+      bucket: "OVERDUE",
+      kind: followUp.opened ? "QUOTE_NO_REPLY" : "QUOTE_NOT_OPENED",
+      days: followUp.days,
+      time: null,
+      line: followUp.opened ? `${sent} Owner opened it ${timesWord(lead.quote.openCount)}, no reply.` : `${sent} Not opened yet, no reply.`,
+      params: { totalPaise: lead.quote.totalPaise, sentOn: indiaDay(lead.quote.sentAt), opens: lead.quote.openCount },
+      action: call,
+    };
   }
 
   if (lead.checkAt && indiaDay(lead.checkAt) === today) {
@@ -904,6 +911,97 @@ export const quoteWhatsappUrl = (phone: string | null, text: string) => whatsapp
 export const isLinkPreviewAgent = (userAgent: string | null | undefined) =>
   /whatsapp|facebookexternalhit|facebot|slackbot|twitterbot|telegrambot|discordbot|linkedinbot|skypeuripreview|googlebot|bingbot|embedly|preview|crawler|spider|bot\b/i.test(userAgent ?? "");
 
+// ───────────────────────── What came of a quote (20 Oct 2026) ─────────────────────────
+//
+// The console plan's Quotes tab (docs/CONSOLE_PLAN.md 4.9): every quote in one list with
+// where it stands. A quote is a draft until sent; a sent one is won (the lead became a
+// client with it, or someone marked it), declined (marked, with a reason) or, once the day
+// it was valid until has gone, expired. Expired is worked out, never stored, so changing
+// the validity never leaves a quote marked wrongly.
+
+export const QUOTE_STATES = ["DRAFT", "SENT", "WON", "DECLINED", "EXPIRED"] as const;
+export type QuoteState = (typeof QUOTE_STATES)[number];
+
+export const QUOTE_STATE_LABELS: Record<QuoteState, string> = { DRAFT: "Draft", SENT: "Sent", WON: "Won", DECLINED: "Declined", EXPIRED: "Expired" };
+
+/** What came of a sent quote, as stored (Quote.outcome). */
+export const QUOTE_OUTCOMES = ["WON", "DECLINED"] as const;
+export type QuoteOutcome = (typeof QUOTE_OUTCOMES)[number];
+export const toQuoteOutcome = (value: string | null | undefined): QuoteOutcome | null => ((QUOTE_OUTCOMES as readonly string[]).includes(value ?? "") ? (value as QuoteOutcome) : null);
+
+/**
+ * Where a quote stands on an India date. Won stands even after the validity has gone (the
+ * plan: expired is "validUntil passed and not won"); declined is a person's word, so it
+ * stands too.
+ */
+export function quoteState(quote: { status: string; outcome: string | null; validUntil: string | null }, today: string): QuoteState {
+  const outcome = toQuoteOutcome(quote.outcome);
+  if (outcome === "WON") return "WON";
+  if (quote.status !== "SENT") return "DRAFT";
+  if (outcome === "DECLINED") return "DECLINED";
+  if (quote.validUntil && quote.validUntil < today) return "EXPIRED";
+  return "SENT";
+}
+
+/** Only a sent quote can be marked won or declined; a draft has not been offered yet. */
+export const mayMarkQuote = (state: QuoteState) => state === "SENT" || state === "EXPIRED";
+
+/**
+ * Whether a sent quote waits for a follow-up, and for how many days: the owner opened it
+ * and nobody has been in touch for two days since the first open (Do today's QUOTE_NO_REPLY,
+ * 15 Oct 2026); or it went five days ago, opened or not, with no step logged on the lead
+ * since (the console plan's "No reply, 5 days", 20 Oct 2026). A quote won or declined needs
+ * none. Moments are ISO strings, which compare in time order.
+ */
+export function quoteFollowUp(
+  quote: { sentAt: string; openCount: number; firstOpenedAt: string | null; outcome?: QuoteOutcome | null },
+  lastActivityAt: string,
+  today: string,
+): { days: number; opened: boolean } | null {
+  if (quote.outcome) return null;
+  const opened = quote.firstOpenedAt !== null;
+  if (quote.firstOpenedAt) {
+    const sinceOpen = daysFrom(indiaDay(quote.firstOpenedAt), today);
+    if (sinceOpen >= SALES_RULES.quoteNoReplyDays && lastActivityAt < quote.firstOpenedAt) return { days: sinceOpen, opened };
+  }
+  const sinceSent = daysFrom(indiaDay(quote.sentAt), today);
+  if (sinceSent >= SALES_RULES.quoteFollowUpDays && lastActivityAt <= quote.sentAt) return { days: sinceSent, opened };
+  return null;
+}
+
+/** The one button a row of the Quotes list has. */
+export const QUOTE_ROW_ACTIONS = ["SEND", "REVISE", "OPEN"] as const;
+export type QuoteRowAction = (typeof QUOTE_ROW_ACTIONS)[number];
+
+/**
+ * A draft is sent; the lead's latest quote is revised once it has expired or waits for a
+ * reply; anything else is opened (the founder's design, p. 7: "No reply · 5 days → Revise",
+ * "Sent today → Open", "Won → Open").
+ */
+export function quoteRowAction(state: QuoteState, facts: { latest: boolean; waiting: boolean }): QuoteRowAction {
+  if (state === "DRAFT") return "SEND";
+  if (facts.latest && (state === "EXPIRED" || (state === "SENT" && facts.waiting))) return "REVISE";
+  return "OPEN";
+}
+
+/**
+ * The services a quote starts with after a free check, as the phone's quote screen does:
+ * for each kind of service the check found a need for (FREE_CHECK_FIXES), the first of
+ * that kind among the options (quote-options lists them cheapest first), one of each.
+ * Prices stay the catalogue's: only which lines are ticked comes from the check.
+ */
+export function freeCheckPicks(
+  options: readonly Pick<QuoteOptionDto, "kind" | "refId" | "serviceCode">[],
+  answers: readonly { point: FreeCheckPoint; answer: FreeCheckAnswer }[],
+): { refId: string; quantity: number }[] {
+  const picks: { refId: string; quantity: number }[] = [];
+  for (const code of freeCheckServices(answers)) {
+    const option = options.find((entry) => entry.kind === "SERVICE" && entry.serviceCode === code);
+    if (option && !picks.some((pick) => pick.refId === option.refId)) picks.push({ refId: option.refId, quantity: 1 });
+  }
+  return picks;
+}
+
 // ───────────────────────── What the API accepts ─────────────────────────
 
 const optionalText = (max: number, message: string) =>
@@ -1051,7 +1149,22 @@ export const quoteSchema = z.object({
 });
 export type QuoteInput = z.input<typeof quoteSchema>;
 
-const figure = z.number().int("Enter a whole number").min(0, "Enter zero or more").max(500, "Enter 500 or fewer");
+/** "Declined": the owner said no, with why in a few words (20 Oct 2026). Marking it won needs nothing more. */
+export const quoteDeclinedSchema = z.object({
+  reason: z.string("Say why").trim().min(1, "Say why in a few words").max(100, "Keep it under 100 characters"),
+});
+export type QuoteDeclinedInput = z.input<typeof quoteDeclinedSchema>;
+
+/** The Quotes list's filters: a state, or BUILD for the free checks done with no quote yet ("Build now"). */
+export const QUOTE_LIST_FILTERS = [...QUOTE_STATES, "BUILD"] as const;
+export type QuoteListFilter = (typeof QUOTE_LIST_FILTERS)[number];
+export const quoteListQuerySchema = z.object({
+  state: z.enum(QUOTE_LIST_FILTERS).optional(),
+  owner: z.uuid().optional(),
+});
+export type QuoteListQuery = z.output<typeof quoteListQuerySchema>;
+
+const figure =z.number().int("Enter a whole number").min(0, "Enter zero or more").max(500, "Enter 500 or fewer");
 
 /** The Super Admin's own target for one BDE's week; null puts that figure back to the suggestion. */
 export const targetSchema = z.object({
@@ -1157,6 +1270,54 @@ export interface QuoteDto {
   /** The public page's address. */
   link: string;
   isSample: boolean;
+  /** Where it stands today (20 Oct 2026): draft, sent, won, declined or expired. */
+  state: QuoteState;
+  /** What came of it, when and why (a decline's reason); `outcomeBy` is who marked it, null when the app did (the lead became a client). */
+  outcome: QuoteOutcome | null;
+  outcomeAt: string | null;
+  outcomeReason: string | null;
+  outcomeBy: string | null;
+  createdAt: string;
+}
+
+/** One row of the Quotes list (20 Oct 2026). */
+export interface QuoteRowDto extends QuoteDto {
+  leadId: string;
+  businessName: string;
+  area: string | null;
+  kitchens: number;
+  ownerId: string;
+  ownerName: string;
+  /** Every line is a plan billed this often: the total is "a month" (the design's "₹7,080 a month"). */
+  perCycle: BillingCycle | null;
+  /** The newest quote on its lead: only that one is revised. */
+  latest: boolean;
+  /** Days it has waited for a reply, when a follow-up is due ("No reply · 5 days"); null otherwise. */
+  waitingDays: number | null;
+  action: QuoteRowAction;
+}
+
+/** A free check done with no quote yet: "Build now". */
+export interface QuoteBuildRowDto {
+  leadId: string;
+  businessName: string;
+  area: string | null;
+  ownerId: string;
+  ownerName: string;
+  checkDoneAt: string | null;
+  checkFindings: number | null;
+  isSample: boolean;
+}
+
+export interface QuoteListDto {
+  today: string;
+  /** Newest first: drafts and quotes sent, as the filters choose. */
+  quotes: QuoteRowDto[];
+  /** Free checks done with no quote yet, oldest check first. Empty unless the filter is BUILD or none. */
+  buildNow: QuoteBuildRowDto[];
+  /** How many of each there are for this person (and owner), whatever the state filter. */
+  counts: Record<QuoteListFilter, number>;
+  owners: SalesPersonDto[];
 }
 
 export interface LeadDetailDto extends LeadRowDto {

@@ -1881,6 +1881,7 @@ export const gu: Messages = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}. {day} કરવાનું હતું.",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "આગલું પગલું {day} કરવાનું હતું.",
   "bde.todo.QUOTE_NO_REPLY": "{date} {amount} નું ક્વોટેશન મોકલ્યું. માલિકે ખોલ્યું, હજી જવાબ નથી.",
+  "bde.todo.QUOTE_NOT_OPENED": "{date} {amount} નું ક્વોટેશન મોકલ્યું. માલિકે હજી ખોલ્યું નથી, જવાબ પણ નથી.",
   "bde.todo.CHECK_TODAY": "{name} સાથે ફ્રી ચેક. સ્કોરકાર્ડ ભરો.",
   "bde.todo.CHECK_TODAY.alone": "આજે ફ્રી ચેક. સ્કોરકાર્ડ ભરો.",
   "bde.todo.QUOTE_NOT_SENT": "ફ્રી ચેક {date} થઈ ગયો. ક્વોટેશન મોકલો.",

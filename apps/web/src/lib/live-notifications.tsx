@@ -108,7 +108,7 @@ export function LiveNotifications({ children }: { children: ReactNode }) {
     const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(CHANNEL);
 
     function open(item: NotificationDto | null) {
-      tools.current.router.push((item && hrefFor(item.link)) ?? "/notifications");
+      tools.current.router.push((item && hrefFor(item.link, item.type)) ?? "/notifications");
       if (item && !item.readAt) {
         void api.notifications
           .markRead(item.id)
@@ -133,7 +133,7 @@ export function LiveNotifications({ children }: { children: ReactNode }) {
 
       // In the page: one message at the bottom, in every tab (a tab nobody is looking at loses nothing by it).
       if (together) tools.current.notify(summary, { kind: "news", href: "/notifications" });
-      else tools.current.notify(newest.title, { kind: "news", detail: newest.body, href: hrefFor(newest.link) ?? "/notifications" });
+      else tools.current.notify(newest.title, { kind: "news", detail: newest.body, href: hrefFor(newest.link, newest.type) ?? "/notifications" });
 
       // On the desktop, with Windows' own notification sound (unless turned off): one tab only.
       const state = alertState();

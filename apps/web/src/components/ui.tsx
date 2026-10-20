@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   useId,
   type ButtonHTMLAttributes,
@@ -240,6 +241,51 @@ export function PageHeader({
       </div>
       {how && <HowItWorks>{how}</HowItWorks>}
     </header>
+  );
+}
+
+/**
+ * The tabs of a page whose parts each have their own web address (Visits: List, Week,
+ * Waiting; Sales: Overview, Leads, Quotes; Clients: Health, All clients, New outlets).
+ * Each tab is a link, so Back, refresh and a copied link bring the same part back.
+ * Pattern followed: "fake tabs" (eBay's design system) and ARIA guidance, which say
+ * tabs that change the address are navigation, a `<nav>` of links with
+ * `aria-current="page"` on the one shown, not an ARIA tab list. The current tab is
+ * marked by a bar under it and bold writing, not by colour alone. On a narrow screen
+ * the row scrolls sideways rather than wrapping.
+ */
+export function PageTabs({
+  label,
+  tabs,
+}: {
+  label: string;
+  tabs: readonly { href: string; label: string; current: boolean; count?: number | null; countLabel?: string }[];
+}) {
+  return (
+    <nav aria-label={label} className="-mx-1 max-w-full overflow-x-auto px-1 print:hidden">
+      <ul className="flex w-max min-w-full gap-1 border-b border-border">
+        {tabs.map((tab) => (
+          <li key={tab.href}>
+            <Link
+              href={tab.href}
+              aria-current={tab.current ? "page" : undefined}
+              className={`-mb-px flex min-h-11 items-center gap-2 border-b-[3px] px-3 py-2 text-sm whitespace-nowrap ${
+                tab.current ? "border-primary font-bold text-foreground" : "border-transparent font-semibold text-muted hover:border-border-strong hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+              {/* No number when nothing is waiting, as in the side menu. */}
+              {tab.count != null && tab.count > 0 && (
+                <span className="rounded-full bg-danger px-1.5 py-0.5 text-xs leading-none font-bold text-white">
+                  {tab.count}
+                  {tab.countLabel && <span className="sr-only"> {tab.countLabel}</span>}
+                </span>
+              )}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 

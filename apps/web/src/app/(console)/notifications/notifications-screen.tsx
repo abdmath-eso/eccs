@@ -155,7 +155,7 @@ export default function NotificationsScreen() {
           <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
             {group.items.map((item) => {
               const isUnread = !item.readAt;
-              const href = hrefFor(item.link);
+              const href = hrefFor(item.link, item.type);
               const content = (
                 <>
                   {/* Unread is marked by a dot and bold writing, not by colour alone. */}

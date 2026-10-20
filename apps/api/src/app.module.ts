@@ -18,6 +18,7 @@ import { LicencesModule } from './licences/licences.module.js';
 import { MonitoringModule } from './monitoring/monitoring.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
+import { OutletOnboardingModule } from './outlet-onboarding/outlet-onboarding.module.js';
 import { OutletsModule } from './outlets/outlets.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ProfileModule } from './profile/profile.module.js';
@@ -47,6 +48,8 @@ import { VendorsModule } from './vendors/vendors.module.js';
     OutletsModule,
     RestaurantUsersModule,
     OrganizationsModule,
+    // Clients > New outlets: an outlet's first ten days (20 Oct 2026).
+    OutletOnboardingModule,
     ChecklistsModule,
     IssuesModule,
     LicencesModule,

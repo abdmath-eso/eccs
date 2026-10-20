@@ -3,9 +3,13 @@ import type { Readable } from 'node:stream';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@eccs/db';
 import {
+  addDays,
   can,
   DOCUMENT_LABELS,
   detailsMissing,
+  documentsDue,
+  indiaDay,
+  proposedExpiry,
   EMPTY_DETAILS,
   JOINING_DOCUMENT_KINDS,
   LETTER_CLOSING,
@@ -26,6 +30,7 @@ import {
   teamRoleOf,
   type AppointmentLetterDto,
   type DocumentAsked,
+  type DocumentDue,
   type JoiningDetails,
   type JoiningDetailsValues,
   type JoiningDocumentDto,
@@ -225,15 +230,17 @@ export class OnboardingPapersService {
     return this.db.joiningDocument.findMany({ where: { memberId }, orderBy: { uploadedAt: 'desc' } });
   }
 
-  /** Each document asked for, with where it stands. */
+  /** Each document asked for, with where it stands, its date and whether it is due. */
   async documentsDto(memberId: string, asked: readonly DocumentAsked[]): Promise<JoiningDocumentDto[]> {
     const rows = await this.documentRows(memberId);
     const current = currentDocuments(rows);
     const attachments = await this.db.attachment.findMany({ where: { id: { in: rows.map((row) => row.attachmentId).filter((id): id is string => Boolean(id)) } }, select: { id: true, mimeType: true } });
     const pdf = new Set(attachments.filter((entry) => entry.mimeType === 'application/pdf').map((entry) => entry.id));
     const names = await this.names(rows.flatMap((row) => [row.uploadedById, row.reviewedById]));
+    const due = (await this.dueFor([memberId])).get(memberId) ?? [];
     return asked.map((entry) => {
       const row = current.get(entry.kind);
+      const onFile = row && row.status !== 'SENT_BACK';
       return {
         kind: entry.kind,
         ...DOCUMENT_LABELS[entry.kind],
@@ -246,8 +253,49 @@ export class OnboardingPapersService {
         reviewedAt: row?.reviewedAt?.toISOString() ?? null,
         reviewedBy: row?.reviewedById ? (names.get(row.reviewedById) ?? null) : null,
         reason: row?.status === 'SENT_BACK' ? row.reason : null,
+        expiresOn: onFile && row.expiresOn ? fromDb(row.expiresOn) : null,
+        proposedExpiry: onFile ? proposedExpiry(entry.kind, indiaDay(row.uploadedAt)) : null,
+        due: due.find((found) => found.kind === entry.kind) ?? null,
       };
     });
+  }
+
+  /**
+   * The documents due for these members (every open member when none are given): past their
+   * date or within 30 days of it, or required and missing past the day they were expected
+   * (documentsDue in packages/shared/src/onboarding.ts). Only people with an onboarding have
+   * documents asked for; someone who has left has nothing due.
+   */
+  async dueFor(memberIds?: readonly string[], today = indiaDate()): Promise<Map<string, DocumentDue[]>> {
+    const onboardings = await this.db.onboarding.findMany({
+      where: { ...(memberIds && { memberId: { in: [...memberIds] } }), member: { leftOn: null } },
+      select: { memberId: true, documents: true, member: { select: { joinedOn: true } }, tasks: { where: { auto: { in: ['POLICE_CERTIFICATE', 'MEDICAL_CERTIFICATE'] } }, select: { auto: true, daysFromJoining: true } } },
+    });
+    if (onboardings.length === 0) return new Map();
+    const rows = await this.db.joiningDocument.findMany({ where: { memberId: { in: onboardings.map((entry) => entry.memberId) } }, orderBy: { uploadedAt: 'desc' } });
+    const due = new Map<string, DocumentDue[]>();
+    for (const onboarding of onboardings) {
+      const joinedOn = fromDb(onboarding.member.joinedOn);
+      // A later document is expected by the due day of the task that waits for it, where the checklist has one.
+      const taskDueOn: Partial<Record<JoiningDocumentKind, string>> = {};
+      for (const task of onboarding.tasks) {
+        const kind: JoiningDocumentKind = task.auto === 'POLICE_CERTIFICATE' ? 'POLICE_VERIFICATION' : 'MEDICAL_FITNESS';
+        const day = addDays(joinedOn, task.daysFromJoining);
+        if (!taskDueOn[kind] || day < taskDueOn[kind]!) taskDueOn[kind] = day;
+      }
+      const current = currentDocuments(rows.filter((row) => row.memberId === onboarding.memberId));
+      const found = documentsDue({
+        asked: askedOf(onboarding.documents),
+        documents: [...current.values()]
+          .filter((row): row is DocumentRow & { kind: JoiningDocumentKind } => (JOINING_DOCUMENT_KINDS as readonly string[]).includes(row.kind))
+          .map((row) => ({ kind: row.kind, status: row.status as JoiningDocumentStatus, expiresOn: row.expiresOn ? fromDb(row.expiresOn) : null })),
+        joinedOn,
+        taskDueOn,
+        today,
+      });
+      if (found.length > 0) due.set(onboarding.memberId, found);
+    }
+    return due;
   }
 
   /** Files a photo or PDF in the person's own folder of the file store, as a JOINING attachment only they and the Super Admin can open. */
@@ -298,12 +346,32 @@ export class OnboardingPapersService {
     return row;
   }
 
-  /** The Super Admin accepts an uploaded document. */
-  async accept(user: AuthUser, documentId: string): Promise<string> {
+  /**
+   * The Super Admin accepts an uploaded document, with the day it runs out if it does. Left out,
+   * the proposed day is kept (medical fitness: a year from its upload); `null` means none.
+   */
+  async accept(user: AuthUser, documentId: string, expiresOn?: string | null): Promise<string> {
     const row = await this.document(documentId);
     if (row.status !== 'UPLOADED') throw new ConflictException(row.status === 'ACCEPTED' ? 'It is accepted already' : 'It was sent back; wait for a new upload');
-    await this.db.joiningDocument.update({ where: { id: row.id }, data: { status: 'ACCEPTED', reviewedAt: new Date(), reviewedById: user.id, reason: null } });
+    const kind = row.kind as JoiningDocumentKind;
+    const date = expiresOn === undefined ? proposedExpiry(kind, indiaDay(row.uploadedAt)) : expiresOn;
+    if (date) this.checkDate(date, row.uploadedAt);
+    await this.db.joiningDocument.update({ where: { id: row.id }, data: { status: 'ACCEPTED', reviewedAt: new Date(), reviewedById: user.id, reason: null, expiresOn: date ? toDb(date) : null } });
     return row.memberId;
+  }
+
+  /** The Super Admin changes or clears the day a document on file runs out. */
+  async setDate(documentId: string, expiresOn: string | null): Promise<string> {
+    const row = await this.document(documentId);
+    if (row.status === 'SENT_BACK') throw new ConflictException('It was sent back; there is nothing on file to date');
+    if (expiresOn) this.checkDate(expiresOn, row.uploadedAt);
+    await this.db.joiningDocument.update({ where: { id: row.id }, data: { expiresOn: expiresOn ? toDb(expiresOn) : null } });
+    return row.memberId;
+  }
+
+  /** A document cannot run out before it was uploaded. */
+  private checkDate(date: string, uploadedAt: Date) {
+    if (date < indiaDay(uploadedAt)) throw new BadRequestException('That date is before the document was uploaded');
   }
 
   /** The Super Admin sends a document back with a reason. Its file is deleted at once. */

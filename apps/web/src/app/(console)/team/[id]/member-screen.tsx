@@ -1,12 +1,12 @@
 "use client";
 
-import { can, firstName, leaveWords, TEAM_ROLE_LABELS, WEEKDAY_NAMES, type PersonOnboardingDto, type TeamMemberDto } from "@eccs/shared";
+import { can, firstName, lastLoginWords, leaveWords, TEAM_ROLE_LABELS, WEEKDAY_NAMES, type PersonOnboardingDto, type TeamMemberDto } from "@eccs/shared";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { useConfirm } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
-import { Button, LoadError, Loading, NoAccess } from "@/components/ui";
+import { Button, HowItWorks, LoadError, Loading, NoAccess } from "@/components/ui";
 import { api } from "@/lib/api";
 import { describe, today } from "@/lib/format";
 import { useNavCounts } from "@/lib/nav-counts";
@@ -25,6 +25,10 @@ import { DayLegend, DaySquares, Initials, LeaveSheet, LeftSheet, longDate, Membe
 // Admin) the joining file, documents and letter come before Details; before the joining day
 // the figures and squares, which would be empty, are left out. Done, the checklist folds into
 // one line under Details, with the file after it.
+// Document dates and console access (20 Oct 2026, the console plan's Team part): a short
+// "Documents due" line near the top when a document has run out, runs out within 30 days or is
+// missing; each document's date on its row; and, last, the Console access card (role, what it
+// opens, the last login, Mark as left).
 //
 // PATTERN FOLLOWED: the founder's design, itself the shape of a rep's page in Pipedrive
 // Insights and HubSpot's rep productivity report (a handful of figures, each against its goal
@@ -177,6 +181,9 @@ function Member({ userId }: { userId: string }) {
         </div>
       </header>
 
+      {/* ── Documents past their date, near it, or missing (20 Oct 2026): one short line near the top ── */}
+      {!member.leftOn && member.dueDocuments.length > 0 && <DocumentsDue member={member} toDocuments={Boolean(papers)} />}
+
       {/* ── Onboarding, at the top while it is open (main part first) ── */}
       {open && checklist && <ChecklistPanel data={checklist} member={member} onChange={onboardingChanged} />}
 
@@ -250,11 +257,6 @@ function Member({ userId }: { userId: string }) {
               <Button variant="link" className="text-sm" onClick={() => setSheet("change")}>
                 {member.memberId ? "Change" : "Add details"}
               </Button>
-              {member.memberId && (
-                <Button variant="link" className="text-sm text-danger" onClick={() => setSheet("left")}>
-                  Mark as left
-                </Button>
-              )}
             </span>
           ) : member.canManage && member.role === "SUPER_ADMIN" ? (
             <Button variant="link" className="text-sm" onClick={() => setSheet("change")}>
@@ -277,10 +279,91 @@ function Member({ userId }: { userId: string }) {
       {!open && checklist && <ChecklistPanel data={checklist} member={member} onChange={onboardingChanged} />}
       {!open && papers}
 
+      {/* ── Console access: their role, what it opens, the last login, and Mark as left (20 Oct 2026) ── */}
+      <AccessCard member={member} onMarkLeft={member.canManage && member.role !== "SUPER_ADMIN" && !member.leftOn && member.memberId ? () => setSheet("left") : null} />
+
       <MemberSheet open={sheet === "change"} member={member} seesPay={seesPay} onClose={() => setSheet(null)} onSaved={saved} />
       <LeaveSheet member={sheet === "leave" ? member : null} onClose={() => setSheet(null)} onSaved={saved} />
       <LeftSheet member={sheet === "left" ? member : null} onClose={() => setSheet(null)} onSaved={saved} />
     </div>
+  );
+}
+
+/**
+ * "Documents due" (20 Oct 2026): one line near the top naming what has run out, runs out within
+ * 30 days, or is missing, with a link down to the documents for the Super Admin, who checks them.
+ * An amber edge and a "!" mark with the words, so colour is never the only sign.
+ */
+function DocumentsDue({ member, toDocuments }: { member: TeamMemberDto; toDocuments: boolean }) {
+  const due = member.dueDocuments;
+  return (
+    <section aria-label="Documents due" className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-xl border border-border border-l-4 bg-surface px-5 py-3" style={{ borderLeftColor: "#B26A00" }}>
+      <p className="min-w-0 text-sm">
+        <span aria-hidden className="font-bold" style={{ color: "#8A5300" }}>
+          !{" "}
+        </span>
+        <span className="font-bold">{due.length === 1 ? "Document due: " : `${due.length} documents due: `}</span>
+        {due.map((entry) => entry.words).join(" · ")}
+      </p>
+      {toDocuments && (
+        <a href="#documents" className="text-sm font-semibold text-primary hover:underline">
+          See the documents
+        </a>
+      )}
+    </section>
+  );
+}
+
+/**
+ * The console access card (20 Oct 2026): the person's role, what that role opens in the console
+ * (from the grants alone: roles are fixed, there are no sections set per person), whether the
+ * login is on, the last login from the console or the phone app, and Mark as left, which ends it.
+ *
+ * PATTERN FOLLOWED: Google Workspace's user page (the admin role, the last sign-in, and Suspend,
+ * which signs the person out everywhere) and GitHub's organisation member page (the role and what
+ * it grants, said in words). The section list is short; what each section is for is folded away.
+ */
+function AccessCard({ member, onMarkLeft }: { member: TeamMemberDto; onMarkLeft: (() => void) | null }) {
+  const { access } = member;
+  const lastLogin = lastLoginWords(access.lastLoginAt, new Date());
+  const where = access.lastLoginIn === "CONSOLE" ? "in the console" : access.lastLoginIn === "APP" ? "in the phone app" : null;
+  return (
+    <Panel
+      title="Console access"
+      action={
+        onMarkLeft ? (
+          <Button variant="link" className="text-sm text-danger" onClick={onMarkLeft}>
+            Mark as left
+          </Button>
+        ) : undefined
+      }
+    >
+      <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
+        <Detail label="Role">{access.roleLabel}</Detail>
+        <Detail label="Opens">
+          <ul className="flex flex-col gap-0.5">
+            {access.groups.map((group) => (
+              <li key={group.label}>
+                <span className="text-muted">{group.label}: </span>
+                {group.sections.map((section) => (section.note ? `${section.label} (${section.note})` : section.label)).join(", ")}
+              </li>
+            ))}
+          </ul>
+        </Detail>
+        <Detail label="Last login">{where && access.lastLoginAt ? `${lastLogin}, ${where}` : lastLogin}</Detail>
+        <Detail label="Login">{access.loginOn ? "On" : "Off: they can no longer log in"}</Detail>
+      </dl>
+      <HowItWorks label="What each section is for">
+        <ul className="flex flex-col gap-0.5">
+          {access.groups.flatMap((group) => group.sections).map((section) => (
+            <li key={section.label}>
+              <span className="font-semibold text-foreground">{section.label}</span>: {section.about}
+            </li>
+          ))}
+        </ul>
+        <p>What a person opens follows from their role, the same for everyone in it; change the role under Details to change it. Mark as left switches the login off and ends every session at once.</p>
+      </HowItWorks>
+    </Panel>
   );
 }
 

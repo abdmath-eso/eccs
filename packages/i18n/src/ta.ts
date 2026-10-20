@@ -1881,6 +1881,7 @@ export const ta: Messages = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}. {day} செய்திருக்க வேண்டும்.",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "அடுத்த படியை {day} செய்திருக்க வேண்டும்.",
   "bde.todo.QUOTE_NO_REPLY": "{amount} கொட்டேஷன் {date} அனுப்பப்பட்டது. ஓனர் அதைத் திறந்தார், இன்னும் பதில் இல்லை.",
+  "bde.todo.QUOTE_NOT_OPENED": "{amount} கொட்டேஷன் {date} அனுப்பப்பட்டது. ஓனர் இன்னும் திறக்கவில்லை, பதிலும் இல்லை.",
   "bde.todo.CHECK_TODAY": "{name} உடன் இலவச செக். ஸ்கோர்கார்டை நிரப்பவும்.",
   "bde.todo.CHECK_TODAY.alone": "இன்று இலவச செக். ஸ்கோர்கார்டை நிரப்பவும்.",
   "bde.todo.QUOTE_NOT_SENT": "இலவச செக் {date} முடிந்தது. கொட்டேஷன் அனுப்பவும்.",

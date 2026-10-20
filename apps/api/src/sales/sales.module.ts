@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PdfModule } from '../pdf/pdf.module.js';
 import { PublicQuotesController } from './public-quotes.controller.js';
 import { SalesFactsService } from './sales-facts.service.js';
 import { SalesOverviewService } from './sales-overview.service.js';
@@ -8,6 +9,8 @@ import { ShopBoardReaderService } from './shop-board-reader.service.js';
 
 /** Sales and the CRM: the console's Sales page, the leads, quotes and their public page; the BDE's phone (B2). */
 @Module({
+  // The PDF printer, for a quote as a PDF (20 Oct 2026).
+  imports: [PdfModule],
   controllers: [SalesController, PublicQuotesController],
   providers: [SalesService, SalesFactsService, SalesOverviewService, ShopBoardReaderService],
   // The Team page (16 Oct 2026) reads a BDE's week and stale leads from here, so the two pages always agree.

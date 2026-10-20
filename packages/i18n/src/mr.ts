@@ -1881,6 +1881,7 @@ export const mr: Messages = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}. {day} करायचे होते.",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "पुढची पायरी {day} करायची होती.",
   "bde.todo.QUOTE_NO_REPLY": "{amount} चे कोटेशन {date} पाठवले. मालकांनी ते उघडले, अजून उत्तर नाही.",
+  "bde.todo.QUOTE_NOT_OPENED": "{amount} चे कोटेशन {date} पाठवले. मालकांनी अजून उघडले नाही, उत्तरही नाही.",
   "bde.todo.CHECK_TODAY": "{name} यांच्यासोबत मोफत तपासणी. स्कोअरकार्ड भरा.",
   "bde.todo.CHECK_TODAY.alone": "आज मोफत तपासणी आहे. स्कोअरकार्ड भरा.",
   "bde.todo.QUOTE_NOT_SENT": "मोफत तपासणी {date} झाली. कोटेशन पाठवा.",

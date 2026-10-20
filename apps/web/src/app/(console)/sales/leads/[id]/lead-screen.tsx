@@ -7,6 +7,7 @@ import {
   FREE_CHECK_FIX_LABELS,
   FREE_CHECK_POINT_LABELS,
   LEAD_STAGE_LABELS,
+  mayMarkQuote,
   type FreeCheckDto,
   type LeadActivityDto,
   type LeadDetailDto,
@@ -24,8 +25,8 @@ import { useQuery } from "@/lib/query";
 import { useSession } from "@/lib/session";
 
 import { money, Panel, SampleBadge } from "../../../finance/finance-parts";
-import { CallButton, LeadSheet, ParkSheet, shortMoment, sourceWords, StageTag, toDoTime } from "../../sales-parts";
-import { ClientSheet, LoseSheet, QuoteSheet, sendOnWhatsapp, StepSheet } from "./lead-sheets";
+import { CallButton, downloadQuotePdf, LeadSheet, openedWords, ParkSheet, QuoteStateBadge, shortMoment, sourceWords, StageTag, toDoTime } from "../../sales-parts";
+import { ClientSheet, DeclineSheet, LoseSheet, QuoteSheet, sendOnWhatsapp, StepSheet } from "./lead-sheets";
 
 // One lead (15 Oct 2026): its details and next step, today's to-do for it, the timeline of
 // everything logged and what the app saw, its quotes with their opens, and the buttons to
@@ -34,8 +35,10 @@ import { ClientSheet, LoseSheet, QuoteSheet, sendOnWhatsapp, StepSheet } from ".
 // PATTERN FOLLOWED: Pipedrive's deal page (the stage and the owner at the top, the next
 // activity first, the details on one side and the history of every activity, e-mail and
 // document view on the other) and Zoho CRM's quote "viewed" history. Which panel is open
-// is kept in the web address (?do=step, quote, plan, park, lose, client, edit), so Do
-// today's buttons open the right one directly.
+// is kept in the web address (?do=step, quote, plan, park, lose, client, edit; with
+// &from=<quote id> to revise a quote), so Do today's and the Quotes list's buttons open the
+// right one directly. Each quote shows where it stands (20 Oct 2026) and can be marked won
+// or declined, downloaded as a PDF, or revised, as in Zoho Books.
 
 const PANELS = ["step", "quote", "plan", "park", "lose", "client", "edit"] as const;
 type PanelName = (typeof PANELS)[number];
@@ -58,7 +61,9 @@ function Lead({ leadId }: { leadId: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const asked = query.get("do");
   const panel = ((PANELS as readonly string[]).includes(asked) ? asked : null) as PanelName | null;
-  const open = (name: PanelName | null) => query.set({ do: name }, name ? "push" : "replace");
+  // `from` names the quote being revised; any other panel, or closing, forgets it.
+  const open = (name: PanelName | null, from: string | null = null) => query.set({ do: name, from }, name ? "push" : "replace");
+  const [declining, setDeclining] = useState<QuoteDto | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,6 +141,44 @@ function Lead({ leadId }: { leadId: string }) {
     }
   }
 
+  async function markWon(quote: QuoteDto) {
+    setBusy(quote.id);
+    try {
+      await api.sales.markQuoteWon(quote.id);
+      notify(`Quote ${quote.number} marked won`);
+      reload();
+    } catch (e) {
+      notify(describe(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function takeBack(quote: QuoteDto) {
+    setBusy(quote.id);
+    try {
+      await api.sales.reopenQuote(quote.id);
+      notify(`Quote ${quote.number} is open again`);
+      reload();
+    } catch (e) {
+      notify(describe(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function pdf(quote: QuoteDto) {
+    setBusy(`pdf-${quote.id}`);
+    try {
+      await downloadQuotePdf(quote.id);
+    } catch (e) {
+      notify(describe(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const revising = panel === "quote" ? (lead.quotes.find((quote) => quote.id === query.get("from")) ?? null) : null;
   const close = lead.close && lead.close.score > 0 ? closeWords(lead.close, 6) : [];
 
   return (
@@ -264,24 +307,54 @@ function Lead({ leadId }: { leadId: string }) {
                         {quote.number} · {money(quote.totalPaise)}
                         <span className="font-normal text-muted"> with GST</span>
                       </span>
-                      <span className={quote.status === "SENT" ? "text-muted" : "font-semibold"}>{quote.status === "SENT" && quote.sentAt ? `Sent ${shortMoment(quote.sentAt)}` : "Draft, not sent"}</span>
+                      <span className="flex items-baseline gap-2">
+                        <QuoteStateBadge state={quote.state} />
+                        <span className="text-muted">{quote.sentAt ? `Sent ${shortMoment(quote.sentAt)}` : "Not sent"}</span>
+                      </span>
                     </div>
                     <span className="text-muted">{quote.lines.map((line) => `${line.quantity > 1 ? `${line.quantity} × ` : ""}${line.name}`).join(", ")}</span>
-                    {quote.status === "SENT" && (
-                      <span className={quote.openCount > 0 ? "font-semibold" : "text-muted"}>
-                        {quote.openCount === 0
-                          ? "Not opened yet"
-                          : `Opened ${quote.openCount === 1 ? "once" : quote.openCount === 2 ? "twice" : `${quote.openCount} times`}${quote.lastOpenedAt ? `, last ${shortMoment(quote.lastOpenedAt)}` : ""}`}
+                    {quote.status === "SENT" && <span className={quote.openCount > 0 ? "font-semibold" : "text-muted"}>{openedWords(quote)}</span>}
+                    {quote.outcome && (
+                      <span>
+                        {quote.outcome === "WON" ? "Won" : "Declined"}
+                        {quote.outcomeAt ? ` ${shortMoment(quote.outcomeAt)}` : ""}
+                        {quote.outcome === "WON" && !quote.outcomeBy ? ", when it became a client" : quote.outcomeBy ? `, marked by ${quote.outcomeBy}` : ""}
+                        {quote.outcomeReason ? `: ${quote.outcomeReason}` : ""}
                       </span>
                     )}
                     <div className="-ml-2 flex flex-wrap gap-1">
-                      <Button variant="link" className="text-sm" loading={busy === quote.id} disabled={busy !== null} onClick={() => void resend(quote)}>
-                        {quote.status === "SENT" ? "Send again on WhatsApp" : "Send on WhatsApp"}
+                      {quote.state !== "WON" && quote.state !== "DECLINED" && (
+                        <Button variant="link" className="text-sm" loading={busy === quote.id} disabled={busy !== null} onClick={() => void resend(quote)}>
+                          {quote.status === "SENT" ? "Send again on WhatsApp" : "Send on WhatsApp"}
+                        </Button>
+                      )}
+                      <Button variant="link" className="text-sm" loading={busy === `pdf-${quote.id}`} disabled={busy !== null} onClick={() => void pdf(quote)}>
+                        Download the PDF
                       </Button>
                       {quote.status === "SENT" && (
                         <a href={`${quote.link}?preview=1`} target="_blank" rel="noreferrer" className="rounded-md px-2 py-1 font-semibold text-primary hover:underline">
                           See the owner&apos;s page
                         </a>
+                      )}
+                      {quote.status === "SENT" && quote.state !== "WON" && (
+                        <Button variant="link" className="text-sm" disabled={busy !== null} onClick={() => open("quote", quote.id)}>
+                          Revise
+                        </Button>
+                      )}
+                      {mayMarkQuote(quote.state) && (
+                        <>
+                          <Button variant="link" className="text-sm" disabled={busy !== null} onClick={() => void markWon(quote)}>
+                            Mark won
+                          </Button>
+                          <Button variant="link" className="text-sm" disabled={busy !== null} onClick={() => setDeclining(quote)}>
+                            Declined
+                          </Button>
+                        </>
+                      )}
+                      {quote.outcome && (
+                        <Button variant="link" className="text-sm" disabled={busy !== null} onClick={() => void takeBack(quote)}>
+                          Take back &quot;{quote.outcome === "WON" ? "won" : "declined"}&quot;
+                        </Button>
                       )}
                       {quote.status === "DRAFT" && (
                         <Button variant="link" className="text-sm text-danger" disabled={busy !== null} onClick={() => void removeQuote(quote)}>
@@ -315,7 +388,8 @@ function Lead({ leadId }: { leadId: string }) {
       </div>
 
       <StepSheet open={panel === "step"} lead={lead} onClose={() => open(null)} onSaved={saved} />
-      <QuoteSheet open={panel === "quote" || panel === "plan"} lead={lead} planFirst={panel === "plan"} onClose={() => open(null)} onSaved={reload} />
+      <QuoteSheet open={panel === "quote" || panel === "plan"} lead={lead} planFirst={panel === "plan"} revising={revising} onClose={() => open(null)} onSaved={reload} />
+      <DeclineSheet quote={declining} onClose={() => setDeclining(null)} onSaved={reload} />
       <ParkSheet lead={panel === "park" ? lead : null} onClose={() => open(null)} onSaved={saved} />
       <LoseSheet open={panel === "lose"} lead={lead} onClose={() => open(null)} onSaved={saved} />
       {links && <ClientSheet open={panel === "client"} lead={lead} onClose={() => open(null)} onSaved={saved} />}

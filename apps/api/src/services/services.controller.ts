@@ -27,6 +27,7 @@ import {
   updateVisitRecordSchema,
   updateVisitSchema,
   VISIT_PHOTO_KINDS,
+  visitCapacitySchema,
 } from '@eccs/shared';
 import { z } from 'zod';
 import { Activity } from '../activity-log/activity.decorator.js';
@@ -36,6 +37,7 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { readPhotoFacts } from '../storage/photo-integrity.service.js';
 import { PlansService } from './plans.service.js';
 import { ServicesService } from './services.service.js';
+import { WeekBoardService } from './week-board.service.js';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
@@ -59,6 +61,7 @@ export class ServicesController {
   constructor(
     private readonly services: ServicesService,
     private readonly plansService: PlansService,
+    private readonly weekBoard: WeekBoardService,
   ) {}
 
   // ───────────────────────── Plans ─────────────────────────
@@ -166,6 +169,31 @@ export class ServicesController {
   @RequirePermission('jobs', 'read')
   listVisits(@CurrentUser() user: AuthUser, @Query('outletId') outletId?: string, @Query('state') state?: string) {
     return this.services.listVisits(user, { outletId: outletId || undefined, state: state === 'closed' ? 'closed' : 'open' });
+  }
+
+  /** The week board: Monday to Saturday of the week holding `start` (this week when left out). */
+  @Get('visits/week')
+  @RequirePermission('jobs', 'read')
+  week(@CurrentUser() user: AuthUser, @Query('start') start?: string) {
+    return this.weekBoard.week(user, start || undefined);
+  }
+
+  /** How many visits a day the crew can take. Read by everyone who sees the board. */
+  @Get('visits/settings')
+  @RequirePermission('jobs', 'read')
+  visitSettings(@CurrentUser() user: AuthUser) {
+    return this.weekBoard.settings(user);
+  }
+
+  // The settings grant is the Super Admin's alone.
+  @Put('visits/settings')
+  @RequirePermission('settings', 'update')
+  @Activity('visits.capacity.changed', { facts: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] })
+  updateVisitSettings(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(visitCapacitySchema)) body: z.output<typeof visitCapacitySchema>,
+  ) {
+    return this.weekBoard.updateSettings(user, body);
   }
 
   @Post('visits')

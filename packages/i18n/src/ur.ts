@@ -1881,6 +1881,7 @@ export const ur: Messages = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}۔ {day} کرنا تھا۔",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "اگلا قدم {day} کرنا تھا۔",
   "bde.todo.QUOTE_NO_REPLY": "{amount} کا کوٹیشن {date} بھیجا۔ مالک نے اسے کھولا، مگر ابھی جواب نہیں آیا۔",
+  "bde.todo.QUOTE_NOT_OPENED": "{amount} کا کوٹیشن {date} بھیجا۔ مالک نے ابھی تک اسے نہیں کھولا، جواب بھی نہیں آیا۔",
   "bde.todo.CHECK_TODAY": "{name} کے ساتھ مفت چیک۔ اسکور کارڈ بھریں۔",
   "bde.todo.CHECK_TODAY.alone": "آج مفت چیک ہے۔ اسکور کارڈ بھریں۔",
   "bde.todo.QUOTE_NOT_SENT": "مفت چیک {date} ہوا۔ کوٹیشن بھیجیں۔",

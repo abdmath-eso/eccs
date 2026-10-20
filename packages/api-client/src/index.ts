@@ -156,6 +156,8 @@ import type {
 import type { CertificateDto } from "@eccs/shared";
 // vendors-types: the vendor directory (13 Oct 2026)
 import type { VendorDirectoryDto, VendorDto } from "@eccs/shared";
+// week-board-types: the Visits week board and its capacity setting (20 Oct 2026)
+import type { VisitCapacityInput, VisitSettingsDto, WeekBoardDto } from "@eccs/shared";
 // legal-types: terms and privacy acceptance (14 Oct 2026)
 import type { AcceptLegalInput, LegalDocumentDto, LegalDocumentKey, LegalStatusDto } from "@eccs/shared";
 import { LEGAL_ERROR } from "@eccs/shared";
@@ -188,6 +190,10 @@ import type { AiAlertsDto, AiOverviewDto, AiRequestPageDto, AiSettingsDto, AiSet
 import type {
   InspectionSummaryDraftDto,
   MonitoringDigestDto,
+  OnboardingEntryInput,
+  OutletOnboardingAttentionDto,
+  OutletOnboardingBoardDto,
+  OutletOnboardingCardDto,
   PhotoCheckDto,
   SaveInspectionSummaryInput,
 } from "@eccs/shared";
@@ -239,6 +245,9 @@ import type {
   QuoteInput,
   QuoteOptionDto,
   QuoteSentDto,
+  QuoteDeclinedInput,
+  QuoteListDto,
+  QuoteListFilter,
   SalesOverviewDto,
   StepInput,
   TargetFigures,
@@ -246,10 +255,12 @@ import type {
   TargetInput,
 } from "@eccs/shared";
 // team-types: the console's Team page (16 Oct 2026)
-import type { LeaveInput, MarkLeftInput, TeamChangeInput, TeamListDto, TeamMemberDto, TeamMemberInput, TeamSettingsInput } from "@eccs/shared";
+import type { LeaveInput, MarkLeftInput, TeamChangeInput, TeamDocumentDueDto, TeamListDto, TeamMemberDto, TeamMemberInput, TeamSettingsInput } from "@eccs/shared";
 // onboarding-types: onboarding a new team member (16 Oct 2026)
 import type {
+  AcceptDocumentInput,
   AcceptLetterInput,
+  DocumentDateInput,
   JoiningDetails,
   JoiningDetailsInput,
   JoiningDocumentKind,
@@ -729,6 +740,12 @@ export function createApiClient(options: ApiClientOptions) {
           `/visits${query({ ...(filter.outletId && { outletId: filter.outletId }), state: filter.state ?? "open" })}`,
         ),
       get: (visitId: string) => call<VisitDto>("GET", `/visits/${id(visitId)}`),
+      /** The week board: Monday to Saturday of the week holding `start` (YYYY-MM-DD; this week when left out). */
+      week: (start?: string) => call<WeekBoardDto>("GET", `/visits/week${query(start ? { start } : {})}`),
+      /** How many visits a day the crew can take. */
+      settings: () => call<VisitSettingsDto>("GET", "/visits/settings"),
+      /** The Super Admin only. */
+      updateSettings: (capacity: VisitCapacityInput) => call<VisitSettingsDto>("PUT", "/visits/settings", capacity),
       create: (input: CreateVisitInput) => call<VisitDto>("POST", "/visits", input),
       update: (visitId: string, input: UpdateVisitInput) => call<VisitDto>("PATCH", `/visits/${id(visitId)}`, input),
       cancel: (visitId: string) => call<VisitDto>("POST", `/visits/${id(visitId)}/cancel`),
@@ -1150,6 +1167,21 @@ export function createApiClient(options: ApiClientOptions) {
       /** "Update": a fresh digest, at most once an hour; sooner, the kept one comes back. */
       updateDigest: () => call<MonitoringDigestDto>("POST", "/monitoring/digest"),
     },
+    /**
+     * Clients > New outlets (20 Oct 2026): each outlet's first ten days, in nine steps. The
+     * Super Admin and the Ops Manager. A new outlet starts by itself; `start` is for one added before.
+     */
+    outletOnboarding: {
+      board: () => call<OutletOnboardingBoardDto>("GET", "/outlet-onboarding"),
+      /** For the Today page: outlets not live after 24 hours, and the day-3 and day-10 calls due. */
+      attention: () => call<OutletOnboardingAttentionDto>("GET", "/outlet-onboarding/attention"),
+      start: (outletId: string) => call<OutletOnboardingBoardDto>("POST", `/outlet-onboarding/outlets/${id(outletId)}/start`),
+      /** One tap: the day-3 call, the QR posters delivered, the day-10 call, or a note. Answers with the outlet's card. */
+      log: (outletId: string, input: OnboardingEntryInput) =>
+        call<OutletOnboardingCardDto>("POST", `/outlet-onboarding/outlets/${id(outletId)}/entries`, input),
+      undo: (outletId: string, entryId: string) =>
+        call<OutletOnboardingCardDto>("DELETE", `/outlet-onboarding/outlets/${id(outletId)}/entries/${id(entryId)}`),
+    },
     // catalog-api: the console-editing worker adds its calls on the next line
     /**
      * ECCS admins change a client after onboarding. Nothing is deleted: a client or outlet is
@@ -1326,6 +1358,20 @@ export function createApiClient(options: ApiClientOptions) {
       addQuote: (leadId: string, input: QuoteInput) => call<QuoteDto>("POST", `/sales/leads/${id(leadId)}/quotes`, input),
       sendQuote: (quoteId: string) => call<QuoteSentDto>("POST", `/sales/quotes/${id(quoteId)}/send`),
       removeQuote: (quoteId: string) => call<void>("DELETE", `/sales/quotes/${id(quoteId)}`),
+      // The Quotes tab (20 Oct 2026).
+      /** Every quote the person reaches, by state ("BUILD": free checks with no quote yet) and owner. */
+      quotes: (filter: { state?: QuoteListFilter | ""; owner?: string } = {}) =>
+        call<QuoteListDto>("GET", `/sales/quotes${query(Object.fromEntries(Object.entries(filter).filter(([, value]) => Boolean(value))) as Record<string, string>)}`),
+      markQuoteWon: (quoteId: string) => call<QuoteDto>("POST", `/sales/quotes/${id(quoteId)}/won`),
+      markQuoteDeclined: (quoteId: string, input: QuoteDeclinedInput) => call<QuoteDto>("POST", `/sales/quotes/${id(quoteId)}/declined`, input),
+      /** Takes back a won or declined mark. */
+      reopenQuote: (quoteId: string) => call<QuoteDto>("POST", `/sales/quotes/${id(quoteId)}/reopen`),
+      /** The quote as a PDF, with the same content as its public page, under its own name. */
+      async quotePdf(quoteId: string): Promise<{ blob: Blob; fileName: string }> {
+        const { blob, headers } = await download(`/sales/quotes/${id(quoteId)}/pdf`);
+        const named = /filename="([^"]+)"/.exec(headers.get("Content-Disposition") ?? "")?.[1];
+        return { blob, fileName: named ?? "Quote.pdf" };
+      },
       setFloors: (input: TargetFloorsInput) => call<TargetFigures>("PUT", "/sales/targets/floors", input),
       setTarget: (userId: string, input: TargetInput) => call<{ saved: boolean }>("PUT", `/sales/targets/${id(userId)}`, input),
       // The BDE's phone (B2, 16 Oct 2026).
@@ -1365,6 +1411,8 @@ export function createApiClient(options: ApiClientOptions) {
       addLeave: (userId: string, input: LeaveInput) => call<TeamMemberDto>("POST", `/team/${id(userId)}/leave`, input),
       removeLeave: (leaveId: string) => call<void>("DELETE", `/team/leave/${id(leaveId)}`),
       saveSettings: (input: TeamSettingsInput) => call<{ onTimeTargetPercent: number }>("PUT", "/team/settings", input),
+      /** Every document due on the team (20 Oct 2026): past its date, within 30 days of it, or missing. Never a file. */
+      documentsDue: () => call<{ today: string; items: TeamDocumentDueDto[] }>("GET", "/team/documents-due"),
     },
     // onboarding-api: onboarding a new team member (16 Oct 2026)
     /**
@@ -1388,7 +1436,10 @@ export function createApiClient(options: ApiClientOptions) {
         form.append("file", file, fileName);
         return send<PersonOnboardingDto>("POST", `/onboarding/people/${id(userId)}/documents`, form, undefined, true);
       },
-      acceptDocument: (documentId: string) => call<PersonOnboardingDto>("POST", `/onboarding/documents/${id(documentId)}/accept`),
+      /** Left out, `expiresOn` is the proposed date (medical fitness: a year from its upload); `null` means none. */
+      acceptDocument: (documentId: string, input: AcceptDocumentInput = {}) => call<PersonOnboardingDto>("POST", `/onboarding/documents/${id(documentId)}/accept`, input),
+      /** Changes or clears (`null`) the day a document on file runs out (20 Oct 2026). */
+      setDocumentDate: (documentId: string, input: DocumentDateInput) => call<PersonOnboardingDto>("PUT", `/onboarding/documents/${id(documentId)}/date`, input),
       sendBack: (documentId: string, reason: string) => call<PersonOnboardingDto>("POST", `/onboarding/documents/${id(documentId)}/send-back`, { reason }),
       makeLetter: (userId: string) => call<PersonOnboardingDto>("POST", `/onboarding/people/${id(userId)}/letter`),
       signedOnPaper(letterId: string, file: UploadFile, fileName = "signed-letter") {

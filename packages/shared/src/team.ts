@@ -34,6 +34,8 @@ import { indiaDay } from "./food-labels.js";
 import { clockWords, indiaClock, type StaleDto, type StaleReason } from "./sales.js";
 import { visitSlotWindow, type VisitSlot } from "./services.js";
 import { weekdayOf } from "./staff.js";
+import { consoleSectionsFor, CONSOLE_GROUPS, type ConsoleGroupLabel } from "./console-sections.js";
+import type { DocumentDue } from "./onboarding.js";
 import type { Role } from "./roles.js";
 
 // ───────────────────────── Roles on the team ─────────────────────────
@@ -414,7 +416,7 @@ export function arrivalsOnTime(visits: readonly ArrivalFacts[], from: string, to
 // ───────────────────────── Keep an eye on ─────────────────────────
 
 /** The things worth the founder's attention, in the order the page picks them: absence first, then work going stale, then the week's figures. */
-export const CONCERN_KINDS = ["MISSED_DAYS", "STALE_LEADS", "VISITS_OVERDUE", "TARGETS_BEHIND", "FOLLOW_UPS_LATE", "ARRIVALS_LATE", "ONBOARDING_LATE"] as const;
+export const CONCERN_KINDS = ["MISSED_DAYS", "STALE_LEADS", "VISITS_OVERDUE", "TARGETS_BEHIND", "FOLLOW_UPS_LATE", "ARRIVALS_LATE", "ONBOARDING_LATE", "DOCUMENTS_DUE"] as const;
 export type ConcernKind = (typeof CONCERN_KINDS)[number];
 
 export interface ConcernDto {
@@ -441,6 +443,8 @@ export interface ConcernInput {
   onboardingLate?: number | null;
   /** Their joining day is still ahead: only their onboarding can be behind. */
   joinsLater?: boolean;
+  /** Documents past their date, within 30 days of it, or missing (20 Oct 2026), most urgent first: the very last rule. */
+  documentsDue?: readonly Pick<DocumentDue, "words">[] | null;
 }
 
 /** "3 onboarding tasks late." */
@@ -449,11 +453,25 @@ function onboardingConcern(late: number): ConcernDto {
   return { kind: "ONBOARDING_LATE", words: `${words}.`, short: words };
 }
 
+/** The first letter in small, inside a sentence, unless the word is an initialism ("ID proof"). */
+const inSentence = (text: string) => (/^[A-Z]{2}/.test(text) ? text : `${text.charAt(0).toLowerCase()}${text.slice(1)}`);
+
+/** "Medical fitness certificate runs out on Tue 3 Nov." or "2 documents due: …". */
+export function documentsConcern(due: readonly Pick<DocumentDue, "words">[]): ConcernDto | null {
+  const [first] = due;
+  if (!first) return null;
+  if (due.length === 1) return { kind: "DOCUMENTS_DUE", words: `${first.words}.`, short: inSentence(first.words) };
+  const named = due.slice(0, 2).map((entry) => inSentence(entry.words));
+  const more = due.length > 2 ? ` and ${plural(due.length - 2, "more", "more")}` : "";
+  return { kind: "DOCUMENTS_DUE", words: `${due.length} documents due: ${named.join(", ")}${more}.`, short: `${due.length} documents due` };
+}
+
 /** Everything worth attention, most first. Empty when all is well. */
 export function concerns(input: ConcernInput): ConcernDto[] {
   const onboardingLate = input.onboardingLate ?? 0;
+  const documents = documentsConcern(input.documentsDue ?? []);
   // Someone not yet joined has no days, leads or visits to judge.
-  if (input.joinsLater) return onboardingLate > 0 ? [onboardingConcern(onboardingLate)] : [];
+  if (input.joinsLater) return [...(onboardingLate > 0 ? [onboardingConcern(onboardingLate)] : []), ...(documents ? [documents] : [])];
   const found: ConcernDto[] = [];
   const missed = input.missedDays.length;
   if (missed >= TEAM_RULES.missedDaysFlag) {
@@ -495,6 +513,7 @@ export function concerns(input: ConcernInput): ConcernDto[] {
     found.push({ kind: "ARRIVALS_LATE", words: `Arrived on time at ${arrivals}% of visits this week, target ${input.onTimeTargetPercent}%.`, short: `arrivals on time ${arrivals}%` });
   }
   if (onboardingLate > 0) found.push(onboardingConcern(onboardingLate));
+  if (documents) found.push(documents);
   return found;
 }
 
@@ -673,6 +692,64 @@ export const teamSettingsSchema = z.object({
 });
 export type TeamSettingsInput = z.input<typeof teamSettingsSchema>;
 
+// ───────────────────────── Console access (20 Oct 2026) ─────────────────────────
+//
+// The console plan's Team part (docs/CONSOLE_PLAN.md 4.10): on each person's page, their role,
+// what that role opens in the console, their last login and whether their login is on. Roles
+// stay fixed (the founder, 20 Oct 2026): what a person opens follows from their role alone, so
+// it is read from the same grants the menu is drawn from (console-sections.ts), never set per
+// person.
+//
+// PATTERN FOLLOWED: Google Workspace's user page (the admin role, the last sign-in, suspend)
+// and GitHub's organisation member page (the role and what it grants, said in words).
+
+export interface ConsoleAccessSectionDto {
+  label: string;
+  /** What it is for: "leads and quotes". */
+  about: string;
+  /** What of it the role opens when not all of it: "Health only" (or "not All clients or New outlets"); null when it opens all of it. */
+  note: string | null;
+}
+
+export interface ConsoleAccessDto {
+  role: TeamMemberRole;
+  roleLabel: string;
+  /** The sections the role opens, under the menu's group names, in menu order. */
+  groups: { label: ConsoleGroupLabel; sections: ConsoleAccessSectionDto[] }[];
+  /** False once the login is switched off (marked as left). */
+  loginOn: boolean;
+  /** The latest time any of their logins was used, from the console or the phone app; null if never. */
+  lastLoginAt: string | null;
+  /** Where that was. */
+  lastLoginIn: "CONSOLE" | "APP" | null;
+}
+
+/** "All clients or New outlets". */
+const orList = (items: readonly string[]) => (items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} or ${items[items.length - 1]}`);
+
+/** What a role opens in the console, grouped as the menu. */
+export function consoleAccessGroups(role: TeamMemberRole): ConsoleAccessDto["groups"] {
+  const sections = consoleSectionsFor(role);
+  return CONSOLE_GROUPS.map((label) => ({
+    label,
+    sections: sections
+      .filter((section) => section.group === label)
+      .map((section) => ({ label: section.label, about: section.about, note: section.onlyTab ? `${section.onlyTab} only` : section.tabsNotOpened.length > 0 ? `not ${orList(section.tabsNotOpened)}` : null })),
+  })).filter((group) => group.sections.length > 0);
+}
+
+/** "Today, 9:40 am", "Yesterday, 6:10 pm", "3 days ago", "12 Oct", or "Never": a last login, India time. */
+export function lastLoginWords(at: string | null, now: Date): string {
+  if (!at) return "Never";
+  const today = indiaDay(now);
+  const day = indiaDay(at);
+  const ago = daysFrom(day, today);
+  if (ago <= 0) return `Today, ${clockWords(indiaClock(at))}`;
+  if (ago === 1) return `Yesterday, ${clockWords(indiaClock(at))}`;
+  if (ago < 7) return `${ago} days ago`;
+  return dayWords(day, { day: "numeric", month: "short", ...(day.slice(0, 4) !== today.slice(0, 4) && { year: "numeric" }) });
+}
+
 // ───────────────────────── What the API sends ─────────────────────────
 
 export interface TeamLeaveDto {
@@ -718,6 +795,8 @@ export interface TeamRowDto {
   monthlyPaise: number | null;
   /** Their onboarding while it is open: "Onboarding 9 of 16" and how many tasks are late. Null with none open. */
   onboarding: { done: number; total: number; late: number; words: string } | null;
+  /** Documents past their date, within 30 days of it, or missing (20 Oct 2026): how many, and the first in words. Null when none. */
+  documentsDue: { count: number; words: string } | null;
 }
 
 export interface TeamListDto {
@@ -772,4 +851,8 @@ export interface TeamMemberDto extends TeamRowDto {
   /** Whether the person looking may record leave, and change details or mark as left. */
   canRecordLeave: boolean;
   canManage: boolean;
+  /** Their documents past their date, within 30 days of it, or missing, most urgent first (20 Oct 2026). */
+  dueDocuments: DocumentDue[];
+  /** The console access card: their role, what it opens, their last login (20 Oct 2026). */
+  access: ConsoleAccessDto;
 }

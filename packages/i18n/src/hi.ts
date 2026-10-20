@@ -1881,6 +1881,7 @@ export const hi: Messages = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}। {day} करना था।",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "अगला कदम {day} करना था।",
   "bde.todo.QUOTE_NO_REPLY": "{amount} का कोटेशन {date} भेजा। मालिक ने उसे खोला, पर अभी जवाब नहीं आया।",
+  "bde.todo.QUOTE_NOT_OPENED": "{amount} का कोटेशन {date} भेजा। मालिक ने अभी तक नहीं खोला, जवाब भी नहीं आया।",
   "bde.todo.CHECK_TODAY": "{name} के साथ मुफ़्त जांच। स्कोरकार्ड भरें।",
   "bde.todo.CHECK_TODAY.alone": "आज मुफ़्त जांच है। स्कोरकार्ड भरें।",
   "bde.todo.QUOTE_NOT_SENT": "मुफ़्त जांच {date} हुई। कोटेशन भेजें।",

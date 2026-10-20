@@ -175,6 +175,122 @@ export const documentsAskedSchema = z
   .max(JOINING_DOCUMENT_KINDS.length)
   .refine((list) => new Set(list.map((entry) => entry.kind)).size === list.length, "Each document only once");
 
+// ───────────────────────── Document dates (20 Oct 2026) ─────────────────────────
+//
+// The console plan's Team part (docs/CONSOLE_PLAN.md 4.10): a joining document may carry the
+// date it runs out or must be renewed; one past that date or within 30 days of it, or one
+// still missing, shows on the person's page, as a mark on the Team list, and (step 2) on
+// Today. Medical fitness renews once a year, the rule FSSAI's Schedule 4 sets for food
+// handlers (a medical examination every year), which restaurants' own food handlers follow.
+//
+// PATTERN FOLLOWED: document expiry tracking in HR and subcontractor tools (Archdesk's
+// subcontractor documents, BambooHR's and Keka's employee documents with an expiry date and
+// a reminder window): an optional date on the document, a fixed warning window before it,
+// and "missing" for a document asked for and not on file.
+
+export const DOCUMENT_RULES = {
+  /** A dated document shows as due this many days before its date. */
+  dueWithinDays: 30,
+  /** Medical fitness is proposed to run out this many years after it was uploaded. */
+  medicalFitnessYears: 1,
+  /** A later document (police, medical) with no task of its own is expected this many days after joining. */
+  laterDocumentDays: 30,
+} as const;
+
+/** MISSING: asked for, past the day it was expected, and not on file. EXPIRED: its date has passed. EXPIRING: its date is within the window. */
+export const DOCUMENT_DUE_STATES = ["MISSING", "EXPIRED", "EXPIRING"] as const;
+export type DocumentDueState = (typeof DOCUMENT_DUE_STATES)[number];
+
+/** One document that needs seeing to, and why, in words. */
+export interface DocumentDue {
+  kind: JoiningDocumentKind;
+  label: string;
+  state: DocumentDueState;
+  /** The day it runs out (EXPIRED, EXPIRING) or was expected by (MISSING). */
+  date: string;
+  /** Days from today to that day: negative once it has passed. */
+  days: number;
+  /** "Medical fitness certificate runs out on Tue 3 Nov", "Police verification certificate missing". */
+  words: string;
+}
+
+/** The same day one year (or `years`) later; 29 February becomes 28 February. */
+export function yearsAfter(date: string, years = 1): string {
+  const year = Number(date.slice(0, 4)) + years;
+  const monthDay = date.slice(5) === "02-29" ? "02-28" : date.slice(5);
+  return `${year}-${monthDay}`;
+}
+
+/** The date offered when a document is accepted: a year from its upload for medical fitness; none for the others. */
+export function proposedExpiry(kind: JoiningDocumentKind, uploadedOn: string): string | null {
+  return kind === "MEDICAL_FITNESS" ? yearsAfter(uploadedOn, DOCUMENT_RULES.medicalFitnessYears) : null;
+}
+
+/** "Runs out on Tue 3 Nov", "Ran out on Tue 3 Nov", "Runs out today": a dated document's date, in words. */
+export function expiryWords(expiresOn: string, today: string): string {
+  if (expiresOn === today) return "Runs out today";
+  return `${expiresOn < today ? "Ran" : "Runs"} out on ${shortDate(expiresOn)}`;
+}
+
+/** Whether a document on file needs renewing soon or now, by its date. Null for one with no date, or not on file. */
+export function documentDue(document: { kind: JoiningDocumentKind; status: JoiningDocumentStatus; expiresOn: string | null }, today: string): DocumentDue | null {
+  if (!document.expiresOn || (document.status !== "ACCEPTED" && document.status !== "UPLOADED")) return null;
+  const days = daysFrom(today, document.expiresOn);
+  if (days > DOCUMENT_RULES.dueWithinDays) return null;
+  const label = DOCUMENT_LABELS[document.kind].label;
+  const when = expiryWords(document.expiresOn, today);
+  return { kind: document.kind, label, state: days < 0 ? "EXPIRED" : "EXPIRING", date: document.expiresOn, days, words: `${label} ${when.charAt(0).toLowerCase()}${when.slice(1)}` };
+}
+
+/**
+ * Every document of one person that needs seeing to, most urgent first (by date):
+ * - one on file whose date has passed or is within 30 days;
+ * - one asked for as required and not on file (waiting, or sent back), once the day it was
+ *   expected has passed: the joining day for the first documents; for a later one (police
+ *   verification, medical fitness) the due day of the onboarding task that waits for it, else
+ *   30 days after joining. Before then it is part of onboarding, which counts it already. An
+ *   optional document ("if you have them") is never missing.
+ */
+export function documentsDue(input: {
+  asked: readonly DocumentAsked[];
+  /** The current document of each kind on file. */
+  documents: readonly { kind: JoiningDocumentKind; status: JoiningDocumentStatus; expiresOn: string | null }[];
+  joinedOn: string;
+  /** The due day of the onboarding task that waits for a later document, where there is one. */
+  taskDueOn?: Partial<Record<JoiningDocumentKind, string>>;
+  today: string;
+}): DocumentDue[] {
+  const due: DocumentDue[] = [];
+  const onFile = new Map(input.documents.map((document) => [document.kind, document]));
+  for (const document of input.documents) {
+    const found = documentDue(document, input.today);
+    if (found) due.push(found);
+  }
+  for (const entry of input.asked) {
+    if (!entry.required) continue;
+    const status = onFile.get(entry.kind)?.status;
+    if (status === "UPLOADED" || status === "ACCEPTED") continue;
+    const expected = LATER_DOCUMENTS.includes(entry.kind)
+      ? (input.taskDueOn?.[entry.kind] ?? addDays(input.joinedOn, DOCUMENT_RULES.laterDocumentDays))
+      : input.joinedOn;
+    if (expected >= input.today) continue;
+    const label = DOCUMENT_LABELS[entry.kind].label;
+    due.push({ kind: entry.kind, label, state: "MISSING", date: expected, days: daysFrom(input.today, expected), words: `${label} missing` });
+  }
+  return due.sort((a, b) => a.date.localeCompare(b.date) || a.label.localeCompare(b.label));
+}
+
+/** Accepting a document: its date, if it has one. Left out, the proposed one is used (medical fitness: a year on); `null` means none. */
+export const acceptDocumentSchema = z
+  .object({ expiresOn: z.iso.date("Choose the date it runs out").nullable().optional() })
+  .optional()
+  .transform((value) => value ?? {});
+export type AcceptDocumentInput = z.input<typeof acceptDocumentSchema>;
+
+/** Changing a document's date, or clearing it (`null`). */
+export const documentDateSchema = z.object({ expiresOn: z.iso.date("Choose the date it runs out").nullable() });
+export type DocumentDateInput = z.input<typeof documentDateSchema>;
+
 // ───────────────────────── Due days and lateness ─────────────────────────
 
 /** The day a task falls due: its days from joining, counted from the joining day. */
@@ -1036,6 +1152,20 @@ export interface JoiningDocumentDto {
   reviewedBy: string | null;
   /** Why it was sent back. */
   reason: string | null;
+  /** The day it runs out or must be renewed (20 Oct 2026); null for one with no date. */
+  expiresOn: string | null;
+  /** The date offered when it is accepted: a year from its upload for medical fitness; null for the others. */
+  proposedExpiry: string | null;
+  /** Past its date, within 30 days of it, or missing; null when all is well. */
+  due: DocumentDue | null;
+}
+
+/** One document due on the team, for the Team list and Today (20 Oct 2026). Never the file. */
+export interface TeamDocumentDueDto extends DocumentDue {
+  userId: string;
+  name: string;
+  /** "Supervisor". */
+  roleLabel: string;
 }
 
 export type LetterStatus = "WAITING" | "ACCEPTED" | "REPLACED";

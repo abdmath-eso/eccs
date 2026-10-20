@@ -54,7 +54,21 @@ import {
   type TargetFloorsInput,
   type LeadFacts,
   type BillingCycle,
+  mayMarkQuote,
+  QUOTE_LIST_FILTERS,
+  quoteFollowUp,
+  quoteRowAction,
+  quoteState,
+  toQuoteOutcome,
+  type QuoteBuildRowDto,
+  type QuoteListDto,
+  type QuoteListFilter,
+  type QuoteListQuery,
+  type QuoteRowDto,
 } from '@eccs/shared';
+import { PdfPrinterService } from '../pdf/pdf-printer.service.js';
+import { reportFooter } from '../pdf/report-page.js';
+import { quotePdfHtml } from './quote-pdf.js';
 import { noteActivity } from '../activity-log/activity-context.js';
 import { ActivityLogService } from '../activity-log/activity-log.service.js';
 import { aiUnavailable } from '../ai/ai.service.js';
@@ -117,6 +131,7 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
     private readonly activity: ActivityLogService,
     private readonly storage: StorageService,
     private readonly board: ShopBoardReaderService,
+    private readonly printer: PdfPrinterService,
   ) {}
 
   private get db() {
@@ -213,7 +228,9 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
 
   // ───────────────────────── Reading ─────────────────────────
 
-  private quoteDto(quote: QuoteRow): QuoteDto {
+  /** A quote as the apps show it, with where it stands today. `names` gives who marked it won or declined, when known. */
+  private quoteDto(quote: QuoteRow, today = indiaDate(), names: ReadonlyMap<string, string> = new Map()): QuoteDto {
+    const validUntil = dateOnly(quote.validUntil);
     return {
       id: quote.id,
       number: quote.number,
@@ -223,12 +240,18 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
       totalPaise: quote.totalPaise,
       status: quote.status === 'SENT' ? 'SENT' : 'DRAFT',
       sentAt: iso(quote.sentAt),
-      validUntil: dateOnly(quote.validUntil),
+      validUntil,
       openCount: quote.openCount,
       firstOpenedAt: iso(quote.firstOpenedAt),
       lastOpenedAt: iso(quote.lastOpenedAt),
       link: quoteLink(quote.token),
       isSample: quote.isSample,
+      state: quoteState({ status: quote.status, outcome: quote.outcome, validUntil }, today),
+      outcome: toQuoteOutcome(quote.outcome),
+      outcomeAt: iso(quote.outcomeAt),
+      outcomeReason: quote.outcomeReason,
+      outcomeBy: quote.outcomeById ? (names.get(quote.outcomeById) ?? null) : null,
+      createdAt: quote.createdAt.toISOString(),
     };
   }
 
@@ -323,7 +346,7 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
       this.db.leadActivity.findMany({ where: { leadId: id }, orderBy: [{ at: 'desc' }, { createdAt: 'desc' }] }),
       this.scope(user) === 'all' ? this.people() : Promise.resolve([] as SalesPersonDto[]),
     ]);
-    const byIds = [...new Set(activities.map((entry) => entry.byId).filter((value): value is string => !!value))];
+    const byIds = [...new Set([...activities.map((entry) => entry.byId), ...row.quotes.map((quote) => quote.outcomeById)].filter((value): value is string => !!value))];
     const names = new Map((await this.db.user.findMany({ where: { id: { in: byIds } }, select: { id: true, name: true } })).map((person) => [person.id, person.name]));
     const numbers = new Map(row.quotes.map((quote) => [quote.id, quote.number]));
     const score = closeScore(lead, now);
@@ -363,7 +386,7 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
           scorecard: this.scorecardDto(entry.scorecard),
         }),
       ),
-      quotes: row.quotes.map((quote) => this.quoteDto(quote)),
+      quotes: row.quotes.map((quote) => this.quoteDto(quote, indiaDay(now), names)),
       close: score,
       toDo: this.toDoDto(row, lead, now),
       owners: people,
@@ -809,6 +832,10 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
       this.db.lead.update({ where: { id }, data: { organizationId: organization?.id ?? null, lastActivityAt: now } }),
     ]);
     noteActivity({ organizationId: organization?.id ?? lead.organizationId, details: { linked: Boolean(organization) } });
+    // Becoming a client is winning with the quote it was sent (20 Oct 2026); a wrong link
+    // undone takes back what the link alone marked, unless the lead has really won since.
+    if (organization) await this.wonByApp(id, now);
+    else if (!lead.wonAt) await this.db.quote.updateMany({ where: { leadId: id, outcome: 'WON', outcomeById: null }, data: { outcome: null, outcomeAt: null } });
     await this.syncFromApp([id]);
     await this.rescore([id]);
     return this.detail(user, id);
@@ -919,19 +946,173 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
     await this.db.quote.delete({ where: { id: quote.id } });
   }
 
+  // ───────────────────────── The Quotes list (20 Oct 2026) ─────────────────────────
+
+  /**
+   * Every quote the person reaches, newest first, with where it stands, how often the owner
+   * opened it and the one thing to do with it; and the free checks done with no quote yet
+   * ("Build now"). A BDE sees their own leads' quotes only, as with the leads.
+   */
+  async listQuotes(user: AuthUser, query: QuoteListQuery): Promise<QuoteListDto> {
+    const today = indiaDate();
+    const reach: Prisma.LeadWhereInput = { ...this.reach(user), ...(query.owner && this.scope(user) === 'all' && { ownerId: query.owner }) };
+    const [quotes, checks, owners] = await Promise.all([
+      this.db.quote.findMany({
+        where: { lead: reach },
+        include: { lead: { select: { id: true, businessName: true, area: true, kitchens: true, ownerId: true, lastActivityAt: true, owner: { select: { name: true } } } } },
+        orderBy: [{ createdAt: 'desc' }],
+        take: SALES_RULES.maxListed,
+      }),
+      // As Do today's "Send quote": a free check done and nothing quoted yet, not even a draft.
+      this.db.lead.findMany({
+        where: { ...reach, stage: 'CHECK_DONE', status: { not: 'LOST' }, quotes: { none: {} } },
+        select: { id: true, businessName: true, area: true, ownerId: true, checkDoneAt: true, checkFindings: true, isSample: true, owner: { select: { name: true } } },
+        orderBy: [{ checkDoneAt: 'asc' }, { createdAt: 'asc' }],
+      }),
+      this.owners(),
+    ]);
+    const names = await this.userNames(quotes.map((quote) => quote.outcomeById));
+    // The newest quote of each lead (the one a revision replaces).
+    const newest = new Map<string, string>();
+    for (const quote of quotes) if (!newest.has(quote.leadId)) newest.set(quote.leadId, quote.id);
+
+    const rows = quotes.map((quote): QuoteRowDto => {
+      const dto = this.quoteDto(quote, today, names);
+      const lines = dto.lines;
+      const cycles = new Set(lines.map((line) => line.cycle));
+      const latest = newest.get(quote.leadId) === quote.id;
+      const follow =
+        dto.state === 'SENT' && quote.sentAt
+          ? quoteFollowUp({ sentAt: quote.sentAt.toISOString(), openCount: quote.openCount, firstOpenedAt: iso(quote.firstOpenedAt), outcome: dto.outcome }, quote.lead.lastActivityAt.toISOString(), today)
+          : null;
+      const waiting = latest && follow !== null;
+      return {
+        ...dto,
+        leadId: quote.lead.id,
+        businessName: quote.lead.businessName,
+        area: quote.lead.area,
+        kitchens: quote.lead.kitchens,
+        ownerId: quote.lead.ownerId,
+        ownerName: quote.lead.owner.name,
+        perCycle: lines.length > 0 && lines.every((line) => line.kind === 'PLAN') && cycles.size === 1 ? ([...cycles][0] ?? null) : null,
+        latest,
+        waitingDays: waiting ? follow.days : null,
+        action: quoteRowAction(dto.state, { latest, waiting }),
+      };
+    });
+    const buildNow = checks.map(
+      (lead): QuoteBuildRowDto => ({
+        leadId: lead.id,
+        businessName: lead.businessName,
+        area: lead.area,
+        ownerId: lead.ownerId,
+        ownerName: lead.owner.name,
+        checkDoneAt: iso(lead.checkDoneAt),
+        checkFindings: lead.checkFindings,
+        isSample: lead.isSample,
+      }),
+    );
+
+    const counts = Object.fromEntries(QUOTE_LIST_FILTERS.map((filter) => [filter, 0])) as Record<QuoteListFilter, number>;
+    for (const row of rows) counts[row.state] += 1;
+    counts.BUILD = buildNow.length;
+    const state = query.state;
+    return {
+      today,
+      quotes: state === 'BUILD' ? [] : state ? rows.filter((row) => row.state === state) : rows,
+      buildNow: !state || state === 'BUILD' ? buildNow : [],
+      counts,
+      owners: this.scope(user) === 'all' ? owners : owners.filter((owner) => owner.id === user.id),
+    };
+  }
+
+  /** People's names by id, for who marked a quote. */
+  private async userNames(ids: readonly (string | null)[]): Promise<Map<string, string>> {
+    const wanted = [...new Set(ids.filter((value): value is string => !!value))];
+    if (wanted.length === 0) return new Map();
+    const people = await this.db.user.findMany({ where: { id: { in: wanted } }, select: { id: true, name: true } });
+    return new Map(people.map((person) => [person.id, person.name]));
+  }
+
+  /**
+   * Marks a sent quote won (the owner said yes, before the app has seen a first job) or
+   * declined, with why. Only a sent quote: a draft has not been offered. Marking again with
+   * the same outcome changes nothing; the other outcome needs "reopen" first.
+   */
+  async markQuote(user: AuthUser, quoteId: string, outcome: 'WON' | 'DECLINED', reason?: string): Promise<QuoteDto> {
+    const quote = await this.reachableQuote(user, quoteId);
+    const state = quoteState({ status: quote.status, outcome: quote.outcome, validUntil: dateOnly(quote.validUntil) }, indiaDate());
+    if (state === outcome) return this.quoteFor(quote.id);
+    if (!mayMarkQuote(state)) {
+      throw new ConflictException(state === 'DRAFT' ? 'Send the quote first: a draft has not been offered yet' : `This quote is already marked ${state === 'WON' ? 'won' : 'declined'}: reopen it first`);
+    }
+    await this.db.quote.update({ where: { id: quote.id }, data: { outcome, outcomeAt: new Date(), outcomeById: user.id, outcomeReason: outcome === 'DECLINED' ? (reason ?? null) : null } });
+    noteActivity({ details: { state, totalPaise: quote.totalPaise } });
+    await this.rescore([quote.leadId]);
+    return this.quoteFor(quote.id);
+  }
+
+  /** Takes back a won or declined mark: the quote is open again (sent, or expired by its date). */
+  async reopenQuote(user: AuthUser, quoteId: string): Promise<QuoteDto> {
+    const quote = await this.reachableQuote(user, quoteId);
+    if (!quote.outcome) throw new ConflictException('This quote is not marked won or declined');
+    await this.db.quote.update({ where: { id: quote.id }, data: { outcome: null, outcomeAt: null, outcomeById: null, outcomeReason: null } });
+    noteActivity({ details: { was: quote.outcome, byApp: quote.outcomeById === null } });
+    await this.rescore([quote.leadId]);
+    return this.quoteFor(quote.id);
+  }
+
+  private async quoteFor(quoteId: string): Promise<QuoteDto> {
+    const quote = await this.db.quote.findUniqueOrThrow({ where: { id: quoteId } });
+    return this.quoteDto(quote, indiaDate(), await this.userNames([quote.outcomeById]));
+  }
+
+  /**
+   * The lead became a client with its quote (20 Oct 2026): the latest quote it was sent at or
+   * before `at` is marked won by the app (no one's name on it), unless it is marked already.
+   */
+  private async wonByApp(leadId: string, at: Date): Promise<void> {
+    const latest = await this.db.quote.findFirst({ where: { leadId, status: 'SENT', sentAt: { lte: at } }, orderBy: { sentAt: 'desc' }, select: { id: true, outcome: true } });
+    if (!latest || latest.outcome) return;
+    await this.db.quote.updateMany({ where: { id: latest.id, outcome: null }, data: { outcome: 'WON', outcomeAt: at, outcomeById: null, outcomeReason: null } });
+  }
+
+  /**
+   * A quote as a PDF, with the same content as its public page, for the person to download
+   * beside the WhatsApp link. A draft prints too, marked as one. Printed each time it is
+   * asked for: a quote is one page and never changes once sent.
+   */
+  async quotePdf(user: AuthUser, quoteId: string): Promise<{ body: Buffer; name: string }> {
+    const quote = await this.reachableQuote(user, quoteId);
+    const owner = await this.db.user.findUnique({ where: { id: quote.lead.ownerId }, select: { name: true } });
+    const content = this.publicContent(quote, quote.lead, owner?.name ?? 'ECCS');
+    const pdf = await this.printer.print(quotePdfHtml(content, quote.status !== 'SENT'), { footer: reportFooter('Quote', quote.number) });
+    noteActivity({ details: { draft: quote.status !== 'SENT' } });
+    return { body: pdf, name: `Quote ${quote.number}.pdf` };
+  }
+
   // ───────────────────────── The public quote page ─────────────────────────
 
   /** What the owner sees at the quote's link. Only a sent quote has a page. */
   async publicQuote(token: string): Promise<PublicQuoteDto | null> {
     const quote = await this.db.quote.findUnique({ where: { token }, include: { lead: { select: { businessName: true, contactName: true, area: true, owner: { select: { name: true } } } } } });
     if (!quote || quote.status !== 'SENT') return null;
+    return this.publicContent(quote, quote.lead, quote.lead.owner.name);
+  }
+
+  /** What the owner reads, on the public page and in the PDF alike. */
+  private publicContent(
+    quote: Pick<QuoteRow, 'number' | 'lines' | 'sentAt' | 'validUntil' | 'subtotalPaise' | 'totalPaise'>,
+    lead: { businessName: string; contactName: string | null; area: string | null },
+    ownerName: string,
+  ): PublicQuoteDto {
     const lines = quoteLines(quote.lines);
     const totals = quoteTotals(lines);
     return {
       number: quote.number,
-      businessName: quote.lead.businessName,
-      contactName: quote.lead.contactName,
-      area: quote.lead.area,
+      businessName: lead.businessName,
+      contactName: lead.contactName,
+      area: lead.area,
       sentOn: quote.sentAt ? indiaDay(quote.sentAt) : null,
       validUntil: dateOnly(quote.validUntil),
       lines: lines.map((line) => ({ name: line.name, quantity: line.quantity, unitPaise: line.unitPaise, amountPaise: line.amountPaise, cycle: line.cycle, gstRatePercent: line.gstRatePercent })),
@@ -939,7 +1120,7 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
       cgstPaise: totals.cgstPaise,
       sgstPaise: totals.sgstPaise,
       totalPaise: quote.totalPaise,
-      preparedBy: quote.lead.owner.name.split(/\s+/)[0] ?? quote.lead.owner.name,
+      preparedBy: ownerName.split(/\s+/)[0] ?? ownerName,
       supplier: { name: SUPPLIER.name, legalName: SUPPLIER.legalName, address: SUPPLIER.address, gstin: SUPPLIER.gstin, phone: env.SUPPORT_PHONE, isSample: SUPPLIER.isSample },
     };
   }
@@ -1099,6 +1280,9 @@ export class SalesService implements OnModuleInit, OnModuleDestroy {
       data.stage = stage;
       if (lead.status === 'PARKED') Object.assign(data, this.reopened());
       await this.db.$transaction([this.db.leadActivity.createMany({ data: activities }), this.db.lead.update({ where: { id: lead.id }, data })]);
+      // Its first job or plan is the quote won (20 Oct 2026), if the link had not marked it already.
+      const won = (data.wonAt as Date | undefined) ?? planStart;
+      if (won) await this.wonByApp(lead.id, won);
       moved += 1;
     }
     return moved;

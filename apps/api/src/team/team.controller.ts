@@ -7,6 +7,7 @@ import {
   teamSettingsSchema,
   type LeaveValues,
   type TeamChangeValues,
+  type TeamDocumentDueDto,
   type TeamListDto,
   type TeamMemberDto,
   type TeamMemberValues,
@@ -35,6 +36,16 @@ export class TeamController {
   @RequirePermission('team', 'read')
   list(@CurrentUser() user: AuthUser): Promise<TeamListDto> {
     return this.team.list(user);
+  }
+
+  /**
+   * Every document due on the team (20 Oct 2026): past its date, within 30 days of it, or
+   * missing; for Today. The facts only, never a file. Declared before ":userId".
+   */
+  @Get('documents-due')
+  @RequirePermission('team', 'read')
+  documentsDue(): Promise<{ today: string; items: TeamDocumentDueDto[] }> {
+    return this.team.documentsDue();
   }
 
   /** The share of follow-ups and arrivals on time aimed for. Declared before ":userId" so its path is not read as an id. */

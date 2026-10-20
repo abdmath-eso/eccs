@@ -1881,6 +1881,7 @@ export const kn: Messages = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}. ಮಾಡಬೇಕಿದ್ದ ದಿನ: {day}.",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "ಮುಂದಿನ ಹೆಜ್ಜೆ ಇಡಬೇಕಿದ್ದ ದಿನ: {day}.",
   "bde.todo.QUOTE_NO_REPLY": "{amount} ಕೊಟೇಶನ್, ಕಳುಹಿಸಿದ ದಿನ: {date}. ಓನರ್ ಅದನ್ನು ತೆರೆದು ನೋಡಿದ್ದಾರೆ, ಇನ್ನೂ ಉತ್ತರ ಬಂದಿಲ್ಲ.",
+  "bde.todo.QUOTE_NOT_OPENED": "{amount} ಕೊಟೇಶನ್, ಕಳುಹಿಸಿದ ದಿನ: {date}. ಓನರ್ ಇನ್ನೂ ತೆರೆದಿಲ್ಲ, ಉತ್ತರವೂ ಬಂದಿಲ್ಲ.",
   "bde.todo.CHECK_TODAY": "{name} ಜೊತೆ ಉಚಿತ ಚೆಕ್. ಸ್ಕೋರ್‌ಕಾರ್ಡ್ ತುಂಬಿಸಿ.",
   "bde.todo.CHECK_TODAY.alone": "ಇಂದು ಉಚಿತ ಚೆಕ್. ಸ್ಕೋರ್‌ಕಾರ್ಡ್ ತುಂಬಿಸಿ.",
   "bde.todo.QUOTE_NOT_SENT": "ಉಚಿತ ಚೆಕ್ ಮುಗಿದ ದಿನ: {date}. ಕೊಟೇಶನ್ ಕಳುಹಿಸಿ.",

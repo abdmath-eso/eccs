@@ -284,8 +284,12 @@ function CountTile({
  * What is being looked at lives in the web address: `days=` for how far back,
  * `show=` for the filter, `q=` for the search, `sort=` and `dir=` for the
  * order, and `outlet=` for the outlet that is open.
+ *
+ * Since 20 Oct 2026 (the console plan) the board is Clients' Health tab, at
+ * /clients?tab=health, so "how are my clients" sits beside the clients
+ * themselves; `tabs` is the row of Clients' tabs, shown under the title.
  */
-export default function MonitoringScreen() {
+export default function MonitoringScreen({ tabs }: { tabs?: ReactNode }) {
   const query = useQuery();
   const { user } = useSession();
   // Super Admins and Operations Managers see every outlet; a Supervisor only those they work at.
@@ -386,7 +390,7 @@ export default function MonitoringScreen() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Monitoring"
+        title="Clients"
         description={
           <>
             {admin ? "Every client outlet" : "The outlets you work at"}, worst first: who is falling behind, and on what.
@@ -399,6 +403,7 @@ export default function MonitoringScreen() {
           </Button>
         }
       />
+      {tabs}
 
       {/* On a narrow screen an open outlet takes the place of the counts and filters as well as the list. */}
       <div className={`flex-col gap-4 ${open ? "hidden lg:flex" : "flex"}`}>
@@ -511,7 +516,7 @@ export default function MonitoringScreen() {
           {status}
           {outletId && board && <ErrorMessage message="That outlet is not on your board." />}
           {shown.length > 0 && (
-            <Card className="overflow-x-auto p-0">
+            <Card className="relative overflow-x-auto p-0">
               <table className="w-full min-w-[64rem] text-left text-sm">
                 <caption className="sr-only">Outlets and how each is doing, one column per area. Column headings sort the table.</caption>
                 <thead className="border-b border-border text-muted">

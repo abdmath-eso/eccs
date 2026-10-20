@@ -1881,6 +1881,7 @@ export const pa: Messages = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}। ਇਹ {day} ਕਰਨਾ ਸੀ।",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "ਅਗਲਾ ਕਦਮ {day} ਕਰਨਾ ਸੀ।",
   "bde.todo.QUOTE_NO_REPLY": "{amount} ਦੀ ਕੋਟੇਸ਼ਨ {date} ਭੇਜੀ। ਮਾਲਕ ਨੇ ਖੋਲ੍ਹੀ, ਪਰ ਅਜੇ ਕੋਈ ਜਵਾਬ ਨਹੀਂ।",
+  "bde.todo.QUOTE_NOT_OPENED": "{amount} ਦੀ ਕੋਟੇਸ਼ਨ {date} ਭੇਜੀ। ਮਾਲਕ ਨੇ ਅਜੇ ਖੋਲ੍ਹੀ ਨਹੀਂ, ਕੋਈ ਜਵਾਬ ਵੀ ਨਹੀਂ।",
   "bde.todo.CHECK_TODAY": "{name} ਨਾਲ ਮੁਫ਼ਤ ਚੈੱਕ। ਸਕੋਰਕਾਰਡ ਭਰੋ।",
   "bde.todo.CHECK_TODAY.alone": "ਅੱਜ ਮੁਫ਼ਤ ਚੈੱਕ ਹੈ। ਸਕੋਰਕਾਰਡ ਭਰੋ।",
   "bde.todo.QUOTE_NOT_SENT": "ਮੁਫ਼ਤ ਚੈੱਕ {date} ਹੋਇਆ। ਕੋਟੇਸ਼ਨ ਭੇਜੋ।",

@@ -151,6 +151,10 @@ export const ACTIVITY_ACTIONS = {
   "clients.phone.unlinked": ["clients", "Unlinked a phone"],
   "clients.owner.changed": ["clients", "Changed an Owner's details"],
   "clients.owner.setupReset": ["clients", "Reset an Owner's PIN set-up"],
+  // New outlets (20 Oct 2026): an outlet's first ten days.
+  "clients.onboarding.started": ["clients", "Started onboarding an outlet"],
+  "clients.onboarding.logged": ["clients", "Logged a step of an outlet's onboarding"],
+  "clients.onboarding.undone": ["clients", "Took back a step of an outlet's onboarding"],
 
   // App logins and PINs
   "appLogins.user.added": ["appLogins", "Added an app login"],
@@ -205,6 +209,7 @@ export const ACTIVITY_ACTIONS = {
   "visits.report.returned": ["visits", "Sent a service report back"],
   "visits.report.opened": ["visits", "Opened a service report PDF"],
   "visits.diary.filled": ["visits", "Filled the diary from plans"],
+  "visits.capacity.changed": ["visits", "Changed the visits a day the crew can take"],
   "visits.plans.ran": ["visits", "Added plan visits to the diary (timed job)"],
 
   // Inspections
@@ -403,6 +408,11 @@ export const ACTIVITY_ACTIONS = {
   "sales.quote.sent": ["sales", "Sent a quote on WhatsApp"],
   "sales.quote.removed": ["sales", "Removed a quote not yet sent"],
   "sales.quote.opened": ["sales", "A quote was opened by the restaurant"],
+  // The Quotes tab (20 Oct 2026).
+  "sales.quote.won": ["sales", "Marked a quote won"],
+  "sales.quote.declined": ["sales", "Marked a quote declined"],
+  "sales.quote.reopened": ["sales", "Took back a quote's won or declined mark"],
+  "sales.quote.downloaded": ["sales", "Downloaded a quote as a PDF"],
   "sales.target.set": ["sales", "Set a BDE's weekly target by hand"],
   "sales.targets.floorsChanged": ["sales", "Changed the lowest weekly targets"],
   "sales.leads.refreshed": ["sales", "Moved leads on from the app's data and scored them (timed job)"],
@@ -430,6 +440,7 @@ export const ACTIVITY_ACTIONS = {
   "team.onboarding.documentOpened": ["team", "Opened a joining document"],
   "team.onboarding.documentAccepted": ["team", "Accepted a joining document"],
   "team.onboarding.documentSentBack": ["team", "Sent a joining document back"],
+  "team.onboarding.documentDated": ["team", "Changed a joining document's date"],
   "team.onboarding.letterMade": ["team", "Made an appointment letter"],
   "team.onboarding.letterOpened": ["team", "Opened an appointment letter"],
   "team.onboarding.letterAccepted": ["team", "Accepted an appointment letter"],

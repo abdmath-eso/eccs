@@ -316,11 +316,11 @@ export function recordLink(entry: {
     case "certificate":
       return reference ? { href: `/certificates?q=${q(reference)}`, label: "Open the certificate" } : null;
     case "organization":
-      return id ? { href: `/?client=${q(id)}`, label: "Open the client" } : null;
+      return id ? { href: `/clients?tab=all&client=${q(id)}`, label: "Open the client" } : null;
     case "outlet":
     case "user":
     case "linkedDevice":
-      return organizationId ? { href: `/?client=${q(organizationId)}`, label: "Open the client" } : null;
+      return organizationId ? { href: `/clients?tab=all&client=${q(organizationId)}`, label: "Open the client" } : null;
     case "plan":
       return { href: "/plans", label: "Open Plans" };
     case "publicPhoto":

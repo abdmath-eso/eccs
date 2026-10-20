@@ -24,7 +24,7 @@ import { useQuery, useQueryField } from "@/lib/query";
 import { useSession } from "@/lib/session";
 
 import { money, Segmented } from "../../finance/finance-parts";
-import { ago, LeadSheet, shortMoment, StageTag } from "../sales-parts";
+import { ago, LeadSheet, SalesTabs, shortMoment, StageTag } from "../sales-parts";
 
 // All leads (15 Oct 2026), newest activity first, with the filters a sales list needs:
 // stage, owner, where it came from, open, stale, parked, lost or won, and a search.
@@ -92,13 +92,9 @@ function Leads() {
       <PageHeader
         title="Leads"
         description="Every lead, the latest worked first. A stale lead has had nothing logged for five days or a next step that passed."
-        secondary={
-          <Link href="/sales" className="rounded-lg border border-border-strong bg-surface px-4 py-2.5 font-semibold hover:bg-background">
-            Sales
-          </Link>
-        }
         action={<Button onClick={() => setAdding(true)}>Add lead</Button>}
       />
+      <SalesTabs current="leads" />
 
       <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4">
         <Segmented

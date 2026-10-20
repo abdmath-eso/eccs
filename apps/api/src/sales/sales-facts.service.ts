@@ -6,6 +6,7 @@ import {
   type LeadStatus,
   type LocalizedText,
   type QuoteLine,
+  toQuoteOutcome,
 } from '@eccs/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -189,6 +190,7 @@ export class SalesFactsService {
         firstOpenedAt: sent.firstOpenedAt?.toISOString() ?? null,
         lastOpenedAt: sent.lastOpenedAt?.toISOString() ?? null,
         hasPlan: quoteLines(sent.lines).some((line) => line.kind === 'PLAN'),
+        outcome: toQuoteOutcome(sent.outcome),
       },
       askedQuote: row.activities.some((entry) => entry.kind === 'ASKED' && entry.signal === 'QUOTE'),
       askedMonthlyPrice: row.activities.some((entry) => entry.kind === 'ASKED' && entry.signal === 'MONTHLY_PRICE'),

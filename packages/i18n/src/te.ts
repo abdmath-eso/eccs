@@ -1881,6 +1881,7 @@ export const te: Messages = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}. చేయాల్సిన రోజు: {day}.",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "తదుపరి పని చేయాల్సిన రోజు: {day}.",
   "bde.todo.QUOTE_NO_REPLY": "{amount} కొటేషన్, పంపిన రోజు: {date}. యజమాని తెరిచి చూశారు, ఇంకా జవాబు రాలేదు.",
+  "bde.todo.QUOTE_NOT_OPENED": "{amount} కొటేషన్, పంపిన రోజు: {date}. యజమాని ఇంకా తెరవలేదు, జవాబు కూడా రాలేదు.",
   "bde.todo.CHECK_TODAY": "{name} తో ఉచిత చెక్. స్కోర్‌కార్డ్ నింపండి.",
   "bde.todo.CHECK_TODAY.alone": "ఈ రోజు ఉచిత చెక్. స్కోర్‌కార్డ్ నింపండి.",
   "bde.todo.QUOTE_NOT_SENT": "ఉచిత చెక్ పూర్తయింది: {date}. కొటేషన్ పంపండి.",

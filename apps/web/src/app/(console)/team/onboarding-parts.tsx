@@ -6,6 +6,7 @@ import {
   DOCUMENT_STATUS_WORDS,
   EDUCATION_LABELS,
   EDUCATION_LEVELS,
+  expiryWords,
   ID_TYPE_LABELS,
   ID_TYPES,
   joiningDetailsSchema,
@@ -723,6 +724,29 @@ export function FilePanel({ data, member, onChange }: { data: OnboardingDto; mem
 
 // ───────────────────────── Documents ─────────────────────────
 
+/**
+ * A document's date and whether it is due (20 Oct 2026): "Runs out on Tue 3 Nov" quietly, or with a
+ * mark and in bold once it is past or within 30 days; "Missing" for one expected and not on file.
+ * Said in words, never by colour alone.
+ */
+function DateWords({ document }: { document: JoiningDocumentDto }) {
+  const due = document.due;
+  if (due?.state === "MISSING") return <DueLine danger>Missing</DueLine>;
+  if (!document.expiresOn) return null;
+  const words = expiryWords(document.expiresOn, today());
+  if (!due) return <p className="text-xs text-muted">{words}</p>;
+  return <DueLine danger={due.state === "EXPIRED"}>{`${words}: renew it`}</DueLine>;
+}
+
+function DueLine({ danger = false, children }: { danger?: boolean; children: ReactNode }) {
+  return (
+    <p className="text-xs font-semibold" style={{ color: danger ? "#B3261E" : "#8A5300" }}>
+      <span aria-hidden>! </span>
+      {children}
+    </p>
+  );
+}
+
 function StatusWords({ document }: { document: JoiningDocumentDto }) {
   const color = document.status === "ACCEPTED" ? GREEN : document.status === "SENT_BACK" ? "#B3261E" : document.status === "UPLOADED" ? "#2F6FD6" : "#5b6770";
   return (
@@ -745,17 +769,20 @@ export function DocumentList({
   onOpen,
   onAccept,
   onSendBack,
+  onSetDate,
 }: {
   documents: readonly JoiningDocumentDto[];
   admin: boolean;
   onUpload: (document: JoiningDocumentDto, file: File) => Promise<void>;
   onOpen: (document: JoiningDocumentDto) => void;
-  onAccept?: (document: JoiningDocumentDto) => Promise<void>;
+  /** `expiresOn` left out keeps the date the server proposes; `null` is none. */
+  onAccept?: (document: JoiningDocumentDto, expiresOn?: string | null) => Promise<void>;
   onSendBack?: (document: JoiningDocumentDto, reason: string) => Promise<void>;
+  onSetDate?: (document: JoiningDocumentDto, expiresOn: string | null) => Promise<void>;
 }) {
   // The required ones first; the optional ones after, under their own line.
   const row = (document: JoiningDocumentDto) => (
-    <DocumentRow key={document.kind} document={document} admin={admin} onUpload={onUpload} onOpen={onOpen} onAccept={onAccept} onSendBack={onSendBack} />
+    <DocumentRow key={document.kind} document={document} admin={admin} onUpload={onUpload} onOpen={onOpen} onAccept={onAccept} onSendBack={onSendBack} onSetDate={onSetDate} />
   );
   const optional = documents.filter((document) => !document.required);
   return (
@@ -771,6 +798,9 @@ export function DocumentList({
   );
 }
 
+/** Documents whose acceptance asks for the day they run out: medical fitness (a year on is offered) and police verification. */
+const DATED_ON_ACCEPT: readonly JoiningDocumentDto["kind"][] = ["MEDICAL_FITNESS", "POLICE_VERIFICATION"];
+
 function DocumentRow({
   document,
   admin,
@@ -778,18 +808,23 @@ function DocumentRow({
   onOpen,
   onAccept,
   onSendBack,
+  onSetDate,
 }: {
   document: JoiningDocumentDto;
   admin: boolean;
   onUpload: (document: JoiningDocumentDto, file: File) => Promise<void>;
   onOpen: (document: JoiningDocumentDto) => void;
-  onAccept?: (document: JoiningDocumentDto) => Promise<void>;
+  onAccept?: (document: JoiningDocumentDto, expiresOn?: string | null) => Promise<void>;
   onSendBack?: (document: JoiningDocumentDto, reason: string) => Promise<void>;
+  onSetDate?: (document: JoiningDocumentDto, expiresOn: string | null) => Promise<void>;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  // The date form, open to accept with a date or to change the date of one on file (20 Oct 2026).
+  const [dating, setDating] = useState<"accept" | "change" | null>(null);
+  const onFile = document.status === "UPLOADED" || document.status === "ACCEPTED";
   const uploadable = admin || document.status !== "ACCEPTED";
   const act = async (work: () => Promise<void>) => {
     setBusy(true);
@@ -802,6 +837,16 @@ function DocumentRow({
       setBusy(false);
     }
   };
+  async function saveDate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    // An empty box means the document does not run out.
+    const value = String(new FormData(event.currentTarget).get("expiresOn") ?? "").trim() || null;
+    await act(async () => {
+      if (dating === "accept") await onAccept!(document, value);
+      else await onSetDate!(document, value);
+      setDating(null);
+    });
+  }
   async function sendBack(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const reason = String(new FormData(event.currentTarget).get("reason") ?? "").trim();
@@ -819,18 +864,30 @@ function DocumentRow({
           <p className="text-sm font-semibold">{document.label}</p>
           <StatusWords document={document} />
           {document.status === "SENT_BACK" && document.reason && <p className="text-sm">“{document.reason}”</p>}
+          <DateWords document={document} />
           {/* How to get it is for the new hire; the Super Admin knows. */}
           {document.status === "WAITING" && !admin && <p className="text-xs text-muted">{document.hint}</p>}
         </div>
-        <span className="flex shrink-0 flex-wrap items-center gap-1">
+        <span className="flex max-w-full flex-wrap items-center gap-1">
           {document.documentId && (
             <Button variant="link" className="text-sm" onClick={() => onOpen(document)}>
               Open
             </Button>
           )}
           {admin && document.status === "UPLOADED" && onAccept && (
-            <Button size="sm" loading={busy} onClick={() => void act(() => onAccept(document))}>
+            <Button
+              size="sm"
+              loading={busy && dating === null}
+              // Medical fitness and police verification are accepted with the day they run out, offered and editable.
+              onClick={() => (DATED_ON_ACCEPT.includes(document.kind) ? setDating((value) => (value === "accept" ? null : "accept")) : void act(() => onAccept(document)))}
+            >
               Accept
+            </Button>
+          )}
+          {admin && onFile && onSetDate && dating === null && (
+            <Button variant="link" className="text-sm" onClick={() => setDating("change")}>
+              {document.expiresOn ? "Change date" : "Add a date"}
+              <span className="sr-only"> of the {document.label}</span>
             </Button>
           )}
           {admin && (document.status === "UPLOADED" || document.status === "ACCEPTED") && onSendBack && (
@@ -877,6 +934,27 @@ function DocumentRow({
           </Button>
         </form>
       )}
+      {dating && (
+        <form onSubmit={(event) => void saveDate(event)} className="flex flex-wrap items-end gap-2">
+          <Field
+            label="Runs out on"
+            name="expiresOn"
+            type="date"
+            min={document.uploadedAt?.slice(0, 10)}
+            defaultValue={dating === "accept" ? (document.proposedExpiry ?? "") : (document.expiresOn ?? "")}
+            hint={dating === "accept" && document.proposedExpiry ? "A year from the upload, as for food handlers. Empty if it does not run out." : "Empty if it does not run out."}
+            wrapperClassName="min-w-0"
+            plainLabel
+            autoFocus
+          />
+          <Button type="submit" size="sm" loading={busy}>
+            {dating === "accept" ? "Accept" : "Save the date"}
+          </Button>
+          <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => setDating(null)}>
+            Cancel
+          </Button>
+        </form>
+      )}
       {error && <p className="text-sm font-semibold text-danger">{error}</p>}
     </li>
   );
@@ -889,26 +967,37 @@ export function DocumentsPanel({ data, member, onChange }: { data: OnboardingDto
   const required = data.documents.filter((entry) => entry.required);
   const accepted = required.filter((entry) => entry.status === "ACCEPTED").length;
   const toCheck = data.documents.filter((entry) => entry.status === "UPLOADED").length;
+  const due = data.documents.filter((entry) => entry.due).length;
   return (
-    <Panel title="Documents" description={[`${accepted} of ${required.length} required accepted`, toCheck > 0 ? `${toCheck} to check` : null].filter(Boolean).join(" · ")}>
-      <DocumentList
-        documents={data.documents}
-        admin
-        onUpload={async (document, file) => {
-          onChange(await api.onboarding.uploadFor(member.userId, document.kind, file, file.name));
-          notify(`${document.label} uploaded`);
-        }}
-        onOpen={(document) => void openFile(() => api.onboarding.documentFile(document.documentId!), `${document.label}${document.pdf ? ".pdf" : ""}`, notify)}
-        onAccept={async (document) => {
-          onChange(await api.onboarding.acceptDocument(document.documentId!));
-          notify(`${document.label} accepted`);
-        }}
-        onSendBack={async (document, reason) => {
-          onChange(await api.onboarding.sendBack(document.documentId!, reason));
-          notify(`${document.label} sent back. Its file is deleted.`);
-        }}
-      />
-    </Panel>
+    // An id, so "Documents due" at the top of the page can lead here.
+    <div id="documents" className="scroll-mt-20">
+      <Panel
+        title="Documents"
+        description={[`${accepted} of ${required.length} required accepted`, toCheck > 0 ? `${toCheck} to check` : null, due > 0 ? `${due} due` : null].filter(Boolean).join(" · ")}
+      >
+        <DocumentList
+          documents={data.documents}
+          admin
+          onUpload={async (document, file) => {
+            onChange(await api.onboarding.uploadFor(member.userId, document.kind, file, file.name));
+            notify(`${document.label} uploaded`);
+          }}
+          onOpen={(document) => void openFile(() => api.onboarding.documentFile(document.documentId!), `${document.label}${document.pdf ? ".pdf" : ""}`, notify)}
+          onAccept={async (document, expiresOn) => {
+            onChange(await api.onboarding.acceptDocument(document.documentId!, expiresOn === undefined ? {} : { expiresOn }));
+            notify(`${document.label} accepted`);
+          }}
+          onSendBack={async (document, reason) => {
+            onChange(await api.onboarding.sendBack(document.documentId!, reason));
+            notify(`${document.label} sent back. Its file is deleted.`);
+          }}
+          onSetDate={async (document, expiresOn) => {
+            onChange(await api.onboarding.setDocumentDate(document.documentId!, { expiresOn }));
+            notify(expiresOn ? `${document.label}: date saved` : `${document.label}: date removed`);
+          }}
+        />
+      </Panel>
+    </div>
   );
 }
 

@@ -60,6 +60,8 @@ export function todoLine(item: DoTodayItemDto, t: Translator, language: Language
       return p.nextAction ? t('bde.todo.NEXT_ACTION_OVERDUE', { action: p.nextAction, day: p.dueOn ? dayWords(p.dueOn, t, language) : '' }) : t('bde.todo.NEXT_ACTION_OVERDUE.plain', { day: p.dueOn ? dayWords(p.dueOn, t, language) : '' });
     case 'QUOTE_NO_REPLY':
       return t('bde.todo.QUOTE_NO_REPLY', { amount: formatRupees(p.totalPaise ?? 0, language), date: date(p.sentOn) });
+    case 'QUOTE_NOT_OPENED':
+      return t('bde.todo.QUOTE_NOT_OPENED', { amount: formatRupees(p.totalPaise ?? 0, language), date: date(p.sentOn) });
     case 'CHECK_TODAY':
       return p.checkWith ? t('bde.todo.CHECK_TODAY', { name: p.checkWith }) : t('bde.todo.CHECK_TODAY.alone');
     case 'QUOTE_NOT_SENT':

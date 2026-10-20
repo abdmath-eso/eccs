@@ -1881,6 +1881,7 @@ export const ml: Messages = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}. ചെയ്യേണ്ടിയിരുന്നത്: {day}.",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "അടുത്ത നടപടി ചെയ്യേണ്ടിയിരുന്നത്: {day}.",
   "bde.todo.QUOTE_NO_REPLY": "{amount} ക്വട്ടേഷൻ, അയച്ചത്: {date}. ഉടമ അത് തുറന്നു നോക്കി, ഇതുവരെ മറുപടിയില്ല.",
+  "bde.todo.QUOTE_NOT_OPENED": "{amount} ക്വട്ടേഷൻ, അയച്ചത്: {date}. ഉടമ ഇതുവരെ തുറന്നിട്ടില്ല, മറുപടിയുമില്ല.",
   "bde.todo.CHECK_TODAY": "സൗജന്യ ചെക്ക്, കൂടെ: {name}. സ്കോർകാർഡ് പൂരിപ്പിക്കുക.",
   "bde.todo.CHECK_TODAY.alone": "ഇന്ന് സൗജന്യ ചെക്ക്. സ്കോർകാർഡ് പൂരിപ്പിക്കുക.",
   "bde.todo.QUOTE_NOT_SENT": "സൗജന്യ ചെക്ക് കഴിഞ്ഞു: {date}. ക്വട്ടേഷൻ അയയ്ക്കുക.",

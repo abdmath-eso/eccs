@@ -1887,6 +1887,7 @@ export const en = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}. Was due {day}.",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "Next step was due {day}.",
   "bde.todo.QUOTE_NO_REPLY": "Quote {amount} sent {date}. The owner opened it, no reply yet.",
+  "bde.todo.QUOTE_NOT_OPENED": "Quote {amount} sent {date}. Not opened yet, no reply.",
   "bde.todo.CHECK_TODAY": "Free check with {name}. Do the scorecard.",
   "bde.todo.CHECK_TODAY.alone": "Free check today. Do the scorecard.",
   "bde.todo.QUOTE_NOT_SENT": "Free check done {date}. Send the quote.",

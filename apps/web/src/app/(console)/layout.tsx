@@ -35,16 +35,21 @@ export default function ConsoleLayout({ children }: LayoutProps<"/">) {
   const pathname = usePathname();
   const { status, user, signOut } = useSession();
 
-  // Clients is for Super Admins and Operations Managers. A Supervisor starts on Visits
-  // instead, and a BDE (sales only, 15 Oct 2026) on Sales.
-  const seesClients = user ? can(user.memberships, "clients", "create") : false;
-  const home = seesClients ? "/" : user && !can(user.memberships, "jobs", "read") && can(user.memberships, "sales", "read") ? "/sales" : "/visits";
-  const redirectToVisits = status === "signedIn" && !seesClients && pathname === "/";
+  // Where each person starts (the console plan, 20 Oct 2026). The Super Admin and the Ops Manager
+  // start on "/", which is Clients until the Today page takes its place. Anyone else who reads
+  // clients (a Supervisor) starts on Clients' Health tab, their own outlets; anyone else (a BDE,
+  // sales only) on Sales.
+  const memberships = user?.memberships ?? [];
+  const onboards = can(memberships, "clients", "create");
+  const readsClients = can(memberships, "clients", "read");
+  const home = onboards ? "/" : readsClients ? "/clients?tab=health" : "/sales";
+  // "/" and Clients are not for someone who cannot read clients at all: they are sent home, which is never one of them.
+  const sendHome = status === "signedIn" && !onboards && (pathname === "/" || (!readsClients && pathname === "/clients"));
 
   useEffect(() => {
     if (status === "signedOut") router.replace("/login");
-    else if (redirectToVisits) router.replace(home);
-  }, [status, redirectToVisits, router, home]);
+    else if (sendHome) router.replace(home);
+  }, [status, sendHome, router, home]);
 
   if (status !== "signedIn" || !user) {
     return <Loading className="p-8" />;
@@ -86,7 +91,7 @@ export default function ConsoleLayout({ children }: LayoutProps<"/">) {
                 <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
                   <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
                     <DesktopAlertsOffer />
-                    {redirectToVisits ? <Loading /> : children}
+                    {sendHome ? <Loading /> : children}
                   </div>
                 </main>
               </div>

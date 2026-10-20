@@ -4,7 +4,12 @@ import {
   ASK_SIGNAL_LABELS,
   ASK_SIGNALS,
   CYCLE_WORDS,
+  FREE_CHECK_FIX_LABELS,
+  FREE_CHECK_POINT_LABELS,
+  freeCheckPicks,
+  freeCheckServices,
   loseSchema,
+  quoteDeclinedSchema,
   quoteTotals,
   STEP_KINDS,
   STEP_LABELS,
@@ -175,26 +180,51 @@ export async function sendOnWhatsapp(quoteId: string): Promise<{ hasPhone: boole
 
 /**
  * Make a quote from the catalogue's services and the plans on offer, at their prices
- * before GST, then send it on WhatsApp.
+ * before GST, then send it on WhatsApp. After a free check it starts from what the check
+ * found, with the services that fix it ticked, as the phone does (20 Oct 2026); revising
+ * a quote starts from that quote's lines and makes a new one, the old one staying as the
+ * record of what was offered.
  * PATTERN FOLLOWED: the quote builder of Zoho CRM and Pipedrive (products picked from the
  * catalogue with a quantity, the subtotal, tax and total worked out as you go) and the
- * public quote link those tools send instead of an attachment.
+ * public quote link those tools send instead of an attachment; the founder's design p. 7
+ * ("What the free check found", then the services from the catalogue).
  */
-export function QuoteSheet({ open, lead, planFirst, onClose, onSaved }: { open: boolean; lead: LeadDetailDto; planFirst: boolean; onClose: () => void; onSaved: () => void }) {
+export function QuoteSheet({
+  open,
+  lead,
+  planFirst,
+  revising = null,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  lead: LeadDetailDto;
+  planFirst: boolean;
+  /** The quote being revised, when there is one. */
+  revising?: QuoteDto | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   return (
-    <Sheet open={open} title={planFirst ? "Send a plan" : "Make a quote"} onClose={onClose} wide>
-      {open && <QuoteForm lead={lead} planFirst={planFirst} onClose={onClose} onSaved={onSaved} />}
+    <Sheet open={open} title={revising ? `Revise quote ${revising.number}` : planFirst ? "Send a plan" : "Make a quote"} onClose={onClose} wide>
+      {open && <QuoteForm key={revising?.id ?? (planFirst ? "plan" : "new")} lead={lead} planFirst={planFirst} revising={revising} onClose={onClose} onSaved={onSaved} />}
     </Sheet>
   );
 }
 
-function QuoteForm({ lead, planFirst, onClose, onSaved }: { lead: LeadDetailDto; planFirst: boolean; onClose: () => void; onSaved: () => void }) {
+/** The latest free check done with the phone's scorecard (the timeline is newest first), if any. */
+const latestScorecard = (lead: LeadDetailDto) => lead.activities.find((entry) => entry.kind === "CHECK_DONE" && entry.scorecard)?.scorecard ?? null;
+
+function QuoteForm({ lead, planFirst, revising, onClose, onSaved }: { lead: LeadDetailDto; planFirst: boolean; revising: QuoteDto | null; onClose: () => void; onSaved: () => void }) {
   const notify = useToast();
   const [options, setOptions] = useState<QuoteOptionDto[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<"draft" | "send" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Read once when the form opens: the check's findings choose the starting lines.
+  const [scorecard] = useState(() => (planFirst || revising ? null : latestScorecard(lead)));
+  const [dropped, setDropped] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -203,18 +233,28 @@ function QuoteForm({ lead, planFirst, onClose, onSaved }: { lead: LeadDetailDto;
       .then((list) => {
         if (cancelled) return;
         setOptions(list);
+        if (revising) {
+          // The quote's own lines, where they are still offered; its prices become today's catalogue's.
+          const offered = revising.lines.filter((line) => list.some((option) => option.refId === line.refId));
+          setChosen(Object.fromEntries(offered.map((line) => [line.refId, line.quantity])));
+          setDropped(revising.lines.length - offered.length);
+          return;
+        }
         // "Send plan": the cheapest plan, for every kitchen, ready to send.
         const plan = list.find((option) => option.kind === "PLAN");
         if (planFirst && plan) setChosen({ [plan.refId]: lead.kitchens });
+        else if (scorecard) setChosen(Object.fromEntries(freeCheckPicks(list, scorecard.answers).map((pick) => [pick.refId, pick.quantity])));
       })
       .catch((e) => !cancelled && setLoadError(describe(e)));
     return () => {
       cancelled = true;
     };
-  }, [planFirst, lead.kitchens]);
+  }, [planFirst, lead.kitchens, revising, scorecard]);
 
   if (loadError) return <ErrorMessage message={loadError} />;
   if (!options) return <Loading />;
+  const suggested = new Set(scorecard ? freeCheckServices(scorecard.answers) : []);
+  const toFix = scorecard ? scorecard.answers.filter((entry) => entry.answer === "FIX") : [];
 
   const lines = options.filter((option) => chosen[option.refId]).map((option) => ({ ...option, quantity: chosen[option.refId]!, amountPaise: option.unitPaise * chosen[option.refId]! }));
   const totals = quoteTotals(lines);
@@ -251,6 +291,7 @@ function QuoteForm({ lead, planFirst, onClose, onSaved }: { lead: LeadDetailDto;
         />
         <label htmlFor={`option-${option.refId}`} className="min-w-0 cursor-pointer">
           {option.name}
+          {option.serviceCode && suggested.has(option.serviceCode) && <span className="ml-2 text-xs font-semibold whitespace-nowrap text-primary">Fixes what the check found</span>}
           <span className="block text-sm text-muted">
             {money(option.unitPaise)}
             {option.cycle ? ` ${CYCLE_WORDS[option.cycle]} per kitchen` : ""}, before GST
@@ -273,14 +314,42 @@ function QuoteForm({ lead, planFirst, onClose, onSaved }: { lead: LeadDetailDto;
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted">Prices are today&apos;s catalogue and plans. The owner gets a link to a page with the quote; when they open it, it shows on this lead.</p>
+      {/* What the latest free check found, first, as the design's builder has it; the services that fix it start ticked. */}
+      {toFix.length > 0 && (
+        <section className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm">
+          <h3 className="font-bold">What the free check found</h3>
+          <ol className="mt-1 flex list-decimal flex-col gap-0.5 pl-5">
+            {toFix.map((entry) => (
+              <li key={entry.point}>
+                {FREE_CHECK_POINT_LABELS[entry.point]}
+                <span className="text-muted"> · {FREE_CHECK_FIX_LABELS[entry.point]}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {revising && dropped > 0 && (
+        <p className="text-sm font-semibold">
+          {dropped === 1 ? "One line of" : `${dropped} lines of`} {revising.number} is no longer offered in the catalogue and has been left out.
+        </p>
+      )}
+      <p className="text-sm text-muted">
+        Prices are today&apos;s catalogue and plans.{revising ? " Saving makes a new quote; the old one stays on the lead." : ""} The owner gets a link to a page with the quote; when they open it, it shows on
+        this lead.
+      </p>
       <section>
         <h3 className="font-bold">Plans</h3>
         <ul className="flex flex-col divide-y divide-border">{options.filter((option) => option.kind === "PLAN").map(row)}</ul>
       </section>
       <section>
         <h3 className="font-bold">Services</h3>
-        <ul className="flex flex-col divide-y divide-border">{options.filter((option) => option.kind === "SERVICE").map(row)}</ul>
+        {/* The services the check found a need for first, as on the phone. */}
+        <ul className="flex flex-col divide-y divide-border">
+          {options
+            .filter((option) => option.kind === "SERVICE")
+            .sort((a, b) => Number(Boolean(b.serviceCode && suggested.has(b.serviceCode))) - Number(Boolean(a.serviceCode && suggested.has(a.serviceCode))))
+            .map(row)}
+        </ul>
       </section>
       <dl className="flex flex-col gap-1 border-t border-border pt-3 text-sm">
         <div className="flex justify-between">
@@ -363,6 +432,58 @@ function LoseForm({ lead, onClose, onSaved }: { lead: LeadDetailDto; onClose: ()
   );
 }
 
+// ───────────────────────── A quote declined (20 Oct 2026) ─────────────────────────
+
+/** The owner said no to a quote: why, in a few words. The lead itself stays as it is (Lost is its own step). */
+export function DeclineSheet({ quote, onClose, onSaved }: { quote: QuoteDto | null; onClose: () => void; onSaved: (quote: QuoteDto) => void }) {
+  return (
+    <Sheet open={quote !== null} title={quote ? `Quote ${quote.number} declined` : "Quote declined"} onClose={onClose}>
+      {quote && <DeclineForm key={quote.id} quote={quote} onClose={onClose} onSaved={onSaved} />}
+    </Sheet>
+  );
+}
+
+function DeclineForm({ quote, onClose, onSaved }: { quote: QuoteDto; onClose: () => void; onSaved: (quote: QuoteDto) => void }) {
+  const notify = useToast();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const input = { reason: String(new FormData(form).get("reason") ?? "").trim() };
+    const found = checkAgainst(quoteDeclinedSchema, input);
+    setErrors(found);
+    if (hasErrors(found)) return focusFirstError(form, found);
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(await api.sales.markQuoteDeclined(quote.id, input));
+      notify(`Quote ${quote.number} marked declined`);
+      onClose();
+    } catch (e) {
+      setError(describe(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form onSubmit={(event) => void save(event)} noValidate className="flex flex-col gap-4">
+      <p className="text-sm text-muted">It leaves Do today&apos;s follow-ups. The lead stays open: mark it lost too if the owner wants nothing from ECCS.</p>
+      <Field label="Why" name="reason" required maxLength={100} hint="For example: price too high, chose another vendor" error={errors.reason} />
+      <ErrorMessage message={error} />
+      <div className="flex gap-2 border-t border-border pt-4">
+        <Button type="submit" loading={busy}>
+          Mark declined
+        </Button>
+        <Button type="button" variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 // ───────────────────────── Became a client ─────────────────────────
 
 /**
@@ -424,7 +545,7 @@ function ClientForm({ lead, onClose, onSaved }: { lead: LeadDetailDto; onClose: 
           </Button>
         </div>
       )}
-      <Link href={`/?onboard=1&lead=${encodeURIComponent(lead.id)}`} className="w-fit rounded-lg border border-border-strong px-4 py-2.5 font-semibold hover:bg-background">
+      <Link href={`/clients?tab=all&onboard=1&lead=${encodeURIComponent(lead.id)}`} className="w-fit rounded-lg border border-border-strong px-4 py-2.5 font-semibold hover:bg-background">
         Onboard it as a new restaurant
       </Link>
       <Field label="Or find an existing client" type="search" plainLabel value={search} onChange={(event) => setSearch(event.target.value)} />

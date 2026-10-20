@@ -27,9 +27,11 @@ export interface NavCounts {
   ai: number | null;
   /** Joining ECCS: how many of their four joining steps a new team member has left; null with no onboarding of their own (16 Oct 2026). */
   joining: number | null;
+  /** Clients: new outlets not live 24 hours after being added (New outlets, 20 Oct 2026). */
+  newOutlets: number | null;
 }
 
-const EMPTY: NavCounts = { visits: null, issues: null, invoices: null, publicPhotos: null, sales: null, team: null, ai: null, joining: null };
+const EMPTY: NavCounts = { visits: null, issues: null, invoices: null, publicPhotos: null, sales: null, team: null, ai: null, joining: null, newOutlets: null };
 
 const NavCountsContext = createContext<{ counts: NavCounts; refresh: () => void } | null>(null);
 
@@ -45,7 +47,7 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
   const skipped = Promise.reject(new Error("not part of this role"));
   skipped.catch(() => undefined);
   // Each is fetched on its own, so one that fails (a Supervisor may not list requests) does not hide the others.
-  const [requests, visits, issues, billing, photos, sales, team, ai, joining] = await Promise.allSettled([
+  const [requests, visits, issues, billing, photos, sales, team, ai, joining, newOutlets] = await Promise.allSettled([
     operations ? api.bookings.list({ requestedOnly: true }) : skipped,
     operations ? api.visits.list({ state: "open" }) : skipped,
     operations ? api.issues.list({ openOnly: true }) : skipped,
@@ -56,6 +58,8 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
     can(memberships, "aiUsage", "read") ? api.aiUsage.alerts() : skipped,
     // Anyone on ECCS's team may have their own joining page; the answer is empty for everyone else.
     api.onboarding.mine(),
+    // New outlets is for those who onboard restaurants; a Supervisor's Clients is Health only.
+    can(memberships, "clients", "create") ? api.outletOnboarding.attention() : skipped,
   ]);
   const waiting = requests.status === "fulfilled" ? requests.value.length : 0;
   return {
@@ -68,6 +72,7 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
     ai: ai.status === "fulfilled" ? ai.value.warnings.length : null,
     // Shown while their onboarding is open; done, the page leaves the menu.
     joining: joining.status === "fulfilled" && joining.value.page && !joining.value.page.doneOn ? joining.value.page.left : null,
+    newOutlets: newOutlets.status === "fulfilled" ? newOutlets.value.stuck.length : null,
   };
 }
 

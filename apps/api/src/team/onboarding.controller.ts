@@ -1,8 +1,10 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Req, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  acceptDocumentSchema,
   acceptHandbookSchema,
   acceptLetterSchema,
+  documentDateSchema,
   handbookSchema,
   JOINING_DOCUMENT_KINDS,
   joiningDetailsSchema,
@@ -277,8 +279,21 @@ export class OnboardingController {
   @HttpCode(200)
   @RequirePermission('team', 'approve')
   @Activity('team.onboarding.documentAccepted', { staffData: true })
-  async acceptDocument(@CurrentUser() user: AuthUser, @Param('documentId') documentId: string): Promise<PersonOnboardingDto> {
-    const memberId = await this.papers.accept(user, documentId);
+  async acceptDocument(
+    @CurrentUser() user: AuthUser,
+    @Param('documentId') documentId: string,
+    @Body(new ZodValidationPipe(acceptDocumentSchema)) body: z.output<typeof acceptDocumentSchema>,
+  ): Promise<PersonOnboardingDto> {
+    const memberId = await this.papers.accept(user, documentId, body.expiresOn);
+    return this.personOf(user, memberId);
+  }
+
+  /** The day a document on file runs out or must be renewed, changed or cleared (20 Oct 2026). */
+  @Put('documents/:documentId/date')
+  @RequirePermission('team', 'approve')
+  @Activity('team.onboarding.documentDated', { staffData: true })
+  async setDocumentDate(@CurrentUser() user: AuthUser, @Param('documentId') documentId: string, @Body(new ZodValidationPipe(documentDateSchema)) body: z.output<typeof documentDateSchema>): Promise<PersonOnboardingDto> {
+    const memberId = await this.papers.setDate(documentId, body.expiresOn);
     return this.personOf(user, memberId);
   }
 

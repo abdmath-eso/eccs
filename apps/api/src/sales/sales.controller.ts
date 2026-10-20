@@ -1,6 +1,11 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import {
+  quoteDeclinedSchema,
+  quoteListQuerySchema,
+  type QuoteListDto,
+  type QuoteListQuery,
   SHOP_BOARD_MAX_BYTES,
   shopBoardReadSchema,
   type BdeDayDto,
@@ -198,6 +203,55 @@ export class SalesController {
   @Activity('sales.quote.removed', { entity: 'quote' })
   removeQuote(@CurrentUser() user: AuthUser, @Param('id') id: string): Promise<void> {
     return this.sales.removeQuote(user, id);
+  }
+
+  // The Quotes tab (20 Oct 2026): every quote with where it stands, what came of it, and its PDF.
+
+  /** Every quote the person reaches (a BDE: their own leads'), by state and owner, and the free checks with no quote yet. */
+  @Get('quotes')
+  @RequirePermission('sales', 'read')
+  quotes(@CurrentUser() user: AuthUser, @Query(new ZodValidationPipe(quoteListQuerySchema)) query: QuoteListQuery): Promise<QuoteListDto> {
+    return this.sales.listQuotes(user, query);
+  }
+
+  /** The owner said yes (before the app has seen the first job): the quote is won. */
+  @Post('quotes/:id/won')
+  @HttpCode(200)
+  @RequirePermission('sales', 'update')
+  @Activity('sales.quote.won', { entity: 'quote' })
+  won(@CurrentUser() user: AuthUser, @Param('id') id: string): Promise<QuoteDto> {
+    return this.sales.markQuote(user, id, 'WON');
+  }
+
+  /** The owner said no, with why in a few words (never recorded in the activity log). */
+  @Post('quotes/:id/declined')
+  @HttpCode(200)
+  @RequirePermission('sales', 'update')
+  @Activity('sales.quote.declined', { entity: 'quote' })
+  declined(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body(new ZodValidationPipe(quoteDeclinedSchema)) body: z.output<typeof quoteDeclinedSchema>): Promise<QuoteDto> {
+    return this.sales.markQuote(user, id, 'DECLINED', body.reason);
+  }
+
+  /** Takes back a won or declined mark. */
+  @Post('quotes/:id/reopen')
+  @HttpCode(200)
+  @RequirePermission('sales', 'update')
+  @Activity('sales.quote.reopened', { entity: 'quote' })
+  reopenQuote(@CurrentUser() user: AuthUser, @Param('id') id: string): Promise<QuoteDto> {
+    return this.sales.reopenQuote(user, id);
+  }
+
+  /** The quote as a PDF, with the same content as its public page; a draft prints too, marked as one. */
+  @Get('quotes/:id/pdf')
+  @RequirePermission('sales', 'read')
+  @Activity('sales.quote.downloaded', { entity: 'quote', reads: 'always' })
+  async quotePdf(@CurrentUser() user: AuthUser, @Param('id') id: string, @Res() response: Response): Promise<void> {
+    const file = await this.sales.quotePdf(user, id);
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader('Content-Disposition', `attachment; filename="${file.name.replace(/[^\w .-]/g, '')}"`);
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.send(file.body);
   }
 
   // ───────────────────────── Targets (the Super Admin) ─────────────────────────

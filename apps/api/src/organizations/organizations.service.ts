@@ -55,7 +55,7 @@ export class OrganizationsService {
    * restaurant code) and the Owner. The Owner then sets up on their phone
    * with their mobile number and a one-time code.
    */
-  async create(input: OrganizationInput): Promise<OrganizationDto> {
+  async create(input: OrganizationInput, startedById: string | null = null): Promise<OrganizationDto> {
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const organization = await this.db.organization.create({
@@ -66,7 +66,7 @@ export class OrganizationsService {
             stateCode: input.gstin?.slice(0, 2) ?? null,
             contactPhone: input.ownerPhone,
             contactEmail: input.ownerEmail ?? null,
-            outlets: { create: outletData(input) },
+            outlets: { create: { ...outletData(input), ...startOnboarding(startedById) } },
             memberships: {
               create: {
                 role: 'OWNER',
@@ -93,13 +93,13 @@ export class OrganizationsService {
     throw new ServiceUnavailableException('Could not generate a restaurant code. Try again.');
   }
 
-  async addOutlet(organizationId: string, input: OutletInput): Promise<OrganizationOutletDto> {
+  async addOutlet(organizationId: string, input: OutletInput, startedById: string | null = null): Promise<OrganizationOutletDto> {
     const organization = await this.db.organization.findUnique({ where: { id: organizationId } });
     if (!organization) throw new NotFoundException('Client not found');
 
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        return toOutletDto(await this.db.outlet.create({ data: { organizationId, ...outletData(input) } }));
+        return toOutletDto(await this.db.outlet.create({ data: { organizationId, ...outletData(input), ...startOnboarding(startedById) } }));
       } catch (error) {
         if (!isUniqueViolation(error, 'code')) throw error;
       }
@@ -149,6 +149,8 @@ export class OrganizationsService {
       city?: string | undefined;
       pincode?: string | undefined;
       fssaiNumber?: string | undefined;
+      /** The part of the city, for the Visits week board; empty clears it. */
+      area?: string | undefined;
       isActive?: boolean | undefined;
       /** Where the kitchen is; both `null` clears it. Used to judge where proof photos were taken. */
       latitude?: number | null | undefined;
@@ -164,6 +166,7 @@ export class OrganizationsService {
         ...(input.city !== undefined && { city: input.city }),
         ...(input.pincode !== undefined && { pincode: input.pincode || null }),
         ...(input.fssaiNumber !== undefined && { fssaiNumber: input.fssaiNumber || null }),
+        ...(input.area !== undefined && { area: input.area || null }),
         ...(input.isActive !== undefined && { isActive: input.isActive }),
         ...(input.latitude !== undefined && input.longitude !== undefined && { latitude: input.latitude, longitude: input.longitude }),
       },
@@ -303,6 +306,15 @@ export class OrganizationsService {
   }
 }
 
+/**
+ * A new outlet starts its onboarding by itself (Clients > New outlets, 20 Oct 2026): its
+ * first ten days, from "won" to "running on its own". Steps 1 to 6 then tick from what the
+ * apps record (apps/api/src/outlet-onboarding).
+ */
+function startOnboarding(startedById: string | null) {
+  return { onboarding: { create: { startedAt: new Date(), startedById } } };
+}
+
 function outletData(input: OutletInput) {
   return {
     name: input.outletName,
@@ -323,6 +335,7 @@ function toOutletDto(outlet: OrganizationRow['outlets'][number]): OrganizationOu
     city: outlet.city,
     pincode: outlet.pincode,
     fssaiNumber: outlet.fssaiNumber,
+    area: outlet.area,
     isActive: outlet.isActive,
     latitude: outlet.latitude,
     longitude: outlet.longitude,

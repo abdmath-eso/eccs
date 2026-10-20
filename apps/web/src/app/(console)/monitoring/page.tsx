@@ -1,19 +1,14 @@
-import type { Metadata } from "next";
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { Loading } from "@/components/ui";
-
-import MonitoringScreen from "./monitoring-screen";
-
-// The browser tab reads "Monitoring · ECCS Console" (the second half comes from the root layout).
-export const metadata: Metadata = { title: "Monitoring" };
-
-// The screen keeps its filters and the chosen outlet in the web address; Next.js asks
-// for a Suspense boundary around anything that reads the address in the browser.
-export default function Page() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <MonitoringScreen />
-    </Suspense>
-  );
+// Monitoring became Clients' Health tab on 20 Oct 2026 (the console plan). An old address,
+// a bookmark or a link in a message still works: it opens Health with the same filters and
+// the same outlet open (days=, show=, q=, sort=, dir=, outlet=).
+export default async function Page({ searchParams }: PageProps<"/monitoring">) {
+  const asked = await searchParams;
+  const kept = new URLSearchParams({ tab: "health" });
+  for (const [key, value] of Object.entries(asked)) {
+    if (key === "tab") continue;
+    for (const one of Array.isArray(value) ? value : [value]) if (one !== undefined) kept.append(key, one);
+  }
+  redirect(`/clients?${kept.toString()}`);
 }

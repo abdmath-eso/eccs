@@ -1881,6 +1881,7 @@ export const or: Messages = {
   "bde.todo.NEXT_ACTION_OVERDUE": "{action}। ଏହା {day} କରିବାର ଥିଲା।",
   "bde.todo.NEXT_ACTION_OVERDUE.plain": "ପରବର୍ତ୍ତୀ ଷ୍ଟେପ୍ {day} କରିବାର ଥିଲା।",
   "bde.todo.QUOTE_NO_REPLY": "{amount} ର କୋଟେସନ୍ {date} ପଠାଯାଇଥିଲା। ମାଲିକ ଖୋଲିଛନ୍ତି, କିନ୍ତୁ ଏଯାଏଁ କିଛି ଉତ୍ତର ନାହିଁ।",
+  "bde.todo.QUOTE_NOT_OPENED": "{amount} ର କୋଟେସନ୍ {date} ପଠାଯାଇଥିଲା। ମାଲିକ ଏଯାଏଁ ଖୋଲିନାହାନ୍ତି, କିଛି ଉତ୍ତର ବି ନାହିଁ।",
   "bde.todo.CHECK_TODAY": "{name} ସହ ମାଗଣା ଚେକ୍। ସ୍କୋରକାର୍ଡ ଭରନ୍ତୁ।",
   "bde.todo.CHECK_TODAY.alone": "ଆଜି ମାଗଣା ଚେକ୍ ଅଛି। ସ୍କୋରକାର୍ଡ ଭରନ୍ତୁ।",
   "bde.todo.QUOTE_NOT_SENT": "ମାଗଣା ଚେକ୍ {date} ହୋଇଥିଲା। କୋଟେସନ୍ ପଠାନ୍ତୁ।",

@@ -26,6 +26,9 @@ import { Initials, MemberSheet } from "./team-parts";
 // their own page) and the team tables of Pipedrive Insights and HubSpot's rep productivity
 // report (a few figures per rep against their goal). The main list first; how presence and
 // salaries are worked out folded under "How this works".
+// Documents due (20 Oct 2026): a "!" mark with words under "Keep an eye on" for a person with a
+// document run out, running out within 30 days, or missing (document expiry tracking as in HR
+// and subcontractor tools: Archdesk, BambooHR).
 
 type Filter = "all" | "OPS_MANAGER" | "SUPERVISOR" | "BDE" | "joining" | "left";
 
@@ -143,8 +146,13 @@ function Team() {
         </p>
         <p>Each person&apos;s monthly salary, from their joining day to their last, becomes the Salaries line on the Finance page, owed until it is marked paid there.</p>
         <p>
-          Joining: someone whose joining day is still ahead, or whose onboarding checklist is not done yet. Onboarding tasks past their day are the last thing that
-          puts someone under &ldquo;keep an eye on&rdquo;.
+          Joining: someone whose joining day is still ahead, or whose onboarding checklist is not done yet. Onboarding tasks past their day, then documents due,
+          are the last things that put someone under &ldquo;keep an eye on&rdquo;.
+        </p>
+        <p>
+          A document is due when it has run out or runs out within 30 days (medical fitness is dated a year from its upload, as for food handlers), or when a
+          required one is still missing after the day it was expected: the joining day, or for the police and medical certificates the day of their onboarding
+          task.
         </p>
         {seesPay && <TargetForm target={data.onTimeTargetPercent} onSaved={() => setAttempt((value) => value + 1)} />}
       </HowItWorks>
@@ -179,11 +187,23 @@ function Today({ row }: { row: TeamRowDto }) {
 
 function Flag({ row }: { row: TeamRowDto }) {
   if (!row.memberId && !row.leftOn) return <span className="text-muted">No team details yet</span>;
-  if (!row.flag) return <span className="text-muted">—</span>;
+  // A document due is the last thing to keep an eye on; when something else is picked first, it still gets its own mark (20 Oct 2026).
+  const documents = row.documentsDue && row.flag?.kind !== "DOCUMENTS_DUE" ? row.documentsDue : null;
+  if (!row.flag && !documents) return <span className="text-muted">—</span>;
   return (
-    <span className="inline-flex items-start gap-1.5 font-medium" style={{ color: "#8A5300" }}>
-      <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "#B26A00" }} />
-      {row.flag.words}
+    <span className="inline-flex flex-col gap-1">
+      {row.flag && (
+        <span className="inline-flex items-start gap-1.5 font-medium" style={{ color: "#8A5300" }}>
+          <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "#B26A00" }} />
+          {row.flag.words}
+        </span>
+      )}
+      {documents && (
+        <span className="inline-flex items-start gap-1.5 text-xs font-semibold" style={{ color: "#8A5300" }}>
+          <span aria-hidden>!</span>
+          {documents.count === 1 ? `Document due: ${documents.words}` : documents.words}
+        </span>
+      )}
     </span>
   );
 }
@@ -212,7 +232,7 @@ function TeamTable({ rows, seesPay }: { rows: readonly TeamRowDto[]; seesPay: bo
               {row.week && <span className="tabular-nums">{weekWords(row)}</span>}
               {seesPay && row.monthlyPaise !== null && <span className="tabular-nums text-muted">{money(row.monthlyPaise)} a month</span>}
             </div>
-            {(row.flag || !row.memberId) && (
+            {(row.flag || row.documentsDue || !row.memberId) && (
               <div className="pl-12">
                 <Flag row={row} />
               </div>

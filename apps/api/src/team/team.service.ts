@@ -5,6 +5,7 @@ import {
   arrivalsOnTime,
   can,
   concerns,
+  consoleAccessGroups,
   dayAndMonth,
   ECCS_ROLES,
   firstName,
@@ -14,6 +15,7 @@ import {
   initials,
   joinsWords,
   keepAnEyeOn,
+  ONBOARDING_RULES,
   PERSON_ACTIVITY_KINDS,
   presenceDays,
   presenceLine,
@@ -22,6 +24,7 @@ import {
   SALES_OWNER_ROLES,
   staleness,
   summarisePresence,
+  TEAM_ROLE_LABELS,
   TEAM_ROLES,
   TEAM_RULES,
   teamRoleOf,
@@ -32,6 +35,8 @@ import {
   worstFirst,
   type BdeWeekDto,
   type ConcernDto,
+  type ConsoleAccessDto,
+  type DocumentDue,
   type FollowUpRecord,
   type FoundLeadDto,
   type FoundVisitDto,
@@ -44,6 +49,7 @@ import {
   type Role,
   type TargetFigure,
   type TeamCardDto,
+  type TeamDocumentDueDto,
   type TeamChangeValues,
   type TeamListDto,
   type TeamMemberDto,
@@ -132,6 +138,7 @@ interface Worked {
   foundLeads: { items: FoundLeadDto[]; total: number } | null;
   foundVisits: { items: FoundVisitDto[]; total: number } | null;
   upcomingVisits: number;
+  dueDocuments: DocumentDue[];
 }
 
 @Injectable()
@@ -196,9 +203,11 @@ export class TeamService {
     const seesPay = can(user.memberships, 'team', 'approve');
     const manages = can(user.memberships, 'eccsUsers', 'update');
     const [worked] = await this.work([person], now, target, seesPay);
-    const [openLeads, owners] = await Promise.all([
+    const [openLeads, owners, lastSession] = await Promise.all([
       this.db.lead.count({ where: { ownerId: userId, status: { not: 'LOST' } } }),
       manages ? this.sales.people() : Promise.resolve([]),
+      // The last login: the latest use of any of their sessions, ended ones included, from either app.
+      this.db.session.findFirst({ where: { userId }, orderBy: { lastUsedAt: 'desc' }, select: { lastUsedAt: true, deviceName: true } }),
     ]);
     const member = person.teamMember;
     const today = indiaDate(now);
@@ -222,7 +231,37 @@ export class TeamService {
       salary: seesPay && member ? { monthlyPaise: worked!.row.monthlyPaise, history: member.salaries.map((step) => ({ from: fromDb(step.from), monthlyPaise: step.monthlyPaise })) } : null,
       canRecordLeave: can(user.memberships, 'team', 'create') && Boolean(member) && !member?.leftOn,
       canManage: manages,
+      dueDocuments: worked!.dueDocuments,
+      access: this.access(person, lastSession),
     };
+  }
+
+  /** The console access card: their role and what it opens (from the grants alone; roles are fixed), whether the login is on, and the last login. */
+  private access(person: Person, lastSession: { lastUsedAt: Date; deviceName: string | null } | null): ConsoleAccessDto {
+    return {
+      role: person.role,
+      roleLabel: TEAM_ROLE_LABELS[person.role],
+      groups: consoleAccessGroups(person.role),
+      loginOn: person.isActive,
+      lastLoginAt: lastSession?.lastUsedAt.toISOString() ?? null,
+      lastLoginIn: lastSession ? (lastSession.deviceName === ONBOARDING_RULES.consoleDeviceName ? 'CONSOLE' : 'APP') : null,
+    };
+  }
+
+  /**
+   * Every document due on the team (20 Oct 2026), most urgent first, for Today: past its date,
+   * within 30 days of it, or missing. Only the facts: never the file, which stays the Super
+   * Admin's and the person's.
+   */
+  async documentsDue(): Promise<{ today: string; items: TeamDocumentDueDto[] }> {
+    const today = indiaDate();
+    const due = await this.papers.dueFor(undefined, today);
+    if (due.size === 0) return { today, items: [] };
+    const people = await this.people({ teamMember: { id: { in: [...due.keys()] } } });
+    const items = people.flatMap((person) =>
+      (due.get(person.teamMember!.id) ?? []).map((entry): TeamDocumentDueDto => ({ ...entry, userId: person.id, name: person.name, roleLabel: TEAM_ROLE_LABELS[person.role] })),
+    );
+    return { today, items: items.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name)) };
   }
 
   /**
@@ -243,7 +282,8 @@ export class TeamService {
     const supervisorIds = ids(['SUPERVISOR']);
     const logIds = ids(['OPS_MANAGER', 'SUPER_ADMIN']);
 
-    const [steps, loaded, followUps, jobs, openJobs, inspections, logRows, firstLog] = await Promise.all([
+    const memberIds = people.map((person) => person.teamMember?.id).filter((value): value is string => Boolean(value));
+    const [steps, loaded, followUps, jobs, openJobs, inspections, logRows, firstLog, documentsDue] = await Promise.all([
       bdeIds.length === 0
         ? Promise.resolve([])
         : this.db.leadActivity.findMany({
@@ -280,6 +320,8 @@ export class TeamService {
         : this.db.activityLog.findMany({ where: { actorUserId: { in: logIds }, result: 'SUCCESS', at: { gte: since } }, select: { actorUserId: true, at: true, phoneAt: true, source: true } }),
       // When the log began: its first row of anything but AI, whose earlier requests were copied in when it started.
       logIds.length === 0 ? Promise.resolve(null) : this.db.activityLog.findFirst({ where: { category: { not: 'ai' } }, orderBy: { at: 'asc' }, select: { at: true } }),
+      // Documents past their date, near it, or missing (20 Oct 2026): the last thing to keep an eye on.
+      memberIds.length === 0 ? Promise.resolve(new Map<string, DocumentDue[]>()) : this.papers.dueFor(memberIds, today),
     ]);
 
     // The steps on the leads whose next steps fell due, which say whether each was on time.
@@ -338,7 +380,8 @@ export class TeamService {
       let foundLeads: Worked['foundLeads'] = null;
       let foundVisits: Worked['foundVisits'] = null;
       let upcomingVisits = 0;
-      const input: Parameters<typeof concerns>[0] = { missedDays: summary.missed, onTimeTargetPercent: onTimeTarget, onboardingLate: onboarding?.late ?? 0, joinsLater };
+      const due = member ? (documentsDue.get(member.id) ?? []) : [];
+      const input: Parameters<typeof concerns>[0] = { missedDays: summary.missed, onTimeTargetPercent: onTimeTarget, onboardingLate: onboarding?.late ?? 0, joinsLater, documentsDue: due };
 
       if (person.role === 'BDE' && loaded) {
         const bde = weeks.get(person.id);
@@ -443,7 +486,9 @@ export class TeamService {
           flag: keep.pick,
           monthlyPaise: seesPay ? salaryOn(salarySteps, leftOn && leftOn < today ? leftOn : joinsLater && joinedOn ? joinedOn : today) : null,
           onboarding: leftOn ? null : onboarding,
+          documentsDue: !leftOn && due.length > 0 ? { count: due.length, words: due.length === 1 ? due[0]!.words : `${due.length} documents due` } : null,
         },
+        dueDocuments: leftOn ? [] : due,
       };
     });
   }

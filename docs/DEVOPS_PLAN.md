@@ -1,6 +1,6 @@
 # ECCS DevOps plan: automatic deploys, no stored keys
 
-**A plan for the founder to approve (20 Oct 2026). Nothing in it is built yet.**
+**On hold (20 Oct 2026): the founder benched it for later. Nothing in it is built.**
 
 What the founder asked for:
 - anything changed in the app or the console reaches AWS by itself;

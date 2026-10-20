@@ -245,7 +245,7 @@ Check in a browser: `https://api.<domain>/v1/health` shows `{"status":"ok"}`, an
 ssh -i $key ubuntu@$ip "cd /opt/eccs && docker compose run --rm migrate npm run seed:live -- --phone 98xxxxxxxx --name 'Full Name'"
 ```
 
-It loads the services and plans, the SOPs and SOP library, the inspection checklist, the checklist suggestions and their translations, and makes that person the Super Admin. It loads no sample restaurants or people. Run again, it changes nothing; it refuses to make a second Super Admin (add people from the console instead).
+It loads the services and plans, the SOPs and SOP library, the inspection checklist, the checklist suggestions and their translations, and makes that person the Super Admin. It loads no sample restaurants or people. For several founders, repeat `--phone` and `--name` for each, in the same order, in this first run (all are added or none). Run again, it changes nothing; once a Super Admin exists it refuses to make another (add people from the console instead).
 
 **A test server with sample data instead**: on a test server only (`SAMPLE_SERVER=on`), this **wipes the database** and loads the sample restaurants and logins of `docs/TEST_LOGINS.md`:
 

@@ -15,8 +15,6 @@ export interface NavCounts {
   visits: number | null;
   /** Issues that are open or in progress. */
   issues: number | null;
-  /** Licences expired or expiring soon. */
-  licences: number | null;
   /** Invoices past their due date with money still owed. */
   invoices: number | null;
   /** Photos proposed for customer pages and waiting for ECCS's approval. */
@@ -31,7 +29,7 @@ export interface NavCounts {
   joining: number | null;
 }
 
-const EMPTY: NavCounts = { visits: null, issues: null, licences: null, invoices: null, publicPhotos: null, sales: null, team: null, ai: null, joining: null };
+const EMPTY: NavCounts = { visits: null, issues: null, invoices: null, publicPhotos: null, sales: null, team: null, ai: null, joining: null };
 
 const NavCountsContext = createContext<{ counts: NavCounts; refresh: () => void } | null>(null);
 
@@ -47,11 +45,10 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
   const skipped = Promise.reject(new Error("not part of this role"));
   skipped.catch(() => undefined);
   // Each is fetched on its own, so one that fails (a Supervisor may not list requests) does not hide the others.
-  const [requests, visits, issues, licences, billing, photos, sales, team, ai, joining] = await Promise.allSettled([
+  const [requests, visits, issues, billing, photos, sales, team, ai, joining] = await Promise.allSettled([
     operations ? api.bookings.list({ requestedOnly: true }) : skipped,
     operations ? api.visits.list({ state: "open" }) : skipped,
     operations ? api.issues.list({ openOnly: true }) : skipped,
-    operations ? api.licences.list({ attentionOnly: true }) : skipped,
     operations ? api.billing.totals() : skipped,
     operations ? api.publicPage.photosWaiting() : skipped,
     can(memberships, "sales", "read") ? api.sales.doToday() : skipped,
@@ -64,7 +61,6 @@ async function fetchCounts(memberships: Memberships): Promise<NavCounts> {
   return {
     visits: visits.status === "fulfilled" ? waiting + visits.value.filter((visit) => visit.status === "SCHEDULED" || visit.status === "IN_REVIEW").length : null,
     issues: issues.status === "fulfilled" ? issues.value.length : null,
-    licences: licences.status === "fulfilled" ? licences.value.length : null,
     invoices: billing.status === "fulfilled" ? billing.value.overdueCount : null,
     publicPhotos: photos.status === "fulfilled" ? photos.value.waiting : null,
     sales: sales.status === "fulfilled" ? sales.value.items.length : null,

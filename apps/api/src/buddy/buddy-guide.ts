@@ -44,7 +44,7 @@ ECCS's standard SOPs and the restaurant's own. "Add your own SOP": a name, a cat
 One list of saved labels, each with how long the food keeps. Set how many of each with minus and plus, then one Print button prints them all: "prepared" is the moment Print is pressed and "use by" is that plus the keeping time; "prepared by" is the person logged in. "Add a label" saves a new one: its name and how long it keeps (4, 8 or 12 hours, 1 to 7 days, or another length). Only the Owner and Manager can change or remove a saved label. Printing goes through the phone's own print screen, a shared picture or PDF, or an A4 sheet; there is no direct label printer yet.
 
 ## Licences and documents
-"Add a licence": pick a photo or PDF of it and the type, number, holder, issue and expiry dates fill in by themselves (read by AI): check each field and Save. Renewing replaces the old copy. "Add a document" keeps certificates, reports and other papers (PDF or picture, up to 10 MB). A licence is "expiring soon" in its last 60 days. ECCS can also add documents for you.
+"Add a licence": pick a photo or PDF of it and the type, number, holder, issue and expiry dates fill in by themselves (read by AI): check each field and Save. Renewing replaces the old copy. "Add a document" keeps certificates, reports and other papers (PDF or picture, up to 10 MB). A licence is "expiring soon" in its last 60 days.
 
 ## Certificates
 ECCS's own service certificates (for example pest control), with their numbers and validity. Open one to show or print it. They are ECCS's certificates of service, not FSSAI or government documents.

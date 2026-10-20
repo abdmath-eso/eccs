@@ -62,13 +62,6 @@ export const ClientsIcon = () => (
   </Icon>
 );
 
-/** A page with lines: Licences. */
-export const LicencesIcon = () => (
-  <Icon>
-    <path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7zM14 3v4h4M9 12h6M9 16h6" />
-  </Icon>
-);
-
 /** A rosette: Certificates. */
 export const CertificatesIcon = () => (
   <Icon>

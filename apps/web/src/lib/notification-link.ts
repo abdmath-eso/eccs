@@ -13,10 +13,9 @@ export function hrefFor(link: NotificationLink | null): string | null {
       return "/visits";
     case "issue":
       return `/issues?issue=${encodeURIComponent(link.issueId)}`;
-    case "documents":
-      return "/licences";
     default:
-      // Checklists and staff logins belong to the restaurant's app.
+      // Checklists, licences and documents, and staff logins belong to the restaurant's app
+      // (the console's Licences page was removed on 20 Oct 2026).
       return null;
   }
 }

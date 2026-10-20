@@ -107,7 +107,7 @@ You are given today's board: how many outlets there are at each level, and for e
 
 Write:
 - overview: one short sentence on the day overall.
-- points: at most ${MONITORING_DIGEST_MAX_POINTS}, one per outlet, for the first outlets given (the board shows the points in its own order). Each point is one sentence of at most 20 words saying why that outlet needs attention, naming at most two facts: the two that matter most (an expired licence, an issue waiting for days, a low hygiene score or a fall in it, missed checklists, an overdue visit, a report to approve, doubtful photos). Give the outlet's id exactly as given, and do not repeat the outlet's or the restaurant's name in the text: the board shows them.
+- points: at most ${MONITORING_DIGEST_MAX_POINTS}, one per outlet, for the first outlets given (the board shows the points in its own order). Each point is one sentence of at most 20 words saying why that outlet needs attention, naming at most two facts: the two that matter most (an issue waiting for days, a low hygiene score or a fall in it, an overdue visit, a visit with no Supervisor, a report to approve, a low rating, doubtful photos). Give the outlet's id exactly as given, and do not repeat the outlet's or the restaurant's name in the text: the board shows them.
 
 Rules:
 - Plain office English. At most 20 words a sentence and at most two facts a point; leave the rest to the board. No greetings, no advice on how to run the office.

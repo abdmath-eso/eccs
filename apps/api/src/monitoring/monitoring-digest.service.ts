@@ -14,7 +14,6 @@ import {
   unknownIds,
   unknownNumbers,
   type IssueCategory,
-  type LicenceType,
   type MonitoringArea,
   type MonitoringBoardDto,
   type MonitoringDigestAnswer,
@@ -43,14 +42,6 @@ const ISSUE_WORDS: Record<IssueCategory, string> = {
   SUPPORT: 'help with the app or service',
   OTHER: 'something else',
 };
-const LICENCE_WORDS: Record<LicenceType, string> = {
-  FSSAI: 'FSSAI licence',
-  FIRE_NOC: 'fire NOC',
-  TRADE_LICENCE: 'trade licence',
-  PEST_CONTROL: 'pest control contract',
-  OTHER: 'licence',
-};
-
 /** What the AI is told about one outlet: its names, its level, and the facts of the areas behind that level. */
 interface DigestOutlet {
   id: string;
@@ -62,8 +53,8 @@ interface DigestOutlet {
 
 /** What the AI is given: the day's counts and the outlets that need attention or are worth watching. */
 export interface DigestFacts {
-  /** How far back the checklist and rating figures look, in days. */
-  checklistDays: number;
+  /** How far back the rating and photo figures look, in days. */
+  periodDays: number;
   counts: { outlets: number; needAttention: number; toWatch: number; onTrack: number; nothingYet: number };
   outlets: DigestOutlet[];
   /** Outlets needing attention or worth watching that were left out to keep the request small. */
@@ -221,10 +212,6 @@ function compact(facts: Record<string, unknown>): Record<string, unknown> {
 /** The facts of one area, as the board shows them, in plain names. */
 function areaFacts(outlet: MonitoringOutletDto, area: MonitoringArea): Record<string, unknown> {
   switch (area) {
-    case 'checklists': {
-      const c = outlet.checklists;
-      return compact({ due: c.due, handedIn: c.submitted, missed: c.missed, late: c.late, overdueToday: c.overdueNow, percentHandedIn: c.percent });
-    }
     case 'issues': {
       const i = outlet.issues;
       return compact({
@@ -233,18 +220,6 @@ function areaFacts(outlet: MonitoringOutletDto, area: MonitoringArea): Record<st
         oldestNotPickedUpDays: i.oldestNotStartedDays,
         oldestUnresolvedDays: i.oldestUnresolvedDays,
         kinds: [...new Set(i.items.map((issue) => ISSUE_WORDS[issue.category]))],
-      });
-    }
-    case 'licences': {
-      const l = outlet.licences;
-      return compact({
-        expired: l.expired,
-        expiring: l.expiring,
-        licences: l.items.map((licence) =>
-          licence.daysLeft < 0
-            ? { type: LICENCE_WORDS[licence.type], expiredDaysAgo: -licence.daysLeft }
-            : { type: LICENCE_WORDS[licence.type], expiresInDays: licence.daysLeft },
-        ),
       });
     }
     case 'visits': {
@@ -292,7 +267,7 @@ function areaFacts(outlet: MonitoringOutletDto, area: MonitoringArea): Record<st
 export function digestFacts(board: MonitoringBoardDto): DigestFacts {
   const flagged = board.outlets.filter((outlet) => outlet.level === 'ATTENTION' || outlet.level === 'WATCH');
   return {
-    checklistDays: board.days,
+    periodDays: board.days,
     counts: {
       outlets: board.totals.outlets,
       needAttention: board.totals.attention,

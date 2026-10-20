@@ -1,7 +1,6 @@
 import type { LocalizedText } from "./checklists.js";
 import type { InspectionGrade } from "./inspections.js";
 import type { IssueCategory, IssueStatus } from "./issues.js";
-import { LICENCE_WARNING_DAYS, type LicenceState, type LicenceType } from "./licences.js";
 import type { PhotoFlagDto, PhotoSubjectDto } from "./photo-integrity.js";
 
 // The ECCS monitoring board: every outlet at a glance, with what it is falling behind on.
@@ -10,6 +9,11 @@ import type { PhotoFlagDto, PhotoSubjectDto } from "./photo-integrity.js";
 // outlet it gathers the facts the platform already records, area by area, and
 // judges each area as one of four levels. The rules for that judgement, and
 // every number they depend on, are in this file and nowhere else.
+//
+// Only what ECCS acts on is here (the founder, 20 Oct 2026: the restaurant's own checklists and
+// licences are "redundant, what will we do by watching that"; they are the restaurant's to keep,
+// in its app, and both still count in the hygiene score). An operations board keeps the numbers its
+// team can move and drops the rest.
 
 /**
  * How an area, or a whole outlet, is doing:
@@ -22,7 +26,7 @@ export const MONITORING_LEVELS = ["ATTENTION", "WATCH", "OK", "NONE"] as const;
 export type MonitoringLevel = (typeof MONITORING_LEVELS)[number];
 
 /** The areas an outlet is judged on: one column of the board each. */
-export const MONITORING_AREAS = ["checklists", "issues", "licences", "visits", "inspections", "score", "photos"] as const;
+export const MONITORING_AREAS = ["issues", "visits", "inspections", "score", "photos"] as const;
 export type MonitoringArea = (typeof MONITORING_AREAS)[number];
 
 /** The board looks back this many days unless asked otherwise, and never further than the maximum. */
@@ -34,21 +38,11 @@ export const MONITORING_MAX_DAYS = 31;
  * while building; change them here and both the server and the console follow.
  */
 export const MONITORING_RULES = {
-  checklists: {
-    /** Fewer than this share of the period's daily checklists handed in: needs attention. */
-    attentionBelowPercent: 60,
-    /** Fewer than this share handed in, or any handed in late: worth watching. */
-    watchBelowPercent: 90,
-  },
   issues: {
     /** An issue nobody at ECCS has picked up ("open") for more than this many days: needs attention. */
     notStartedAttentionDays: 2,
     /** An issue still unresolved, picked up or not, after more than this many days: needs attention. */
     unresolvedAttentionDays: 7,
-  },
-  licences: {
-    /** A licence within this many days of its expiry date is "expiring" (the same number the Licences page uses). */
-    expiringWithinDays: LICENCE_WARNING_DAYS,
   },
   visits: {
     /** A visit with no Supervisor that is due within this many days: needs attention. */
@@ -90,22 +84,6 @@ export const MONITORING_RULES = {
 
 // ───────────────────────── The facts, area by area ─────────────────────────
 
-/** Daily checklists over the period. "Due" leaves out today's checklists that are not yet past their time. */
-export interface MonitoringChecklistFacts {
-  /** Checklists that fell due in the period. */
-  due: number;
-  /** Of those, how many were handed in. */
-  submitted: number;
-  /** Of those, how many were not handed in. */
-  missed: number;
-  /** Handed in after the due time, or on a later day. */
-  late: number;
-  /** Handed in with at least one item reported as a problem. A fact only: it does not change the level. */
-  withProblems: number;
-  /** Today's checklists past their due time and not handed in yet (also counted in `missed`). */
-  overdueNow: number;
-}
-
 export interface MonitoringIssueFacts {
   /** Open or in progress. */
   unresolved: number;
@@ -115,14 +93,6 @@ export interface MonitoringIssueFacts {
   oldestNotStartedDays: number | null;
   /** Whole days since the oldest unresolved issue was raised; `null` when there is none. */
   oldestUnresolvedDays: number | null;
-}
-
-export interface MonitoringLicenceFacts {
-  /** Licences on file for the outlet. */
-  total: number;
-  expired: number;
-  /** Not expired, but within the warning period. */
-  expiring: number;
 }
 
 export interface MonitoringVisitFacts {
@@ -190,21 +160,6 @@ export interface MonitoringPhotoFacts {
 const share = (part: number, whole: number) => Math.round((part / whole) * 100);
 
 /**
- * Daily checklists.
- * ATTENTION: fewer than 60% of the period's checklists were handed in.
- * WATCH: fewer than 90% were handed in, or any was handed in late.
- * NONE: no checklist fell due in the period.
- */
-export function checklistLevel(facts: MonitoringChecklistFacts): MonitoringLevel {
-  const rules = MONITORING_RULES.checklists;
-  if (facts.due === 0) return "NONE";
-  const percent = share(facts.submitted, facts.due);
-  if (percent < rules.attentionBelowPercent) return "ATTENTION";
-  if (percent < rules.watchBelowPercent || facts.late > 0) return "WATCH";
-  return "OK";
-}
-
-/**
  * Issues raised with ECCS.
  * ATTENTION: one has waited more than 2 days without ECCS picking it up, or is still unresolved after more than 7 days.
  * WATCH: any issue is unresolved.
@@ -215,18 +170,6 @@ export function issueLevel(facts: MonitoringIssueFacts): MonitoringLevel {
   if ((facts.oldestNotStartedDays ?? 0) > rules.notStartedAttentionDays) return "ATTENTION";
   if ((facts.oldestUnresolvedDays ?? 0) > rules.unresolvedAttentionDays) return "ATTENTION";
   return "WATCH";
-}
-
-/**
- * Licences.
- * ATTENTION: any licence has expired.
- * WATCH: any expires within the warning period (60 days).
- * NONE: the outlet has no licences on file.
- */
-export function licenceLevel(facts: MonitoringLicenceFacts): MonitoringLevel {
-  if (facts.expired > 0) return "ATTENTION";
-  if (facts.expiring > 0) return "WATCH";
-  return facts.total === 0 ? "NONE" : "OK";
 }
 
 /**
@@ -327,12 +270,6 @@ export function overallLevel(levels: readonly MonitoringLevel[]): MonitoringLeve
 
 // ───────────────────────── What the endpoint returns ─────────────────────────
 
-export interface MonitoringChecklistsDto extends MonitoringChecklistFacts {
-  level: MonitoringLevel;
-  /** Share handed in, as a whole number out of 100; `null` when none fell due. */
-  percent: number | null;
-}
-
 /** One unresolved issue, for the link to where it is answered. */
 export interface MonitoringIssueItemDto {
   id: string;
@@ -348,23 +285,6 @@ export interface MonitoringIssuesDto extends MonitoringIssueFacts {
   level: MonitoringLevel;
   /** The unresolved issues, oldest first. */
   items: MonitoringIssueItemDto[];
-}
-
-export interface MonitoringLicenceItemDto {
-  id: string;
-  type: LicenceType;
-  name: string | null;
-  /** YYYY-MM-DD */
-  expiresOn: string;
-  /** Negative once expired. */
-  daysLeft: number;
-  state: LicenceState;
-}
-
-export interface MonitoringLicencesDto extends MonitoringLicenceFacts {
-  level: MonitoringLevel;
-  /** The licences expired or expiring, soonest first. */
-  items: MonitoringLicenceItemDto[];
 }
 
 /** Why a visit is on the board. */
@@ -458,9 +378,7 @@ export interface MonitoringOutletDto {
   /** The areas that need attention, and those worth watching. */
   attention: MonitoringArea[];
   watch: MonitoringArea[];
-  checklists: MonitoringChecklistsDto;
   issues: MonitoringIssuesDto;
-  licences: MonitoringLicencesDto;
   visits: MonitoringVisitsDto;
   inspections: MonitoringInspectionsDto;
   score: MonitoringScoreDto;
@@ -481,7 +399,7 @@ export interface MonitoringTotalsDto {
 export interface MonitoringBoardDto {
   /** Today in India, YYYY-MM-DD. */
   date: string;
-  /** The period the checklist and rating figures cover, both days included. */
+  /** The period the rating and photo figures cover, both days included. */
   from: string;
   to: string;
   days: number;

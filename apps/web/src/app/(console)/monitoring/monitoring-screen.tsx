@@ -7,7 +7,6 @@ import {
   MONITORING_RULES,
   type InspectionGrade,
   type IssueCategory,
-  type LicenceType,
   type MonitoringArea,
   type MonitoringBoardDto,
   type MonitoringInspectionProblem,
@@ -45,9 +44,7 @@ const LEVEL: Record<MonitoringLevel, { label: string; mark: string; markStyle: s
 };
 
 const AREA: Record<MonitoringArea, string> = {
-  checklists: "Checklists",
   issues: "Issues",
-  licences: "Licences",
   visits: "Visits",
   inspections: "Inspections",
   score: "Hygiene score",
@@ -68,14 +65,6 @@ const CATEGORY: Record<IssueCategory, string> = {
   HYGIENE: "Cleaning or hygiene",
   SUPPORT: "Help with the app or service",
   OTHER: "Something else",
-};
-
-const LICENCE: Record<LicenceType, string> = {
-  FSSAI: "FSSAI licence",
-  FIRE_NOC: "Fire NOC",
-  TRADE_LICENCE: "Trade licence",
-  PEST_CONTROL: "Pest control contract",
-  OTHER: "Licence",
 };
 
 const INSPECTION_PROBLEM: Record<MonitoringInspectionProblem, string> = {
@@ -114,14 +103,6 @@ function visitProblem(problem: MonitoringVisitProblem, visit: MonitoringVisitIte
  */
 function cellText(outlet: MonitoringOutletDto, area: MonitoringArea): { main: string; more: string[] } {
   switch (area) {
-    case "checklists": {
-      const c = outlet.checklists;
-      if (c.due === 0) return { main: "None due", more: [] };
-      return {
-        main: `${c.submitted} of ${c.due} handed in`,
-        more: [c.missed > 0 && `${c.missed} missed`, c.late > 0 && `${c.late} late`, c.withProblems > 0 && `${c.withProblems} with problems`].filter(isText),
-      };
-    }
     case "issues": {
       const i = outlet.issues;
       if (i.unresolved === 0) return { main: "None open", more: [] };
@@ -132,16 +113,6 @@ function cellText(outlet: MonitoringOutletDto, area: MonitoringArea): { main: st
           i.oldestUnresolvedDays !== null && i.oldestUnresolvedDays > 0 && `oldest ${count(i.oldestUnresolvedDays, "day")}`,
         ].filter(isText),
       };
-    }
-    case "licences": {
-      const l = outlet.licences;
-      if (l.total === 0) return { main: "None on file", more: [] };
-      if (l.expired > 0) return { main: `${l.expired} expired`, more: l.expiring > 0 ? [`${l.expiring} expiring`] : [] };
-      if (l.expiring > 0) {
-        const soonest = Math.min(...l.items.map((licence) => licence.daysLeft));
-        return { main: `${l.expiring} expiring`, more: [soonest === 0 ? "soonest today" : `soonest in ${count(soonest, "day")}`] };
-      }
-      return { main: "All valid", more: [] };
     }
     case "visits": {
       const v = outlet.visits;
@@ -211,9 +182,7 @@ const LEVEL_ORDER: Record<MonitoringLevel, number> = { ATTENTION: 0, WATCH: 1, O
 
 /** Within the same level, which outlet is worse in an area: the bigger number comes first. */
 const SEVERITY: Record<MonitoringArea, (outlet: MonitoringOutletDto) => number> = {
-  checklists: (o) => 100 - (o.checklists.percent ?? 100),
   issues: (o) => (o.issues.oldestUnresolvedDays ?? -1) + o.issues.unresolved / 100,
-  licences: (o) => o.licences.expired * 100 + o.licences.expiring,
   visits: (o) => o.visits.overdue * 100 + o.visits.items.length,
   inspections: (o) => 100 - (o.inspections.latest?.score ?? 100),
   score: (o) => 100 - (o.score.score ?? 100),
@@ -256,7 +225,7 @@ function LevelBadge({ level }: { level: MonitoringLevel }) {
   );
 }
 
-/** "Needs attention: Issues, Licences. Watch: Checklists." */
+/** "Needs attention: Issues, Visits. Watch: Inspections." */
 function reasons(outlet: MonitoringOutletDto) {
   const names = (areas: MonitoringArea[]) => areas.map((area) => AREA[area]).join(", ");
   return [
@@ -306,9 +275,11 @@ function CountTile({
  * The monitoring board: every client outlet at a glance, worst first, so the
  * office knows whom to call today. A strip of counts at the top doubles as
  * filters; under it a table has one row per outlet and one column per area
- * (checklists, issues, licences, visits, inspections, hygiene score). Choosing
- * an outlet opens what is behind its numbers, each problem with a link to the
- * page where it is dealt with. Nothing is changed from here.
+ * ECCS acts on (issues, visits, inspections, hygiene score, photos). The
+ * restaurant's own checklists and licences are not on it (the founder, 20 Oct
+ * 2026: "what will we do by watching that"); they count in the hygiene score.
+ * Choosing an outlet opens what is behind its numbers, each problem with a
+ * link to the page where it is dealt with. Nothing is changed from here.
  *
  * What is being looked at lives in the web address: `days=` for how far back,
  * `show=` for the filter, `q=` for the search, `sort=` and `dir=` for the
@@ -419,7 +390,7 @@ export default function MonitoringScreen() {
         description={
           <>
             {admin ? "Every client outlet" : "The outlets you work at"}, worst first: who is falling behind, and on what.
-            {board && ` Checklists and ratings cover ${shortDay(board.from)} to ${shortDay(board.to)}; everything else is as it stands now.`}
+            {board && ` Ratings and photos cover ${shortDay(board.from)} to ${shortDay(board.to)}; everything else is as it stands now.`}
           </>
         }
         secondary={
@@ -475,7 +446,7 @@ export default function MonitoringScreen() {
             wrapperClassName="w-full sm:w-72"
           />
           <ToggleGroup
-            label="How far back checklists and ratings are counted"
+            label="How far back ratings and photos are counted"
             value={days as (typeof PERIODS)[number]}
             options={PERIODS.map((value) => ({ value, label: `Last ${value} days` }))}
             onChange={(value) => query.set({ days: value === String(MONITORING_DEFAULT_DAYS) ? null : value }, "replace")}
@@ -647,19 +618,11 @@ function Rules() {
         been recorded yet. An outlet is as bad as its worst area.
       </p>
       <dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-[10rem_1fr]">
-        <dt className="font-semibold">Checklists</dt>
-        <dd>
-          Needs attention when fewer than {r.checklists.attentionBelowPercent}% of the daily checklists due in the period were handed in. Watch
-          when fewer than {r.checklists.watchBelowPercent}% were, or any was handed in late. Problems a restaurant notes on its own checklists
-          are counted but do not change the mark.
-        </dd>
         <dt className="font-semibold">Issues</dt>
         <dd>
           Needs attention when an issue has waited more than {r.issues.notStartedAttentionDays} days without ECCS picking it up, or is still
           unresolved after more than {r.issues.unresolvedAttentionDays} days. Watch while any issue is unresolved.
         </dd>
-        <dt className="font-semibold">Licences</dt>
-        <dd>Needs attention when a licence has expired. Watch when one expires within {r.licences.expiringWithinDays} days.</dd>
         <dt className="font-semibold">Visits</dt>
         <dd>
           Needs attention when a visit is overdue, a visit due within {r.visits.unassignedAttentionWithinDays} days has no Supervisor, a finished
@@ -676,7 +639,8 @@ function Rules() {
         <dt className="font-semibold">Hygiene score</dt>
         <dd>
           Needs attention when the score is below {r.score.attentionBelow}, or has fallen {r.score.attentionDrop} points or more in about a week.
-          Watch when it is below {r.score.watchBelow}, or has fallen {r.score.watchDrop} points or more.
+          Watch when it is below {r.score.watchBelow}, or has fallen {r.score.watchDrop} points or more. The restaurant&apos;s own daily
+          checklists and licences are not on this board; they count in this score.
         </dd>
         <dt className="font-semibold">Photos</dt>
         <dd>
@@ -723,7 +687,7 @@ const photoSubject = (what: PhotoSubjectDto) =>
  * the console links to the page where that is done; the rest say whom to call.
  */
 function OutletDetail({ outlet, admin, days }: { outlet: MonitoringOutletDto; admin: boolean; days: number }) {
-  const { checklists, issues, licences, visits, inspections, score, photos } = outlet;
+  const { issues, visits, inspections, score, photos } = outlet;
   return (
     <Card className="flex flex-col gap-4">
       <div>
@@ -734,14 +698,6 @@ function OutletDetail({ outlet, admin, days }: { outlet: MonitoringOutletDto; ad
         <p className="text-sm text-muted">{outlet.plan ? `On the ${english(outlet.plan.name)} plan` : "Not on a plan"}</p>
         <p className="mt-1 text-sm">{reasons(outlet) || "Nothing to do here today."}</p>
       </div>
-
-      <AreaSection outlet={outlet} area="checklists">
-        <p className="mt-1 text-sm text-muted">
-          The restaurant&apos;s own daily checklists over the last {count(days, "day")}.
-          {checklists.overdueNow > 0 && ` ${count(checklists.overdueNow, "checklist")} due today ${checklists.overdueNow === 1 ? "is" : "are"} past the time and not handed in.`}
-          {checklists.missed > 0 && " There is nothing to do in the console: call the Manager or Owner."}
-        </p>
-      </AreaSection>
 
       <AreaSection outlet={outlet} area="issues">
         {issues.items.length > 0 && (
@@ -757,28 +713,6 @@ function OutletDetail({ outlet, admin, days }: { outlet: MonitoringOutletDto; ad
             ))}
           </ul>
         )}
-      </AreaSection>
-
-      <AreaSection outlet={outlet} area="licences">
-        {licences.items.length > 0 && (
-          <ul className="mt-2 flex flex-col gap-1 text-sm">
-            {licences.items.map((licence) => (
-              <li key={licence.id}>
-                {licence.name ?? LICENCE[licence.type]} ·{" "}
-                {licence.daysLeft < 0
-                  ? `expired ${count(-licence.daysLeft, "day")} ago (${longDay(licence.expiresOn)})`
-                  : licence.daysLeft === 0
-                    ? "expires today"
-                    : `expires in ${count(licence.daysLeft, "day")} (${longDay(licence.expiresOn)})`}
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="mt-2 text-sm">
-          <Link href={`/licences?outlet=${outlet.outletId}`} className={LINK_STYLE}>
-            Open this outlet&apos;s licences
-          </Link>
-        </p>
       </AreaSection>
 
       <AreaSection outlet={outlet} area="visits">

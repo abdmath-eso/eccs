@@ -12,7 +12,7 @@ import { describe, english, longDay as day, matchesSearch } from "@/lib/format";
 import { useQuery, useQueryField } from "@/lib/query";
 import { useSession } from "@/lib/session";
 
-// The same words and outlines as on the Licences page. Each state has its own
+// The same words and outlines the app's licences use. Each state has its own
 // mark as well as its colour, so the table reads the same in black and white.
 const STATE: Record<CertificateState, { label: string; mark: string; style: string }> = {
   VALID: { label: "Valid", mark: "✓", style: "border-primary text-primary" },

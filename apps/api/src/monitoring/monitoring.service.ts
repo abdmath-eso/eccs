@@ -1,12 +1,10 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import {
   accessScope,
-  checklistLevel,
   INSPECTION_GRADES,
   inspectionLevel,
   isEccsRole,
   issueLevel,
-  licenceLevel,
   MONITORING_AREAS,
   MONITORING_DEFAULT_DAYS,
   MONITORING_MAX_DAYS,
@@ -20,13 +18,11 @@ import {
   type LocalizedText,
   type MonitoringArea,
   type MonitoringBoardDto,
-  type MonitoringChecklistsDto,
   type MonitoringInspectionItemDto,
   type MonitoringInspectionProblem,
   type MonitoringInspectionsDto,
   type MonitoringIssuesDto,
   type MonitoringLevel,
-  type MonitoringLicencesDto,
   type MonitoringOutletDto,
   type MonitoringPhotosDto,
   type MonitoringScoreDto,
@@ -36,7 +32,7 @@ import {
   type MonitoringVisitsDto,
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
-import { indiaDate, indiaTime } from '../checklists/checklists.service.js';
+import { indiaDate } from '../checklists/checklists.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EVIDENCE_WHERE } from '../storage/photo-integrity.service.js';
 
@@ -69,9 +65,10 @@ const LEVEL_ORDER: Record<MonitoringLevel, number> = { ATTENTION: 0, WATCH: 1, O
 
 /**
  * The ECCS monitoring board: every outlet the person may see, with the facts
- * for each area (checklists, issues, licences, visits, inspections, hygiene
- * score) and a judgement of each. It only reads; the rules and thresholds are
- * in packages/shared/src/monitoring.ts.
+ * for each area ECCS acts on (issues, visits, inspections, hygiene score, proof
+ * photos) and a judgement of each. The restaurant's own checklists and licences
+ * are not on it (20 Oct 2026); they count in the hygiene score. It only reads;
+ * the rules and thresholds are in packages/shared/src/monitoring.ts.
  *
  * Each area is fetched with one query covering all the outlets, and the rows
  * are sorted into outlets here, so the cost does not grow with the number of
@@ -99,7 +96,6 @@ export class MonitoringService {
     const days = Math.min(Math.max(Math.trunc(askedDays ?? MONITORING_DEFAULT_DAYS) || MONITORING_DEFAULT_DAYS, 1), MONITORING_MAX_DAYS);
     const now = new Date();
     const today = indiaDate(now);
-    const timeNow = indiaTime(now);
     const from = shiftDate(today, -(days - 1));
 
     const outlets = await this.db.outlet.findMany({
@@ -122,39 +118,12 @@ export class MonitoringService {
     });
     const ids = outlets.map((outlet) => outlet.id);
     const inOutlets = { outletId: { in: ids } };
-    const period = { gte: toDbDate(from), lte: toDbDate(today) };
 
-    const [lists, runs, runsWithProblems, issues, licences, jobs, ratings, inspections, scores] = await Promise.all([
-      // The daily checklists each outlet is meant to fill in.
-      this.db.outletChecklist.findMany({
-        where: { ...inOutlets, isActive: true, template: { kind: 'DAILY', isActive: true } },
-        select: {
-          id: true,
-          outletId: true,
-          dueTime: true,
-          createdAt: true,
-          template: { select: { items: { where: { isActive: true }, select: { outletId: true } } } },
-        },
-      }),
-      this.db.checklistRun.findMany({
-        where: { ...inOutlets, date: period, status: 'SUBMITTED' },
-        select: { id: true, outletChecklistId: true, date: true, submittedAt: true },
-      }),
-      // Which of those had an item reported as a problem. Only the fact is read, never what the problem was:
-      // checklist problems are the restaurant's own business.
-      this.db.checklistResponse.groupBy({
-        by: ['runId'],
-        where: { passed: false, run: { ...inOutlets, date: period, status: 'SUBMITTED' } },
-      }),
+    const [issues, jobs, ratings, inspections, scores] = await Promise.all([
       this.db.issue.findMany({
         where: { ...inOutlets, status: { in: ['OPEN', 'IN_PROGRESS'] } },
         select: { id: true, reference: true, outletId: true, status: true, category: true, createdAt: true },
         orderBy: { createdAt: 'asc' },
-      }),
-      this.db.licence.findMany({
-        where: inOutlets,
-        select: { id: true, outletId: true, type: true, name: true, expiresOn: true },
-        orderBy: { expiresOn: 'asc' },
       }),
       // Every visit not yet finished with: still to do, under way, waiting for sign-off, or waiting for ECCS's approval.
       this.db.job.findMany({
@@ -265,55 +234,13 @@ export class MonitoringService {
       select: { inspectionId: true, dueDate: true },
     });
 
-    const listsBy = byOutlet(lists);
-    const submittedRuns = new Map(runs.map((run) => [`${run.outletChecklistId} ${fromDbDate(run.date)}`, run]));
-    const problemRuns = new Set(runsWithProblems.map((row) => row.runId));
     const issuesBy = byOutlet(issues);
-    const licencesBy = byOutlet(licences);
     const jobsBy = byOutlet(jobs);
     const ratingsBy = byOutlet(ratings.map((row) => ({ outletId: row.job.outletId, rating: row.rating!, job: row.job })));
     const inspectionsBy = byOutlet(inspections);
     const scoresBy = byOutlet(scores);
 
-    const periodDates: string[] = [];
-    for (let date = from; date <= today; date = shiftDate(date, 1)) periodDates.push(date);
-
     // ───────────────────────── One area at a time ─────────────────────────
-
-    const checklistsFor = (outletId: string): MonitoringChecklistsDto => {
-      const facts = { due: 0, submitted: 0, missed: 0, late: 0, withProblems: 0, overdueNow: 0 };
-      for (const list of listsBy.get(outletId) ?? []) {
-        // A checklist with no items yet is not handed out to staff, so it cannot be missed.
-        if (!list.template.items.some((item) => item.outletId === null || item.outletId === outletId)) continue;
-        const since = indiaDate(list.createdAt);
-        for (const date of periodDates) {
-          if (date < since) continue;
-          const run = submittedRuns.get(`${list.id} ${date}`);
-          if (run) {
-            facts.due += 1;
-            facts.submitted += 1;
-            // Late: handed in on a later day, or the same day after the due time.
-            const at = run.submittedAt ?? toDbDate(date);
-            const day = indiaDate(at);
-            if (day > date || (day === date && list.dueTime !== null && indiaTime(at) > list.dueTime)) facts.late += 1;
-            if (problemRuns.has(run.id)) facts.withProblems += 1;
-          } else if (date < today) {
-            facts.due += 1;
-            facts.missed += 1;
-          } else if (list.dueTime !== null && timeNow > list.dueTime) {
-            // Today's checklist only counts against the outlet once its time has passed.
-            facts.due += 1;
-            facts.missed += 1;
-            facts.overdueNow += 1;
-          }
-        }
-      }
-      return {
-        ...facts,
-        percent: facts.due > 0 ? Math.round((facts.submitted / facts.due) * 100) : null,
-        level: checklistLevel(facts),
-      };
-    };
 
     const issuesFor = (outletId: string): MonitoringIssuesDto => {
       const items = (issuesBy.get(outletId) ?? []).map((issue) => ({
@@ -332,26 +259,6 @@ export class MonitoringService {
         oldestUnresolvedDays: oldest(items),
       };
       return { ...facts, items, level: issueLevel(facts) };
-    };
-
-    const licencesFor = (outletId: string): MonitoringLicencesDto => {
-      const all = (licencesBy.get(outletId) ?? []).map((licence) => {
-        const daysLeft = daysBetween(today, fromDbDate(licence.expiresOn));
-        return {
-          id: licence.id,
-          type: licence.type,
-          name: licence.name,
-          expiresOn: fromDbDate(licence.expiresOn),
-          daysLeft,
-          state: daysLeft < 0 ? ('EXPIRED' as const) : daysLeft <= MONITORING_RULES.licences.expiringWithinDays ? ('EXPIRING' as const) : ('VALID' as const),
-        };
-      });
-      const facts = {
-        total: all.length,
-        expired: all.filter((licence) => licence.state === 'EXPIRED').length,
-        expiring: all.filter((licence) => licence.state === 'EXPIRING').length,
-      };
-      return { ...facts, items: all.filter((licence) => licence.state !== 'VALID'), level: licenceLevel(facts) };
     };
 
     const visitsFor = (outletId: string): MonitoringVisitsDto => {
@@ -528,9 +435,7 @@ export class MonitoringService {
 
     const rows: MonitoringOutletDto[] = outlets.map((outlet) => {
       const areas = {
-        checklists: checklistsFor(outlet.id),
         issues: issuesFor(outlet.id),
-        licences: licencesFor(outlet.id),
         visits: visitsFor(outlet.id),
         inspections: inspectionsFor(outlet.id),
         score: scoreFor(outlet.id),

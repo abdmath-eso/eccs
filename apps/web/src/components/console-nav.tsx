@@ -20,7 +20,6 @@ import {
   InvoicesIcon,
   IssuesIcon,
   JoiningIcon,
-  LicencesIcon,
   LogsIcon,
   MenuIcon,
   MonitoringIcon,
@@ -73,7 +72,7 @@ const GROUPS: readonly { label: string; items: readonly NavItem[] }[] = [
     items: [
       { href: "/", label: "Clients", icon: <ClientsIcon />, needs: (m) => can(m, "clients", "create") },
       { href: "/invoices", label: "Invoices", icon: <InvoicesIcon />, count: "invoices", waiting: "overdue", needs: (m) => can(m, "invoices", "update") },
-      { href: "/licences", label: "Licences", icon: <LicencesIcon />, count: "licences", waiting: "expired or expiring", needs: (m) => can(m, "licences", "read") },
+      // No Licences page since 20 Oct 2026: licences are the restaurant's own, kept in its app (the founder: "we don't need that").
       { href: "/certificates", label: "Certificates", icon: <CertificatesIcon />, needs: (m) => can(m, "reports", "read") },
       { href: "/customer-pages", label: "Customer pages", icon: <CustomerPagesIcon />, count: "publicPhotos", waiting: "photos waiting for approval", needs: (m) => can(m, "publicPage", "approve") },
     ],

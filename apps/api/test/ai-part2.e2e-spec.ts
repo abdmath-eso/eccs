@@ -147,8 +147,8 @@ describe('AI features, part 2 (e2e)', () => {
         data: { organizationId: deccan.organizationId, name: 'E2E AI part 2 outlet', code: OUTLET_CODE, address: 'Test Road' },
       })
     ).id;
-    // An expired licence, so the outlet needs attention on the board.
-    await prisma.client.licence.create({ data: { outletId, type: 'FIRE_NOC', expiresOn: new Date(`${daysAhead(-12)}T00:00:00.000Z`) } });
+    // A low hygiene score today, so the outlet needs attention on the board (licences are not on it since 20 Oct 2026).
+    await prisma.client.hygieneScoreSnapshot.create({ data: { outletId, date: dbToday(), score: 40, breakdown: {} } });
 
     superAdmin = await otpLogin(PHONES.superAdmin);
     opsManager = await otpLogin(PHONES.opsManager);
@@ -197,9 +197,10 @@ describe('AI features, part 2 (e2e)', () => {
       const call = callsFor('monitoring-digest')[0]!;
       expect(call.model).toBe('claude-sonnet-5-5');
       const facts = call.facts as { counts: object; outlets: { id: string; level: string; areas: Record<string, object> }[] };
-      // This outlet's expired licence is there, as facts only.
+      // This outlet's low hygiene score is there, as facts only; checklists and licences never are.
       const ours = facts.outlets.find((outlet) => outlet.id === outletId)!;
-      expect(ours).toMatchObject({ level: 'ATTENTION', areas: { licences: { level: 'ATTENTION', expired: 1, licences: [{ type: 'fire NOC', expiredDaysAgo: 12 }] } } });
+      expect(ours).toMatchObject({ level: 'ATTENTION', areas: { score: { level: 'ATTENTION', hygieneScoreOutOf100: 40 } } });
+      expect(call.text).not.toMatch(/"(checklists|licences)"/);
       // Only outlets needing attention or worth watching are described; nothing about people is sent.
       expect(facts.outlets.every((outlet) => outlet.level === 'ATTENTION' || outlet.level === 'WATCH')).toBe(true);
       for (const name of names) expect(call.text).not.toContain(name);
@@ -262,7 +263,7 @@ describe('AI features, part 2 (e2e)', () => {
       // The AI ranks them backwards.
       fake.queue('monitoring-digest', {
         overview: 'Some outlets need attention.',
-        points: [...chosen].reverse().map((id) => ({ outletId: id, text: 'Checklists were missed.' })),
+        points: [...chosen].reverse().map((id) => ({ outletId: id, text: 'A visit is overdue.' })),
       });
       const made = (await digest(superAdmin).expect(200)).body as Digest;
       expect(made.points.map((point) => point.outletId)).toEqual(chosen);

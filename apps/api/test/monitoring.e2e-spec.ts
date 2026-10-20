@@ -6,10 +6,8 @@
 import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import {
-  checklistLevel,
   inspectionLevel,
   issueLevel,
-  licenceLevel,
   overallLevel,
   scoreLevel,
   visitLevel,
@@ -19,7 +17,7 @@ import {
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
-import { indiaDate, indiaTime } from './../src/checklists/checklists.service.js';
+import { indiaDate } from './../src/checklists/checklists.service.js';
 import { env } from './../src/config/env.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
 
@@ -27,7 +25,10 @@ const CODES = { kukatpally: 'DECCA-KP6R3T' };
 const PINS = { owner: '3917', chef: '8264' };
 const PHONES = { admin: '+919000000002', supervisor: '+919000000003' };
 const DEVICE = 'e2e-monitoring';
-/** One outlet with something wrong in every area, and one with nothing recorded at all. */
+/**
+ * One outlet with something wrong in every area, and one with nothing recorded at all. The busy one
+ * also misses checklists and has an expired licence, which the board leaves out (20 Oct 2026).
+ */
 const BUSY_CODE = 'E2EMO-N00001';
 const QUIET_CODE = 'E2EMO-N00002';
 
@@ -38,16 +39,6 @@ const dbDate = (offset: number) => new Date(`${day(offset)}T00:00:00.000Z`);
 const at = (offset: number, time: string) => new Date(`${day(offset)}T${time}:00.000+05:30`);
 
 describe('The rules of the monitoring board', () => {
-  it('judges checklists by the share handed in, and watches late ones', () => {
-    const facts = { due: 10, submitted: 10, missed: 0, late: 0, withProblems: 3, overdueNow: 0 };
-    // Problems reported on a checklist are the restaurant's own business and do not change the level.
-    expect(checklistLevel(facts)).toBe('OK');
-    expect(checklistLevel({ ...facts, late: 1 })).toBe('WATCH');
-    expect(checklistLevel({ ...facts, submitted: 8, missed: 2 })).toBe('WATCH');
-    expect(checklistLevel({ ...facts, submitted: 5, missed: 5 })).toBe('ATTENTION');
-    expect(checklistLevel({ ...facts, due: 0, submitted: 0 })).toBe('NONE');
-  });
-
   it('judges issues by how long they have waited', () => {
     const none = { unresolved: 0, notStarted: 0, oldestNotStartedDays: null, oldestUnresolvedDays: null };
     expect(issueLevel(none)).toBe('OK');
@@ -58,12 +49,7 @@ describe('The rules of the monitoring board', () => {
     expect(issueLevel({ unresolved: 1, notStarted: 0, oldestNotStartedDays: null, oldestUnresolvedDays: 8 })).toBe('ATTENTION');
   });
 
-  it('judges licences, visits, inspections and the score', () => {
-    expect(licenceLevel({ total: 0, expired: 0, expiring: 0 })).toBe('NONE');
-    expect(licenceLevel({ total: 2, expired: 0, expiring: 0 })).toBe('OK');
-    expect(licenceLevel({ total: 2, expired: 0, expiring: 1 })).toBe('WATCH');
-    expect(licenceLevel({ total: 2, expired: 1, expiring: 1 })).toBe('ATTENTION');
-
+  it('judges visits, inspections and the score', () => {
     const calm = {
       overdue: 0,
       unassigned: 0,
@@ -311,39 +297,25 @@ describe('Monitoring board (e2e)', () => {
       watch: counted('WATCH'),
       ok: counted('OK'),
     });
-    expect(all.totals.areas.licences.attention).toBe(all.outlets.filter((outlet) => outlet.attention.includes('licences')).length);
-    expect(all.totals.areas.checklists.watch).toBe(all.outlets.filter((outlet) => outlet.watch.includes('checklists')).length);
+    expect(all.totals.areas.issues.attention).toBe(all.outlets.filter((outlet) => outlet.attention.includes('issues')).length);
+    expect(all.totals.areas.inspections.watch).toBe(all.outlets.filter((outlet) => outlet.watch.includes('inspections')).length);
+    // The restaurant's own checklists and licences are not on the board (20 Oct 2026).
+    expect(Object.keys(all.totals.areas).sort()).toEqual(['inspections', 'issues', 'photos', 'score', 'visits']);
   });
 
   it('reports the numbers and what needs attention for an outlet that is behind on everything', async () => {
     const outlet = find(await board(admin), busyId)!;
-    // After 9 am the second checklist is overdue today as well; before that, today does not count yet.
-    const overdueToday = indiaTime() > '09:00' ? 1 : 0;
 
     expect(outlet).toMatchObject({ outletName: 'E2E monitoring busy outlet', plan: null, level: 'ATTENTION' });
-    expect(outlet.attention).toEqual(['issues', 'licences', 'visits', 'score']);
-    expect(outlet.watch).toEqual(['checklists', 'inspections']);
-
-    expect(outlet.checklists).toEqual({
-      due: 4 + overdueToday,
-      submitted: 3,
-      missed: 1 + overdueToday,
-      late: 2,
-      withProblems: 1,
-      overdueNow: overdueToday,
-      percent: overdueToday ? 60 : 75,
-      level: 'WATCH',
-    });
+    // Its missed checklists and expired licence are its own to deal with, in its app: not on the board.
+    expect(outlet.attention).toEqual(['issues', 'visits', 'score']);
+    expect(outlet.watch).toEqual(['inspections']);
+    expect(outlet).not.toHaveProperty('checklists');
+    expect(outlet).not.toHaveProperty('licences');
 
     expect(outlet.issues).toMatchObject({ unresolved: 1, notStarted: 1, oldestNotStartedDays: 3, oldestUnresolvedDays: 3, level: 'ATTENTION' });
     expect(outlet.issues.items).toEqual([
       expect.objectContaining({ status: 'OPEN', category: 'PEST_SIGHTING', ageDays: 3, reference: expect.stringMatching(/^ECCS-\d{4,}$/) }),
-    ]);
-
-    expect(outlet.licences).toMatchObject({ total: 3, expired: 1, expiring: 1, level: 'ATTENTION' });
-    expect(outlet.licences.items.map((licence) => [licence.type, licence.state, licence.daysLeft])).toEqual([
-      ['FSSAI', 'EXPIRED', -1],
-      ['FIRE_NOC', 'EXPIRING', 30],
     ]);
 
     expect(outlet.visits).toMatchObject({
@@ -385,10 +357,10 @@ describe('Monitoring board (e2e)', () => {
   });
 
   it('looks back only as far as asked', async () => {
-    // One day back is today alone: nothing was handed in today, and only the 9 am checklist can be due yet.
-    const overdueToday = indiaTime() > '09:00' ? 1 : 0;
-    const outlet = find(await board(admin, 1), busyId)!;
-    expect(outlet.checklists).toMatchObject({ due: overdueToday, submitted: 0, late: 0, level: overdueToday ? 'ATTENTION' : 'NONE' });
+    // One day back is today alone.
+    const one = await board(admin, 1);
+    expect(one).toMatchObject({ from: day(0), to: day(0), days: 1 });
+    const outlet = find(one, busyId)!;
     // What is waiting now does not depend on the period.
     expect(outlet.visits.overdue).toBe(1);
     expect((await board(admin, 500)).days).toBe(31);
@@ -397,9 +369,7 @@ describe('Monitoring board (e2e)', () => {
   it('shows an outlet with nothing recorded as having nothing to do, with the score not yet given', async () => {
     const outlet = find(await board(admin), quietId)!;
     expect(outlet).toMatchObject({ level: 'OK', attention: [], watch: [] });
-    expect(outlet.checklists).toMatchObject({ due: 0, percent: null, level: 'NONE' });
     expect(outlet.issues).toMatchObject({ unresolved: 0, level: 'OK', items: [] });
-    expect(outlet.licences).toMatchObject({ total: 0, level: 'NONE' });
     expect(outlet.visits).toMatchObject({ overdue: 0, nextDate: null, ratingAverage: null, level: 'OK', items: [] });
     expect(outlet.inspections).toMatchObject({ latest: null, level: 'NONE' });
     expect(outlet.score).toEqual({ score: null, previous: null, change: null, date: null, previousDate: null, level: 'NONE' });

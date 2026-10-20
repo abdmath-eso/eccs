@@ -293,7 +293,7 @@ export function recordLink(entry: {
   outletId: string | null;
   details: Record<string, unknown> | null;
 }): { href: string; label: string } | null {
-  const { entityType: type, entityId: id, reference, organizationId, outletId } = entry;
+  const { entityType: type, entityId: id, reference, organizationId } = entry;
   const q = (text: string) => encodeURIComponent(text);
   switch (type) {
     case "visit":
@@ -311,7 +311,8 @@ export function recordLink(entry: {
     case "licence":
     case "document":
     case "attachment":
-      return outletId ? { href: `/licences?outlet=${q(outletId)}`, label: "Open the outlet's licences" } : null;
+      // The restaurant's own records: the console has no page for them (its Licences page went on 20 Oct 2026).
+      return null;
     case "certificate":
       return reference ? { href: `/certificates?q=${q(reference)}`, label: "Open the certificate" } : null;
     case "organization":

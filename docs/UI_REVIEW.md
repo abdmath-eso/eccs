@@ -164,7 +164,7 @@ The founder asked for every page of the app to be looked at for misalignment and
 
 ### Proposed, then approved by the founder and built (22 October)
 
-The founder approved all of these on 22 October ("go ahead and fix the alignment issues and all proposals"). They were built by four builders on shared parts, checked by a code review and by a second set of screenshots reviewed screen by screen, then polished (`08626de`, `300e71d` and the polish commit). The numbers V1 to V24 and W1 to W18 belong to this section only; the console section above has its own V and W items.
+The founder approved all of these on 22 October ("go ahead and fix the alignment issues and all proposals"). They were built by four builders on shared parts, checked by a code review and by a second set of screenshots reviewed screen by screen, then polished (`08626de`, `300e71d`, `183e8ca`). The numbers V1 to V24 and W1 to W18 belong to this section only; the console section above has its own V and W items.
 
 
 | # | Where it falls short | Proposal | Status |

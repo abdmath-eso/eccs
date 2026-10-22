@@ -2134,7 +2134,6 @@ export const en = {
   "buddy.homeCard.body": "Book a service, add a check, write an SOP, or ask anything.",
   "buddy.welcome.title": "Hi, I am ECCS Buddy",
   "buddy.welcome.body": "Ask me about the app or your kitchen. I can look up your day and get changes ready for you.",
-  "buddy.welcome.asksFirst": "Nothing changes until you tap to confirm.",
   "buddy.welcome.more": "What Buddy can and cannot do",
   "buddy.welcome.can": "Answers how to do things in the app, and questions on food safety, cleaning, pests and running a kitchen.",
   "buddy.welcome.reads": "Looks up today's checklists, visits, your score, licences, invoices, plan, issues, inspections, SOPs, labels and vendors.",

@@ -376,20 +376,12 @@ export default function BuddyChatScreen() {
 
       {messages.length === 0 && (
         <>
-          <View style={styles.welcome}>
-            {/* Buddy's mascot greets the person, beside the two lines that say what Buddy is. */}
-            <View style={styles.greeting}>
-              <BuddyMascot size={52} />
-              <ThemedText type="default" style={styles.flex}>
-                {t('buddy.welcome.body')}
-              </ThemedText>
-            </View>
-            <View style={styles.answerHead}>
-              <Ionicons name="shield-checkmark-outline" size={18} color={theme.primary} />
-              <ThemedText type="smallBold" style={styles.flex}>
-                {t('buddy.welcome.asksFirst')}
-              </ThemedText>
-            </View>
+          {/* Buddy's mascot greets the person, beside the lines that say what Buddy is. */}
+          <View style={styles.greeting}>
+            <BuddyMascot size={52} />
+            <ThemedText type="default" style={styles.flex}>
+              {t('buddy.welcome.body')}
+            </ThemedText>
           </View>
           {start && start.state === 'ON' && <Starters starters={start.starters} onPick={(words) => void send(words)} disabled={sending} />}
           {!start && !startError && <ActivityIndicator color={theme.primary} />}
@@ -486,7 +478,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   headerButtons: { flexDirection: 'row', alignItems: 'center' },
   headerButton: { width: MinTouchSize, height: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
-  welcome: { gap: Spacing.two },
   greeting: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   answerHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.two },

@@ -35,7 +35,9 @@ export const Colors = {
     onPrimaryContainer: '#B4EDE4',
     backgroundRaised: '#171D20',
     danger: '#FF8A80',
-    warning: '#FBBF24',
+    // Softer than the bright amber used until 22 Oct 2026, which glared on the dark page (Material's
+    // dark theme: avoid saturated colours).
+    warning: '#F2C46D',
     info: '#8AB4F8',
     border: '#333D42',
     outline: '#7D8A91',

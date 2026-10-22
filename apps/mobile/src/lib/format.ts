@@ -18,6 +18,16 @@ const LOCALES: Record<LanguageCode, string> = {
   UR: 'ur-IN-u-nu-latn',
 };
 
+/**
+ * An Indian mobile number as people write it, "+91 90000 00000" (ITU-T E.123 grouping), from
+ * "+919000000000" or "9000000000". Anything else is returned as it is.
+ */
+export function formatPhone(phone: string): string {
+  const digits = phone.replace(/[^d]/g, '');
+  const local = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits.length === 10 ? digits : null;
+  return local ? `+91 ${local.slice(0, 5)} ${local.slice(5)}` : phone;
+}
+
 /** A time's spaces made non-breaking, so "pm" never wraps onto a line of its own. */
 const unbroken = (text: string) => text.replace(/s/g, ' ');
 

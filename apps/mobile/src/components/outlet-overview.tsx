@@ -5,7 +5,7 @@ import { router, type Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { StatusBadge } from '@/components/status-badge';
-import { ThemedText } from '@/components/themed-text';
+import { tallScript, ThemedText } from '@/components/themed-text';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useDirection } from '@/lib/direction';
@@ -54,7 +54,7 @@ export function OutletOverview({ outlet }: { outlet: OutletDashboardDto }) {
       <ThemedText type="subtitle" style={[styles.statValue, { color }]}>
         {value}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.statLabel}>
+      <ThemedText type="small" themeColor="textSecondary" style={[styles.statLabel, tallScript(language) && styles.statLabelTall]}>
         {t(label)}
       </ThemedText>
     </Pressable>
@@ -182,6 +182,8 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 26, lineHeight: 32 },
   // Smaller than other small text: in Tamil or Malayalam these labels run to three lines.
   statLabel: { fontSize: 12, lineHeight: 16 },
+  // Indian scripts are taller: 13 with more room between lines, so stacked letters do not crowd.
+  statLabelTall: { fontSize: 13, lineHeight: 19 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

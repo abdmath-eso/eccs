@@ -47,17 +47,25 @@ export function Button({
 }: ButtonProps) {
   const theme = useTheme();
   const inactive = disabled || loading;
+  // Switched off (not just busy): a neutral grey button with grey words, as Material 3 draws a
+  // disabled button, rather than the button's own colour faded, which in the dark theme looked
+  // like an ordinary button.
+  const off = disabled && !loading;
 
-  const background =
-    variant === 'primary'
+  const background = off
+    ? variant === 'link'
+      ? 'transparent'
+      : theme.backgroundElement
+    : variant === 'primary'
       ? theme.primary
       : variant === 'tonal'
         ? theme.primaryContainer
         : variant === 'link'
           ? 'transparent'
           : theme.backgroundElement;
-  const color =
-    variant === 'primary'
+  const color = off
+    ? theme.textSecondary
+    : variant === 'primary'
       ? theme.onPrimary
       : variant === 'tonal'
         ? theme.onPrimaryContainer
@@ -82,7 +90,7 @@ export function Button({
         variant === 'link' && styles.link,
         align === 'start' && styles.alignStart,
         fill && styles.fill,
-        { backgroundColor: background, opacity: inactive ? 0.5 : pressed ? 0.8 : 1 },
+        { backgroundColor: background, opacity: off ? 0.75 : loading ? 0.7 : pressed ? 0.8 : 1 },
       ]}>
       <View style={[styles.row, align === 'start' && styles.rowStart]}>
         {loading ? <ActivityIndicator color={color} /> : icon ? <Ionicons name={icon} size={22} color={color} /> : null}

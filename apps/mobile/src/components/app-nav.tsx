@@ -7,7 +7,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SideMenu, type MenuItem } from '@/components/side-menu';
-import { ThemedText } from '@/components/themed-text';
+import { tallScript, ThemedText } from '@/components/themed-text';
 import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { isTabRoute, normalizePath, TAB_ROUTES, type TabHref } from '@/lib/navigation';
@@ -102,7 +102,7 @@ export function AppNav() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const { t, api, user, newPin } = useSession();
+  const { t, api, user, newPin, language } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const [photoPath, setPhotoPath] = useState<string | null>(null);
 
@@ -151,7 +151,12 @@ export function AppNav() {
       <ThemedText
         type="small"
         numberOfLines={1}
-        style={[styles.label, { color: selected ? theme.primary : theme.textSecondary }, selected && styles.selected]}>
+        style={[
+          styles.label,
+          tallScript(language) && styles.labelTall,
+          { color: selected ? theme.primary : theme.textSecondary },
+          selected && styles.selected,
+        ]}>
         {label}
       </ThemedText>
     </Pressable>
@@ -203,5 +208,7 @@ const styles = StyleSheet.create({
   item: { flex: 1, minHeight: MinTouchSize + Spacing.three, alignItems: 'center', justifyContent: 'center', gap: Spacing.half },
   pill: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.half, borderRadius: Spacing.three },
   label: { fontSize: 12, lineHeight: 16, textAlign: 'center' },
+  // Indian scripts are taller: more room between lines so stacked letters are not clipped.
+  labelTall: { lineHeight: 19 },
   selected: { fontWeight: 700 },
 });

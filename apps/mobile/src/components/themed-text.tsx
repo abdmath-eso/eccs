@@ -11,9 +11,18 @@ export type ThemedTextProps = TextProps & {
   themeColor?: ThemeColor;
 };
 
+/**
+ * Every language but English is written here in an Indian script or in Urdu: taller letters that
+ * need more room between lines (Material's language support: "tall" scripts get more line
+ * height), and fonts with no medium weight, so a medium line came out half regular (the script)
+ * and half medium (digits and names). In those languages body text is regular, with more room.
+ */
+export const tallScript = (language: string) => language !== 'EN';
+
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
   const { language } = useSession();
+  const tall = tallScript(language);
 
   return (
     <Text
@@ -22,9 +31,12 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
         // Urdu reads right to left. (The layout around the text is mirrored by `DirectionView`.)
         isRightToLeft(language) && styles.rightToLeft,
         type === 'default' && styles.default,
+        type === 'default' && tall && styles.defaultTall,
         type === 'title' && styles.title,
         type === 'small' && styles.small,
+        type === 'small' && tall && styles.smallTall,
         type === 'smallBold' && styles.smallBold,
+        type === 'smallBold' && tall && styles.smallBoldTall,
         type === 'subtitle' && styles.subtitle,
         type === 'link' && styles.link,
         type === 'linkPrimary' && styles.linkPrimary,
@@ -48,6 +60,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: 700,
   },
+  smallTall: { lineHeight: 22, fontWeight: 400 },
+  smallBoldTall: { lineHeight: 22 },
+  defaultTall: { lineHeight: 26, fontWeight: 400 },
   default: {
     fontSize: 16,
     lineHeight: 24,

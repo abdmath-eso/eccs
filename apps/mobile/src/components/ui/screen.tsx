@@ -6,6 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BuddyButton } from '@/components/buddy-button';
 import { ThemedText } from '@/components/themed-text';
+import { Expandable } from '@/components/ui/expandable';
 import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useDirection } from '@/lib/direction';
@@ -14,9 +15,19 @@ import { KeyboardFooter, KeyboardScrollView, keyboardHandled } from '@/lib/keybo
 import { isTabRoute, normalizePath } from '@/lib/navigation';
 import { useSession } from '@/lib/session';
 
+// About how far the big title and the line under it reach; past this the title shows in the top bar.
+const TITLE_HEIGHT = 48;
+
 interface ScreenProps {
   title?: string;
+  /** One short line under the title, at most. A longer explanation goes in `about`. */
   subtitle?: string;
+  /**
+   * The screen's explanation, for reading once: folded away under "About this screen" at the end
+   * of the screen, so the main part comes first (the founder's rule, 15 Oct 2026; Nielsen Norman
+   * Group on progressive disclosure).
+   */
+  about?: ReactNode;
   /** Shows a back button that returns to the previous screen. */
   back?: boolean;
   /** What the back button says, when "Back" is not specific enough. */
@@ -46,6 +57,7 @@ interface ScreenProps {
 export function Screen({
   title,
   subtitle,
+  about,
   back,
   backLabel,
   onBack,
@@ -81,6 +93,9 @@ export function Screen({
   // Once the body has scrolled, a hairline under the top bar shows where the page goes under it
   // (Material 3's top app bar changes on scroll), so text is not seen sliced in half.
   const [scrolled, setScrolled] = useState(false);
+  // Once the big title has scrolled away, it shows small in the top bar beside the back arrow, so a
+  // long screen still says what it is (Apple's large title; Material 3's top app bar).
+  const [titleGone, setTitleGone] = useState(false);
 
   async function refresh() {
     if (!onRefresh) return;
@@ -108,12 +123,19 @@ export function Screen({
                   onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))}
                   style={styles.back}>
                   <Ionicons name={backIcon} size={24} color={theme.primary} />
-                  <ThemedText type="default" themeColor="primary" numberOfLines={1}>
-                    {backLabel ?? t('common.back')}
-                  </ThemedText>
+                  {!(titleGone && title) && (
+                    <ThemedText type="default" themeColor="primary" numberOfLines={1}>
+                      {backLabel ?? t('common.back')}
+                    </ThemedText>
+                  )}
                 </Pressable>
               ) : (
                 <View />
+              )}
+              {titleGone && title && (
+                <ThemedText type="default" numberOfLines={1} style={styles.barTitle} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  {title}
+                </ThemedText>
               )}
               <View style={styles.headerEnd}>
                 {headerRight}
@@ -131,8 +153,9 @@ export function Screen({
             style={styles.flex}
             contentContainerStyle={styles.content}
             onScroll={(event) => {
-              const now = event.nativeEvent.contentOffset.y > 2;
-              if (now !== scrolled) setScrolled(now);
+              const y = event.nativeEvent.contentOffset.y;
+              if (y > 2 !== scrolled) setScrolled(y > 2);
+              if (y > TITLE_HEIGHT !== titleGone) setTitleGone(y > TITLE_HEIGHT);
             }}
             scrollEventThrottle={32}
             keyboardShouldPersistTaps="handled"
@@ -172,6 +195,11 @@ export function Screen({
               </View>
             )}
             {children}
+            {about && (
+              <Expandable title={t('common.about')} icon="information-circle-outline">
+                {typeof about === 'string' ? <ThemedText type="small">{about}</ThemedText> : about}
+              </Expandable>
+            )}
           </KeyboardScrollView>
           {footer &&
             (stickyFooter ? (
@@ -219,6 +247,7 @@ const styles = StyleSheet.create({
     paddingEnd: Spacing.three,
   },
   heading: { gap: Spacing.one },
+  barTitle: { flex: 1, fontWeight: 700 },
   title: { fontSize: 28, lineHeight: 36 },
   // Buddy's round button draws its picture 12 in from its own edge: pulled out by that much so the
   // picture, not the invisible box, lines up with the content's right edge.

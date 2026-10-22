@@ -402,8 +402,9 @@ export default function VisitScreen() {
 
   /**
    * A task that is only read here (the restaurant's view, and a finished report): a row with a small
-   * icon and thin lines, no box, since it is not something to tap. Before the work an empty circle;
-   * afterwards a tick or a cross, with "Not done" and the reason in words, so it never rests on colour.
+   * icon and thin lines, no box, since it is not something to tap. Before the work a small grey dot,
+   * as in any plain list (an empty circle looked like a box left unticked, 22 Oct 2026); afterwards a
+   * tick or a cross, with "Not done" and the reason in words, so it never rests on colour.
    */
   const readOnlyTask = (task: VisitTaskDto, index: number) => {
     const label = localize(task.label, language);
@@ -413,14 +414,21 @@ export default function VisitScreen() {
       <View
         key={task.itemId}
         style={[styles.readRow, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
-        <Ionicons
-          name={task.done === null ? 'ellipse-outline' : task.done ? 'checkmark-circle' : 'close-circle'}
-          size={20}
-          color={task.done === null ? theme.textSecondary : task.done ? theme.primary : theme.danger}
-          style={styles.readIcon}
-          accessible={task.done === true}
-          accessibilityLabel={task.done === true ? t('visit.done') : undefined}
-        />
+        {task.done === null ? (
+          // In the same 20-wide place as the tick, on the first line's middle.
+          <View style={styles.readDot}>
+            <Ionicons name="ellipse" size={8} color={theme.textSecondary} />
+          </View>
+        ) : (
+          <Ionicons
+            name={task.done ? 'checkmark-circle' : 'close-circle'}
+            size={20}
+            color={task.done ? theme.primary : theme.danger}
+            style={styles.readIcon}
+            accessible={task.done}
+            accessibilityLabel={task.done ? t('visit.done') : undefined}
+          />
+        )}
         <View style={styles.readText}>
           <ThemedText type="default">{label}</ThemedText>
           {task.done === false && (
@@ -675,8 +683,13 @@ export default function VisitScreen() {
 
   // The restaurant reads what the team will do (or did) as a plain list; ECCS staff read a finished
   // report's ticked tasks as one card of rows with lines between them, as the day's sheet lists its visits;
-  // the Supervisor recording the visit gets a card per task, with its Done and Not done.
-  const taskHeading = forRestaurant && !recording ? t(isReport ? 'visit.tasksDone' : 'visit.tasksPlanned') : t('visit.tasks');
+  // the Supervisor recording the visit gets a card per task, with its Done and Not done. A visit whose day passed
+  // without it starting ("Not done"), or one cancelled, will not have a team doing anything: what it covers.
+  const noWork = visitMissed(visit) || visit.status === 'CANCELLED';
+  const taskHeading =
+    forRestaurant && !recording
+      ? t(isReport ? 'visit.tasksDone' : noWork ? 'visit.tasksCovered' : 'visit.tasksPlanned')
+      : t('visit.tasks');
   const tasks = visit.tasks.length > 0 && (
     <>
       <View style={[styles.tasksHeading, styles.sectionGap]}>
@@ -809,7 +822,6 @@ export default function VisitScreen() {
               {map && (
                 // Beside the address, never inside another button: the day's sheet has the same Map.
                 <CompactAction
-                  tonal
                   icon="navigate-outline"
                   label={t('sheet.map')}
                   accessibilityLabel={t('sheet.mapOpen', { outlet: visit.outletName })}
@@ -1106,6 +1118,7 @@ const styles = StyleSheet.create({
   // A task only read: a plain row with a small icon on its first line and a thin line above it.
   readRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingVertical: Spacing.two + Spacing.one },
   readIcon: { marginTop: 2 },
+  readDot: { width: 20, height: 24, alignItems: 'center', justifyContent: 'center' },
   readText: { flex: 1, gap: Spacing.half },
   // ECCS staff's finished report: the rows in one card.
   taskGroup: { borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three },

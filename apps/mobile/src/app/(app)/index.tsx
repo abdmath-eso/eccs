@@ -16,7 +16,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
-import { VisitCard } from '@/components/visit-card';
+import { VisitCard, visitMissed } from '@/components/visit-card';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
@@ -94,27 +94,33 @@ export default function HomeScreen() {
   // they were one list, oldest first, and today's work sat four screens down).
   const todaysVisits = visits?.filter((visit) => visit.date === today) ?? [];
   const earlierVisits = visits?.filter((visit) => visit.date < today) ?? [];
+  // A restaurant's visits the same way round: today's and coming ones first, then a booked visit
+  // whose day passed without it starting, under "Earlier, not done yet" (22 Oct 2026: those came first).
+  const missedVisits = outlet?.visits?.filter((visit) => visitMissed(visit, today)) ?? [];
+  const comingVisits = outlet?.visits?.filter((visit) => !missedVisits.includes(visit)) ?? [];
   const loading = loads && (eccs ? visits : overview) === null && !error;
 
   return (
     <Screen onRefresh={load}>
-      <View style={styles.top}>
-        <View style={styles.header}>
+      <View>
+        <View style={styles.top}>
           {/* The first name only, on one line, as apps greet people ("Hello, Ravi"); the full name is on My profile. */}
           <ThemedText type="subtitle" numberOfLines={1} style={styles.greeting}>
             {t('home.greeting', { name: user.name.trim().split(/\s+/)[0] ?? user.name })}
           </ThemedText>
-          <ThemedText type="default" themeColor="textSecondary">
-            {roleAndPlace}
-          </ThemedText>
+          {/* Top right, where people look for it. It fetches its own number each time Home comes into view. */}
+          <View style={styles.topEnd}>
+            {/* ECCS Buddy, for the Owner and the Manager only (it shows nothing for anyone else): the
+                mascot alone beside the bell, as the greeting needs the width; the card below names it. */}
+            <BuddyButton />
+            <NotificationBell />
+          </View>
         </View>
-        {/* Top right, where people look for it. It fetches its own number each time Home comes into view. */}
-        <View style={styles.topEnd}>
-          {/* ECCS Buddy, for the Owner and the Manager only (it shows nothing for anyone else): the
-              mascot alone beside the bell, as the greeting needs the width; the card below names it. */}
-          <BuddyButton />
-          <NotificationBell />
-        </View>
+        {/* The role and place on a line of their own, the page's full width, so a long one ("యజమాని · Spice
+            Route Kitchens") never wraps in the narrow column beside the two icons (22 Oct 2026). */}
+        <ThemedText type="default" themeColor="textSecondary">
+          {roleAndPlace}
+        </ThemedText>
       </View>
 
       <ErrorText message={error} onRetry={() => void load()} />
@@ -174,7 +180,16 @@ export default function HomeScreen() {
                       {t('dash.noVisits')}
                     </ThemedText>
                   )}
-                  {outlet.visits.map((visit) => (
+                  {comingVisits.map((visit) => (
+                    <VisitCard key={visit.id} visit={visit} />
+                  ))}
+                  {/* A heading of their own only below others: alone, they sit under "ECCS visits" with their "Not done" label. */}
+                  {missedVisits.length > 0 && comingVisits.length > 0 && (
+                    <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
+                      {t('svc.overdue')}
+                    </ThemedText>
+                  )}
+                  {missedVisits.map((visit) => (
                     <VisitCard key={visit.id} visit={visit} />
                   ))}
                 </>
@@ -186,9 +201,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  top: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
-  header: { flex: 1, gap: Spacing.one, paddingTop: Spacing.two },
-  greeting: { fontSize: 24, lineHeight: 30 },
+  // The greeting beside the two icons, centred on them; the role and place go under the row.
+  top: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  greeting: { flex: 1, fontSize: 24, lineHeight: 30 },
   // The bell draws its picture 12 in from its 52 box: pulled out by that much so the picture lines up
   // with the cards' right edge.
   topEnd: { flexDirection: 'row', alignItems: 'center', marginEnd: -(Spacing.two + Spacing.one) },

@@ -4,9 +4,10 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorText } from '@/components/ui/error-text';
+import { ListRow } from '@/components/ui/list-row';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { MinTouchSize, Spacing } from '@/constants/theme';
@@ -19,7 +20,7 @@ import { BUDDY_RULES } from '@eccs/shared';
 
 /**
  * ECCS Buddy's recent chats, newest first: tap one to carry on, or delete it. Each is removed by
- * itself 30 days after its last message, which the list says once at the top, as chat apps that
+ * itself 30 days after its last message, which "About this screen" says once, as chat apps that
  * keep history for a set time do (ChatGPT's temporary chats, WhatsApp's disappearing messages).
  */
 export default function BuddyChatsScreen() {
@@ -61,36 +62,36 @@ export default function BuddyChatsScreen() {
   }
 
   return (
-    <Screen back title={t('buddy.recent')} subtitle={t('buddy.recent.keep', { days: BUDDY_RULES.keepDays })} onRefresh={load}>
+    <Screen
+      back
+      title={t('buddy.recent')}
+      // When chats are removed is read once, so it is folded away at the end (22 Oct 2026: two lines under the title).
+      about={t('buddy.recent.keep', { days: BUDDY_RULES.keepDays })}
+      onRefresh={load}>
       <ErrorText message={error} onRetry={() => void load()} />
       {chats === null && !error && <ActivityIndicator color={theme.primary} />}
-      {chats?.length === 0 && (
-        <ThemedText type="default" themeColor="textSecondary">
-          {t('buddy.recent.empty')}
-        </ThemedText>
-      )}
-      {/* The rows in one list, so the page's gap between sections does not open up between them. */}
+      {chats?.length === 0 && <EmptyState icon="chatbubbles-outline" title={t('buddy.recent.empty')} body={t('buddy.recent.emptyBody')} />}
+      {/* The app's plain list rows, one list with a thin line between rows. Delete sits beside each row, not
+          inside it: a button inside the row's own button is out of a screen reader's reach on an iPhone. */}
       <View>
-      {chats?.map((chat) => (
-        <View key={chat.id} style={[styles.row, { borderColor: theme.border }]}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.replace({ pathname: '/buddy', params: { chatId: chat.id } })}
-            style={({ pressed }) => [styles.open, pressed && { backgroundColor: theme.backgroundElement }]}>
-            <ThemedText type="default" numberOfLines={2}>
-              {chat.title}
-            </ThemedText>
-            {/* When, and the outlet only when the chats are about more than one. The removal date is said once, at the top. */}
-            <ThemedText type="small" themeColor="textSecondary">
-              {[formatDateTime(chat.updatedAt, language), severalOutlets ? chat.outletName : null].filter(Boolean).join(' · ')}
-            </ThemedText>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={t('buddy.recent.delete')} onPress={() => setDeleting(chat)} style={styles.delete}>
-            {/* Grey on the list; red is kept for the question that confirms it. */}
-            <Ionicons name="trash-outline" size={22} color={theme.textSecondary} />
-          </Pressable>
-        </View>
-      ))}
+        {chats?.map((chat, index) => (
+          <View key={chat.id} style={[styles.row, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
+            <View style={styles.open}>
+              <ListRow
+                title={chat.title}
+                // When, and the outlet only when the chats are about more than one.
+                subtitle={[formatDateTime(chat.updatedAt, language), severalOutlets ? chat.outletName : null].filter(Boolean).join(' · ')}
+                // No arrow: the delete button takes the row's end, as chat apps list past conversations.
+                chevron={false}
+                onPress={() => router.replace({ pathname: '/buddy', params: { chatId: chat.id } })}
+              />
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('buddy.recent.delete')} onPress={() => setDeleting(chat)} style={styles.delete}>
+              {/* Grey on the list; red is kept for the question that confirms it. */}
+              <Ionicons name="trash-outline" size={22} color={theme.textSecondary} />
+            </Pressable>
+          </View>
+        ))}
       </View>
       <ConfirmDialog
         visible={deleting !== null}
@@ -105,7 +106,7 @@ export default function BuddyChatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, gap: Spacing.two },
-  open: { flex: 1, gap: Spacing.half, paddingVertical: Spacing.three, minHeight: MinTouchSize },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  open: { flex: 1 },
   delete: { width: MinTouchSize, height: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
 });

@@ -133,7 +133,19 @@ export default function ReceiptScreen() {
       <Card>
         <View style={styles.box}>
           {row(t('bill.invoice'), ltrText(invoice.number))}
-          {row(t('bill.whatFor'), [name.title, name.detail].filter(Boolean).join(', '))}
+          {/* What it paid for as the invoice shows it: the title, and the plan or the visit's day on a line
+              of its own under it, not run together with a comma (22 Oct 2026). */}
+          <View style={styles.stacked}>
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('bill.whatFor')}
+            </ThemedText>
+            <ThemedText type="default">{name.title}</ThemedText>
+            {name.detail && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {name.detail}
+              </ThemedText>
+            )}
+          </View>
           {row(t('bill.paidBy'), paymentMethod(payment, t))}
           {payment.reference && row(t('bill.referenceLabel'), ltrText(payment.reference))}
           {row(t('bill.paidAt'), formatDateTime(payment.paidAt ?? payment.createdAt, language))}

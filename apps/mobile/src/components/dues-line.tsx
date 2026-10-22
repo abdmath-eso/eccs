@@ -50,7 +50,12 @@ export function DuesLine({ outletId, stamp }: { outletId: string; stamp: number 
   const overdue = dues.overdueCount > 0;
   const color = overdue ? theme.danger : theme.text;
   const title = t('bill.homeDue', { amount: formatMoney(dues.duePaise, language) });
-  const detail = overdue ? t('bill.homeOverdue', { count: dues.oldestOverdueDays }) : t('bill.homeOpen');
+  // "7 days overdue. Open invoices", said as people say it, with "1 day" for one (22 Oct 2026: "Days late: 7").
+  const detail = !overdue
+    ? t('bill.homeOpen')
+    : dues.oldestOverdueDays === 1
+      ? t('bill.homeOverdueOne')
+      : t('bill.homeOverdue', { count: dues.oldestOverdueDays });
 
   return (
     // The shared card, with a red edge while something is overdue.

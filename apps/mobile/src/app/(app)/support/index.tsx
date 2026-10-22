@@ -10,6 +10,7 @@ import { ProofPhoto } from '@/components/proof-photo';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
 import { OutletPicker } from '@/components/ui/outlet-picker';
@@ -305,11 +306,8 @@ export default function RaiseIssueScreen() {
           {t('support.yourIssues')}
         </ThemedText>
       )}
-      {issues?.length === 0 && (
-        <ThemedText type="default" themeColor="textSecondary">
-          {t('support.none')}
-        </ThemedText>
-      )}
+      {/* The app's empty list: a picture and a line, not a bare grey sentence (NN/g on empty states). */}
+      {issues?.length === 0 && <EmptyState icon="chatbubbles-outline" title={t('support.none')} />}
       {issues?.map((issue) => (
         // The shared card, with the arrow that says it opens.
         <Card

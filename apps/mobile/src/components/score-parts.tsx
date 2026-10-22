@@ -13,12 +13,12 @@ import { ActivityIndicator, Pressable, StyleSheet, View, type GestureResponderEv
 import { DirectionView } from '@/components/direction-view';
 import { ScoreExplain } from '@/components/score-explain';
 import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { StatusChip } from '@/components/ui/status-chip';
 import { ErrorText } from '@/components/ui/error-text';
-import { MinTouchSize, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useDirection } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { addDays, formatDayShort } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -116,7 +116,6 @@ export function ScoreHeadline({ score }: { score: HygieneScoreDto }) {
 export function ScoreCard({ outletId, stamp }: { outletId: string; stamp: number }) {
   const theme = useTheme();
   const { t, api } = useSession();
-  const { forwardIcon } = useDirection();
   const reasonText = useReasonText();
   const [loaded, setLoaded] = useState<HygieneScoreDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -191,27 +190,26 @@ export function ScoreCard({ outletId, stamp }: { outletId: string; stamp: number
   // "Interactive controls must not be nested"). So the score and its reasons are a tap area for
   // fingers only, and "See how it is worked out" is the button screen readers and keyboards use.
   // The score screen works on one outlet at a time and remembers which.
-  const openBreakdown = {
-    onPress: () => void rememberOutlet(outletId).then(() => router.push('/score')),
-    onPressIn: () => setPressed(true),
-    onPressOut: () => setPressed(false),
-  };
+  const openBreakdown = () => void rememberOutlet(outletId).then(() => router.push('/score'));
   return (
     <Card style={pressed && { backgroundColor: theme.backgroundElement }}>
-      <Pressable accessible={false} focusable={false} style={styles.cardPart} {...openBreakdown}>
+      <Pressable
+        accessible={false}
+        focusable={false}
+        style={styles.cardPart}
+        onPress={openBreakdown}
+        onPressIn={() => setPressed(true)}
+        onPressOut={() => setPressed(false)}>
         {head}
       </Pressable>
       {/* The two links together, one under the other on the same left edge, with no extra gap between
-          them: each is a full-size tap target, so the target itself is the space (Material 3 lists). */}
+          them: each is a full-size tap target, so the target itself is the space (Material 3 lists).
+          Both are the app's one link: a picture, then the words, from the left edge, the same size
+          (22 Oct 2026: one was large with a sparkle, the other small with an arrow at the far edge). */}
       <View>
         {/* "Why this score?" for the Owner and Manager, when AI is on and something is costing points. */}
         <ScoreExplain score={score} />
-        <Pressable accessibilityRole="button" style={styles.more} {...openBreakdown}>
-          <ThemedText type="smallBold" themeColor="primary" style={styles.factorText}>
-            {t('score.seeDetails')}
-          </ThemedText>
-          <Ionicons name={forwardIcon} size={18} color={theme.primary} />
-        </Pressable>
+        <Button variant="link" align="start" icon="stats-chart-outline" label={t('score.seeDetails')} onPress={openBreakdown} />
       </View>
     </Card>
   );
@@ -335,7 +333,6 @@ const styles = StyleSheet.create({
   factor: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one + Spacing.half },
   factorText: { flex: 1 },
   cardPart: { gap: Spacing.two },
-  more: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, minHeight: MinTouchSize },
   trend: { flexDirection: 'row', gap: Spacing.two },
   trendScale: { height: TREND_HEIGHT, justifyContent: 'space-between', alignItems: 'flex-end' },
   trendBody: { flex: 1, gap: Spacing.one },

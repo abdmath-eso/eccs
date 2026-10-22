@@ -214,9 +214,7 @@ export default function SendQuoteScreen() {
           {/* Pressable with nothing chosen: it then says what is missing, rather than sitting greyed out. */}
           <Button icon="logo-whatsapp" label={t('bde.quote.send')} loading={sending} disabled={noSignal} onPress={() => void send()} />
         </>
-      }
-      // How the prices are given, for reading once: the total with GST shows above Send once something is chosen.
-      about={options ? t('bde.quote.beforeGst') : undefined}>
+      }>
       {noSignal && <Notice tone="warning" text={t('bde.quote.needsSignal')} />}
       {plans.length > 0 && (
         <>
@@ -254,6 +252,13 @@ export default function SendQuoteScreen() {
           </ThemedText>
           <View>{services.map(row)}</View>
         </>
+      )}
+      {/* How the prices are given, as a footnote under them rather than folded under "About" (22 Oct 2026): the
+          BDE reads the prices before sending, and the total with GST shows above Send once something is chosen. */}
+      {options && (
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('bde.quote.beforeGst')}
+        </ThemedText>
       )}
     </Screen>
   );

@@ -3,6 +3,8 @@ import type { LanguageCode, MessageKey, Translator } from '@eccs/i18n';
 import type { InvoiceSummaryDto, PaymentDto } from '@eccs/shared';
 import type { ComponentProps } from 'react';
 
+import type { StatusTone } from '@/components/ui/status-chip';
+
 import { addDays, formatDate, indiaToday } from './format';
 
 // What the Invoices screens share: how money is written, the words and icon
@@ -28,15 +30,17 @@ export function formatMoney(paise: number, language: LanguageCode): string {
   }
 }
 
-/** Which colour of the theme a state is drawn in. The icon and the words carry the meaning; the colour only helps. */
-export type Tone = 'danger' | 'warning' | 'primary' | 'textSecondary';
-
 export interface InvoiceState {
   icon: IconName;
-  tone: Tone;
-  /** In words: "Overdue. Days late: 3", "Due today", "To pay by 15 Oct 2026", "Paid". */
+  /** The status label's colour. The icon and the words carry the meaning; the colour only helps. */
+  tone: StatusTone;
+  /** In words: "3 days overdue", "Due today", "To pay by 15 Oct 2026", "Paid". */
   label: string;
 }
+
+/** How late a payment is, as people say it: "1 day overdue", "7 days overdue" (until 22 Oct 2026 "Days late: 7"). */
+export const overdueText = (days: number, t: Translator) =>
+  days === 1 ? t('bill.stateOverdueOne') : t('bill.stateOverdue', { count: days });
 
 /**
  * Where an invoice stands, in words with an icon of its own, never by colour alone. One due today
@@ -44,17 +48,15 @@ export interface InvoiceState {
  * due next month), as billing apps mark what falls due soon between "due" and "overdue".
  */
 export function invoiceState(invoice: InvoiceSummaryDto, t: Translator, language: LanguageCode): InvoiceState {
-  if (invoice.status === 'VOID') return { icon: 'close-circle-outline', tone: 'textSecondary', label: t('bill.stateVoid') };
-  if (invoice.status === 'PAID') return { icon: 'checkmark-circle', tone: 'primary', label: t('bill.statePaid') };
-  if (invoice.overdueDays > 0) {
-    return { icon: 'alert-circle', tone: 'danger', label: t('bill.stateOverdue', { count: invoice.overdueDays }) };
-  }
+  if (invoice.status === 'VOID') return { icon: 'close-circle-outline', tone: 'neutral', label: t('bill.stateVoid') };
+  if (invoice.status === 'PAID') return { icon: 'checkmark-circle', tone: 'good', label: t('bill.statePaid') };
+  if (invoice.overdueDays > 0) return { icon: 'alert-circle', tone: 'bad', label: overdueText(invoice.overdueDays, t) };
   const today = indiaToday();
-  if (invoice.dueDate === today) return { icon: 'time-outline', tone: 'warning', label: t('bill.stateDueToday') };
-  if (invoice.dueDate === addDays(today, 1)) return { icon: 'time-outline', tone: 'warning', label: t('bill.stateDueTomorrow') };
+  if (invoice.dueDate === today) return { icon: 'time-outline', tone: 'warn', label: t('bill.stateDueToday') };
+  if (invoice.dueDate === addDays(today, 1)) return { icon: 'time-outline', tone: 'warn', label: t('bill.stateDueTomorrow') };
   return {
     icon: 'time-outline',
-    tone: invoice.status === 'PARTIALLY_PAID' ? 'warning' : 'textSecondary',
+    tone: invoice.status === 'PARTIALLY_PAID' ? 'warn' : 'neutral',
     label: t(invoice.status === 'PARTIALLY_PAID' ? 'bill.statePartDue' : 'bill.stateDue', {
       date: formatDate(invoice.dueDate, language),
     }),
@@ -88,8 +90,30 @@ export function parseEnglishDay(text: string): string | null {
   return `${found[3]}-${String(month + 1).padStart(2, '0')}-${found[1]!.padStart(2, '0')}`;
 }
 
-/** A plan's cycle as a short range, "15 Oct – 14 Nov 2026": the first year is left out when both days are in one year. */
+/**
+ * A plan's cycle as a short range, "15 Oct – 14 Nov 2026": the first year is left out when both days are
+ * in one year. Written by the language's own rule for a range where the phone has it (Intl's
+ * formatRange), so the two ends follow one pattern: Telugu read "15 అక్టో – 14, నవం 2026" when the ends
+ * were written separately (22 Oct 2026). Otherwise each end is written by itself, as before.
+ */
 export function formatPeriod(from: string, until: string, language: LanguageCode): string {
+  try {
+    const format = new Intl.DateTimeFormat(`${language.toLowerCase()}-IN-u-nu-latn`, {
+      timeZone: 'UTC',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    if (typeof format.formatRange === 'function') {
+      // Kept on one line except after the dash, so no line starts with "–".
+      return format
+        .formatRange(new Date(`${from}T00:00:00Z`), new Date(`${until}T00:00:00Z`))
+        .replace(/\s/g, ' ')
+        .replace(' – ', ' – ');
+    }
+  } catch {
+    // Written end by end, below.
+  }
   let start = formatDate(from, language);
   if (from.slice(0, 4) === until.slice(0, 4)) {
     try {
@@ -111,6 +135,8 @@ export interface InvoiceTitle {
   title: string;
   /** The plan and how often it is invoiced, or the day of the visit. */
   detail: string | null;
+  /** True when the title is the period the invoice covers, so a screen need not say the period again. */
+  isPeriod: boolean;
 }
 
 /**
@@ -128,13 +154,14 @@ export function invoiceTitle(invoice: InvoiceSummaryDto, t: Translator, language
     return {
       title: formatPeriod(invoice.periodStart, invoice.periodEnd, language),
       detail: plan ? t('bill.planLine', { plan: plan[1]!, cycle: t(CYCLE_KEYS[plan[2] as keyof typeof CYCLE_KEYS]) }) : stored,
+      isPeriod: true,
     };
   }
   // "Pest control at Spice Route, Gachibowli, visit on 9 Oct 2026, service report SR-2026-00004"
   const at = invoice.outletName ? stored.indexOf(` at ${invoice.outletName}, visit on `) : -1;
   if (invoice.kind === 'VISIT' && at > 0) {
     const day = parseEnglishDay(stored.slice(at + ` at ${invoice.outletName}`.length));
-    return { title: stored.slice(0, at), detail: day ? t('bill.visitOn', { date: formatDate(day, language) }) : null };
+    return { title: stored.slice(0, at), detail: day ? t('bill.visitOn', { date: formatDate(day, language) }) : null, isPeriod: false };
   }
-  return { title: stored, detail: null };
+  return { title: stored, detail: null, isPeriod: false };
 }

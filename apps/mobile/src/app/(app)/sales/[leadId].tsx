@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { LeadActivityDto, LeadDetailDto } from '@eccs/shared';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState, type ComponentProps } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { HeldNotice, SavedCopyNote } from '@/components/field-sync-parts';
 import { BookCheckDialog, LoseDialog, NextStepDialog, NoteDialog, ParkDialog } from '@/components/lead-dialogs';
@@ -100,7 +100,8 @@ export default function LeadScreen() {
     check: { label: t('bde.step.bookCheck'), icon: 'calendar-outline', run: () => setDialog('check') },
     checkDone: { label: t('bde.step.checkDone'), icon: 'clipboard-outline', run: () => router.push({ pathname: '/sales/check', params: { leadId: lead.id } }) },
     quote: { label: t('bde.step.quote'), icon: 'document-text-outline', run: () => openQuote() },
-    plan: { label: t('bde.action.SEND_PLAN'), icon: 'repeat-outline', run: () => openQuote(true) },
+    // The paper plane of "Send plan" on Home's to-dos, so the step looks the same in both places.
+    plan: { label: t('bde.action.SEND_PLAN'), icon: 'paper-plane-outline', run: () => openQuote(true) },
     next: { label: t('bde.step.next'), icon: 'alarm-outline', run: () => setDialog('next') },
     park: { label: t('bde.step.park'), icon: 'pause-circle-outline', run: () => setDialog('park') },
     lose: { label: t('bde.step.lost'), icon: 'close-circle-outline', run: () => setDialog('lose') },
@@ -203,6 +204,23 @@ export default function LeadScreen() {
       </Card>
 
       <Card>
+        {/* The card's title with "Change" at its end, in the same words and look as the Next step's "Change" above
+            (GOV.UK Design System's summary card: a title, and its Change action on the right). */}
+        <View style={styles.line}>
+          <ThemedText type="smallBold" themeColor="textSecondary" accessibilityRole="header" style={styles.flex}>
+            {t('bde.details')}
+          </ThemedText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('bde.step.edit')}
+            hitSlop={12}
+            onPress={steps.edit.run}
+            style={({ pressed }) => [styles.change, pressed && styles.pressed]}>
+            <ThemedText type="smallBold" themeColor="primary">
+              {t('bde.change')}
+            </ThemedText>
+          </Pressable>
+        </View>
         {details.map(([label, value]) =>
           value ? (
             <View key={label} style={styles.detail}>
@@ -213,7 +231,6 @@ export default function LeadScreen() {
             </View>
           ) : null,
         )}
-        <Button variant="link" align="start" icon="create-outline" label={t('bde.step.edit')} onPress={steps.edit.run} />
       </Card>
 
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
@@ -301,6 +318,9 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   actions: { flexDirection: 'row', gap: Spacing.two },
   line: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  // With the 12 around it, as tall as every tap target in the app.
+  change: { paddingVertical: Spacing.one },
+  pressed: { opacity: 0.7 },
   detail: { gap: Spacing.half },
   sectionGap: { marginTop: Spacing.two },
   entry: { flexDirection: 'row', gap: Spacing.two, borderBottomWidth: 1, paddingBottom: Spacing.two },

@@ -95,7 +95,7 @@ const points = (value: number) => String(Math.round(value * 10) / 10);
  * Material's expansion panels).
  *
  * While the page is off, its main (filled) button is the one that turns it on,
- * and sharing and printing the code are grey until it is on (22 Oct 2026): a
+ * with no switch beside it, and sharing and printing the code are grey until it is on (22 Oct 2026): a
  * screen's strongest button is the next step that makes sense (Material 3's
  * one filled button per screen), and a code that leads nowhere is not it.
  *
@@ -212,7 +212,7 @@ export default function CustomerPageScreen() {
     const preview = page.preview;
     const live = page.state === 'LIVE';
     const stateColor = live ? theme.primary : page.state === 'TAKEN_DOWN' ? theme.warning : theme.textSecondary;
-    // While the page is off, turning it on is the main step: a filled button under the switch says so in words.
+    // While the page is off, turning it on is the main step: a filled button says so in words, in place of the switch.
     const offerOn = page.state === 'OFF' && page.canSwitch;
 
     return (
@@ -224,9 +224,12 @@ export default function CustomerPageScreen() {
             <ThemedText type="default" style={[styles.grow, styles.bold]}>
               {t(`cpage.state.${page.state}`)}
             </ThemedText>
+            {/* While the page is off, the filled button under this row is the one control that turns it on
+                (22 Oct 2026: a switch beside it did the same, two controls for one step); once it is on, the
+                switch is how it is turned off. */}
             {busy === 'switch' ? (
               <ActivityIndicator color={theme.primary} />
-            ) : (
+            ) : offerOn ? null : (
               <Switch
                 accessibilityLabel={t('cpage.switch.label')}
                 value={page.enabled}

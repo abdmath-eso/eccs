@@ -62,14 +62,16 @@ interface VisitCardProps {
 }
 
 /**
- * One service visit in a list. Tapping it opens the visit.
+ * One service visit in a list. Tapping it opens the visit: the whole card, with the arrow at its end.
  *
- * For ECCS staff, who go to the outlet, a Map button sits at the card's end, beside the part that
- * opens the visit and never inside it (a button within a button cannot be pressed on its own on the
- * web, and screen readers merge the two), as on the day's sheet. PATTERN FOLLOWED: Dynamics 365 Field
- * Service's booking tiles, with a directions icon on each tile that opens the phone's maps app
- * (learn.microsoft.com, "Field Service mobile: do work"), and Jobber's visit, with Directions under the
- * client's address (help.getjobber.com).
+ * For ECCS staff, who go to the outlet, a Map button sits in a row of its own under the card's words,
+ * outside the part that opens the visit and never inside it (a button within a button cannot be
+ * pressed on its own on the web, and screen readers merge the two), as on the day's sheet. Under the
+ * words rather than beside them, so the words keep the card's full width (22 Oct 2026: a Map column
+ * beside them broke dates and names onto extra lines). PATTERN FOLLOWED: Material 3's card, with its
+ * actions in a row under the content (m3.material.io, "Cards"), and Jobber's visit, with Directions
+ * under the client's address (help.getjobber.com); Dynamics 365 Field Service's booking tiles also
+ * open the phone's maps app from each visit (learn.microsoft.com, "Field Service mobile: do work").
  */
 export function VisitCard({ visit, showOutlet, mark }: VisitCardProps) {
   const theme = useTheme();
@@ -80,8 +82,11 @@ export function VisitCard({ visit, showOutlet, mark }: VisitCardProps) {
   // ECCS staff have every visit given to them, so "Supervisor assigned" on each one says nothing.
   const quietStatus = showOutlet && !missed && (visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED');
   const when = [formatDayShort(visit.date, language), formatSlot(visit.slot, language, t)].filter(Boolean).join(' · ');
-  // Found by the address: the list's visits do not carry the outlet's saved place.
-  const map = showOutlet ? mapLink({ latitude: null, longitude: null, address: visit.outletAddress }) : null;
+  // Map only on a visit someone will still travel to (booked, given to a Supervisor or under way), as on the
+  // visit itself; not on a finished, cancelled or missed one. Found by the address: the list's visits do not
+  // carry the outlet's saved place.
+  const travel = !missed && (visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED' || visit.status === 'IN_PROGRESS');
+  const map = showOutlet && travel ? mapLink({ latitude: null, longitude: null, address: visit.outletAddress }) : null;
   const open = () => router.push({ pathname: '/services/[visitId]', params: { visitId: visit.id } });
 
   // The words in a column.
@@ -132,14 +137,19 @@ export function VisitCard({ visit, showOutlet, mark }: VisitCardProps) {
     );
   }
 
+  // The words and the arrow open the visit, edge to edge as the plain card does; Map is in its own row under them.
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
-      <View style={styles.row}>
-        <Pressable accessibilityRole="button" onPress={open} style={({ pressed }) => [styles.opens, pressed && styles.pressed]}>
-          {body}
-        </Pressable>
+    <View style={[styles.card, styles.split, { backgroundColor: theme.backgroundElement }]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={open}
+        style={({ pressed }) => [styles.row, styles.opens, pressed && { backgroundColor: theme.backgroundSelected }]}>
+        {body}
+        <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
+      </Pressable>
+      <View style={styles.actions}>
         <CompactAction
-          tonal
+          inline
           icon="navigate-outline"
           label={t('sheet.map')}
           accessibilityLabel={t('sheet.mapOpen', { outlet: visit.outletName })}
@@ -148,8 +158,8 @@ export function VisitCard({ visit, showOutlet, mark }: VisitCardProps) {
             void openInMaps(map).then((opened) => setMapFailed(!opened));
           }}
         />
+        <ErrorText message={mapFailed ? t('vendors.directionsFailed') : null} />
       </View>
-      <ErrorText message={mapFailed ? t('vendors.directionsFailed') : null} />
     </View>
   );
 }
@@ -161,9 +171,12 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     minHeight: MinTouchSize * 1.6,
   },
+  // A card with Map: the part that opens and the row of actions each keep the card's inner space themselves,
+  // so the pressed colour reaches the card's edges.
+  split: { padding: 0, gap: 0, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  opens: { flex: 1 },
-  pressed: { opacity: 0.7 },
+  opens: { padding: Spacing.three, paddingBottom: Spacing.two },
+  actions: { gap: Spacing.two, paddingHorizontal: Spacing.three, paddingBottom: Spacing.three },
   body: { flex: 1, gap: Spacing.two },
   title: { fontWeight: 700, fontSize: 18 },
   place: { gap: Spacing.half },

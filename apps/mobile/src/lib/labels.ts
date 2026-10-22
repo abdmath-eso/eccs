@@ -1,11 +1,15 @@
 import type { LanguageCode, Translator } from '@eccs/i18n';
 import {
+  FOOD_LABEL_RULES,
   formatLabelMoment,
   formatLabelWeekday,
   indiaWeekday,
+  isShelfLifeAllowed,
   shelfLifeParts,
+  toShelfLifeHours,
   type Allergen,
   type LabelPrintData,
+  type ShelfLifeUnit,
   type StorageType,
 } from '@eccs/shared';
 import { isRightToLeft } from '@eccs/i18n';
@@ -30,6 +34,31 @@ export function shelfLifeText(hours: number, t: Translator): string {
   const { value, unit } = shelfLifeParts(hours);
   if (value === 1) return t(unit === 'DAYS' ? 'labels.dayOne' : 'labels.hourOne');
   return t(unit === 'DAYS' ? 'labels.days' : 'labels.hours', { count: value });
+}
+
+/** How long a label keeps, as chosen on a form: one of the common lengths, or "another length" typed as a number. */
+export interface ShelfLifeChoice {
+  /** One of the common lengths, in hours; null while none is chosen. */
+  preset: number | null;
+  /** True when "another length" is chosen, and then `number` and `unit` say it. */
+  other: boolean;
+  number: string;
+  unit: ShelfLifeUnit;
+}
+
+/** The choice a form starts with: nothing for a new label; a saved label's own length, on its button if it has one. */
+export function shelfLifeChoice(hours?: number | null): ShelfLifeChoice {
+  if (hours === undefined || hours === null) return { preset: null, other: false, number: '', unit: 'HOURS' };
+  if ((FOOD_LABEL_RULES.shelfLifePresets as readonly number[]).includes(hours)) return { preset: hours, other: false, number: '', unit: 'HOURS' };
+  const { value, unit } = shelfLifeParts(hours);
+  return { preset: null, other: true, number: String(value), unit };
+}
+
+/** The length chosen, in hours; null while none is chosen or the number typed is not a whole number from an hour to a year. */
+export function chosenHours(choice: ShelfLifeChoice): number | null {
+  const typed = /^\d{1,4}$/.test(choice.number.trim()) ? toShelfLifeHours(Number(choice.number.trim()), choice.unit) : null;
+  const hours = choice.other ? typed : choice.preset;
+  return hours !== null && isShelfLifeAllowed(hours) ? hours : null;
 }
 
 /**

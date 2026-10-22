@@ -46,15 +46,15 @@ export function formatTime(hhmm: string, language: LanguageCode): string {
   }
 }
 
-/** A calendar date such as "2027-03-31" as people read it, e.g. "31 Mar 2027". */
+/** A calendar date such as "2027-03-31" as people read it, e.g. "31 Mar 2027", never split across lines. */
 export function formatDate(isoDate: string, language: LanguageCode): string {
   try {
-    return new Intl.DateTimeFormat(LOCALES[language], {
+    return unbroken(new Intl.DateTimeFormat(LOCALES[language], {
       timeZone: 'UTC',
       day: 'numeric',
       month: 'short',
       year: 'numeric',
-    }).format(new Date(`${isoDate}T00:00:00Z`));
+    }).format(new Date(`${isoDate}T00:00:00Z`)));
   } catch {
     return isoDate;
   }
@@ -75,12 +75,15 @@ export function formatSlot(slot: string | null, language: LanguageCode, t: Trans
 /** A calendar date with a short weekday and no year, e.g. "Thu, 8 Oct". */
 export function formatDayShort(isoDate: string, language: LanguageCode): string {
   try {
-    return new Intl.DateTimeFormat(LOCALES[language], {
-      timeZone: 'UTC',
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    }).format(new Date(`${isoDate}T00:00:00Z`));
+    // Kept on one line: "Mon, 12 / Oct" split across two lines in narrow places (22 Oct 2026).
+    return unbroken(
+      new Intl.DateTimeFormat(LOCALES[language], {
+        timeZone: 'UTC',
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+      }).format(new Date(`${isoDate}T00:00:00Z`)),
+    );
   } catch {
     return isoDate;
   }

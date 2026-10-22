@@ -23,6 +23,7 @@ import { ErrorText } from '@/components/ui/error-text';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
+import { StatusChip, type StatusTone } from '@/components/ui/status-chip';
 import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
@@ -250,21 +251,21 @@ export default function PlanScreen() {
   );
 
   /** Where the plan stands: an icon, the words, and a sentence saying what that means. Never colour alone. */
-  function standing(current: SubscriptionDto): { icon: IconName; color: string; text: string; help: string | null } {
+  function standing(current: SubscriptionDto): { icon: IconName; tone: StatusTone; text: string; help: string | null } {
     const planName = localize(current.plan.name, language);
     if (current.status === 'PAUSED') {
-      return { icon: 'pause-circle', color: theme.warning, text: t('plan.state.PAUSED'), help: t('plan.pausedHelp') };
+      return { icon: 'pause-circle', tone: 'warn', text: t('plan.state.PAUSED'), help: t('plan.pausedHelp') };
     }
     if (current.endsOn) {
       const date = day(current.endsOn);
-      return { icon: 'time', color: theme.warning, text: t('plan.state.ENDING', { date }), help: t('plan.endingHelp', { date }) };
+      return { icon: 'time', tone: 'warn', text: t('plan.state.ENDING', { date }), help: t('plan.endingHelp', { date }) };
     }
     if (current.pendingPlan && current.renewal) {
       const date = day(current.renewal.date);
       const next = localize(current.pendingPlan.name, language);
       return {
         icon: 'swap-horizontal',
-        color: theme.primary,
+        tone: 'good',
         text: t('plan.state.CHANGING', { plan: next, date }),
         help: t('plan.changingHelp', { current: planName, next, date, price: perCycle(current.renewal) }),
       };
@@ -275,9 +276,9 @@ export default function PlanScreen() {
         ? t('plan.edited', { date: day(current.renewal.date), price: perCycle(current.renewal) })
         : null;
     if (current.currentPeriodStart > indiaToday()) {
-      return { icon: 'calendar', color: theme.primary, text: t('plan.state.STARTS', { date: day(current.currentPeriodStart) }), help: edited };
+      return { icon: 'calendar', tone: 'good', text: t('plan.state.STARTS', { date: day(current.currentPeriodStart) }), help: edited };
     }
-    return { icon: 'checkmark-circle', color: theme.primary, text: t('plan.state.ACTIVE'), help: edited };
+    return { icon: 'checkmark-circle', tone: 'good', text: t('plan.state.ACTIVE'), help: edited };
   }
 
   const subscriptionCard = (current: SubscriptionDto) => {
@@ -304,12 +305,8 @@ export default function PlanScreen() {
             <ThemedText type="default" style={styles.cardTitle}>
               {planName}
             </ThemedText>
-            <View style={styles.state}>
-              <Ionicons name={state.icon} size={24} color={state.color} />
-              <ThemedText type="default" style={[styles.stateText, { color: state.color }]}>
-                {state.text}
-              </ThemedText>
-            </View>
+            {/* Where the plan stands, in the app's one status label, as on Licences and the Salary tracker. */}
+            <StatusChip tone={state.tone} icon={state.icon} label={state.text} />
             {state.help && <ThemedText type="default">{state.help}</ThemedText>}
 
             {priceBlock(current)}
@@ -581,8 +578,6 @@ const styles = StyleSheet.create({
   cardBody: { gap: Spacing.three },
   cardTitle: { fontWeight: 700, fontSize: 20, lineHeight: 28 },
   tagRow: { flexDirection: 'row' },
-  state: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  stateText: { flex: 1, fontWeight: 700 },
   priceBlock: { gap: Spacing.half },
   price: { fontWeight: 700, fontSize: 22, lineHeight: 30 },
   lines: { gap: Spacing.two },

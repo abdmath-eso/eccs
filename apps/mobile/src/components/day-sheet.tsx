@@ -152,7 +152,8 @@ export function DaySheet({ sheet, now }: DaySheetProps) {
         </Card>
       )}
 
-      {/* The visits in order. The row opens the visit; Map sits beside it, never inside it. */}
+      {/* The visits in order. The row's words and arrow open the visit; Map sits in its own row under them, never
+          inside the part that opens (as on the visit cards below), so the words keep the row's full width. */}
       <View style={[styles.visits, { borderColor: theme.border }]}>
         {sheet.visits.map((visit, index) => {
           const extra = [
@@ -161,12 +162,16 @@ export function DaySheet({ sheet, now }: DaySheetProps) {
             visit.partnerName ? t('sheet.partner', { name: visit.partnerName }) : null,
           ].filter(Boolean);
           return (
-            <View key={visit.visitId} style={[styles.visit, index > 0 && { borderTopWidth: 1, borderColor: theme.border }]}>
-              <View style={styles.visitRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => openVisit(visit.visitId)}
-                  style={({ pressed }) => [styles.visitText, pressed && styles.pressed]}>
+            <View key={visit.visitId} style={index > 0 && { borderTopWidth: 1, borderColor: theme.border }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => openVisit(visit.visitId)}
+                style={({ pressed }) => [
+                  styles.visitRow,
+                  !!visit.mapUrl && styles.visitRowWithMap,
+                  pressed && { backgroundColor: theme.backgroundElement },
+                ]}>
+                <View style={styles.visitText}>
                   <ThemedText type="smallBold" themeColor="primary">
                     {startWords(visit, language, t)}
                   </ThemedText>
@@ -187,19 +192,23 @@ export function DaySheet({ sheet, now }: DaySheetProps) {
                       {t('sheet.lastNote', { note: visit.lastNote })}
                     </ThemedText>
                   )}
-                </Pressable>
-                {!!visit.mapUrl && (
-                  // Tonal, as on the visit cards below and on the visit itself: Map looks the same wherever it is.
+                </View>
+                {/* The arrow that says the row opens the visit, as on every other row that opens. */}
+                <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
+              </Pressable>
+              {!!visit.mapUrl && (
+                <View style={styles.visitActions}>
+                  {/* The same tonal Map as on the visit cards below and on the visit itself. */}
                   <CompactAction
-                    tonal
+                    inline
                     icon="navigate-outline"
                     label={t('sheet.map')}
                     accessibilityLabel={t('sheet.mapOpen', { outlet: visit.outletName })}
                     onPress={() => void openMap(visit)}
                   />
-                )}
-              </View>
-              <ErrorText message={mapFailed === visit.visitId ? t('vendors.directionsFailed') : null} />
+                  <ErrorText message={mapFailed === visit.visitId ? t('vendors.directionsFailed') : null} />
+                </View>
+              )}
             </View>
           );
         })}
@@ -279,7 +288,6 @@ const styles = StyleSheet.create({
   titles: { gap: Spacing.half },
   flex: { flex: 1 },
   bold: { fontWeight: 700 },
-  pressed: { opacity: 0.7 },
   line: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   // The pin on the address's first line, not halfway down a two-line address.
   addressLine: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
@@ -294,9 +302,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
   },
   visits: { borderWidth: 1, borderRadius: Spacing.three, overflow: 'hidden' },
-  visit: { padding: Spacing.three, gap: Spacing.two },
-  visitRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  visitRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.three },
+  visitRowWithMap: { paddingBottom: Spacing.two },
   visitText: { flex: 1, gap: Spacing.half },
+  visitActions: { gap: Spacing.two, paddingHorizontal: Spacing.three, paddingBottom: Spacing.three },
   carryTop: { marginTop: Spacing.two },
   carryRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, minHeight: MinTouchSize, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   carryText: { flex: 1, gap: Spacing.half },

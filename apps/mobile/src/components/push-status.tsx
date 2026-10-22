@@ -1,25 +1,22 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import type { MessageKey } from '@eccs/i18n';
-import { useEffect, useState, type ComponentProps } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Linking } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Notice, type NoticeTone } from '@/components/ui/notice';
 import { useSnackbar } from '@/components/ui/snackbar';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { syncPush, usePushState, wantPushQuestion, wasPushAsked, type PushState, pushFailure } from '@/lib/push';
 import { useSession } from '@/lib/session';
 
-type IconName = ComponentProps<typeof Ionicons>['name'];
-
-const LINES: Record<Exclude<PushState, 'checking'>, { icon: IconName; text: MessageKey }> = {
-  on: { icon: 'notifications', text: 'push.status.on' },
-  serverOff: { icon: 'notifications-outline', text: 'push.status.serverOff' },
-  off: { icon: 'notifications-off-outline', text: 'push.status.off' },
-  blocked: { icon: 'notifications-off-outline', text: 'push.status.blocked' },
-  failed: { icon: 'alert-circle-outline', text: 'push.status.failed' },
-  unavailable: { icon: 'notifications-off-outline', text: 'push.status.unavailable' },
+// The app's one notice box (22 Oct 2026; it was an outlined box of its own): information when
+// there is simply nothing to show or nothing sent yet, a warning when something stands in the way.
+const LINES: Record<Exclude<PushState, 'checking' | 'on'>, { tone: NoticeTone; text: MessageKey }> = {
+  serverOff: { tone: 'info', text: 'push.status.serverOff' },
+  off: { tone: 'info', text: 'push.status.off' },
+  blocked: { tone: 'warning', text: 'push.status.blocked' },
+  failed: { tone: 'warning', text: 'push.status.failed' },
+  unavailable: { tone: 'info', text: 'push.status.unavailable' },
 };
 
 /**
@@ -29,7 +26,6 @@ const LINES: Record<Exclude<PushState, 'checking'>, { icon: IconName; text: Mess
  * twice, Android stops asking and only the settings can change it).
  */
 export function PushStatus() {
-  const theme = useTheme();
   const notify = useSnackbar();
   const { t, api } = useSession();
   const state = usePushState();
@@ -59,13 +55,7 @@ export function PushStatus() {
   }
 
   return (
-    <View style={[styles.box, { borderColor: theme.outline }]}>
-      <View style={styles.row}>
-        <Ionicons name={line.icon} size={22} color={theme.textSecondary} />
-        <ThemedText type="small" themeColor="textSecondary" style={styles.text}>
-          {t(line.text)}
-        </ThemedText>
-      </View>
+    <Notice tone={line.tone} text={t(line.text)}>
       {state === 'off' && <Button icon="notifications" label={t('push.ask.yes')} onPress={turnOn} loading={busy} />}
       {state === 'failed' && pushFailure() && (
         // The technical reason, as the phone gave it: for whoever is helping to put it right.
@@ -82,12 +72,6 @@ export function PushStatus() {
           onPress={() => void Linking.openSettings().catch(() => undefined)}
         />
       )}
-    </View>
+    </Notice>
   );
 }
-
-const styles = StyleSheet.create({
-  box: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  text: { flex: 1 },
-});

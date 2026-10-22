@@ -203,8 +203,9 @@ export default function HistoryScreen() {
     missed: theme.danger,
     planned: theme.textSecondary,
   };
+  // One of today's past its due time is red, as Home's count and the "Overdue" label are.
   const checklistStatus = (checklist: ChecklistRunSummaryDto): Status =>
-    checklist.status === 'MISSED'
+    checklist.status === 'MISSED' || checklist.isOverdue
       ? 'missed'
       : checklist.problemCount > 0
         ? 'attention'
@@ -481,9 +482,10 @@ export default function HistoryScreen() {
           </ThemedText>
         )}
 
+        {/* Each heading has room above it, as "Coming up" does, so it sits with its own rows. */}
         {selectedDay && selectedDay.checklists.length > 0 && (
           <>
-            <ThemedText type="smallBold" themeColor="textSecondary">
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
               {t('hist.checklists')}
             </ThemedText>
             <View>
@@ -500,7 +502,7 @@ export default function HistoryScreen() {
                     .join(' · ')}
                   below={
                     <>
-                      <StatusBadge status={checklist.status} reviewed={checklist.reviewedAt !== null} />
+                      <StatusBadge status={checklist.status} reviewed={checklist.reviewedAt !== null} overdue={checklist.isOverdue} />
                       {checklist.problemCount > 0 && (
                         <ThemedText type="small" themeColor="danger">
                           {t('checklists.problems', { count: checklist.problemCount })}
@@ -517,7 +519,7 @@ export default function HistoryScreen() {
 
         {selectedDay && selectedDay.visits.length > 0 && (
           <>
-            <ThemedText type="smallBold" themeColor="textSecondary">
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
               {t('hist.services')}
             </ThemedText>
             <View>{selectedDay.visits.map((visit, index) => visitRow(visit, index > 0))}</View>
@@ -526,7 +528,7 @@ export default function HistoryScreen() {
 
         {selectedDay && selectedDay.licences.length > 0 && (
           <>
-            <ThemedText type="smallBold" themeColor="textSecondary">
+            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
               {t('hist.licences')}
             </ThemedText>
             <View>{selectedDay.licences.map((licence, index) => licenceRow(licence, selected, false, index > 0))}</View>

@@ -94,7 +94,7 @@ export default function StarterItemsScreen() {
         </ThemedText>
       )}
 
-      {/* Plain rows with a compact Add at the end, the same width as "Added", so the names keep the
+      {/* Plain rows with a compact Add at the end, at least as wide as "Added", so the names keep the
           row's width and every row lines up (Material's list item with a trailing button). */}
       <View>
         {matching.map((entry, index) => {
@@ -150,9 +150,10 @@ export default function StarterItemsScreen() {
 }
 
 const styles = StyleSheet.create({
-  // "Add" and "Added" take the same room, so the names beside them all end on one line.
+  // "Add" and "Added" take at least the same room, so the names beside them end on one line, and grow
+  // past it rather than break a longer word ("Added" in Telugu or Tamil, 22 Oct 2026).
   action: {
-    width: 104,
+    minWidth: 104,
     minHeight: MinTouchSize - Spacing.two,
     flexDirection: 'row',
     alignItems: 'center',

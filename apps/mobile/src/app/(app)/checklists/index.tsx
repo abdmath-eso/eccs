@@ -75,7 +75,8 @@ export default function ChecklistsScreen() {
     const mine = ++latestLoad.current;
     await checklistCache.load(userId);
     try {
-      const [todayRuns, recent] = await Promise.all([api.checklists.today(outletId), api.checklists.history(outletId, 7)]);
+      // Eight days back counting today, which is left out below: so "Last 7 days" shows seven past days.
+      const [todayRuns, recent] = await Promise.all([api.checklists.today(outletId), api.checklists.history(outletId, 8)]);
       checklistCache.putToday(outletId, todayRuns, recent);
       outbox.noteReachable(true);
       if (mine === latestLoad.current) setError(null);
@@ -158,17 +159,23 @@ export default function ChecklistsScreen() {
               <ThemedText type="default" style={styles.cardTitle}>
                 {localize(run.title, language)}
               </ThemedText>
-              {/* Red warnings in the corner (the founder's choice, 5 Oct 2026): past its due time, and problems reported inside. */}
-              {run.isOverdue && (
-                <Ionicons name="time-outline" size={26} color={theme.danger} accessibilityLabel={t('checklists.overdue')} />
-              )}
-              {problems > 0 && (
-                <Ionicons
-                  name="alert-circle"
-                  size={26}
-                  color={theme.danger}
-                  accessibilityLabel={t('checklists.hasProblems', { count: problems })}
-                />
+              {/* Red warnings in the corner (the founder's choice, 5 Oct 2026): past its due time, and problems
+                  reported inside. They end in the arrow's column, above it, and the clock is the "Overdue"
+                  label's own alarm clock, so one card does not show two different clocks (22 Oct 2026). */}
+              {(run.isOverdue || problems > 0) && (
+                <View style={styles.corner}>
+                  {run.isOverdue && (
+                    <Ionicons name="alarm-outline" size={CORNER_ICON} color={theme.danger} accessibilityLabel={t('checklists.overdue')} />
+                  )}
+                  {problems > 0 && (
+                    <Ionicons
+                      name="alert-circle"
+                      size={CORNER_ICON}
+                      color={theme.danger}
+                      accessibilityLabel={t('checklists.hasProblems', { count: problems })}
+                    />
+                  )}
+                </View>
               )}
             </View>
             {/* Not shown as "Submitted" until the server has it: until then nobody else can see it. */}
@@ -279,8 +286,18 @@ export default function ChecklistsScreen() {
   );
 }
 
+// The red warnings' size, and the shared card's arrow (ui/card: 20 wide, a gap of 8 before it).
+const CORNER_ICON = 26;
+const CARD_ARROW = 20;
+
 const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  // Pulled out over the gap into the arrow's column, the last warning centred above the arrow.
+  corner: {
+    flexDirection: 'row',
+    gap: Spacing.one,
+    marginEnd: -(Spacing.two + CARD_ARROW + (CORNER_ICON - CARD_ARROW) / 2),
+  },
   cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },
   sectionGap: { marginTop: Spacing.three },
   // As tall as a shared list row (ui/list-row), so the week reads as one plain list.

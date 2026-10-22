@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
 import { ListRow } from '@/components/ui/list-row';
 import { Screen } from '@/components/ui/screen';
+import { StatusChip } from '@/components/ui/status-chip';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatMoney, invoiceState, invoiceTitle, paymentMethod } from '@/lib/billing';
@@ -84,7 +85,6 @@ export default function InvoiceScreen() {
   }
 
   const state = invoiceState(invoice, t, language);
-  const stateColor = theme[state.tone];
   const owing = invoice.duePaise > 0;
   // The tax rate is written beside each tax when every line is taxed alike, which is the usual case.
   const rates = new Set(invoice.lines.map((line) => line.gstRatePercent));
@@ -172,12 +172,7 @@ export default function InvoiceScreen() {
           <ThemedText type="title" style={styles.total}>
             {formatMoney(owing ? invoice.duePaise : invoice.totalPaise, language)}
           </ThemedText>
-          <View style={styles.stateRow}>
-            <Ionicons name={state.icon} size={24} color={stateColor} />
-            <ThemedText type="smallBold" style={[styles.stateText, { color: stateColor }]}>
-              {state.label}
-            </ThemedText>
-          </View>
+          <StatusChip tone={state.tone} icon={state.icon} label={state.label} />
           {invoice.status === 'VOID' && invoice.voidReason && (
             <ThemedText type="default" themeColor="textSecondary">
               {t('bill.voidReason', { reason: invoice.voidReason })}
@@ -235,8 +230,10 @@ export default function InvoiceScreen() {
       <View style={styles.facts}>
         {row(t('bill.issuedOn'), formatDate(invoice.issueDate, language))}
         {row(t('bill.dueOn'), formatDate(invoice.dueDate, language))}
+        {/* The period only when "What it is for" does not already show it as the line's title. */}
         {invoice.periodStart &&
           invoice.periodEnd &&
+          !name?.isPeriod &&
           row(
             t('bill.period'),
             t('bill.periodDates', {
@@ -283,8 +280,6 @@ const styles = StyleSheet.create({
   sectionGap: { marginTop: Spacing.three, gap: Spacing.two },
   box: { gap: Spacing.one },
   total: { fontSize: 36, lineHeight: 44 },
-  stateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  stateText: { flex: 1 },
   line: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
   lineWords: { flex: 1, gap: Spacing.half },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingVertical: Spacing.half },

@@ -56,8 +56,10 @@ export class CalendarService {
     const first = `${month}-01`;
     const last = `${month}-${String(daysInMonth(month)).padStart(2, '0')}`;
 
-    // Today's checklists exist only once someone has looked at them; make sure they do.
-    if (month === thisMonth) await this.checklists.today(user, outletId);
+    // Today's checklists exist only once someone has looked at them; make sure they do. Today's list
+    // also says which are past their due time, so the calendar says "Overdue" as Home does.
+    const todays = month === thisMonth ? await this.checklists.today(user, outletId) : [];
+    const overdue = new Set(todays.filter((run) => run.isOverdue).map((run) => run.id));
 
     const [runs, jobs, licences, upcoming] = await Promise.all([
       this.checklists.between(user, outletId, first, last),
@@ -80,7 +82,7 @@ export class CalendarService {
       if (!entry) days.set(date, (entry = { date, checklists: [], visits: [], licences: [], holidays: [] }));
       return entry;
     };
-    for (const run of runs) day(run.date).checklists.push(run);
+    for (const run of runs) day(run.date).checklists.push(run.date === today ? { ...run, isOverdue: overdue.has(run.id) } : run);
     for (const job of jobs) day(fromDbDate(job.scheduledDate)).visits.push(toVisit(job, today));
     for (const licence of licences) {
       day(fromDbDate(licence.expiresOn)).licences.push({ id: licence.id, type: licence.type, name: licence.name });

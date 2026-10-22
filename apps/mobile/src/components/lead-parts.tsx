@@ -34,38 +34,40 @@ export function StageTag({ stage, status }: { stage: LeadStage; status: LeadStat
   );
 }
 
-/** A small button for a row: a picture and a word, as tall as every tap target in the app. */
+/**
+ * A small button for a row: a picture and a word, as tall as every tap target in the app. One look
+ * wherever it is (22 Oct 2026): the soft teal of a second action that matters (Material 3's filled
+ * tonal button), for Call and Send on Home's to-dos as for Map, which also has to show on a grey card.
+ * The word sits centred under the picture, also when it wraps onto a second line.
+ */
 export function CompactAction({
   label,
   icon,
   onPress,
-  primary,
-  tonal,
+  inline,
   accessibilityLabel,
 }: {
   label: string;
   icon: IconName;
   onPress: () => void;
-  primary?: boolean;
   /**
-   * The soft teal of a second action that matters (Material 3's filled tonal button): Map beside
-   * a visit, which also has to show on a grey card, where the plain grey button would not.
+   * The picture beside the word, as wide as its words, for a row of actions under a card's words
+   * (Material 3's card actions): Map under a visit's address.
    */
-  tonal?: boolean;
+  inline?: boolean;
   /** What a screen reader says when the word alone does not tell which row it is for ("Map" for which outlet). */
   accessibilityLabel?: string;
 }) {
   const theme = useTheme();
-  const color = primary ? theme.onPrimary : tonal ? theme.onPrimaryContainer : theme.primary;
-  const background = primary ? theme.primary : tonal ? theme.primaryContainer : theme.backgroundElement;
+  const color = theme.onPrimaryContainer;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       onPress={onPress}
-      style={({ pressed }) => [styles.compact, { backgroundColor: background, opacity: pressed ? 0.8 : 1 }]}>
+      style={({ pressed }) => [inline ? styles.inline : styles.compact, { backgroundColor: theme.primaryContainer, opacity: pressed ? 0.8 : 1 }]}>
       <Ionicons name={icon} size={20} color={color} />
-      <ThemedText type="smallBold" style={{ color }}>
+      <ThemedText type="smallBold" style={[!inline && styles.compactLabel, { color }]}>
         {label}
       </ThemedText>
     </Pressable>
@@ -235,15 +237,27 @@ const styles = StyleSheet.create({
   flexShrink: { flexShrink: 1 },
   tag: { flexDirection: 'row', alignItems: 'center', gap: Spacing.half, borderRadius: Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.half },
   tagText: { fontWeight: 600 },
-  // One width for every row's button, so they line up in a column down the list.
+  // One width for every row's button, so they line up in a column down the list. The side space is
+  // small, so "Send plan" fits on one line in English.
   compact: {
     minHeight: MinTouchSize,
     width: 92,
     borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.two,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.half,
+  },
+  compactLabel: { textAlign: 'center' },
+  // In a card's row of actions: the picture beside the word, on the content's start edge.
+  inline: {
+    minHeight: MinTouchSize,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.three,
   },
   todo: { flexDirection: 'row', alignItems: 'center' },
   todoText: { flex: 1, gap: Spacing.half },

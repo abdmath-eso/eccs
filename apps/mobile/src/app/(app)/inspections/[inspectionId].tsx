@@ -729,14 +729,16 @@ export default function InspectionScreen() {
     </Card>
   );
 
-  // What can be done with a finished report: keep or pass on its PDF, put photos forward. Last, after the report itself.
+  // What can be done with a finished report: keep or pass on its PDF, put photos forward. Near the top, under
+  // the date and who inspected (22 Oct 2026): a restaurant opens a report mainly for its PDF, so it is not left
+  // after every finding and section score (SafetyCulture puts a report's Share and PDF at its top).
   const canPropose =
     (inspection.status === 'SUBMITTED' || inspection.status === 'APPROVED') &&
     !finishWaiting &&
     viewerRole === 'SUPERVISOR' &&
     inspection.supervisorId === user?.id;
   const actions = (inspection.status === 'APPROVED' || canPropose) && (
-    <View style={[styles.actions, styles.sectionGap]}>
+    <View style={styles.actions}>
       {/* Only an approved report is final, so only then is there a PDF to keep or pass on. */}
       {inspection.status === 'APPROVED' && (
         <>
@@ -767,8 +769,8 @@ export default function InspectionScreen() {
   /**
    * The report, in the order an inspection report is read (SafetyCulture's reports: the score on the
    * title page, then the flagged items, then the inspection section by section): the score and grade
-   * first, then the summary and the non-compliances, then the section scores with how the score is
-   * worked out folded under them, and the actions last.
+   * first, with the date, who inspected and the actions (the PDF) under them, then the summary and the
+   * non-compliances, then the section scores with how the score is worked out folded under them.
    */
   const report = (
     <>
@@ -795,6 +797,7 @@ export default function InspectionScreen() {
         })}
       </ThemedText>
       {facts}
+      {actions}
 
       {/* The summary for the report: written by the Supervisor after Finish (by hand or from an AI draft they check). */}
       <InspectionSummarySection
@@ -859,8 +862,6 @@ export default function InspectionScreen() {
       <Expandable title={t('insp.howScoredTitle')} icon="calculator-outline">
         <ThemedText type="small">{t('insp.howScored')}</ThemedText>
       </Expandable>
-
-      {actions}
     </>
   );
 

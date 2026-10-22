@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorText } from '@/components/ui/error-text';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
+import { StatusChip } from '@/components/ui/status-chip';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatMoney, invoiceState, invoiceTitle } from '@/lib/billing';
@@ -81,7 +82,6 @@ export default function InvoicesScreen() {
 
   const card = (invoice: InvoiceSummaryDto) => {
     const state = invoiceState(invoice, t, language);
-    const color = theme[state.tone];
     const owing = invoice.duePaise > 0;
     // What is left on a part-paid invoice; otherwise the invoice's total.
     const amount = formatMoney(owing ? invoice.duePaise : invoice.totalPaise, language);
@@ -107,12 +107,9 @@ export default function InvoicesScreen() {
             <ThemedText type="subtitle" style={styles.amount}>
               {amount}
             </ThemedText>
-            <View style={styles.stateRow}>
-              <Ionicons name={state.icon} size={22} color={color} />
-              <ThemedText type="smallBold" style={[styles.stateText, { color }]}>
-                {state.label}
-              </ThemedText>
-            </View>
+            {/* "Paid", "Due today", "7 days overdue" in the app's one status label, as on Licences and the
+                Salary tracker (22 Oct 2026: an icon and coloured words of their own). */}
+            <StatusChip tone={state.tone} icon={state.icon} label={state.label} />
             <ThemedText type="small" themeColor="textSecondary">
               {t('bill.number', { number: ltrText(invoice.number) })}
             </ThemedText>
@@ -173,24 +170,14 @@ export default function InvoicesScreen() {
               {formatMoney(due, language)}
             </ThemedText>
             {due === 0 ? (
-              <View style={styles.stateRow}>
-                <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
-                <ThemedText type="default" themeColor="primary" style={styles.stateText}>
-                  {t('bill.nothingDue')}
-                </ThemedText>
-              </View>
+              <StatusChip tone="good" icon="checkmark-circle" label={t('bill.nothingDue')} />
             ) : (
               <>
                 <ThemedText type="default" themeColor="textSecondary">
                   {t('bill.unpaidCount', { count: toPay.length })}
                 </ThemedText>
                 {overdue.length > 0 && (
-                  <View style={styles.stateRow}>
-                    <Ionicons name="alert-circle" size={22} color={theme.danger} />
-                    <ThemedText type="smallBold" themeColor="danger" style={styles.stateText}>
-                      {t('bill.overdueAmount', { amount: formatMoney(overdueAmount, language) })}
-                    </ThemedText>
-                  </View>
+                  <StatusChip tone="bad" icon="alert-circle" label={t('bill.overdueAmount', { amount: formatMoney(overdueAmount, language) })} />
                 )}
                 {!isOwner && (
                   <ThemedText type="small" themeColor="textSecondary">
@@ -230,6 +217,4 @@ const styles = StyleSheet.create({
   cardWords: { flex: 1, gap: Spacing.one },
   cardTitle: { fontWeight: 700 },
   amount: { fontSize: 24, lineHeight: 30 },
-  stateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  stateText: { flex: 1 },
 });

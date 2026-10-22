@@ -80,6 +80,11 @@ export interface ChecklistRunSummaryDto {
   problemCount: number;
   submittedByName: string | null;
   reviewedAt: string | null;
+  /**
+   * Set on today's checklists in the calendar only: true when the due time has passed and it has
+   * not been submitted, worked out as for today's list (ChecklistRunDto.isOverdue).
+   */
+  isOverdue?: boolean;
 }
 
 /** A checklist as set up for an outlet, for the screen where items are added. */

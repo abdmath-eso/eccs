@@ -117,8 +117,10 @@ export default function AttendanceDayScreen() {
         </>
       )}
 
-      {/* The same plain rows as the Staff list and the month, with where each person stands at the end of
-          the row, beside the arrow (Material's list item with a trailing status). */}
+      {/* The same plain rows as the Staff list and the Salary tracker, with where each person stands under
+          the job line and the arrow alone at the end (Material's three-line list item: the status is
+          supporting content). At the row's end the status squeezed the words, so "Face not added" broke
+          on every row in Telugu (22 Oct 2026). */}
       <View>
         {data?.people.map((person, index) => (
           <ListRow
@@ -127,6 +129,7 @@ export default function AttendanceDayScreen() {
             subtitle={[person.jobTitle, person.usualDayOff ? t('team.att.usualOff') : null].filter(Boolean).join(' · ') || null}
             below={
               <>
+                <DayMarkChip mark={person.status ?? 'NONE'} />
                 <DayFactsLine facts={person} />
                 {/* A status that may still change: the day is running, or the Owner has something to settle. */}
                 {person.provisional && person.status !== null && data.date !== data.today && (
@@ -142,11 +145,6 @@ export default function AttendanceDayScreen() {
                 <FlagList flags={person.flags} />
                 {!person.enrolled && <EnrolledMark enrolled={false} />}
               </>
-            }
-            trailing={
-              <View style={styles.status}>
-                <DayMarkChip mark={person.status ?? 'NONE'} />
-              </View>
             }
             divider={index > 0}
             onPress={() => router.push({ pathname: '/team/day', params: { staffId: person.staffId, date: data.date } })}
@@ -164,6 +162,4 @@ const styles = StyleSheet.create({
   todayLink: { minHeight: MinTouchSize - Spacing.three, justifyContent: 'center', paddingHorizontal: Spacing.two },
   arrow: { minHeight: MinTouchSize, minWidth: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
   faded: { opacity: 0.3 },
-  // The status may take up to about half the row; a long word wraps inside it rather than squeezing the name.
-  status: { maxWidth: '45%', alignItems: 'flex-end' },
 });

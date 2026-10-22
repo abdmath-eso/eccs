@@ -16,6 +16,7 @@ import { Platform, Pressable, Share, StyleSheet, View } from 'react-native';
 import { BuddyMascot } from '@/components/buddy-mascot';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
 import { Notice } from '@/components/ui/notice';
 import { MinTouchSize, Spacing } from '@/constants/theme';
@@ -36,26 +37,27 @@ import { useSession } from '@/lib/session';
 
 // ───────────────────────── Home's card ─────────────────────────
 
-/** A one-line card on Home that opens Buddy, for the Owner and the Manager only. */
+/**
+ * A one-line card on Home that opens Buddy, for the Owner and the Manager only. The app's shared
+ * card, filled with its arrow, like the checklist cards above it (22 Oct 2026: it was a box of its
+ * own with a dark edge, and its arrow pointed the wrong way in Urdu).
+ */
 export function BuddyHomeCard() {
-  const theme = useTheme();
   const pathname = usePathname();
   const { t, user } = useSession();
   if (!showsBuddy(user?.memberships)) return null;
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={() => router.push(buddyHref(pathname))}
-      style={({ pressed }) => [styles.homeCard, { borderColor: theme.outline, backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement }]}>
-      <BuddyMascot size={36} />
-      <View style={styles.flex}>
-        <ThemedText type="smallBold">{t('buddy.homeCard.title')}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {t('buddy.homeCard.body')}
-        </ThemedText>
+    <Card variant="filled" chevron onPress={() => router.push(buddyHref(pathname))}>
+      <View style={styles.homeCard}>
+        <BuddyMascot size={36} />
+        <View style={styles.flex}>
+          <ThemedText type="smallBold">{t('buddy.homeCard.title')}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('buddy.homeCard.body')}
+          </ThemedText>
+        </View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-    </Pressable>
+    </Card>
   );
 }
 
@@ -458,7 +460,7 @@ export function ListeningBar({ level, languageName, onLanguage, onStop, onCancel
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  homeCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, minHeight: MinTouchSize },
+  homeCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   starters: { gap: Spacing.two },
   starter: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, minHeight: MinTouchSize },
   bubble: { maxWidth: '85%', borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },

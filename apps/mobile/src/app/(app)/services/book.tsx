@@ -263,7 +263,7 @@ export default function BookServiceScreen() {
           <ErrorText message={catalogError} onRetry={() => setAttempt((count) => count + 1)} />
           {picked && !changing ? (
             // Chosen: the list is folded to this one card, with Change to open it again.
-            <View style={[styles.service, { borderColor: theme.primary, backgroundColor: theme.backgroundElement }]}>
+            <View style={[styles.service, styles.serviceChosen, { borderColor: theme.primary, backgroundColor: theme.backgroundElement }]}>
               {serviceBody(picked, true, <Button label={t('common.change')} variant="link" onPress={() => setChanging(true)} />)}
             </View>
           ) : (
@@ -289,8 +289,8 @@ export default function BookServiceScreen() {
                       onPress={() => pick(item.id)}
                       style={[
                         styles.service,
-                        { borderColor: selected ? theme.primary : theme.outline },
-                        selected && { backgroundColor: theme.backgroundElement },
+                        { borderColor: selected ? theme.primary : theme.border },
+                        selected && [styles.serviceChosen, { backgroundColor: theme.backgroundElement }],
                       ]}>
                       {serviceBody(item, selected)}
                     </Pressable>
@@ -379,13 +379,16 @@ export default function BookServiceScreen() {
   );
 }
 
+// The choices' edges (22 Oct 2026): the shared card's thin grey edge until chosen, then teal. A chosen
+// day or time is also filled teal; a chosen service card's edge doubles, its inner space one less so
+// nothing moves (1 and 2 wide, as PatternFly's and Volvo's selectable cards; PMI's radio cards).
 const styles = StyleSheet.create({
   section: { gap: Spacing.three },
   days: { gap: Spacing.two, paddingVertical: Spacing.one },
   day: {
     width: 64,
     minHeight: 84,
-    borderWidth: 2,
+    borderWidth: 1,
     borderRadius: Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
@@ -397,14 +400,15 @@ const styles = StyleSheet.create({
   slot: {
     flex: 1,
     minHeight: MinTouchSize + Spacing.two,
-    borderWidth: 2,
+    borderWidth: 1,
     borderRadius: Spacing.three,
     paddingHorizontal: Spacing.two,
     alignItems: 'center',
     justifyContent: 'center',
   },
   slotText: { fontSize: 18, fontWeight: 700, textAlign: 'center' },
-  service: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  service: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  serviceChosen: { borderWidth: 2, padding: Spacing.three - 1 },
   serviceHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   serviceName: { flex: 1, fontWeight: 700, fontSize: 18 },
   category: { gap: Spacing.two },

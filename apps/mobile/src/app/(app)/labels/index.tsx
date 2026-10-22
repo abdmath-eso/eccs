@@ -14,7 +14,7 @@ import { memo, useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { LabelPrintSheet } from '@/components/label-print-sheet';
-import { ThemedText } from '@/components/themed-text';
+import { tallScript, ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
 import { Notice } from '@/components/ui/notice';
@@ -89,6 +89,8 @@ const LabelRow = memo(function LabelRow({ item, count, canEdit, now, onChange, o
   const theme = useTheme();
   const { t, language } = useSession();
   const chosen = count > 0;
+  // The words' side wider in the taller scripts, where a name needs more room before it is squeezed.
+  const wordsStyle = [styles.words, tallScript(language) && styles.wordsTall];
   const keeps = t('labels.keeps', { life: shelfLifeText(item.shelfLifeHours, t) });
   const last = item.lastUsedAt ? t('labels.lastPrinted', { when: printedWhen(item.lastUsedAt, now, language) }) : null;
 
@@ -120,11 +122,11 @@ const LabelRow = memo(function LabelRow({ item, count, canEdit, now, onChange, o
           accessibilityRole="button"
           accessibilityLabel={[t('labels.changeNamed', { name: item.name }), keeps, last].filter(Boolean).join('. ')}
           onPress={() => onEdit(item.id)}
-          style={({ pressed }) => [styles.words, pressed && styles.pressed]}>
+          style={({ pressed }) => [wordsStyle, pressed && styles.pressed]}>
           {words}
         </Pressable>
       ) : (
-        <View style={styles.words}>{words}</View>
+        <View style={wordsStyle}>{words}</View>
       )}
 
       {/* Minus, the number, plus, in reading order: in Urdu the row runs right to left, so minus is on the right. */}
@@ -583,7 +585,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   // The name's side and the stepper are kept apart, so a tap meant for one never lands on the other.
+  // The name keeps at least 150 (220 in the taller scripts) before the stepper moves under it: at 150
+  // a Telugu name was squeezed into a column of a few letters on a 360 phone (22 Oct 2026), while an
+  // English one still fits beside the stepper there.
   words: { flexGrow: 1, flexShrink: 1, flexBasis: 150, minHeight: MinTouchSize, justifyContent: 'center', paddingEnd: Spacing.two },
+  wordsTall: { flexBasis: 220 },
   name: { fontWeight: 700, fontSize: 18 },
   keepsLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   keeps: { flexShrink: 1 },

@@ -5,9 +5,10 @@ import {
   type StaffMemberDto,
   type StaffPayType,
 } from '@eccs/shared';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { parseRupees, typedRupees, weekdayName } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
@@ -19,7 +20,7 @@ import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
-import { Spacing } from '@/constants/theme';
+import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { indiaToday, maskTypedDate, parseTypedDate, toTypedDate } from '@/lib/format';
@@ -113,6 +114,7 @@ interface PersonFormProps {
 }
 
 function PersonForm({ person, suggestedName, outletId, logins, outletChoice }: PersonFormProps) {
+  const theme = useTheme();
   const { t, api, language, user } = useSession();
   const notify = useSnackbar();
   const isOwner = (user?.memberships ?? []).some((membership) => membership.role === 'OWNER');
@@ -217,6 +219,15 @@ function PersonForm({ person, suggestedName, outletId, logins, outletChoice }: P
       back
       // Whose details these are, rather than "Edit details" (22 Oct 2026).
       title={person ? person.name : t('team.people.add')}
+      // What linking a login changes is read once, so it is folded away at the end (22 Oct 2026).
+      about={
+        logins.length > 0 ? (
+          <>
+            <ThemedText type="smallBold">{t('team.person.login')}</ThemedText>
+            <ThemedText type="small">{t('team.person.loginAbout')}</ThemedText>
+          </>
+        ) : undefined
+      }
       footer={
         <>
           <ErrorText message={saveError} />
@@ -297,26 +308,51 @@ function PersonForm({ person, suggestedName, outletId, logins, outletChoice }: P
       <TextField label={t('team.person.phone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
 
       {/* ── Their app login, for the few who have one ── */}
+      {/* A list with a radio on each line, the name and the role under it, rather than chips that broke
+          mid-name (22 Oct 2026); the same list as "Where it is kept" on a food label (Material's radio
+          buttons in a list). What linking changes is in "About this screen". */}
       {logins.length > 0 && (
-        <>
+        <View>
           <ThemedText type="smallBold" themeColor="textSecondary">
             {t('team.person.login')}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
+          <ThemedText type="small" themeColor="textSecondary" style={styles.loginHint}>
             {t('team.person.loginHint')}
           </ThemedText>
-          <View style={styles.options} accessibilityRole="radiogroup">
-            <OptionChip label={t('team.person.noLogin')} selected={userId === null} onPress={() => setUserId(null)} />
-            {logins.map((login) => (
-              <OptionChip
-                key={login.id}
-                label={`${login.name} · ${t(`role.${login.role}`)}`}
-                selected={userId === login.id}
-                onPress={() => setUserId(login.id)}
-              />
-            ))}
+          <View accessibilityRole="radiogroup" accessibilityLabel={t('team.person.login')}>
+            {[null, ...logins].map((login, index) => {
+              const selected = userId === (login?.id ?? null);
+              return (
+                <Pressable
+                  key={login?.id ?? 'none'}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected, checked: selected }}
+                  onPress={() => setUserId(login?.id ?? null)}
+                  style={({ pressed }) => [
+                    styles.radioRow,
+                    index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+                    pressed && { backgroundColor: theme.backgroundElement },
+                  ]}>
+                  <Ionicons
+                    name={selected ? 'radio-button-on' : 'radio-button-off'}
+                    size={24}
+                    color={selected ? theme.primary : theme.textSecondary}
+                  />
+                  <View style={styles.radioWords}>
+                    <ThemedText type="default" style={selected && styles.bold}>
+                      {login ? login.name : t('team.person.noLogin')}
+                    </ThemedText>
+                    {login && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {t(`role.${login.role}`)}
+                      </ThemedText>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
-        </>
+        </View>
       )}
 
       {/* ── Leaving, coming back, or removing a mistake ── */}
@@ -391,4 +427,9 @@ function PersonForm({ person, suggestedName, outletId, logins, outletChoice }: P
 const styles = StyleSheet.create({
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   leaving: { gap: Spacing.three, marginTop: Spacing.three },
+  loginHint: { marginTop: Spacing.one, marginBottom: Spacing.one },
+  // The radio beside the words, in a row tall enough for a thumb, with a thin line between rows.
+  radioRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: MinTouchSize, paddingVertical: Spacing.two },
+  radioWords: { flex: 1, gap: Spacing.half },
+  bold: { fontWeight: 700 },
 });

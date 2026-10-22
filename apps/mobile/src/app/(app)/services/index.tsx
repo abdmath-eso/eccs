@@ -246,7 +246,10 @@ export default function ServicesScreen() {
         ? t('svc.planNextToday')
         : t('svc.planNext', { date: formatDayShort(service.nextDate, language) });
     return (
-      <View key={service.serviceCode} style={[styles.planLine, index > 0 && { borderTopWidth: 1, borderColor: theme.border }]}>
+      <View
+        key={service.serviceCode}
+        // A row that ends in its link needs no space under it: the link's own tap area is that space.
+        style={[styles.planLine, due && styles.planLineEndsInLink, index > 0 && { borderTopWidth: 1, borderColor: theme.border }]}>
         <ThemedText type="default" style={styles.planService}>
           {localize(service.serviceName, language)}
         </ThemedText>
@@ -370,9 +373,15 @@ export default function ServicesScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               {t('svc.planHelp')}
             </ThemedText>
-            <View>{plan.services.map(planService)}</View>
-            {/* The price, the cycle, changing and cancelling are on the Plan screen. */}
-            <Button label={t('plan.see')} variant="link" align="start" onPress={() => router.push('/plan')} />
+            {/* The price, the cycle, changing and cancelling are on the Plan screen. Its link closes the
+                list under a thin line like those between the services, straight after the last one, so
+                it does not float in the space below "Ask ECCS about it" (a card's actions under a divider). */}
+            <View>
+              {plan.services.map(planService)}
+              <View style={[styles.planFooter, { borderColor: theme.border }]}>
+                <Button label={t('plan.see')} variant="link" align="start" onPress={() => router.push('/plan')} />
+              </View>
+            </View>
           </Card>
         </>
       )}
@@ -403,6 +412,8 @@ const styles = StyleSheet.create({
   // One service of the plan; a thin line between them.
   planLine: { paddingVertical: Spacing.two, gap: Spacing.half },
   planService: { fontWeight: 600 },
+  planLineEndsInLink: { paddingBottom: 0 },
+  planFooter: { borderTopWidth: 1 },
   sectionGap: { marginTop: Spacing.four },
   requestTitle: { fontWeight: 700, fontSize: 18 },
 });

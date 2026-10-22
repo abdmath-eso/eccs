@@ -11,7 +11,18 @@ import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Share, StyleSheet, View, type ScrollView } from 'react-native';
 
-import { countsOf, DAY_MARK, DAY_MARK_ORDER, DayCounts, MonthStepper, parseRupees, SALARY_STATE, typedRupees, useLoaded } from '@/components/team-parts';
+import {
+  countsOf,
+  DAY_MARK,
+  DAY_MARK_ORDER,
+  DayCounts,
+  MonthStepper,
+  parseRupees,
+  SALARY_STATE,
+  toneOf,
+  typedRupees,
+  useLoaded,
+} from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -21,6 +32,7 @@ import { Notice } from '@/components/ui/notice';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
+import { StatusChip } from '@/components/ui/status-chip';
 import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -478,12 +490,8 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
         {line(t('team.pay.toPay'), Math.max(payablePaise, 0), { strong: true })}
         {line(t('team.pay.paid'), data.paidPaise)}
         {line(t(balancePaise < 0 ? 'team.pay.overpaid' : 'team.pay.stillOwed'), balancePaise, { strong: true })}
-        <View style={styles.state}>
-          <Ionicons name={state.icon} size={20} color={theme[state.tone]} />
-          <ThemedText type="smallBold" style={{ color: theme[state.tone] }}>
-            {t(state.label)}
-          </ThemedText>
-        </View>
+        {/* Where the month's pay stands, in the app's one status label, as on the Salary tracker's rows. */}
+        <StatusChip tone={toneOf(state.tone)} icon={state.icon} label={t(state.label)} />
       </View>
 
       {/* ── Payments: recorded with the pinned button at the foot of the screen ── */}
@@ -588,7 +596,6 @@ const styles = StyleSheet.create({
   bold: { fontWeight: 700 },
   how: { gap: Spacing.one },
   rule: { height: StyleSheet.hairlineWidth, marginVertical: Spacing.one },
-  state: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   pair: { flexDirection: 'row', gap: Spacing.two },
   flex: { flex: 1 },
   // The page's own gap, kept inside the payments group.

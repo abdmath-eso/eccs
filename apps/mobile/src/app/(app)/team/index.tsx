@@ -116,11 +116,13 @@ export default function TeamScreen() {
       subtitle={hint}
       leading={<Ionicons name={icon} size={26} color={theme.primary} />}
       divider={!first}
+      // The count is read out with the row: "To review. Waiting for the Owner to check. 4 waiting".
+      accessibilityLabel={count > 0 ? `${title}. ${hint}. ${t('att.review.waiting', { count })}` : undefined}
       onPress={() => router.push(href)}
       trailing={
-        // How many are waiting: a number in a filled circle, read out with the row.
+        // How many are waiting: a number in a filled circle.
         count > 0 ? (
-          <View style={[styles.badge, { backgroundColor: theme.danger }]} accessibilityLabel={t('att.review.waiting', { count })}>
+          <View style={[styles.badge, { backgroundColor: theme.danger }]}>
             <ThemedText type="smallBold" style={{ color: theme.background }}>
               {count > 99 ? '99+' : count}
             </ThemedText>
@@ -179,14 +181,10 @@ export default function TeamScreen() {
 
       <View>
         {section('checkmark-done-circle-outline', t('team.att.title'), t('team.att.hint'), '/team/attendance', 0, true)}
+        {/* How many are waiting is said once, by the red count at the row's end (as a mail app's unread
+            count); the line under the title says what the list is (22 Oct 2026: "4" and "4 waiting"). */}
         {can(memberships, 'attendance', 'read') &&
-          section(
-            'flag-outline',
-            t('att.review.title'),
-            extra?.waiting ? t('att.review.waiting', { count: extra.waiting }) : t('att.review.hint'),
-            '/team/review',
-            extra?.waiting ?? 0,
-          )}
+          section('flag-outline', t('att.review.title'), t('att.review.hint'), '/team/review', extra?.waiting ?? 0)}
         {can(memberships, 'salary', 'read') && section('wallet-outline', t('team.pay.title'), t('team.pay.hint'), '/team/salary')}
         {can(memberships, 'attendance', 'read') && section('options-outline', t('att.settings.title'), t('att.settings.hint'), '/team/settings')}
         {can(memberships, 'restaurantUsers', 'create') && section('key-outline', t('team.logins'), t('team.loginsHint'), '/staff')}

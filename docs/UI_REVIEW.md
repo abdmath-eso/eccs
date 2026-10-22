@@ -129,6 +129,62 @@ The founder approved all of it on 7 October 2026, including replacing the side m
 | W11 | Input outlines too faint; weak focus ring | A stronger outline and a solid focus ring | done 7 Oct |
 | W12 | Small screen-reader and keyboard gaps (language switcher, filter toggles, task marks, "Loading…") | Fix each | done 7 Oct |
 
+## Screen review from screenshots, 22 October
+
+The founder asked for every page of the app to be looked at for misalignment and other UI faults, with research. Unlike the 7 October review, this one looked at **pictures**: about 100 screens (250 screenshots) taken at the founder's phone width (360) from a test copy of the app in the browser, as the Owner, the Manager, the ECCS Supervisor and a BDE, plus 11 busy screens in the dark theme, in Telugu and on a small 320-wide phone. Six reviewers compared them with Material Design 3, Apple's HIG, WCAG 2.2, Nielsen Norman Group, GOV.UK and field-service apps (Salesforce Field Service, Jobber, Pipedrive, Zoho). Their notes are in `.work/uireview/findings-*.md` (not in git); the report with before-and-after screenshots is at https://claude.ai/artifact/NX6U6nth3E8qj5zcUdXV3M. **Not seen:** the Head Chef and the one-branch Owner (Deccan Biryani), whose sample logins have not agreed to the terms, so every screen showed the agreement page; Claude did not agree on their behalf.
+
+### Fixed on 22 October (alignment and consistency)
+
+| # | Fault | Fix | Status |
+|---|---|---|---|
+| V1 | Buddy's welcome had a "Nothing changes until you tap to confirm" line that sat out of line (founder's screenshot) | Removed in all 13 languages; the same point stays under "What Buddy can and cannot do" | done 22 Oct |
+| V2 | Page margins of 24 left little room at 360: titles, names and buttons wrapped; the top bar's right button sat 8 to the right of the cards; "Back" was squeezed to the arrow alone on Food labels; text slid under the top bar with no edge | Margins of 16 (Material 3 and Android); the top bar's arrow and round buttons on the content's edge; "Back" never gives way; a hairline under the top bar once the page scrolls; title and subtitle grouped | done 22 Oct |
+| V3 | Buddy's entry drawn three ways (ringed circle, pill with the word, a bigger mascot in the menu) | One round button with no ring, like the bell (M3 top-bar icon buttons) | done 22 Oct |
+| V4 | A button whose words wrap, or that has a hint, left its icon stranded at the edge; links centred inside left-aligned cards | Icon stays beside the words; links can sit on the left edge; link hints grey; a new "tonal" button for a second action | done 22 Oct |
+| V5 | Status labels drawn four ways (grey or black outlines, a text tick, an icon); the overdue mark was a filled red clock that read as an "L" | One label for checklists, visits, issues, inspections and the score band: a soft tint, an icon and a word (Atlassian lozenge, WCAG 1.4.1). Home's overdue rows say "Overdue"; the Checklists page keeps the founder's red clock (5 Oct) as an outline clock | done 22 Oct |
+| V6 | Visits whose day had passed (9 to 11 Oct) showed under "Coming up" as "Booked", while the Calendar said "Not done"; the Supervisor's Home listed every open visit oldest first, today's four screens down | "Earlier, not done yet" with a "Not done" label on Services and the visit; the Supervisor's Home shows today first and earlier ones below | done 22 Oct |
+| V7 | Menu: "ECCS Buddy" 2 to the right of the other labels; the Supervisor's and BDE's menu an empty white panel | A fixed icon slot; one 16 edge; close button at the top; role grey and "View my profile" teal; Notifications and My profile in the staff menus | done 22 Oct |
+| V8 | Dark theme: the menu, sheets and dialogs were the page's own colour, so they had no edge | A raised surface colour for them | done 22 Oct |
+| V9 | Home: the three stat numbers at different heights; "pm" alone on a line; "To pay" and "Ask ECCS Buddy" text on different edges; checklist and licence rows with a state icon instead of an arrow | Numbers from the top; non-breaking space before am/pm and before the dash in time windows; one icon slot; rows with the state under the title and an arrow | done 22 Oct |
+| V10 | Score: in Telugu the notes squeezed into a narrow column beside the number; note icons halfway down wrapped lines; "Why this score?" centred | Notes always under the number; icons on the first line; the link on the left edge | done 22 Oct |
+| V11 | Visit cards and the day sheet used a small "›" character at the top; the address pin sat between two lines | The arrow icon, centred; the pin on the first line | done 22 Oct |
+| V12 | Notifications: the unread dot sat halfway down three-line rows | Beside the title | done 22 Oct |
+| V13 | Buddy: the message box was taller than the round buttons beside it, which sat at its foot; a grey send button with a green ring looked ready; recent chats had uneven gaps and a red bin on every row | One rounded bar holding the box, the microphone and send (Gemini, ChatGPT, WhatsApp); send appears when there is text; even rows, grey bins | done 22 Oct |
+| V14 | Food labels: "Manage labels" in the top bar pushed Buddy off the screen in Telugu and at 320; names broke mid-word beside the stepper | "Manage labels" under the list beside "Add a label"; the stepper moves under the name when the row is narrow | done 22 Oct |
+| V15 | Attendance: names squeezed ("Sample / Helper") beside a status that never shrank | The status moves under the name when both do not fit; "No record" grey | done 22 Oct |
+| V16 | Invoice and receipt: labels squeezed into "For the / period"; long values started mid-row | A two-column summary list (GOV.UK); the Total label the same size as its amount | done 22 Oct |
+| V17 | Vendors: rows with two pills stretched them across the row | Pills keep their width | done 22 Oct |
+| V18 | BDE: to-do buttons of three widths; red borders on most rows; the free check's "OK" sat lower than the other two answers | One button width; red only on the "when" line; answers from the top | done 22 Oct |
+| V19 | Pay-day settings: the radio sat halfway down three-line options | Beside the option's name | done 22 Oct |
+| V20 | Long choices (a person and their role on Add a person, outlets on Start an inspection) ran off the screen | Choice chips wrap inside the screen | done 22 Oct |
+| V21 | Several filled buttons on one screen (three "Take photo" plus Submit; Call plus the lead's main step; the board photo plus Save lead) | The extra ones are tonal, so the main action stands out (M3, GOV.UK) | done 22 Oct |
+| V22 | Placeholders cut off: "10-digit mobile numbe", "e.g. fridge, g", "Search, e.g. fridge, cash," | Removed (the label says it) or one word, "Search" | done 22 Oct |
+| V23 | Calendar had no title (so Buddy sat in a bar of its own); "Services and booking" wrapped onto two lines | "Calendar"; "Services", the tab's own word | done 22 Oct |
+| V24 | Staff: the hub rows and the people rows started on two different edges | Initials in a 40-wide slot, the same slot as the hub icons | done 22 Oct |
+
+### Proposed, for the founder to decide (not built)
+
+| # | Where it falls short | Proposal | Status |
+|---|---|---|---|
+| W1 | About 25 screens open with two to five lines of explanation before the main part (Services, SOPs, Edit checklists, Score, Salary, Pay, Pay-day settings, Attendance, To review, Staff logins, Starter labels, SOP library) | One line at most; the rest in an "About this" fold (founder's own rule, NN/g progressive disclosure) | todo |
+| W2 | Cards come in four border widths (1, 1.5, 2, 3) and two colours, filled or not; the same people are cards on one screen and rows on another; 83 notifications are 83 boxes | Shared Card and ListRow parts; notifications and "Last 7 days" as plain rows grouped by day; repeats collapsed ("4 checklists missed") | todo |
+| W3 | Empty Certificates, Inspections and "Photos from your daily checks" are a grey paragraph | A shared empty state: icon, one-line heading, one sentence, a button where there is a next step (NN/g) | todo |
+| W4 | Delete and Remove are as big as the safe actions beside them (Remove licence, 8 red bins on documents, Cancel plan, 12 buttons on Staff logins) | A ⋮ menu or a sheet per row; Cancel plan as a red text link (NN/g, Google Drive, Apple Subscriptions) | todo |
+| W5 | Edit checklists opens every checklist at once, with two big buttons per item (over five screens) | A list of checklists, each opening its own editor, with a Photo switch and a remove icon per item (SafetyCulture, Google Tasks) | todo |
+| W6 | Book a service lists all twelve services before the day and time | Fold the list to the chosen service with "Change", or three short steps (GOV.UK, Urban Company) | todo |
+| W7 | New SOP: 15 category chips fill a screen, and one is chosen in advance | A select field like the outlet picker, nothing chosen until asked | todo |
+| W8 | Login screens grey out "Link this phone", "Send code", "Verify" and "Accept and continue" without saying why (the 7 Oct S7 rule); the code countdown is faint; the PIN title sits above the Clock in button, away from its dots | Buttons stay active and say what is missing (two new sentences in every language); plain grey countdown; Clock in below the keypad | todo |
+| W9 | Field screens lack Map and Call where work starts (Home cards, the visit page); the inspection report puts the PDF before the score; "What to carry" repeats outlet names; a quote can tick two plans | Map and Call on visit cards and visits (Jobber, Dynamics 365); score first; "All 3 visits"; plans as radios | todo |
+| W10 | Pay: "Share summary" is the pinned main button while "Record a payment" is grey at the end | Pin "Record a payment"; fold "How this is worked out" | todo |
+| W11 | Indian languages: body text weight 500 has no Telugu (and other scripts') medium, so lines mix weights; 12-size labels are cramped for tall scripts | Body text at 400; more line height and at least 13 for Indian scripts (Material language support) | todo |
+| W12 | The plan card and Plan page give a past date as "Next visit" (10 Oct) | "Due since 10 Oct" with a Book link | todo |
+| W13 | Invoice titles are three bold English lines repeating the outlet; one due today looks like one due next month | A short title (the period) with the plan under it, translated; "Due today" in amber | todo |
+| W14 | Search boxes built three ways (with or without a magnifier) | One search field with a magnifier and a clear button (M3, Apple) | todo |
+| W15 | Six orange notice boxes with five icons, two radii and two paddings | One notice part: info, warning, danger, sample | todo |
+| W16 | Wording: "Steps: 5", "Days left: 160", "You agreed on … (version …)", "ECCS Pest control is tomorrow, After closing.", "need the Owner's look", "Add a person" meaning two things, the Staff link button naming the person, "What Buddy can and cannot do" | Short natural forms in every language | todo |
+| W17 | Customer page: while it is off, "Share the link" is the strongest button | While off, the main action is turning it on | todo |
+| W18 | Still to see: the Head Chef's and the one-branch Owner's screens, and the bottom bar at 320 in Telugu (the Telugu More menu was checked after the fixes and is fine) | A second look once those logins have agreed to the terms | todo |
+
 ## Left over after 7 October
 
 Nothing below was tried on a phone; the reworked screens were opened in the browser preview only.

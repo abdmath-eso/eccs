@@ -42,6 +42,14 @@ A short day: a new APK with the console plan's phone parts, and step 3 (Quality 
 - The choices in STATUS section 4, above all the hygiene score and the privacy line.
 - What comes next: Partners and Supplies are "later" in the plan.
 
+### Later the same day (so far): screen review of the phone app
+
+- **The founder's request:** remove Buddy's "Nothing changes until you tap to confirm" line, which looked odd and out of line (their screenshot, now `docs/screenshots/buddy-welcome-confirm-line-out-of-line.png`), make sure the app is aligned, and review every page from screenshots, with research, saying where it can improve.
+- **Built:** the line removed in all 13 languages (`3523ffc`). Then about 100 screens photographed at 360 wide from a test copy (API on 4001, preview on 8082), as the Owner, Manager, Supervisor and a BDE, plus dark, Telugu and 320 wide; six reviewers compared them with Material 3, Apple's HIG, WCAG 2.2, NN/g, GOV.UK and field-service apps. 24 alignment and consistency fixes built (`9c5eab7`, `docs/UI_REVIEW.md` V1 to V24): 16 page margins, one Buddy button, one status label, tonal buttons, the menu's icon slot, Buddy's message bar, Food labels' top bar, invoice rows and more. A real fault found on the way: visits whose day had passed still showed under "Coming up"; they are now "Earlier, not done yet", marked "Not done". 18 proposals (W1 to W18) left for the founder. Report: https://claude.ai/artifact/NX6U6nth3E8qj5zcUdXV3M.
+- **Tested:** type-check, lint and the phone app's tests (53) pass; every screen photographed again after the fixes and looked at; nothing sticks out past the screen edge any more (Food labels did at 320 and in Telugu).
+- **Problems:** the first Telugu pictures came out in English (the app follows the language saved on the server; the script now changes that answer in the browser). The Head Chef's and the Deccan Biryani Owner's screens could not be seen: those sample logins have not agreed to the terms, and Claude did not agree for them. The first invoice fix squeezed amounts and was redone before committing. One trial login and its linked "phone" (named "uireview-22oct"), made before the script began recording tokens, are still in the local database; the other 23 logins and 17 phones were removed by their recorded tokens.
+- **Open:** the founder's choices on the proposals and on section 4's "Screen review" list; a new APK to see the fixes on the phone.
+
 ---
 
 ## Tuesday 20 October 2026

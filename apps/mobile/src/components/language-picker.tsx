@@ -48,7 +48,10 @@ export function LanguagePicker() {
             style={styles.backdrop}
           />
           <View
-            style={[styles.sheet, { backgroundColor: theme.background, paddingBottom: Spacing.three + insets.bottom }]}>
+            style={[
+              styles.sheet,
+              { backgroundColor: theme.backgroundRaised, paddingBottom: Spacing.three + insets.bottom },
+            ]}>
             <ThemedText type="smallBold" themeColor="textSecondary" style={styles.title}>
               {t('common.language')}
             </ThemedText>

@@ -123,12 +123,15 @@ export default function AttendanceDayScreen() {
             style={({ pressed }) => [styles.card, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
             <View style={styles.nameText}>
               <View style={styles.nameRow}>
-                <ThemedText type="default" style={[styles.bold, styles.flex]}>
+                <ThemedText type="default" style={[styles.bold, styles.name]}>
                   {person.name}
                 </ThemedText>
                 <View style={styles.status}>
                   <Ionicons name={mark.icon} size={22} color={theme[mark.tone]} />
-                  <ThemedText type="smallBold">{t(mark.label)}</ThemedText>
+                  {/* "No record" is not news, so it is grey; the other states keep the text colour. */}
+                  <ThemedText type="smallBold" themeColor={(person.status ?? 'NONE') === 'NONE' ? 'textSecondary' : 'text'}>
+                    {t(mark.label)}
+                  </ThemedText>
                 </View>
               </View>
               {(person.jobTitle || person.usualDayOff) && (
@@ -164,7 +167,6 @@ export default function AttendanceDayScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   dayBar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   dayTitle: { flex: 1, alignItems: 'center' },
   dayName: { fontWeight: 700, fontSize: 18, textAlign: 'center' },
@@ -180,7 +182,10 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     padding: Spacing.three,
   },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  // The status moves under the name when both do not fit (a small phone, a long name or language),
+  // instead of squeezing the name into "Sample / Helper".
+  nameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: Spacing.two, rowGap: Spacing.half },
+  name: { flexGrow: 1, flexShrink: 1, flexBasis: 140 },
   nameText: { flex: 1, gap: Spacing.half },
   status: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   bold: { fontWeight: 700 },

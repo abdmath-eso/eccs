@@ -90,8 +90,10 @@ export default function HomeScreen() {
   const roleAndPlace = `${t(`role.${membership.role}`)}${place ? ` · ${place}` : ''}`;
   const outlet =overview?.find((entry) => entry.outletId === chosenOutlet) ?? overview?.[0];
   const today = indiaToday();
-  // Today's visits, and any earlier ones still open, are what the Supervisor has to do now.
-  const dueVisits = visits?.filter((visit) => visit.date <= today) ?? [];
+  // Today's visits first, then any earlier ones still open, under their own heading (22 Oct 2026:
+  // they were one list, oldest first, and today's work sat four screens down).
+  const todaysVisits = visits?.filter((visit) => visit.date === today) ?? [];
+  const earlierVisits = visits?.filter((visit) => visit.date < today) ?? [];
   const loading = loads && (eccs ? visits : overview) === null && !error;
 
   return (
@@ -101,15 +103,15 @@ export default function HomeScreen() {
           <ThemedText type="subtitle" style={styles.greeting}>
             {t('home.greeting', { name: user.name })}
           </ThemedText>
-          <ThemedText type="default" themeColor="primary">
+          <ThemedText type="default" themeColor="textSecondary">
             {roleAndPlace}
           </ThemedText>
         </View>
         {/* Top right, where people look for it. It fetches its own number each time Home comes into view. */}
         <View style={styles.topEnd}>
           {/* ECCS Buddy, for the Owner and the Manager only (it shows nothing for anyone else): the
-              sparkle alone beside the bell, as the greeting needs the width; the card below names it. */}
-          <BuddyButton compact />
+              mascot alone beside the bell, as the greeting needs the width; the card below names it. */}
+          <BuddyButton />
           <NotificationBell />
         </View>
       </View>
@@ -123,12 +125,20 @@ export default function HomeScreen() {
               <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
                 {t('home.todayVisits')}
               </ThemedText>
-              {dueVisits.length === 0 && (
+              {todaysVisits.length === 0 && (
                 <ThemedText type="default" themeColor="textSecondary">
                   {t('home.noVisitsToday')}
                 </ThemedText>
               )}
-              {dueVisits.map((visit) => (
+              {todaysVisits.map((visit) => (
+                <VisitCard key={visit.id} visit={visit} showOutlet />
+              ))}
+              {earlierVisits.length > 0 && (
+                <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
+                  {t('svc.overdue')}
+                </ThemedText>
+              )}
+              {earlierVisits.map((visit) => (
                 <VisitCard key={visit.id} visit={visit} showOutlet />
               ))}
             </>
@@ -178,6 +188,8 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   header: { flex: 1, gap: Spacing.one, paddingTop: Spacing.two },
   greeting: { fontSize: 24, lineHeight: 30 },
-  topEnd: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  // The bell draws its picture 12 in from its 52 box: pulled out by that much so the picture lines up
+  // with the cards' right edge.
+  topEnd: { flexDirection: 'row', alignItems: 'center', marginEnd: -(Spacing.two + Spacing.one) },
   sectionGap: { marginTop: Spacing.three },
 });

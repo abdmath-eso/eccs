@@ -294,7 +294,7 @@ export default function HistoryScreen() {
   );
 
   return (
-    <Screen back scrollRef={scrollRef} onRefresh={reload}>
+    <Screen back title={t('tab.calendar')} scrollRef={scrollRef} onRefresh={reload}>
       <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
 
       {/* ── Month title, and moving between months ── */}

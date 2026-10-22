@@ -32,7 +32,10 @@ export function OptionChip({ label, selected, onPress, disabled }: OptionChipPro
         disabled && styles.disabled,
       ]}>
       {selected && <Ionicons name="checkmark" size={20} color={theme.primary} />}
-      <ThemedText type="default" themeColor={selected ? 'primary' : 'text'} style={selected && styles.selected}>
+      <ThemedText
+        type="default"
+        themeColor={selected ? 'primary' : 'text'}
+        style={[styles.label, selected && styles.selected]}>
         {label}
       </ThemedText>
     </Pressable>
@@ -45,10 +48,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.one,
     minHeight: MinTouchSize,
+    // A long choice (a two-line outlet name, a person and their role) wraps inside the chip
+    // instead of running off the screen.
+    maxWidth: '100%',
     borderWidth: 2,
     borderRadius: Spacing.three,
     paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
   },
+  label: { flexShrink: 1 },
   selected: { fontWeight: 700 },
   disabled: { opacity: 0.5 },
 });

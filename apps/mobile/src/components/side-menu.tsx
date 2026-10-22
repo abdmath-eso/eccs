@@ -84,7 +84,7 @@ export function SideMenu({
           style={styles.backdrop}
         />
         <Animated.View
-          style={[styles.panel, { backgroundColor: theme.background, transform: [{ translateX: slide }] }]}>
+          style={[styles.panel, { backgroundColor: theme.backgroundRaised, transform: [{ translateX: slide }] }]}>
           <View style={[styles.safeArea, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             <View style={[styles.header, { borderColor: theme.border }]}>
               <Pressable
@@ -97,10 +97,11 @@ export function SideMenu({
                   <ThemedText type="default" style={styles.title}>
                     {title}
                   </ThemedText>
-                  <ThemedText type="small" themeColor="primary">
+                  {/* The role is information, so grey; "View my profile" is the link, so teal. */}
+                  <ThemedText type="small" themeColor="textSecondary">
                     {subtitle}
                   </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
+                  <ThemedText type="smallBold" themeColor="primary">
                     {t('profile.open')} {forwardGlyph}
                   </ThemedText>
                 </View>
@@ -126,17 +127,20 @@ export function SideMenu({
                     disabled={!href}
                     onPress={() => href && onSelect(href)}
                     style={({ pressed }) => [styles.item, pressed && { backgroundColor: theme.backgroundElement }]}>
-                    {/* ECCS Buddy shows its mascot, as everywhere else. */}
-                    {href === '/buddy' ? (
-                      <BuddyMascot size={26} />
-                    ) : (
-                      <Ionicons
-                        name={item.icon}
-                        size={24}
-                        color={href ? theme.primary : theme.textSecondary}
-                        style={!href && styles.muted}
-                      />
-                    )}
+                    {/* Every picture sits in the same 28-wide slot, so every label starts on the same line;
+                        ECCS Buddy shows its mascot, as everywhere else. */}
+                    <View style={styles.icon}>
+                      {href === '/buddy' ? (
+                        <BuddyMascot size={26} />
+                      ) : (
+                        <Ionicons
+                          name={item.icon}
+                          size={24}
+                          color={href ? theme.primary : theme.textSecondary}
+                          style={!href && styles.muted}
+                        />
+                      )}
+                    </View>
                     <View style={styles.itemText}>
                       <ThemedText type="default" style={[styles.itemLabel, !href && styles.muted]}>
                         {t(item.label)}
@@ -181,24 +185,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    paddingStart: Spacing.four,
-    paddingEnd: Spacing.two,
+    paddingStart: Spacing.three,
+    paddingEnd: Spacing.one,
     paddingVertical: Spacing.three,
     borderBottomWidth: 1,
   },
   profile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   headerText: { flex: 1, gap: Spacing.half },
   title: { fontWeight: 700, fontSize: 18 },
-  close: { minWidth: MinTouchSize, minHeight: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
+  // At the top, beside the name, rather than in the middle of a tall header.
+  close: {
+    alignSelf: 'flex-start',
+    minWidth: MinTouchSize,
+    minHeight: MinTouchSize,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   items: { paddingVertical: Spacing.two },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
     minHeight: MinTouchSize + Spacing.one,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
+  icon: { width: 28, alignItems: 'center' },
   itemText: { flex: 1 },
   itemLabel: { fontWeight: 600 },
   muted: { opacity: 0.55 },

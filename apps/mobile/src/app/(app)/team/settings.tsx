@@ -139,7 +139,12 @@ function SettingsForm({ settings, editable }: { settings: AttendanceSettingsDto;
           setErrors((current) => ({ ...current, other: undefined }));
         }}
         style={({ pressed }) => [styles.option, { borderTopColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
-        <Ionicons name={selected ? 'radio-button-on' : 'radio-button-off'} size={26} color={selected ? theme.primary : theme.textSecondary} />
+        <Ionicons
+          name={selected ? 'radio-button-on' : 'radio-button-off'}
+          size={26}
+          color={selected ? theme.primary : theme.textSecondary}
+          style={styles.radio}
+        />
         <View style={styles.optionText}>
           <ThemedText type="default" style={selected && styles.bold}>
             {title}
@@ -239,13 +244,15 @@ const styles = StyleSheet.create({
   heading: { marginTop: Spacing.three },
   bold: { fontWeight: 700 },
   // A plain row with a thin line above, tall enough for a thumb.
+  // The radio beside the option's name, its first line, not halfway down its explanation.
   option: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.three,
     minHeight: MinTouchSize + Spacing.three,
     paddingVertical: Spacing.two + Spacing.one,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   optionText: { flex: 1, gap: Spacing.half },
+  radio: { marginTop: -1 },
 });

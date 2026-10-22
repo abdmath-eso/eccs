@@ -222,7 +222,14 @@ export default function LogLeadScreen() {
         </View>
       ) : (
         <View style={styles.photo}>
-          <Button icon="camera" label={t('bde.photo.take')} hint={features['shop-board'] ? t('bde.photo.takeHint') : undefined} onPress={() => void choose('camera')} />
+          {/* Tonal: "Save lead", pinned at the foot, is the screen's one filled button. */}
+          <Button
+            icon="camera"
+            label={t('bde.photo.take')}
+            hint={features['shop-board'] ? t('bde.photo.takeHint') : undefined}
+            variant="tonal"
+            onPress={() => void choose('camera')}
+          />
           <Button icon="images" label={t('bde.photo.gallery')} variant="secondary" onPress={() => void choose('gallery')} />
         </View>
       )}

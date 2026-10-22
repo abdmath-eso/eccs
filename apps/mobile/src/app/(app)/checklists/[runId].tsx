@@ -575,7 +575,8 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
         <Button
           icon="camera"
           label={photoUri ? t('checklists.retakePhoto') : t('checklists.takePhoto')}
-          variant={photoUri ? 'secondary' : 'primary'}
+          // Tonal, not filled: Submit, pinned at the foot, is the screen's one filled button (Material 3).
+          variant={photoUri ? 'secondary' : 'tonal'}
           onPress={() => void takePhoto()}
           loading={keeping}
         />

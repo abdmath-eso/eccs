@@ -41,7 +41,10 @@ export function OptionSheet({ visible, title, options, onClose }: OptionSheetPro
           style={styles.backdrop}
         />
         <View
-          style={[styles.sheet, { backgroundColor: theme.background, paddingBottom: Spacing.three + insets.bottom }]}>
+          style={[
+            styles.sheet,
+            { backgroundColor: theme.backgroundRaised, paddingBottom: Spacing.three + insets.bottom },
+          ]}>
           {title && (
             <ThemedText type="smallBold" themeColor="textSecondary" style={styles.title}>
               {title}

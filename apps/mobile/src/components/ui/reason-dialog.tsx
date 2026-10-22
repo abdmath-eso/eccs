@@ -52,7 +52,7 @@ export function ReasonDialog({ title, message, confirmLabel, danger, busy, error
       {/* Shrinks above the keyboard while typing, so the buttons can still be scrolled to. */}
       <KeyboardDialogFrame style={styles.frame}>
         <DirectionView style={styles.backdrop}>
-          <View style={[styles.card, { backgroundColor: theme.background }]}>
+          <View style={[styles.card, { backgroundColor: theme.backgroundRaised }]}>
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
               <ThemedText type="default" style={styles.title}>
                 {title}

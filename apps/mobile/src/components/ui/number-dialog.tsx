@@ -49,7 +49,7 @@ export function NumberDialog({ title, value, max, rangeMessage, confirmLabel, on
       {/* Stays above the keyboard while typing. */}
       <KeyboardDialogFrame style={styles.frame}>
         <DirectionView style={styles.backdrop}>
-          <View style={[styles.card, { backgroundColor: theme.background }]}>
+          <View style={[styles.card, { backgroundColor: theme.backgroundRaised }]}>
             <ThemedText type="default" style={styles.title}>
               {title}
             </ThemedText>

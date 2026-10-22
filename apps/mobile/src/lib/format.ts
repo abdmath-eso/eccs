@@ -18,13 +18,18 @@ const LOCALES: Record<LanguageCode, string> = {
   UR: 'ur-IN-u-nu-latn',
 };
 
+/** A time's spaces made non-breaking, so "pm" never wraps onto a line of its own. */
+const unbroken = (text: string) => text.replace(/s/g, ' ');
+
 /** A checklist due time such as "14:30" as people read it, e.g. "2:30 pm". */
 export function formatTime(hhmm: string, language: LanguageCode): string {
   const [hours, minutes] = hhmm.split(':').map(Number);
   if (hours === undefined || minutes === undefined || Number.isNaN(hours) || Number.isNaN(minutes)) return hhmm;
   try {
-    return new Intl.DateTimeFormat(LOCALES[language], { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' }).format(
-      new Date(Date.UTC(2000, 0, 1, hours, minutes)),
+    return unbroken(
+      new Intl.DateTimeFormat(LOCALES[language], { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' }).format(
+        new Date(Date.UTC(2000, 0, 1, hours, minutes)),
+      ),
     );
   } catch {
     return hhmm;
@@ -53,7 +58,8 @@ export function formatSlot(slot: string | null, language: LanguageCode, t: Trans
   const known = VISIT_SLOTS.find((value) => value === slot);
   if (!known) return slot;
   const window = visitSlotWindow(known);
-  return window ? `${formatTime(window.start, language)} – ${formatTime(window.end, language)}` : t('slot.AFTER_CLOSING');
+  // A line may break after the dash but never before it, so no line starts with "–".
+  return window ? `${formatTime(window.start, language)} – ${formatTime(window.end, language)}` : t('slot.AFTER_CLOSING');
 }
 
 /** A calendar date with a short weekday and no year, e.g. "Thu, 8 Oct". */
@@ -227,8 +233,10 @@ export function maskTypedDate(next: string, previous: string): string {
 /** The time of day of a moment as people in India read it, e.g. "10:02 am". Always Indian time. */
 export function formatTimeOfDay(iso: string, language: LanguageCode): string {
   try {
-    return new Intl.DateTimeFormat(LOCALES[language], { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' }).format(
-      new Date(iso),
+    return unbroken(
+      new Intl.DateTimeFormat(LOCALES[language], { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' }).format(
+        new Date(iso),
+      ),
     );
   } catch {
     return new Date(iso).toLocaleTimeString();

@@ -434,9 +434,6 @@ export default function FoodLabelsScreen() {
       back
       title={t('labels.title')}
       onRefresh={load}
-      headerRight={
-        manages ? <Button label={t('labels.manage')} icon="list-outline" variant="link" onPress={() => router.push('/labels/items')} /> : undefined
-      }
       footer={footer}>
       <OutletPicker
         outlets={outlets}
@@ -547,7 +544,14 @@ export default function FoodLabelsScreen() {
         />
       ))}
 
-      {listed && canAdd && <Button icon="add" label={t('labels.add')} variant="link" onPress={() => addLabel()} />}
+      {/* Under the list, with adding one: until 22 Oct 2026 "Manage labels" sat in the top bar, where
+          its words pushed Buddy's button off the screen in Telugu and on a small phone. */}
+      {listed && (canAdd || manages) && (
+        <View style={styles.listEnd}>
+          {canAdd && <Button icon="add" label={t('labels.add')} variant="link" align="start" onPress={() => addLabel()} />}
+          {manages && <Button icon="list-outline" label={t('labels.manage')} variant="link" align="start" onPress={() => router.push('/labels/items')} />}
+        </View>
+      )}
 
       {typing && (
         <NumberDialog
@@ -596,8 +600,11 @@ const styles = StyleSheet.create({
   searchLine: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.one },
   searchField: { flex: 1 },
   clearSearch: { width: MinTouchSize, height: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
+  // On a narrow phone, or in a language with longer words, the stepper moves under the name (to the
+  // row's end) rather than squeezing the name into a column a few letters wide.
   row: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: Spacing.two,
     borderWidth: 2,
@@ -607,11 +614,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   // The name's side and the stepper are kept apart, so a tap meant for one never lands on the other.
-  words: { flex: 1, minHeight: MinTouchSize, justifyContent: 'center', paddingEnd: Spacing.two },
+  words: { flexGrow: 1, flexShrink: 1, flexBasis: 150, minHeight: MinTouchSize, justifyContent: 'center', paddingEnd: Spacing.two },
   name: { fontWeight: 700, fontSize: 18 },
   keepsLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   keeps: { flexShrink: 1 },
-  stepper: { flexDirection: 'row', alignItems: 'center' },
+  stepper: { flexDirection: 'row', alignItems: 'center', marginStart: 'auto' },
+  listEnd: { gap: Spacing.half },
   step: {
     width: MinTouchSize,
     height: MinTouchSize,

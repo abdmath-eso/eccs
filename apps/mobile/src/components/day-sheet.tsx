@@ -70,7 +70,7 @@ interface DaySheetProps {
 export function DaySheet({ sheet, now }: DaySheetProps) {
   const theme = useTheme();
   const { t, language, user } = useSession();
-  const { forwardGlyph } = useDirection();
+  const { forwardIcon } = useDirection();
   const box = useOutbox();
   const userId = user?.id ?? null;
   const ticksFile = useSyncExternalStore(sheetTicks.subscribe, sheetTicks.get, sheetTicks.get);
@@ -143,9 +143,7 @@ export function DaySheet({ sheet, now }: DaySheetProps) {
                 <ThemedText type="default" themeColor={theirs ? 'textSecondary' : 'text'} style={styles.flex}>
                   {t(`sheet.todo.${item.kind}`, { outlet: toDoOutlet(item) })}
                 </ThemedText>
-                <ThemedText type="default" themeColor="textSecondary">
-                  {forwardGlyph}
-                </ThemedText>
+                <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
               </Pressable>
             );
           })}
@@ -174,8 +172,8 @@ export function DaySheet({ sheet, now }: DaySheetProps) {
                     {visit.outletName}
                   </ThemedText>
                   {!!visit.address && (
-                    <View style={styles.line}>
-                      <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
+                    <View style={styles.addressLine}>
+                      <Ionicons name="location-outline" size={16} color={theme.textSecondary} style={styles.lineIcon} />
                       <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
                         {visit.address}
                       </ThemedText>
@@ -274,6 +272,9 @@ const styles = StyleSheet.create({
   bold: { fontWeight: 700 },
   pressed: { opacity: 0.7 },
   line: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  // The pin on the address's first line, not halfway down a two-line address.
+  addressLine: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  lineIcon: { marginTop: 2 },
   toDo: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   toDoRow: {
     flexDirection: 'row',

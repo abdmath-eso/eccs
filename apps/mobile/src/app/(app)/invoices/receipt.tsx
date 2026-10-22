@@ -22,6 +22,9 @@ import { useSession } from '@/lib/session';
  * with its mark, the amount, what it paid, how, the reference to quote if
  * anything is questioned, the date and time, and what is left on the invoice.
  */
+// Values longer than this many characters go under their label rather than beside it.
+const LONG_VALUE = 18;
+
 export default function ReceiptScreen() {
   const theme = useTheme();
   const { paymentId } = useLocalSearchParams<{ paymentId: string }>();
@@ -78,7 +81,15 @@ export default function ReceiptScreen() {
   const { payment, invoice } = receipt;
   const succeeded = payment.status === 'SUCCEEDED';
 
-  const row = (label: string, value: string) => (
+  const row = (label: string, value: string) =>
+    value.length > LONG_VALUE ? (
+      <View style={styles.stacked}>
+        <ThemedText type="small" themeColor="textSecondary">
+          {label}
+        </ThemedText>
+        <ThemedText type="default">{value}</ThemedText>
+      </View>
+    ) : (
     <View style={styles.row}>
       <ThemedText type="default" themeColor="textSecondary" style={styles.rowLabel}>
         {label}
@@ -163,7 +174,11 @@ const styles = StyleSheet.create({
   box: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingVertical: Spacing.half },
   rowLabel: { flex: 1 },
-  rowValue: { flexShrink: 1, maxWidth: '62%' },
+  rowValue: { flexShrink: 1 },
+  // A long value (a name, a period, what a payment was for) goes under its label instead of beside it,
+  // as key-value lists do on a phone (SAP Fiori's key-value cell, the Singapore design system's
+  // stacked description list). Beside it, it squeezed the label into "For the / period" (22 Oct 2026).
+  stacked: { gap: Spacing.half, paddingVertical: Spacing.half },
   stateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   actions: { gap: Spacing.two, marginTop: Spacing.two },
 });

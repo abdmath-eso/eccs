@@ -26,7 +26,8 @@ How today is going at the outlet: the hygiene score card, money due (if any), to
 - Checklists work without signal once opened with signal; answers are sent when signal returns.
 - History of past days: the Calendar.
 
-## Services and booking (bottom bar: Services)
+## Services (bottom bar: Services; "Services and booking" in More)
+- The list: visits waiting for your sign-off, then "Earlier, not done yet" (a booked visit whose day has passed without it starting, marked "Not done"; call ECCS about it), then "Coming up".
 - Booking a one-time service: Services, "Book a service": choose the service (prices shown before GST), a day from tomorrow (up to 14 days ahead) and a two-hour arrival window (8-10 am to 6-8 pm, or After closing), add a note if you like, and send. ECCS confirms the visit; until then you can withdraw the request. After ECCS confirms, only ECCS can change or cancel it: call ECCS (Raise an issue has Call and WhatsApp).
 - A booked visit is invoiced after ECCS approves its report. Visits that come from your plan are covered by the plan's invoice.
 - During a visit the ECCS Supervisor records the tasks and photos. When the visit is finished, the Owner or Manager opens it, checks the work and photos, rates it (1 to 5 stars) and taps "Sign off this visit". The report PDF is available once ECCS approves it; some services (pest control 15 days, deep clean 30, chimney and hood 90) also give an ECCS certificate.

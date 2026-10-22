@@ -83,6 +83,7 @@ export function ScoreExplain({ score }: { score: HygieneScoreDto }) {
     <View style={styles.wrap}>
       <Button
         variant="link"
+        align="start"
         icon="sparkles-outline"
         label={current ? t('ai.hide') : t('ai.whyScore')}
         hint={offline && !current ? t('ai.needsSignal') : undefined}

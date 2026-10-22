@@ -1,41 +1,33 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ChecklistRunStatus } from '@eccs/shared';
-import { StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { StatusChip } from '@/components/ui/status-chip';
 import { useSession } from '@/lib/session';
 
-/** A small coloured label for a checklist's state. An icon goes with the colour, so it does not rely on colour alone. */
-export function StatusBadge({ status, reviewed }: { status: ChecklistRunStatus; reviewed?: boolean }) {
-  const theme = useTheme();
+/**
+ * A checklist's state. `overdue` (not handed in and past its due time) shows as a red "Overdue"
+ * label instead of "Not started" or "In progress", in place of the red clock icon used until
+ * 22 Oct 2026, which read as a letter "L" and gave the state as a picture alone.
+ */
+export function StatusBadge({
+  status,
+  reviewed,
+  overdue,
+}: {
+  status: ChecklistRunStatus;
+  reviewed?: boolean;
+  overdue?: boolean;
+}) {
   const { t } = useSession();
-
-  const done = status === 'SUBMITTED';
-  const missed = status === 'MISSED';
-  const color = done ? theme.primary : missed ? theme.danger : theme.textSecondary;
-  const label = done && reviewed ? t('status.reviewed') : t(`status.${status}`);
-
+  if (overdue && (status === 'PENDING' || status === 'IN_PROGRESS'))
+    return <StatusChip tone="bad" icon="alarm-outline" label={t('checklists.overdue')} />;
+  if (status === 'SUBMITTED')
+    return <StatusChip tone="good" icon="checkmark" label={reviewed ? t('status.reviewed') : t('status.SUBMITTED')} />;
+  if (status === 'MISSED') return <StatusChip tone="bad" icon="alert" label={t('status.MISSED')} />;
   return (
-    <View style={[styles.badge, { borderColor: color }]}>
-      {(done || missed) && <Ionicons name={done ? 'checkmark' : 'alert'} size={16} color={color} />}
-      <ThemedText type="smallBold" style={{ color }}>
-        {label}
-      </ThemedText>
-    </View>
+    <StatusChip
+      tone={status === 'IN_PROGRESS' ? 'info' : 'neutral'}
+      icon={status === 'IN_PROGRESS' ? 'ellipsis-horizontal' : 'ellipse-outline'}
+      label={t(`status.${status}`)}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    borderWidth: 1.5,
-    borderRadius: Spacing.five,
-    paddingHorizontal: Spacing.two + Spacing.one,
-    paddingVertical: Spacing.half,
-  },
-});

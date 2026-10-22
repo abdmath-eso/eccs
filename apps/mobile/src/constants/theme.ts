@@ -11,6 +11,11 @@ export const Colors = {
     textSecondary: '#5B6770',
     primary: '#0B7A6E',
     onPrimary: '#ffffff',
+    /** A soft teal fill for a second button beside the main one (Material's "tonal" button). */
+    primaryContainer: '#D7EFEB',
+    onPrimaryContainer: '#05463F',
+    /** Sheets, dialogs and the side menu: above the page, so they stand out from it in the dark theme. */
+    backgroundRaised: '#ffffff',
     danger: '#C62828',
     warning: '#B45309',
     info: '#1D4ED8',
@@ -26,6 +31,9 @@ export const Colors = {
     textSecondary: '#A9B4BA',
     primary: '#2BB5A5',
     onPrimary: '#06201D',
+    primaryContainer: '#123F3A',
+    onPrimaryContainer: '#B4EDE4',
+    backgroundRaised: '#171D20',
     danger: '#FF8A80',
     warning: '#FBBF24',
     info: '#8AB4F8',

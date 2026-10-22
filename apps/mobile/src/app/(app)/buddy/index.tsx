@@ -16,7 +16,7 @@ import {
 } from '@eccs/shared';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { BuddyMascot } from '@/components/buddy-mascot';
 import { ListeningBar, Message, Starters, StateNotice } from '@/components/buddy-parts';
@@ -335,7 +335,15 @@ export default function BuddyChatScreen() {
               {t('buddy.left', { count: messagesLeft })}
             </ThemedText>
           )}
-          <View style={styles.composer}>
+          {/* One rounded bar holding the box, the microphone and send, as Gemini, ChatGPT and WhatsApp
+              lay it out (22 Oct 2026: the box was taller than the two round buttons beside it, which sat
+              at its foot). Send appears once there is something to send, so it is never a dead button;
+              the buttons stay at the bar's foot as a long message grows the box. */}
+          <View
+            style={[
+              styles.composer,
+              { borderColor: dictation.listening ? theme.danger : theme.outline, backgroundColor: theme.backgroundElement },
+            ]}>
             <TextInput
               ref={inputRef}
               value={draft}
@@ -344,29 +352,29 @@ export default function BuddyChatScreen() {
               placeholderTextColor={theme.textSecondary}
               accessibilityLabel={t('buddy.input.placeholder')}
               multiline
+              // A browser shows an empty multi-line box two lines tall unless told otherwise.
+              {...(Platform.OS === 'web' ? { rows: 1 } : {})}
               maxLength={BUDDY_RULES.maxMessageChars}
-              style={[
-                styles.input,
-                isRtl && styles.rightToLeft,
-                { color: theme.text, borderColor: dictation.listening ? theme.danger : theme.outline, backgroundColor: theme.backgroundElement },
-              ]}
+              style={[styles.input, isRtl && styles.rightToLeft, { color: theme.text }]}
             />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={dictation.listening ? t('buddy.mic.stop') : t('buddy.mic')}
               accessibilityState={{ selected: dictation.listening }}
               onPress={() => (dictation.listening ? dictation.stop() : void startListening())}
-              style={[styles.round, { borderColor: dictation.listening ? theme.danger : theme.primary, backgroundColor: dictation.listening ? theme.danger : theme.background }]}>
+              style={[styles.round, dictation.listening && { backgroundColor: theme.danger }]}>
               <Ionicons name={dictation.listening ? 'stop' : 'mic-outline'} size={24} color={dictation.listening ? theme.onPrimary : theme.primary} />
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('buddy.send')}
-              disabled={sending || !draft.trim()}
-              onPress={() => void send(draft)}
-              style={[styles.round, { borderColor: theme.primary, backgroundColor: sending || !draft.trim() ? theme.backgroundSelected : theme.primary }]}>
-              {sending ? <ActivityIndicator color={theme.primary} /> : <Ionicons name="arrow-up" size={24} color={draft.trim() ? theme.onPrimary : theme.textSecondary} />}
-            </Pressable>
+            {(sending || draft.trim() !== '') && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('buddy.send')}
+                disabled={sending}
+                onPress={() => void send(draft)}
+                style={[styles.round, { backgroundColor: theme.primary }]}>
+                {sending ? <ActivityIndicator color={theme.onPrimary} /> : <Ionicons name="arrow-up" size={24} color={theme.onPrimary} />}
+              </Pressable>
+            )}
           </View>
         </>
       }>
@@ -480,20 +488,28 @@ const styles = StyleSheet.create({
   headerButton: { width: MinTouchSize, height: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
   greeting: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   answerHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  composer: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.two },
+  composer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.half,
+    minHeight: MinTouchSize,
+    borderWidth: 1.5,
+    borderRadius: MinTouchSize / 2,
+    paddingStart: Spacing.three,
+    paddingEnd: Spacing.half,
+    paddingVertical: Spacing.half,
+  },
   input: {
     flex: 1,
-    minHeight: MinTouchSize,
+    minHeight: 44,
     maxHeight: 140,
-    borderWidth: 1.5,
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.three,
+    paddingVertical: Spacing.two + Spacing.half,
     fontSize: 17,
+    lineHeight: 22,
   },
   rightToLeft: { writingDirection: 'rtl' },
-  round: { width: MinTouchSize, height: MinTouchSize, borderRadius: MinTouchSize / 2, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  // 44 inside the 52 bar; the bar around it makes up the rest of the touch area.
+  round: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   problem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   byAi: { textAlign: 'center' },
 });

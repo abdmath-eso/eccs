@@ -508,7 +508,7 @@ function Question({
     <Modal visible transparent animationType="fade" onRequestClose={onNo}>
       <DirectionView
         style={[styles.backdrop, { paddingTop: insets.top + Spacing.four, paddingBottom: insets.bottom + Spacing.four }]}>
-        <View style={[styles.dialog, { backgroundColor: theme.background }]} accessibilityViewIsModal>
+        <View style={[styles.dialog, { backgroundColor: theme.backgroundRaised }]} accessibilityViewIsModal>
           <ScrollView style={styles.dialogScroll} contentContainerStyle={styles.dialogText}>
             <ThemedText type="default">{message}</ThemedText>
           </ScrollView>

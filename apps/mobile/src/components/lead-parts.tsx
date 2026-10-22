@@ -96,7 +96,8 @@ export function TodoRow({
   // The row opens the lead, and its buttons sit beside that, never inside it (a button
   // within a button cannot be pressed on its own on the web, and screen readers merge them).
   return (
-    <View style={[styles.todo, { borderColor: overdue ? theme.danger : theme.border }]}>
+    // Red only on the "when" line: with most rows overdue, red borders on every one stopped saying anything.
+    <View style={[styles.todo, { borderColor: theme.border }]}>
       <View style={styles.todoText}>
         <Pressable accessibilityRole="button" onPress={onOpen} style={({ pressed }) => [styles.todoOpen, pressed && styles.pressed]}>
           <View style={styles.row}>
@@ -172,7 +173,7 @@ export function LeadCard({ lead, unsent, sending, onPress }: { lead: LeadRowDto;
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.card, { borderColor: lead.stale ? theme.danger : theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
+      style={({ pressed }) => [styles.card, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
       <View style={styles.cardTop}>
         <ThemedText type="default" style={[styles.name, styles.flex]} numberOfLines={2}>
           {lead.businessName}
@@ -183,8 +184,8 @@ export function LeadCard({ lead, unsent, sending, onPress }: { lead: LeadRowDto;
         {[lead.area, momentWords(lead.lastActivityAt, t, language)].filter(Boolean).join(' · ')}
       </ThemedText>
       {lead.stale && (
-        <View style={styles.row}>
-          <Ionicons name="time" size={16} color={theme.danger} />
+        <View style={styles.firstLine}>
+          <Ionicons name="time-outline" size={18} color={theme.danger} style={styles.lineIcon} />
           <ThemedText type="smallBold" themeColor="danger" style={styles.flex}>
             {staleWords(lead.stale, t, language)}
           </ThemedText>
@@ -215,12 +216,16 @@ export function LeadPhoto({ photo, small }: { photo: { id: string; path: string 
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  // An icon on the first line of words that may wrap, not halfway down them.
+  firstLine: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one },
+  lineIcon: { marginTop: 1 },
   flex: { flex: 1 },
   tag: { flexDirection: 'row', alignItems: 'center', gap: Spacing.half, borderRadius: Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.half },
   tagText: { fontWeight: 600 },
+  // One width for every row's button, so they line up in a column down the list.
   compact: {
     minHeight: MinTouchSize,
-    minWidth: MinTouchSize,
+    width: 92,
     borderRadius: Spacing.three,
     paddingHorizontal: Spacing.three,
     alignItems: 'center',

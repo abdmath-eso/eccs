@@ -227,9 +227,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: Spacing.three,
     alignItems: 'center',
-    justifyContent: 'center',
+    // From the top, so the three icons stay level when "OK" takes one line and the others two.
+    justifyContent: 'flex-start',
     paddingHorizontal: Spacing.one,
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.two,
     gap: Spacing.half,
   },
   answerLabel: { textAlign: 'center' },

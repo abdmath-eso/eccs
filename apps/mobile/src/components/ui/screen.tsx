@@ -78,6 +78,9 @@ export function Screen({
   const insets = useSafeAreaInsets();
   const [footerHeight, setFooterHeight] = useState(0);
   const stickyFooter = Boolean(footer) && !aboveBottomBar;
+  // Once the body has scrolled, a hairline under the top bar shows where the page goes under it
+  // (Material 3's top app bar changes on scroll), so text is not seen sliced in half.
+  const [scrolled, setScrolled] = useState(false);
 
   async function refresh() {
     if (!onRefresh) return;
@@ -97,7 +100,7 @@ export function Screen({
         {/* Where lib/keyboard handles the keyboard (the APK), this one stands aside; elsewhere it works on iPhones only. */}
         <KeyboardAvoidingView style={styles.flex} enabled={!keyboardHandled} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {(showBack || headerRight || (buddy && !title)) && (
-            <View style={styles.header}>
+            <View style={[styles.header, { borderColor: scrolled ? theme.border : 'transparent' }]}>
               {showBack ? (
                 <Pressable
                   accessibilityRole="button"
@@ -127,6 +130,11 @@ export function Screen({
             bottomOffset={Spacing.four + (stickyFooter ? footerHeight : 0)}
             style={styles.flex}
             contentContainerStyle={styles.content}
+            onScroll={(event) => {
+              const now = event.nativeEvent.contentOffset.y > 2;
+              if (now !== scrolled) setScrolled(now);
+            }}
+            scrollEventThrottle={32}
             keyboardShouldPersistTaps="handled"
             refreshControl={
               onRefresh ? (
@@ -138,25 +146,30 @@ export function Screen({
                 />
               ) : undefined
             }>
-            {title &&
-              (buddy && !(showBack || headerRight) ? (
-                // No top bar: Buddy's button sits at the end of the title's line instead of adding one,
-                // as the sparkle alone, so the title keeps its width.
-                <View style={styles.titleRow}>
-                  <ThemedText type="subtitle" style={[styles.title, styles.titleText]}>
-                    {title}
+            {(title || subtitle) && (
+              // The title and the line under it belong together, so they sit closer than the sections below.
+              <View style={styles.heading}>
+                {title &&
+                  (buddy && !(showBack || headerRight) ? (
+                    // No top bar: Buddy's button sits at the end of the title's line instead of adding one,
+                    // so the title keeps its width.
+                    <View style={styles.titleRow}>
+                      <ThemedText type="subtitle" style={[styles.title, styles.titleText]}>
+                        {title}
+                      </ThemedText>
+                      <BuddyButton />
+                    </View>
+                  ) : (
+                    <ThemedText type="subtitle" style={styles.title}>
+                      {title}
+                    </ThemedText>
+                  ))}
+                {subtitle && (
+                  <ThemedText type="default" themeColor="textSecondary">
+                    {subtitle}
                   </ThemedText>
-                  <BuddyButton compact />
-                </View>
-              ) : (
-                <ThemedText type="subtitle" style={styles.title}>
-                  {title}
-                </ThemedText>
-              ))}
-            {subtitle && (
-              <ThemedText type="default" themeColor="textSecondary">
-                {subtitle}
-              </ThemedText>
+                )}
+              </View>
             )}
             {children}
           </KeyboardScrollView>
@@ -181,29 +194,40 @@ const styles = StyleSheet.create({
   root: { flex: 1, alignItems: 'center' },
   safeArea: { flex: 1, width: '100%', maxWidth: MaxContentWidth },
   flex: { flex: 1 },
-  content: { flexGrow: 1, padding: Spacing.four, paddingTop: Spacing.two, gap: Spacing.three },
+  // 16 at the sides, the phone margin of Material 3 and Android (24 before 22 Oct 2026, which
+  // left too little room on a 360-wide phone).
+  content: { flexGrow: 1, paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.four, gap: Spacing.three },
+  // The back arrow sits a little in from the screen's edge, and the round buttons at the end
+  // (Buddy, the bell) draw their picture in the middle of a 52 box, so these sides put the
+  // arrow and the pictures on the content's 16 edge, as Material's top app bar does.
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.three,
+    paddingStart: Spacing.two,
+    paddingEnd: Spacing.one,
     minHeight: MinTouchSize,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   back: {
-    flexShrink: 1,
+    // "Back" never gives way to what sits at the other end of the bar.
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.half,
     minHeight: MinTouchSize,
     paddingEnd: Spacing.three,
   },
+  heading: { gap: Spacing.one },
   title: { fontSize: 28, lineHeight: 36 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  // Buddy's round button draws its picture 12 in from its own edge: pulled out by that much so the
+  // picture, not the invisible box, lines up with the content's right edge.
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginEnd: -(Spacing.two + Spacing.one) },
   titleText: { flex: 1 },
-  headerEnd: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  headerEnd: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   footer: {
     borderTopWidth: 1,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
     gap: Spacing.two,
   },

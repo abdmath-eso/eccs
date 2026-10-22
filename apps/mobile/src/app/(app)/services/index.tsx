@@ -21,7 +21,7 @@ import { ErrorText } from '@/components/ui/error-text';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
-import { VisitCard } from '@/components/visit-card';
+import { VisitCard, visitMissed } from '@/components/visit-card';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
@@ -181,11 +181,14 @@ export default function ServicesScreen() {
     const startedHere = mine !== undefined && mine.unsent > 0 && (visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED');
     return startedHere ? { ...visit, status: 'IN_PROGRESS' } : visit;
   });
+  const today = indiaToday();
   const toSignOff = eccs ? [] : all.filter((visit) => visit.status === 'COMPLETED');
-  const upcoming = all.filter((visit) => !toSignOff.includes(visit));
+  // A booked visit whose day has passed without it starting is not "coming up": it is listed
+  // above, as not done, as the calendar shows it (22 Oct 2026).
+  const missed = all.filter((visit) => !toSignOff.includes(visit) && visitMissed(visit, today));
+  const upcoming = all.filter((visit) => !toSignOff.includes(visit) && !missed.includes(visit));
 
   // For ECCS staff the list is a work plan: what is under way first, then by day.
-  const today = indiaToday();
   const underWay = all.filter((visit) => visit.status === 'IN_PROGRESS');
   // Finished: with ECCS for checking, or approved and with the restaurant for sign-off.
   const awaiting = all.filter((visit) => visit.status === 'IN_REVIEW' || visit.status === 'COMPLETED');
@@ -226,7 +229,8 @@ export default function ServicesScreen() {
   return (
     <Screen
       back
-      title={t(eccs ? 'svc.titleEccs' : 'svc.title')}
+      // The tab's own one word, as the other tabs' titles: "Services and booking" ran onto two lines on a 360-wide phone.
+      title={t(eccs ? 'svc.titleEccs' : 'tab.services')}
       subtitle={t(eccs ? (role === 'SUPERVISOR' ? 'svc.helpSupervisor' : 'svc.helpAdmin') : 'svc.help')}
       onRefresh={async () => {
         // Pulling down also sends anything still waiting, without waiting for the next automatic try.
@@ -293,6 +297,7 @@ export default function ServicesScreen() {
           {group(t('svc.awaitingSignOff'), awaiting)}
         </>
       )}
+      {open !== null && !eccs && group(t('svc.overdue'), missed)}
       {open !== null && !eccs && group(t('svc.upcoming'), upcoming, t('svc.noUpcoming'))}
 
       {!eccs && plan?.plan && (

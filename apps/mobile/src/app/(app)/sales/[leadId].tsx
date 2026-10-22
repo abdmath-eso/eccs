@@ -164,7 +164,8 @@ export default function LeadScreen() {
       <View style={styles.actions}>
         {lead.contactPhone && (
           <View style={styles.flex}>
-            <Button fill icon="call" label={t('bde.step.call')} onPress={() => void run(() => callLead(lead), t('bde.callLogged'))} />
+            {/* Tonal: the lead's next main step below is the one filled button (Material 3). */}
+            <Button fill icon="call" label={t('bde.step.call')} variant="tonal" onPress={() => void run(() => callLead(lead), t('bde.callLogged'))} />
           </View>
         )}
         <View style={styles.flex}>

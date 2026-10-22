@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useDirection } from '@/lib/direction';
 import { formatTime } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { rememberOutlet } from '@/lib/use-outlet';
@@ -23,6 +24,7 @@ const MAX_LICENCES = 3;
 export function OutletOverview({ outlet }: { outlet: OutletDashboardDto }) {
   const theme = useTheme();
   const { t, language } = useSession();
+  const { forwardIcon } = useDirection();
 
   const total = outlet.checklists.length;
   const submitted = outlet.checklists.filter((checklist) => checklist.status === 'SUBMITTED').length;
@@ -97,19 +99,21 @@ export function OutletOverview({ outlet }: { outlet: OutletDashboardDto }) {
           onPress={() => router.push({ pathname: '/checklists/[runId]', params: { runId: checklist.id } })}
           style={({ pressed }) => [
             styles.row,
-            { borderColor: checklist.isOverdue ? theme.danger : theme.border },
+            { borderColor: theme.border },
             pressed && { backgroundColor: theme.backgroundElement },
           ]}>
+          {/* As on the Checklists tab: the title, its state under it (so a long word in another language
+              never squeezes the title), the progress line, and the arrow that says it opens. */}
           <View style={styles.rowText}>
             <ThemedText type="default" style={styles.rowTitle}>
               {localize(checklist.title, language)}
             </ThemedText>
-            <ThemedText type="small" themeColor={checklist.isOverdue ? 'danger' : 'textSecondary'}>
+            <StatusBadge status={checklist.status} reviewed={checklist.reviewed} overdue={checklist.isOverdue} />
+            <ThemedText type="small" themeColor="textSecondary">
               {t('checklists.progress', { done: checklist.doneCount, total: checklist.itemCount })}
               {checklist.dueTime && checklist.status !== 'SUBMITTED'
                 ? ` · ${t('checklists.due', { time: formatTime(checklist.dueTime, language) })}`
                 : ''}
-              {checklist.isOverdue ? ` · ${t('checklists.overdue')}` : ''}
             </ThemedText>
             {checklist.problemCount > 0 && (
               <ThemedText type="small" themeColor="danger">
@@ -117,11 +121,7 @@ export function OutletOverview({ outlet }: { outlet: OutletDashboardDto }) {
               </ThemedText>
             )}
           </View>
-          {checklist.isOverdue ? (
-            <Ionicons name="time" size={26} color={theme.danger} accessibilityLabel={t('checklists.overdue')} />
-          ) : (
-            <StatusBadge status={checklist.status} reviewed={checklist.reviewed} />
-          )}
+          <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
         </Pressable>
       ))}
 
@@ -139,18 +139,25 @@ export function OutletOverview({ outlet }: { outlet: OutletDashboardDto }) {
                 onPress={() => go('/documents')}
                 style={({ pressed }) => [
                   styles.row,
-                  { borderColor: color },
+                  { borderColor: theme.border },
                   pressed && { backgroundColor: theme.backgroundElement },
                 ]}>
                 <View style={styles.rowText}>
                   <ThemedText type="default" style={styles.rowTitle}>
                     {licence.name ?? t(`licenceType.${licence.type}`)}
                   </ThemedText>
-                  <ThemedText type="smallBold" style={{ color }}>
-                    {t(`docs.state${licence.state}`)} · {countdown(licence)}
-                  </ThemedText>
+                  <View style={styles.state}>
+                    <Ionicons
+                      name={licence.state === 'EXPIRED' ? 'alert-circle' : 'hourglass-outline'}
+                      size={18}
+                      color={color}
+                    />
+                    <ThemedText type="smallBold" style={[styles.stateText, { color }]}>
+                      {t(`docs.state${licence.state}`)} · {countdown(licence)}
+                    </ThemedText>
+                  </View>
                 </View>
-                <Ionicons name={licence.state === 'EXPIRED' ? 'alert-circle' : 'time'} size={26} color={color} />
+                <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
               </Pressable>
             );
           })}
@@ -168,7 +175,8 @@ const styles = StyleSheet.create({
     minHeight: MinTouchSize * 1.5,
     borderRadius: Spacing.three,
     padding: Spacing.two + Spacing.one,
-    justifyContent: 'center',
+    // From the top, so the three numbers stay on one line however many lines each label takes.
+    justifyContent: 'flex-start',
     gap: Spacing.half,
   },
   statValue: { fontSize: 26, lineHeight: 32 },
@@ -178,12 +186,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderRadius: Spacing.three,
     padding: Spacing.three,
     minHeight: MinTouchSize,
   },
-  rowText: { flex: 1, gap: Spacing.half },
+  rowText: { flex: 1, gap: Spacing.one },
+  state: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one },
+  stateText: { flex: 1 },
   rowTitle: { fontWeight: 700 },
   sectionGap: { marginTop: Spacing.two },
 });

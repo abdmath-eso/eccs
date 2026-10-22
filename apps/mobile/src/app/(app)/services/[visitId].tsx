@@ -28,7 +28,7 @@ import { StarRating, type Stars } from '@/components/ui/star-rating';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
 import { UnsentMark } from '@/components/unsent-mark';
-import { VisitStatusBadge } from '@/components/visit-card';
+import { VisitStatusBadge, visitMissed } from '@/components/visit-card';
 import { ReadingInput, ReadingResult, VisitPartner } from '@/components/visit-results';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -725,7 +725,7 @@ export default function VisitScreen() {
       )}
 
       {/* Until the server has the Finish, the visit is not shown as finished: nobody else can see it yet. */}
-      <VisitStatusBadge status={visit.status} />
+      <VisitStatusBadge status={visit.status} missed={visitMissed(visit)} />
       {finishWaiting && !held && <UnsentMark sending={hasSignal} text={t('offline.finishWaiting')} />}
       {view.checkInPending && !finishWaiting && !held && <UnsentMark sending={hasSignal} />}
       {visit.reportNumber && (

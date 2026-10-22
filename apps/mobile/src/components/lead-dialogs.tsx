@@ -43,7 +43,7 @@ export function LeadSheet({ title, confirmLabel, danger, error, children, onConf
       {/* Shrinks above the keyboard while typing, so the buttons can still be scrolled to. */}
       <KeyboardDialogFrame style={styles.frame}>
         <DirectionView style={[styles.backdrop, { paddingTop: Spacing.five + insets.top }]}>
-          <View style={[styles.card, { backgroundColor: theme.background }]}>
+          <View style={[styles.card, { backgroundColor: theme.backgroundRaised }]}>
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
               <ThemedText type="default" style={styles.title}>
                 {title}

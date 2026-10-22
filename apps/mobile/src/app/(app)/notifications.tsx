@@ -252,7 +252,8 @@ const styles = StyleSheet.create({
     minHeight: MinTouchSize * 1.6,
   },
   // Kept even when there is no dot, so read and unread rows line up.
-  dotColumn: { width: 12, alignItems: 'center' },
+  // At the title's line, not halfway down a three- or four-line notification.
+  dotColumn: { width: 12, alignItems: 'center', alignSelf: 'flex-start', marginTop: 6 },
   dot: { width: 12, height: 12, borderRadius: 6 },
   text: { flex: 1, gap: Spacing.half },
   titleUnread: { fontWeight: 700, fontSize: 17 },

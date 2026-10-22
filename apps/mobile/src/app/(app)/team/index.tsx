@@ -5,6 +5,7 @@ import { useState, type ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { EnrolledMark } from '@/components/attendance-parts';
+import { Avatar } from '@/components/avatar';
 import { useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -117,7 +118,10 @@ export default function TeamScreen() {
         !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
         pressed && { backgroundColor: theme.backgroundElement },
       ]}>
-      <Ionicons name={icon} size={26} color={theme.primary} />
+      {/* In a 40-wide slot, the same as the people's initials below, so all the names start on one line. */}
+      <View style={styles.lead}>
+        <Ionicons name={icon} size={26} color={theme.primary} />
+      </View>
       <View style={styles.flex}>
         <ThemedText type="default" style={styles.bold}>
           {title}
@@ -223,6 +227,10 @@ export default function TeamScreen() {
               index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
               pressed && { backgroundColor: theme.backgroundElement },
             ]}>
+            {/* Initials in a circle, as contact lists show people (Material's list item with an avatar). */}
+            <View style={[styles.lead, !person.isActive && styles.left]}>
+              <Avatar name={person.name} size={40} />
+            </View>
             <View style={styles.flex}>
               <ThemedText type="default" numberOfLines={1} style={[styles.bold, !person.isActive && styles.left]}>
                 {person.name}
@@ -274,10 +282,11 @@ const styles = StyleSheet.create({
     minHeight: MinTouchSize + Spacing.three,
     paddingVertical: Spacing.two + Spacing.one,
   },
+  lead: { width: 40, alignItems: 'center' },
   person: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.three,
     minHeight: MinTouchSize + Spacing.three,
     paddingVertical: Spacing.two + Spacing.one,
   },

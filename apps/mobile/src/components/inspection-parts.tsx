@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { StatusChip } from '@/components/ui/status-chip';
 import { MinTouchSize, Spacing, type ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDayShort } from '@/lib/format';
@@ -18,26 +19,14 @@ import { useSession } from '@/lib/session';
 export const gradeColor = (grade: InspectionGrade | null): ThemeColor =>
   grade === 'A_PLUS' || grade === 'A' ? 'primary' : grade === 'B' ? 'warning' : grade === null ? 'textSecondary' : 'danger';
 
-/** A small coloured label for where an inspection stands. */
+/** Where an inspection stands, in the label every status uses (components/ui/status-chip). */
 export function InspectionStatusBadge({ status }: { status: InspectionStatus }) {
-  const theme = useTheme();
   const { t } = useSession();
-  const color =
-    status === 'APPROVED'
-      ? theme.primary
-      : status === 'SUBMITTED'
-        ? theme.warning
-        : status === 'IN_PROGRESS'
-          ? theme.info
-          : theme.text;
-  return (
-    <View style={[styles.badge, { borderColor: color }]}>
-      {status === 'APPROVED' && <Ionicons name="checkmark" size={16} color={color} />}
-      <ThemedText type="smallBold" style={{ color }}>
-        {t(`insp.status.${status}`)}
-      </ThemedText>
-    </View>
-  );
+  const label = t(`insp.status.${status}`);
+  if (status === 'APPROVED') return <StatusChip tone="good" icon="checkmark" label={label} />;
+  if (status === 'SUBMITTED') return <StatusChip tone="warn" icon="hourglass-outline" label={label} />;
+  if (status === 'IN_PROGRESS') return <StatusChip tone="info" icon="ellipsis-horizontal" label={label} />;
+  return <StatusChip tone="neutral" icon="ellipse-outline" label={label} />;
 }
 
 /** The overall score, large, with the grade in words beside it. */
@@ -162,16 +151,6 @@ export function InspectionCard({ inspection, showOutlet, mark }: InspectionCardP
 }
 
 const styles = StyleSheet.create({
-  badge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.half,
-  },
   score: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderRadius: Spacing.three, padding: Spacing.three },
   scoreRing: {
     width: 112,

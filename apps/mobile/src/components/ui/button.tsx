@@ -17,7 +17,14 @@ interface ButtonProps {
   /** Smaller explanatory line under the label. */
   hint?: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'danger' | 'link';
+  /**
+   * One `primary` (filled) button per screen, for its main action (Material 3). `tonal` is a
+   * soft teal fill for a second action that still matters (Take photo beside Submit, Call beside
+   * the lead's main step); `secondary` is grey; `link` is words only.
+   */
+  variant?: 'primary' | 'tonal' | 'secondary' | 'danger' | 'link';
+  /** A link on the content's left edge rather than centred, for links inside left-aligned cards. */
+  align?: 'center' | 'start';
   loading?: boolean;
   disabled?: boolean;
   /**
@@ -27,20 +34,42 @@ interface ButtonProps {
   fill?: boolean;
 }
 
-export function Button({ label, icon, hint, onPress, variant = 'primary', loading, disabled, fill }: ButtonProps) {
+export function Button({
+  label,
+  icon,
+  hint,
+  onPress,
+  variant = 'primary',
+  align = 'center',
+  loading,
+  disabled,
+  fill,
+}: ButtonProps) {
   const theme = useTheme();
   const inactive = disabled || loading;
 
   const background =
-    variant === 'primary' ? theme.primary : variant === 'link' ? 'transparent' : theme.backgroundElement;
+    variant === 'primary'
+      ? theme.primary
+      : variant === 'tonal'
+        ? theme.primaryContainer
+        : variant === 'link'
+          ? 'transparent'
+          : theme.backgroundElement;
   const color =
     variant === 'primary'
       ? theme.onPrimary
-      : variant === 'danger'
-        ? theme.danger
-        : variant === 'link'
-          ? theme.primary
-          : theme.text;
+      : variant === 'tonal'
+        ? theme.onPrimaryContainer
+        : variant === 'danger'
+          ? theme.danger
+          : variant === 'link'
+            ? theme.primary
+            : theme.text;
+  // With a picture in front, the words line up on their left edge beside it, so a label that
+  // wraps (or a longer hint) keeps the picture next to the words instead of stranding it at the
+  // button's edge. A one-line label still sits in the middle of the button.
+  const start = align === 'start' || !!icon || loading;
 
   return (
     <Pressable
@@ -51,17 +80,25 @@ export function Button({ label, icon, hint, onPress, variant = 'primary', loadin
       style={({ pressed }) => [
         styles.button,
         variant === 'link' && styles.link,
+        align === 'start' && styles.alignStart,
         fill && styles.fill,
         { backgroundColor: background, opacity: inactive ? 0.5 : pressed ? 0.8 : 1 },
       ]}>
-      <View style={styles.row}>
+      <View style={[styles.row, align === 'start' && styles.rowStart]}>
         {loading ? <ActivityIndicator color={color} /> : icon ? <Ionicons name={icon} size={22} color={color} /> : null}
-        <View style={styles.labels}>
-          <ThemedText type="default" style={[styles.label, { color }]}>
+        <View style={[styles.labels, start && styles.labelsStart]}>
+          <ThemedText type="default" style={[styles.label, start && styles.textStart, { color }]}>
             {label}
           </ThemedText>
           {hint && (
-            <ThemedText type="small" style={[styles.hint, { color }]}>
+            <ThemedText
+              type="small"
+              // Under a link the hint is an explanation, not a second link, so it is grey.
+              style={[
+                styles.hint,
+                start && styles.textStart,
+                { color: variant === 'link' ? theme.textSecondary : color },
+              ]}>
               {hint}
             </ThemedText>
           )}
@@ -80,10 +117,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  link: { paddingVertical: Spacing.two },
+  // Words only: no side padding, so a link's words line up with the text around it.
+  link: { paddingVertical: Spacing.two, paddingHorizontal: 0 },
+  alignStart: { alignItems: 'flex-start' },
   fill: { flexGrow: 1, paddingHorizontal: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
+  rowStart: { justifyContent: 'flex-start' },
   labels: { flexShrink: 1, alignItems: 'center', gap: Spacing.one },
+  labelsStart: { alignItems: 'flex-start' },
   label: { fontWeight: 700, textAlign: 'center' },
   hint: { textAlign: 'center', opacity: 0.85, fontWeight: 400 },
+  textStart: { textAlign: 'auto' },
 });

@@ -24,6 +24,9 @@ const rate = (percent: number) => `${Number(percent.toFixed(2))}%`;
  * (the price before GST, then each tax), what has been paid, and the invoice
  * itself as a PDF. The Owner pays from the button pinned at the bottom.
  */
+// Values longer than this many characters go under their label rather than beside it.
+const LONG_VALUE = 18;
+
 export default function InvoiceScreen() {
   const theme = useTheme();
   const { invoiceId } = useLocalSearchParams<{ invoiceId: string }>();
@@ -87,12 +90,22 @@ export default function InvoiceScreen() {
   const oneRate = rates.size === 1 ? [...rates][0]! : null;
   const taxLabel = (name: string, share: number) => (oneRate === null ? name : `${name} ${rate(oneRate * share)}`);
 
-  const row = (label: string, value: string, strong = false) => (
+  const row = (label: string, value: string, strong = false) =>
+    value.length > LONG_VALUE ? (
+      <View style={styles.stacked}>
+        <ThemedText type="small" themeColor="textSecondary">
+          {label}
+        </ThemedText>
+        <ThemedText type="default" style={strong && styles.strong}>
+          {value}
+        </ThemedText>
+      </View>
+    ) : (
     <View style={styles.row}>
-      <ThemedText type={strong ? 'smallBold' : 'default'} themeColor={strong ? 'text' : 'textSecondary'} style={styles.rowLabel}>
+      <ThemedText type="default" themeColor={strong ? 'text' : 'textSecondary'} style={[styles.rowLabel, strong && styles.strong]}>
         {label}
       </ThemedText>
-      <ThemedText type="default" style={strong && styles.strong}>
+      <ThemedText type="default" style={[styles.rowValue, strong && styles.strong]}>
         {value}
       </ThemedText>
     </View>
@@ -269,6 +282,11 @@ const styles = StyleSheet.create({
   line: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingVertical: Spacing.half },
   rowLabel: { flex: 1 },
+  rowValue: { flexShrink: 1 },
+  // A long value (a name, a period, what a payment was for) goes under its label instead of beside it,
+  // as key-value lists do on a phone (SAP Fiori's key-value cell, the Singapore design system's
+  // stacked description list). Beside it, it squeezed the label into "For the / period" (22 Oct 2026).
+  stacked: { gap: Spacing.half, paddingVertical: Spacing.half },
   strong: { fontWeight: 700 },
   rule: { height: 1, marginVertical: Spacing.one },
   facts: { gap: Spacing.half },

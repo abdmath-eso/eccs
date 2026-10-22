@@ -122,7 +122,8 @@ const PILL_HEIGHT = 40;
 const styles = StyleSheet.create({
   full: { gap: Spacing.two },
   row: { flexDirection: 'row', flexWrap: 'wrap', columnGap: Spacing.two },
-  target: { flexGrow: 1, minHeight: MinTouchSize, justifyContent: 'center' },
+  // Each pill keeps its own width, so a row with two pills looks like a row with three.
+  target: { minHeight: MinTouchSize, justifyContent: 'center' },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',

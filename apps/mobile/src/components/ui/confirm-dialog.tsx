@@ -24,7 +24,7 @@ export function ConfirmDialog({ visible, message, confirmLabel, danger, onConfir
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <DirectionView style={styles.backdrop}>
-        <View style={[styles.card, { backgroundColor: theme.background }]}>
+        <View style={[styles.card, { backgroundColor: theme.backgroundRaised }]}>
           <ThemedText type="default">{message}</ThemedText>
           <Button label={confirmLabel} variant={danger ? 'danger' : 'primary'} onPress={onConfirm} />
           <Button label={t('common.cancel')} variant="secondary" onPress={onCancel} />

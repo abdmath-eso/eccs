@@ -13,6 +13,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View, type GestureResponderEv
 import { DirectionView } from '@/components/direction-view';
 import { ScoreExplain } from '@/components/score-explain';
 import { ThemedText } from '@/components/themed-text';
+import { StatusChip } from '@/components/ui/status-chip';
 import { ErrorText } from '@/components/ui/error-text';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -59,8 +60,6 @@ export function ScoreHeadline({ score }: { score: HygieneScoreDto }) {
     );
   }
 
-  const bandColor =
-    score.band === 'NEEDS_ATTENTION' ? theme.danger : score.band === 'FAIR' ? theme.warning : theme.primary;
   const band = t(`score.band.${score.band}`);
   const change = score.change;
 
@@ -75,12 +74,11 @@ export function ScoreHeadline({ score }: { score: HygieneScoreDto }) {
         </ThemedText>
       </View>
       <View style={styles.headlineText}>
-        <View style={[styles.band, { borderColor: bandColor }]}>
-          <Ionicons name={BAND_ICON[score.band]} size={18} color={bandColor} />
-          <ThemedText type="smallBold" style={{ color: bandColor }}>
-            {band}
-          </ThemedText>
-        </View>
+        <StatusChip
+          tone={score.band === 'NEEDS_ATTENTION' ? 'bad' : score.band === 'FAIR' ? 'warn' : 'good'}
+          icon={BAND_ICON[score.band]}
+          label={band}
+        />
         {change !== null && (
           <View style={styles.change}>
             {/* The arrow and the word both say which way it went. */}
@@ -88,6 +86,7 @@ export function ScoreHeadline({ score }: { score: HygieneScoreDto }) {
               name={change > 0 ? 'arrow-up' : change < 0 ? 'arrow-down' : 'remove'}
               size={16}
               color={change > 0 ? theme.primary : change < 0 ? theme.danger : theme.textSecondary}
+              style={styles.changeIcon}
             />
             <ThemedText type="small" themeColor="textSecondary" style={styles.changeText}>
               {change === 0 ? t('score.same') : t(change > 0 ? 'score.up' : 'score.down', { points: Math.abs(change) })}
@@ -96,7 +95,7 @@ export function ScoreHeadline({ score }: { score: HygieneScoreDto }) {
         )}
         {score.provisional && (
           <View style={styles.change}>
-            <Ionicons name="information-circle-outline" size={16} color={theme.textSecondary} />
+            <Ionicons name="information-circle-outline" size={16} color={theme.textSecondary} style={styles.changeIcon} />
             <ThemedText type="small" themeColor="textSecondary" style={styles.changeText}>
               {t('score.provisional')}
             </ThemedText>
@@ -323,22 +322,16 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     minHeight: MinTouchSize,
   },
-  headline: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, flexWrap: 'wrap' },
+  // The number, then its notes under it, the same in every language: side by side, a short unit
+  // (Telugu's "100 లో") let the notes squeeze into a narrow column beside the number.
+  headline: { gap: Spacing.one },
   numberRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.one },
   number: { fontSize: 52, lineHeight: 58, fontWeight: 700 },
   outOf: { fontSize: 13 },
-  headlineText: { flex: 1, minWidth: 140, gap: Spacing.one },
-  band: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    borderWidth: 1.5,
-    borderRadius: Spacing.five,
-    paddingHorizontal: Spacing.two + Spacing.one,
-    paddingVertical: Spacing.half,
-  },
-  change: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  headlineText: { gap: Spacing.one },
+  // A note's icon on its first line when the words wrap.
+  change: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one },
+  changeIcon: { marginTop: 2 },
   changeText: { flex: 1 },
   factors: { gap: Spacing.one },
   factor: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one + Spacing.half },

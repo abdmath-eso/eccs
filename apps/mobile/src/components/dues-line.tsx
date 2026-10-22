@@ -63,7 +63,10 @@ export function DuesLine({ outletId, stamp }: { outletId: string; stamp: number 
         styles.line,
         { borderColor: overdue ? theme.danger : theme.border, backgroundColor: pressed ? theme.backgroundSelected : 'transparent' },
       ]}>
-      <Ionicons name={overdue ? 'alert-circle' : 'receipt-outline'} size={26} color={overdue ? theme.danger : theme.primary} />
+      {/* In a 36-wide slot, like Buddy's card below it on Home, so both cards' words start on one line. */}
+      <View style={styles.icon}>
+        <Ionicons name={overdue ? 'alert-circle' : 'receipt-outline'} size={26} color={overdue ? theme.danger : theme.primary} />
+      </View>
       <View style={styles.words}>
         <ThemedText type="default" style={[styles.title, { color }]}>
           {title}
@@ -81,13 +84,13 @@ const styles = StyleSheet.create({
   line: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.three,
     minHeight: MinTouchSize,
-    borderWidth: 2,
+    borderWidth: 1,
     borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    padding: Spacing.three,
   },
+  icon: { width: 36, alignItems: 'center' },
   words: { flex: 1 },
   title: { fontWeight: 700 },
 });

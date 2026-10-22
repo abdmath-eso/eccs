@@ -187,7 +187,8 @@ export default function SopLibraryScreen() {
             setSearchError(null);
           }}
           onSubmitEditing={() => remember(search)}
-          placeholder={t('soplib.search')}
+          // One word: the examples did not fit the box at this text size.
+          placeholder={t('common.search')}
           maxLength={80}
           autoCorrect={false}
           returnKeyType="search"

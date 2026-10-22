@@ -74,7 +74,6 @@ export default function PhoneScreen() {
                 if (error) setError(null);
               }}
               error={error}
-              placeholder={t('phone.placeholder')}
               keyboardType="phone-pad"
               autoComplete="tel-national"
               textContentType="telephoneNumber"

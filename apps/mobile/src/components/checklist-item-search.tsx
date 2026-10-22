@@ -99,7 +99,8 @@ export function ChecklistItemSearch({ outletChecklistId, onAdded }: ChecklistIte
             label={t('setup.addLabel')}
             value={text}
             onChangeText={change}
-            placeholder={t('setup.searchPlaceholder')}
+            // One word: the examples did not fit the box at this text size ("…e.g. fridge, g").
+            placeholder={t('common.search')}
             maxLength={160}
             autoCorrect={false}
             returnKeyType="search"

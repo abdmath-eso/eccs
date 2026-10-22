@@ -66,9 +66,17 @@ const MANAGER_MENU: MenuItem[] = [
   { label: 'tile.inspections', icon: 'clipboard-outline', href: '/inspections' },
   STAFF,
 ];
+// ECCS staff and BDEs have all their sections in the bar, which left the menu an empty white panel
+// (screen review, 22 Oct 2026); their notifications and profile fill it, as account rows do in a
+// drawer. The restaurant roles reach both from Home's bell and the menu's header.
+const ACCOUNT_ROWS: MenuItem[] = [
+  { label: 'notif.title', icon: 'notifications-outline', href: '/notifications' },
+  { label: 'profile.title', icon: 'person-circle-outline', href: '/profile' },
+];
 const ECCS_MENU: MenuItem[] = [
   { label: 'tile.jobs', icon: 'construct-outline', href: '/services' },
   { label: 'tile.inspections', icon: 'clipboard-outline', href: '/inspections' },
+  ...ACCOUNT_ROWS,
 ];
 const MENU: Record<Role, MenuItem[]> = {
   HEAD_CHEF: HEAD_CHEF_MENU,
@@ -81,6 +89,7 @@ const MENU: Record<Role, MenuItem[]> = {
   BDE: [
     { label: 'bde.logLead', icon: 'add-circle-outline', href: '/sales/new' },
     { label: 'bde.tab.leads', icon: 'people-outline', href: '/sales' },
+    ...ACCOUNT_ROWS,
   ],
 };
 

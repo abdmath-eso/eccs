@@ -158,7 +158,7 @@ export default function ChecklistsScreen() {
               </ThemedText>
               {/* Red warnings in the corner: past its due time, and problems reported inside. */}
               {run.isOverdue && (
-                <Ionicons name="time" size={28} color={theme.danger} accessibilityLabel={t('checklists.overdue')} />
+                <Ionicons name="time-outline" size={28} color={theme.danger} accessibilityLabel={t('checklists.overdue')} />
               )}
               {problems > 0 && (
                 <Ionicons

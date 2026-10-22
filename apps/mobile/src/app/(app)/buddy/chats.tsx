@@ -69,6 +69,8 @@ export default function BuddyChatsScreen() {
           {t('buddy.recent.empty')}
         </ThemedText>
       )}
+      {/* The rows in one list, so the page's gap between sections does not open up between them. */}
+      <View>
       {chats?.map((chat) => (
         <View key={chat.id} style={[styles.row, { borderColor: theme.border }]}>
           <Pressable
@@ -84,10 +86,12 @@ export default function BuddyChatsScreen() {
             </ThemedText>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel={t('buddy.recent.delete')} onPress={() => setDeleting(chat)} style={styles.delete}>
-            <Ionicons name="trash-outline" size={22} color={theme.danger} />
+            {/* Grey on the list; red is kept for the question that confirms it. */}
+            <Ionicons name="trash-outline" size={22} color={theme.textSecondary} />
           </Pressable>
         </View>
       ))}
+      </View>
       <ConfirmDialog
         visible={deleting !== null}
         message={t('buddy.recent.deleteConfirm')}

@@ -1,18 +1,18 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { can, localize, SOP_CATEGORIES, sopSteps, type SopDto } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
+import { OptionSheet } from '@/components/ui/option-sheet';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
-import { MinTouchSize, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
@@ -20,10 +20,10 @@ import { useOutlet } from '@/lib/use-outlet';
 export default function SopsScreen() {
   const theme = useTheme();
   const { t, api, user, language } = useSession();
-  const { forwardIcon } = useDirection();
   const { outletId, outlets, loading: outletLoading, choose } = useOutlet();
   const [sops, setSops] = useState<SopDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
   const mayAdd = can(user?.memberships ?? [], 'sopTemplates', 'create');
 
@@ -61,8 +61,12 @@ export default function SopsScreen() {
     }
   }
 
+  /** "1 step", "5 steps". */
+  const stepCount = (count: number) => (count === 1 ? t('sops.stepOne') : t('sops.stepCount', { count }));
+
   return (
-    <Screen back title={t('sops.title')} subtitle={t(mayAdd ? 'sops.helpAdd' : 'sops.help')} onRefresh={reload}>
+    // What SOPs are is read once, so it is folded away at the end; the list comes first (22 Oct 2026).
+    <Screen back title={t('sops.title')} about={t(mayAdd ? 'sops.helpAdd' : 'sops.help')} onRefresh={reload}>
       <OutletPicker
         outlets={outlets}
         outletId={outletId}
@@ -81,19 +85,10 @@ export default function SopsScreen() {
         </ThemedText>
       )}
 
+      {/* One "Add SOP" that asks which way, as an app's single "New" button opens a short list of what
+          can be made (Google Drive's New sheet), instead of two big buttons above the list. */}
       {mayAdd && outletId && sops !== null && (
-        <View style={styles.adding}>
-          <Button
-            label={t('sops.fromLibrary')}
-            hint={t('sops.fromLibraryHint')}
-            onPress={() => router.push({ pathname: '/sops/library', params: { outletId } })}
-          />
-          <Button
-            label={`+  ${t('sops.writeOwn')}`}
-            variant="secondary"
-            onPress={() => router.push({ pathname: '/sops/edit', params: { outletId } })}
-          />
-        </View>
+        <Button icon="add" label={t('sops.addButton')} onPress={() => setAdding(true)} />
       )}
 
       {SOP_CATEGORIES.map((category) => {
@@ -105,44 +100,56 @@ export default function SopsScreen() {
               {t(`sopCategory.${category}`)}
             </ThemedText>
             {inCategory.map((sop) => (
-              <Pressable
+              <Card
                 key={sop.id}
-                accessibilityRole="button"
-                onPress={() => router.push({ pathname: '/sops/[sopId]', params: { sopId: sop.id } })}
-                style={({ pressed }) => [
-                  styles.row,
-                  { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
-                ]}>
+                variant="filled"
+                chevron
+                onPress={() => router.push({ pathname: '/sops/[sopId]', params: { sopId: sop.id } })}>
                 <View style={styles.rowText}>
                   <ThemedText type="default" style={styles.rowTitle}>
                     {localize(sop.title, language)}
                   </ThemedText>
                   <ThemedText type="small" themeColor={sop.isCustom ? 'primary' : 'textSecondary'}>
-                    {t(sop.isCustom ? 'sops.yours' : 'sops.byEccs')} ·{' '}
-                    {t('sops.stepCount', { count: sopSteps(sop, language).length })}
+                    {t(sop.isCustom ? 'sops.yours' : 'sops.byEccs')} · {stepCount(sopSteps(sop, language).length)}
                   </ThemedText>
                 </View>
-                <Ionicons name={forwardIcon} size={22} color={theme.textSecondary} />
-              </Pressable>
+              </Card>
             ))}
           </View>
         );
       })}
+
+      {outletId && (
+        <OptionSheet
+          visible={adding}
+          title={t('sops.addButton')}
+          onClose={() => setAdding(false)}
+          options={[
+            {
+              label: t('sops.fromLibrary'),
+              icon: 'library-outline',
+              onPress: () => {
+                setAdding(false);
+                router.push({ pathname: '/sops/library', params: { outletId } });
+              },
+            },
+            {
+              label: t('sops.writeOwn'),
+              icon: 'create-outline',
+              onPress: () => {
+                setAdding(false);
+                router.push({ pathname: '/sops/edit', params: { outletId } });
+              },
+            },
+          ]}
+        />
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  adding: { gap: Spacing.two },
   group: { gap: Spacing.two, marginTop: Spacing.two },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    minHeight: MinTouchSize * 1.3,
-  },
-  rowText: { flex: 1, gap: Spacing.half },
+  rowText: { gap: Spacing.half },
   rowTitle: { fontWeight: 700 },
 });

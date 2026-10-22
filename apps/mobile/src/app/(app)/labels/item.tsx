@@ -10,9 +10,10 @@ import {
   type ShelfLifeUnit,
   type StorageType,
 } from '@eccs/shared';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { OtherLanguagesNote } from '@/components/ai-parts';
 import { ThemedText } from '@/components/themed-text';
@@ -23,7 +24,7 @@ import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
-import { Spacing } from '@/constants/theme';
+import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { useSession } from '@/lib/session';
@@ -141,7 +142,8 @@ export default function FoodItemScreen() {
   return (
     <Screen
       back
-      title={t(existing ? 'labels.items.change' : 'labels.items.add')}
+      // One name for these across the food labels screens: a "label" (22 Oct 2026).
+      title={t(existing ? 'labels.items.change' : 'labels.add')}
       footer={
         <>
           <ErrorText message={error} />
@@ -158,29 +160,88 @@ export default function FoodItemScreen() {
       />
       <OtherLanguagesNote typed={name.trim() !== ''} />
 
-      <ThemedText type="smallBold" themeColor="textSecondary">
-        {t('labels.items.storage')}
-      </ThemedText>
-      <View style={styles.chips} accessibilityRole="radiogroup">
-        {STORAGE_TYPES.map((option) => (
-          <OptionChip key={option} label={t(`labels.storageKeep.${option}`)} selected={storage === option} onPress={() => setStorage(option)} />
-        ))}
-        <OptionChip label={t('labels.storage.none')} selected={storage === null} onPress={() => setStorage(null)} />
+      {/* Where it is kept: four choices of different lengths, so a list with a radio on each line rather
+          than chips that wrap raggedly (Material's radio buttons in a list). */}
+      <View>
+        <ThemedText type="smallBold" themeColor="textSecondary" style={styles.listLabel}>
+          {t('labels.items.storage')}
+        </ThemedText>
+        <View accessibilityRole="radiogroup" accessibilityLabel={t('labels.items.storage')}>
+          {[...STORAGE_TYPES, null].map((option, index) => {
+            const selected = storage === option;
+            return (
+              <Pressable
+                key={option ?? 'none'}
+                accessibilityRole="radio"
+                accessibilityState={{ selected, checked: selected }}
+                onPress={() => setStorage(option)}
+                style={({ pressed }) => [
+                  styles.radioRow,
+                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+                  pressed && { backgroundColor: theme.backgroundElement },
+                ]}>
+                <Ionicons
+                  name={selected ? 'radio-button-on' : 'radio-button-off'}
+                  size={24}
+                  color={selected ? theme.primary : theme.textSecondary}
+                />
+                <ThemedText type="default" style={[styles.flex, selected && styles.bold]}>
+                  {option ? t(`labels.storageKeep.${option}`) : t('labels.storage.none')}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
-      <TextField
-        label={t('labels.items.life')}
-        hint={t('labels.items.lifeHint')}
-        value={life}
-        onChangeText={setLife}
-        error={lifeError}
-        keyboardType="number-pad"
-        maxLength={4}
-      />
-      <View style={styles.chips} accessibilityRole="radiogroup">
-        {UNITS.map((option) => (
-          <OptionChip key={option} label={t(`labels.unit.${option}`)} selected={unit === option} onPress={() => setUnit(option)} />
-        ))}
+      {/* How long it keeps: the number with Hours | Days right beside it, as one answer, and the hint
+          under both (Material 3's segmented buttons for two to five choices). */}
+      <View style={styles.field}>
+        <ThemedText type="smallBold" themeColor="textSecondary">
+          {t('labels.items.life')}
+        </ThemedText>
+        <View style={styles.lifeRow}>
+          <View style={styles.lifeNumber}>
+            <TextField
+              accessibilityLabel={t('labels.items.life')}
+              value={life}
+              onChangeText={setLife}
+              keyboardType="number-pad"
+              maxLength={4}
+              style={lifeError ? { borderColor: theme.danger, borderWidth: 2 } : undefined}
+            />
+          </View>
+          <View style={[styles.segments, { borderColor: theme.outline }]} accessibilityRole="radiogroup">
+            {UNITS.map((option, index) => {
+              const selected = unit === option;
+              return (
+                <Pressable
+                  key={option}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected, checked: selected }}
+                  onPress={() => setUnit(option)}
+                  style={({ pressed }) => [
+                    styles.segment,
+                    index > 0 && { borderStartWidth: 1, borderStartColor: theme.outline },
+                    selected && { backgroundColor: theme.primaryContainer },
+                    pressed && !selected && { backgroundColor: theme.backgroundElement },
+                  ]}>
+                  {selected && <Ionicons name="checkmark" size={18} color={theme.onPrimaryContainer} />}
+                  <ThemedText type="default" style={[styles.segmentText, { color: selected ? theme.onPrimaryContainer : theme.text }]}>
+                    {t(`labels.unit.${option}`)}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+        {lifeError ? (
+          <ErrorText message={lifeError} />
+        ) : (
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('labels.items.lifeHint')}
+          </ThemedText>
+        )}
       </View>
 
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.gap}>
@@ -226,4 +287,30 @@ export default function FoodItemScreen() {
 const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   gap: { marginTop: Spacing.two },
+  flex: { flex: 1 },
+  bold: { fontWeight: 700 },
+  field: { gap: Spacing.two },
+  listLabel: { marginBottom: Spacing.one },
+  // The radio beside its words, in a row tall enough for a thumb, with a thin line between rows.
+  radioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    minHeight: MinTouchSize,
+    paddingVertical: Spacing.two,
+  },
+  lifeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  // Room for four digits.
+  lifeNumber: { width: 112 },
+  // Two buttons joined into one control, the chosen one filled and ticked.
+  segments: { flex: 1, flexDirection: 'row', minHeight: MinTouchSize, borderWidth: 1, borderRadius: Spacing.three, overflow: 'hidden' },
+  segment: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.two,
+  },
+  segmentText: { fontWeight: 700, flexShrink: 1, textAlign: 'center' },
 });

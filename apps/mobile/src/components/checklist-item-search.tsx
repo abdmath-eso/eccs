@@ -8,8 +8,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
+import { SearchField } from '@/components/ui/search-field';
 import { useSnackbar } from '@/components/ui/snackbar';
-import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
@@ -93,29 +93,9 @@ export function ChecklistItemSearch({ outletChecklistId, onAdded }: ChecklistIte
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.searchRow}>
-        <View style={styles.searchField}>
-          <TextField
-            label={t('setup.addLabel')}
-            value={text}
-            onChangeText={change}
-            // One word: the examples did not fit the box at this text size ("…e.g. fridge, g").
-            placeholder={t('common.search')}
-            maxLength={160}
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-        </View>
-        {text.length > 0 && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('common.clear')}
-            onPress={() => change('')}
-            style={styles.clear}>
-            <Ionicons name="close-circle" size={28} color={theme.textSecondary} />
-          </Pressable>
-        )}
-      </View>
+      {/* The app's one search box, with its magnifier and clear cross; the screen heads it "Add an item". */}
+      <SearchField value={text} onChangeText={change} placeholder={t('setup.searchItems')} maxLength={160} />
+
       {/* Under the search box, where the person is looking when an add fails. */}
       <ErrorText message={addError} />
       {/* What they type as their own item is put into the other languages by AI, when it is on. */}
@@ -210,10 +190,6 @@ export function ChecklistItemSearch({ outletChecklistId, onAdded }: ChecklistIte
 
 const styles = StyleSheet.create({
   wrapper: { gap: Spacing.two },
-  // The clear button sits beside the box, level with it (the label is above the box).
-  searchRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.one },
-  searchField: { flex: 1 },
-  clear: { width: MinTouchSize, height: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
   proof: { gap: Spacing.two },
   proofOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   searching: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },

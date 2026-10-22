@@ -16,9 +16,11 @@ import { ProofPhoto } from '@/components/proof-photo';
 import { QrCode } from '@/components/qr-code';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
 import { Expandable } from '@/components/ui/expandable';
+import { Notice } from '@/components/ui/notice';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
@@ -92,6 +94,11 @@ const points = (value: number) => String(Math.round(value * 10) / 10);
  * (Nielsen Norman Group on progressive disclosure and on accordions on mobile;
  * Material's expansion panels).
  *
+ * While the page is off, its main (filled) button is the one that turns it on,
+ * and sharing and printing the code are grey until it is on (22 Oct 2026): a
+ * screen's strongest button is the next step that makes sense (Material 3's
+ * one filled button per screen), and a code that leads nowhere is not it.
+ *
  * Other patterns kept from before: one switch that takes effect at once, with
  * what it publishes said in the question asked before it is turned on (Material's
  * guidance for switches); the QR code on white with Share under it (the "my QR
@@ -162,7 +169,6 @@ export default function CustomerPageScreen() {
   }
 
   const errorAt = (at: 'switch' | 'link' | 'photo' | 'share') => (failed?.at === at ? failed.message : null);
-  const card = [styles.card, { borderColor: theme.border }];
   const heading = (text: string) => (
     <ThemedText type="default" style={styles.heading}>
       {text}
@@ -187,12 +193,7 @@ export default function CustomerPageScreen() {
           {t(score.isYesterday ? 'public.score.forYesterday' : 'public.score.forEarlier', { date: formatDayLong(score.date, language) })}
         </ThemedText>
         {score.provisional && score.inspection !== 'COUNTED' && (
-          <View style={[styles.caveat, { borderColor: theme.warning }]}>
-            <Ionicons name="alert-circle" size={22} color={theme.warning} />
-            <ThemedText type="smallBold" style={styles.grow}>
-              {t(`public.score.noInspection.${score.inspection}`)} {t('public.score.onlyOwn')}
-            </ThemedText>
-          </View>
+          <Notice tone="warning" title={`${t(`public.score.noInspection.${score.inspection}`)} ${t('public.score.onlyOwn')}`} />
         )}
         <ThemedText type="default" style={styles.score}>
           {t('public.inspection.score', { score: score.score })} · {t(`score.band.${score.band}`)}
@@ -211,11 +212,13 @@ export default function CustomerPageScreen() {
     const preview = page.preview;
     const live = page.state === 'LIVE';
     const stateColor = live ? theme.primary : page.state === 'TAKEN_DOWN' ? theme.warning : theme.textSecondary;
+    // While the page is off, turning it on is the main step: a filled button under the switch says so in words.
+    const offerOn = page.state === 'OFF' && page.canSwitch;
 
     return (
       <>
         {/* Where the page stands, and the switch that changes it: together, and first. */}
-        <View style={[styles.card, { borderColor: stateColor }]}>
+        <Card borderColor={stateColor}>
           <View style={styles.row}>
             <Ionicons name={STATE_ICON[page.state]} size={28} color={stateColor} />
             <ThemedText type="default" style={[styles.grow, styles.bold]}>
@@ -234,16 +237,24 @@ export default function CustomerPageScreen() {
               />
             )}
           </View>
+          {offerOn && (
+            <Button
+              icon="eye-outline"
+              label={t('cpage.switch.turnOn')}
+              disabled={busy !== null}
+              onPress={() => setAsking({ what: 'on' })}
+            />
+          )}
           <ErrorText message={errorAt('switch')} />
           {!page.canSwitch && (
             <ThemedText type="small" themeColor="textSecondary">
               {t('cpage.switch.ownerOnly')}
             </ThemedText>
           )}
-        </View>
+        </Card>
 
         {/* The photos: what the Owner comes back to most often, so they come before the code. */}
-        <View style={card}>
+        <Card>
           {heading(t('cpage.photos.title'))}
           {/* The restaurant's own photos: chosen one by one on the next screen, never published by themselves. */}
           {page.canPropose && (
@@ -291,31 +302,33 @@ export default function CustomerPageScreen() {
               </View>
             </View>
           ))}
-        </View>
+        </Card>
 
         {/* The code itself: black on white whatever the theme, so it scans off this screen too. */}
-        <View style={card}>
+        <Card>
           {heading(t('cpage.qr.title'))}
           <ThemedText type="small" themeColor="textSecondary">
             {t('cpage.qr.hint')}
           </ThemedText>
-          {page.localOnly && (
-            <View style={[styles.caveat, { borderColor: theme.warning }]}>
-              <Ionicons name="warning" size={22} color={theme.warning} />
-              <ThemedText type="small" style={styles.grow}>
-                {t('cpage.local')}
-              </ThemedText>
-            </View>
-          )}
+          {page.localOnly && <Notice tone="warning" text={t('cpage.local')} />}
           <View style={styles.qr}>
             <QrCode value={page.url} size={200} label={t('cpage.qr.label')} />
           </View>
           {!live && (
-            <ThemedText type="smallBold" style={styles.centred}>
-              {t('cpage.qr.offNote')}
-            </ThemedText>
+            <View style={styles.offNote}>
+              <Ionicons name="information-circle-outline" size={20} color={theme.textSecondary} />
+              <ThemedText type="smallBold" style={styles.grow}>
+                {t('cpage.qr.offNote')}
+              </ThemedText>
+            </View>
           )}
-          <Button icon="share-social-outline" label={t('cpage.qr.share')} onPress={() => void shareLink()} />
+          {/* Sharing is the main step only once the page is on; until then the code leads nowhere. */}
+          <Button
+            icon="share-social-outline"
+            label={t('cpage.qr.share')}
+            variant={live ? 'primary' : 'secondary'}
+            onPress={() => void shareLink()}
+          />
           <ErrorText message={errorAt('share')} />
           {/* The poster is a web page with its own Print button; the phone's browser prints or saves it. */}
           <Button icon="print-outline" label={t('cpage.qr.print')} variant="secondary" onPress={() => void Linking.openURL(`${page.url}/poster`)} />
@@ -335,7 +348,7 @@ export default function CustomerPageScreen() {
               <ErrorText message={errorAt('link')} />
             </>
           )}
-        </View>
+        </Card>
 
         {/* From here down, explanations: one line each that opens when tapped. */}
 
@@ -433,7 +446,7 @@ export default function CustomerPageScreen() {
   };
 
   return (
-    <Screen back title={t('cpage.title')} subtitle={t('cpage.help')} onRefresh={load}>
+    <Screen back title={t('cpage.title')} about={t('cpage.help')} onRefresh={load}>
       <OutletPicker
         outlets={outlets}
         outletId={outletId}
@@ -487,7 +500,6 @@ export default function CustomerPageScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   grow: { flex: 1 },
   bold: { fontWeight: 700 },
@@ -496,10 +508,10 @@ const styles = StyleSheet.create({
   start: { alignItems: 'flex-start' },
   heading: { fontWeight: 700, fontSize: 18 },
   score: { fontWeight: 700, fontSize: 22 },
-  caveat: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, borderWidth: 2, borderRadius: Spacing.two, padding: Spacing.two },
   result: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   gap: { marginTop: Spacing.two },
   bullet: { flexDirection: 'row', gap: Spacing.two, paddingStart: Spacing.one },
   qr: { alignItems: 'center', paddingVertical: Spacing.two },
-  centred: { textAlign: 'center' },
+  // Left-aligned with a mark, like the notes elsewhere: centred, its last word sat alone on a line.
+  offNote: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
 });

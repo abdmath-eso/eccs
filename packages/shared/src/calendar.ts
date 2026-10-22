@@ -1,5 +1,6 @@
 import type { ChecklistRunSummaryDto, LocalizedText } from "./checklists.js";
 import type { LicenceType } from "./licences.js";
+import type { VisitStatus } from "./services.js";
 
 // The restaurant's history calendar: one month at a time, with what
 // happened on past days (checklists, ECCS services) and what is coming
@@ -22,6 +23,8 @@ export interface CalendarVisitDto {
   /** When in the day, as arranged: one of VISIT_SLOTS, e.g. "1000" or "AFTER_CLOSING". */
   slot: string | null;
   state: CalendarVisitState;
+  /** The visit's own status, so the calendar labels it in the same words as Services. */
+  status: VisitStatus;
 }
 
 /** A licence that expires on the day it is listed under. */

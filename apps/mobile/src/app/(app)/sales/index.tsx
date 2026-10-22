@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
-import { TextField } from '@/components/ui/text-field';
+import { SearchField } from '@/components/ui/search-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { applyLeadRowPending, fieldSummary, newLeadsOnPhone } from '@/lib/offline/field-ops';
@@ -42,8 +42,9 @@ function found(lead: LeadRowDto, words: string[]) {
  * moved on the phone show at once.
  *
  * PATTERN FOLLOWED: the filter-chip row over a list (Material 3's filter chips; Pipedrive's
- * and Zoho CRM's mobile lists filtered by stage), and Pipedrive's "rotting" mark on a
- * deal left too long (support.pipedrive.com/article/the-rotting-feature).
+ * and Zoho CRM's mobile lists filtered by stage), scrolling sideways to the screen's edge so
+ * the next chip shows it is there (Material 3: a chip row that scrolls runs edge to edge), and
+ * Pipedrive's "rotting" mark on a deal left too long (support.pipedrive.com/article/the-rotting-feature).
  */
 export default function LeadsScreen() {
   const theme = useTheme();
@@ -83,8 +84,9 @@ export default function LeadsScreen() {
         outbox.kick();
         await load();
       }}>
-      <TextField value={search} onChangeText={setSearch} placeholder={t('bde.leads.search')} accessibilityLabel={t('bde.leads.search')} returnKeyType="search" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      <SearchField value={search} onChangeText={setSearch} placeholder={t('bde.leads.search')} />
+      {/* Out to the screen's edges, with the page's 16 inside, so a chip is cut by the screen and not by the margin. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.chips}>
         {FILTERS.map((value) => (
           <OptionChip key={value} label={t(`bde.filter.${value}`)} selected={filter === value} onPress={() => setFilter(value)} />
         ))}
@@ -123,7 +125,9 @@ export default function LeadsScreen() {
 }
 
 const styles = StyleSheet.create({
-  add: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, minHeight: MinTouchSize },
-  chips: { gap: Spacing.two, paddingVertical: Spacing.half },
+  // The top bar's end sits 4 from the screen's edge (room for round buttons); words end on the content's 16 edge.
+  add: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, minHeight: MinTouchSize, paddingEnd: Spacing.three - Spacing.one },
+  strip: { marginHorizontal: -Spacing.three },
+  chips: { gap: Spacing.two, paddingVertical: Spacing.half, paddingHorizontal: Spacing.three },
   list: { gap: Spacing.two },
 });

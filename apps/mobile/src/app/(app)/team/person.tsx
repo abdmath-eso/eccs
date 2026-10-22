@@ -215,7 +215,8 @@ function PersonForm({ person, suggestedName, outletId, logins, outletChoice }: P
   return (
     <Screen
       back
-      title={t(person ? 'team.person.edit' : 'team.people.add')}
+      // Whose details these are, rather than "Edit details" (22 Oct 2026).
+      title={person ? person.name : t('team.people.add')}
       footer={
         <>
           <ErrorText message={saveError} />
@@ -292,7 +293,8 @@ function PersonForm({ person, suggestedName, outletId, logins, outletChoice }: P
         hint={t(isOwner ? 'team.person.joinedHint' : 'team.person.joinedOwnerOnly')}
         error={errors.joined}
       />
-      <TextField label={t('team.person.phone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" hint={t('team.person.optional')} />
+      {/* "(optional)" in the label itself, as GOV.UK marks the fields that can be left empty. */}
+      <TextField label={t('team.person.phone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
 
       {/* ── Their app login, for the few who have one ── */}
       {logins.length > 0 && (
@@ -308,7 +310,7 @@ function PersonForm({ person, suggestedName, outletId, logins, outletChoice }: P
             {logins.map((login) => (
               <OptionChip
                 key={login.id}
-                label={`${login.name} (${t(`role.${login.role}`)})`}
+                label={`${login.name} · ${t(`role.${login.role}`)}`}
                 selected={userId === login.id}
                 onPress={() => setUserId(login.id)}
               />

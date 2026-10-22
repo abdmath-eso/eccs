@@ -7,9 +7,13 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorText } from '@/components/ui/error-text';
+import { ListRow } from '@/components/ui/list-row';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
+import { StatusChip } from '@/components/ui/status-chip';
 import { UnsentMark } from '@/components/unsent-mark';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -34,6 +38,8 @@ export default function ChecklistsScreen() {
   const { outletId: knownOutletId, outlets, loading: outletLoading, choose } = useOutlet();
   const box = useOutbox();
   const [error, setError] = useState<string | null>(null);
+  // The day of the last week opened to show its checklists, if any.
+  const [openDay, setOpenDay] = useState<string | null>(null);
 
   // An Owner's outlets are listed by the server. With no signal that list is empty,
   // so fall back to the outlet last chosen on this phone.
@@ -103,13 +109,19 @@ export default function ChecklistsScreen() {
 
   const open = (runId: string) => router.push({ pathname: '/checklists/[runId]', params: { runId } });
   const today = runs?.[0]?.date;
-  const earlier = history.filter((row) => row.date !== today);
+  // The last week one line per day, newest first; a day opens to its checklists (22 Oct 2026: they
+  // were 28 cards, each repeating its date and "Missed").
+  const earlierDays: { date: string; rows: ChecklistRunSummaryDto[] }[] = [];
+  for (const row of history.filter((entry) => entry.date !== today).sort((a, b) => b.date.localeCompare(a.date))) {
+    const last = earlierDays[earlierDays.length - 1];
+    if (last?.date === row.date) last.rows.push(row);
+    else earlierDays.push({ date: row.date, rows: [row] });
+  }
 
   return (
     <Screen
       back
       title={t('checklists.title')}
-      subtitle={t('checklists.photoRule')}
       onRefresh={async () => {
         // Pulling down also sends anything still waiting, without waiting for the next automatic try.
         outbox.kick();
@@ -126,11 +138,7 @@ export default function ChecklistsScreen() {
 
       <ErrorText message={error} onRetry={() => void load()} />
       {(outletLoading || (runs === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
-      {runs?.length === 0 && (
-        <ThemedText type="default" themeColor="textSecondary">
-          {t('checklists.empty')}
-        </ThemedText>
-      )}
+      {runs?.length === 0 && <EmptyState icon="clipboard-outline" title={t('checklists.empty')} />}
 
       {runs && runs.length > 0 && (
         <ThemedText type="smallBold" themeColor="textSecondary">
@@ -144,51 +152,48 @@ export default function ChecklistsScreen() {
         const done = run.items.filter((item) => item.response).length;
         const problems = run.items.filter((item) => item.response?.passed === false).length;
         return (
-          <Pressable
-            key={run.id}
-            accessibilityRole="button"
-            onPress={() => open(run.id)}
-            style={({ pressed }) => [
-              styles.card,
-              { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
-            ]}>
+          // The same card as Home's: the title, one state label under it, the progress line, the arrow.
+          <Card key={run.id} variant="filled" onPress={() => open(run.id)} chevron>
             <View style={styles.cardHeader}>
               <ThemedText type="default" style={styles.cardTitle}>
                 {localize(run.title, language)}
               </ThemedText>
-              {/* Red warnings in the corner: past its due time, and problems reported inside. */}
+              {/* Red warnings in the corner (the founder's choice, 5 Oct 2026): past its due time, and problems reported inside. */}
               {run.isOverdue && (
-                <Ionicons name="time-outline" size={28} color={theme.danger} accessibilityLabel={t('checklists.overdue')} />
+                <Ionicons name="time-outline" size={26} color={theme.danger} accessibilityLabel={t('checklists.overdue')} />
               )}
               {problems > 0 && (
                 <Ionicons
                   name="alert-circle"
-                  size={28}
+                  size={26}
                   color={theme.danger}
                   accessibilityLabel={t('checklists.hasProblems', { count: problems })}
                 />
               )}
             </View>
             {/* Not shown as "Submitted" until the server has it: until then nobody else can see it. */}
-            <StatusBadge status={view.submitPending ? 'IN_PROGRESS' : run.status} reviewed={run.reviewedAt !== null} />
+            <StatusBadge
+              status={view.submitPending ? 'IN_PROGRESS' : run.status}
+              reviewed={run.reviewedAt !== null}
+              overdue={run.isOverdue}
+            />
             {view.submitPending ? (
               <UnsentMark sending={hasSignal} text={t('offline.submitWaiting')} />
             ) : (
               view.unsent > 0 && <UnsentMark sending={hasSignal} text={t('offline.runUnsent', { count: view.unsent })} />
             )}
-            <ThemedText type="small" themeColor={run.isOverdue ? 'danger' : 'textSecondary'}>
+            <ThemedText type="small" themeColor="textSecondary">
               {t('checklists.progress', { done, total: run.items.length })}
               {run.dueTime && run.status !== 'SUBMITTED'
                 ? ` · ${t('checklists.due', { time: formatTime(run.dueTime, language) })}`
                 : ''}
-              {run.isOverdue ? ` · ${t('checklists.overdue')}` : ''}
             </ThemedText>
             {problems > 0 && (
               <ThemedText type="small" themeColor="danger">
                 {t('checklists.hasProblems', { count: problems })}
               </ThemedText>
             )}
-          </Pressable>
+          </Card>
         );
       })}
 
@@ -200,53 +205,94 @@ export default function ChecklistsScreen() {
         />
       )}
 
-      {earlier.length > 0 && (
+      {earlierDays.length > 0 && (
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
           {t('checklists.recent')}
         </ThemedText>
       )}
-      {earlier.map((row) => (
-        <Pressable
-          key={row.id}
-          accessibilityRole="button"
-          onPress={() => open(row.id)}
-          style={[styles.historyRow, { borderColor: theme.border }]}>
-          <View style={styles.historyText}>
-            <ThemedText type="default">{localize(row.title, language)}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {formatDayShort(row.date, language)}
-              {row.problemCount > 0 ? ` · ${t('checklists.problems', { count: row.problemCount })}` : ''}
-            </ThemedText>
-          </View>
-          {row.problemCount > 0 && (
-            <Ionicons
-              name="alert-circle"
-              size={24}
-              color={theme.danger}
-              accessibilityLabel={t('checklists.hasProblems', { count: row.problemCount })}
-            />
-          )}
-          <StatusBadge status={row.status} reviewed={row.reviewedAt !== null} />
-        </Pressable>
-      ))}
+      {/* Plain rows with thin lines between them, one per day (Material 3 lists; an expanding row, as
+          Android's grouped notifications open): the day, how it went, and its checklists when opened. */}
+      {earlierDays.length > 0 && (
+        <View>
+          {earlierDays.map((day, index) => {
+            const missed = day.rows.filter((row) => row.status !== 'SUBMITTED').length;
+            const problems = day.rows.reduce((sum, row) => sum + row.problemCount, 0);
+            const isOpen = openDay === day.date;
+            return (
+              <View key={day.date}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isOpen }}
+                  onPress={() => setOpenDay(isOpen ? null : day.date)}
+                  style={({ pressed }) => [
+                    styles.dayRow,
+                    index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+                    pressed && { backgroundColor: theme.backgroundElement },
+                  ]}>
+                  <View style={styles.dayText}>
+                    <ThemedText type="default" style={styles.dayTitle}>
+                      {formatDayShort(day.date, language)}
+                    </ThemedText>
+                    {missed > 0 ? (
+                      <StatusChip tone="bad" icon="alert" label={t('checklists.dayMissed', { count: missed, total: day.rows.length })} />
+                    ) : (
+                      <StatusChip tone="good" icon="checkmark" label={t('checklists.dayAllIn', { total: day.rows.length })} />
+                    )}
+                    {problems > 0 && (
+                      <ThemedText type="small" themeColor="danger">
+                        {t('checklists.problems', { count: problems })}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={22} color={theme.textSecondary} />
+                </Pressable>
+                {isOpen && (
+                  // The day's checklists, set in under their day, each opening as before.
+                  <View style={styles.dayRuns}>
+                    {day.rows.map((row) => (
+                      <ListRow
+                        key={row.id}
+                        divider
+                        strong={false}
+                        title={localize(row.title, language)}
+                        below={
+                          <>
+                            <StatusBadge status={row.status} reviewed={row.reviewedAt !== null} />
+                            {row.problemCount > 0 && (
+                              <ThemedText type="small" themeColor="danger">
+                                {t('checklists.problems', { count: row.problemCount })}
+                              </ThemedText>
+                            )}
+                          </>
+                        }
+                        onPress={() => open(row.id)}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two, minHeight: MinTouchSize * 1.6 },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },
   sectionGap: { marginTop: Spacing.three },
-  historyRow: {
+  // As tall as a shared list row (ui/list-row), so the week reads as one plain list.
+  dayRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    minHeight: MinTouchSize,
+    gap: Spacing.three,
+    minHeight: MinTouchSize + Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
   },
-  historyText: { flex: 1, gap: Spacing.half },
+  dayText: { flex: 1, gap: Spacing.one },
+  dayTitle: { fontWeight: 700 },
+  // Set in by the phone margin, as Material 3 insets the lines of nested items.
+  dayRuns: { paddingStart: Spacing.three },
 });

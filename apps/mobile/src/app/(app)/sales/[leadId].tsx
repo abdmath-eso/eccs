@@ -2,22 +2,25 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { LeadActivityDto, LeadDetailDto } from '@eccs/shared';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState, type ComponentProps } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { HeldNotice, SavedCopyNote } from '@/components/field-sync-parts';
 import { BookCheckDialog, LoseDialog, NextStepDialog, NoteDialog, ParkDialog } from '@/components/lead-dialogs';
 import { LeadPhoto, StageTag } from '@/components/lead-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
+import { Notice } from '@/components/ui/notice';
 import { OptionSheet, type SheetOption } from '@/components/ui/option-sheet';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { UnsentMark } from '@/components/unsent-mark';
-import { MinTouchSize, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDate } from '@/lib/format';
-import { activityWords, callLead, momentWords, nextStepWords, phoneWords, queueLose, queuePark, queueStep, queueUpdate, staleWords, todoLine } from '@/lib/sales';
+import { ltrText } from '@/lib/direction';
+import { formatDate, formatPhone } from '@/lib/format';
+import { activityWords, callLead, momentWords, nextStepWords, queueLose, queuePark, queueStep, queueUpdate, staleWords, todoLine } from '@/lib/sales';
 import { useSession } from '@/lib/session';
 import { useLead } from '@/lib/use-leads';
 
@@ -51,6 +54,8 @@ const ACTIVITY_ICONS: Partial<Record<LeadActivityDto['kind'], IconName>> = {
  * activity first, call, note and activity in reach, the history below; calls made from
  * the app logged on the deal: support.pipedrive.com, "Calling and logging calls in the
  * mobile app"), and Salesforce Maps' one-tap check-in on a visit (trailhead.salesforce.com).
+ * The contact's details are a summary list, each with its label over it (GOV.UK Design System's
+ * summary list, stacked on a phone), so the phone number is a line of its own.
  */
 export default function LeadScreen() {
   const { leadId, do: asked } = useLocalSearchParams<{ leadId: string; do?: string }>();
@@ -111,12 +116,15 @@ export default function LeadScreen() {
     } }));
 
   const next = nextStepWords(lead, t, language);
-  const details = [
-    lead.contactName,
-    lead.contactPhone ? phoneWords(lead.contactPhone) : null,
-    t('bde.details.kitchens', { count: lead.kitchens }),
-    `${t(`bde.source.${lead.source}`)}${lead.referrerName ? ` · ${lead.referrerName}` : ''}`,
-  ].filter(Boolean);
+  // The lead's details, each under its own label (the same labels as on Change details).
+  const details: [string, string | null][] = [
+    [t('bde.form.contact'), lead.contactName],
+    // Digits kept left to right in Urdu, so the groups of the number do not swap places.
+    [t('bde.form.phone'), lead.contactPhone ? ltrText(formatPhone(lead.contactPhone)) : null],
+    [t('bde.form.kitchens'), String(lead.kitchens)],
+    [t('bde.form.source'), `${t(`bde.source.${lead.source}`)}${lead.referrerName ? ` · ${lead.referrerName}` : ''}`],
+    [t('bde.form.address'), lead.address],
+  ];
 
   return (
     <Screen back backLabel={t('bde.tab.leads')} onRefresh={load}>
@@ -145,9 +153,9 @@ export default function LeadScreen() {
 
       {/* What needs doing, or why it is waiting, before anything else. */}
       {lead.toDo ? (
-        <Banner tone={lead.toDo.bucket === 'OVERDUE' ? 'danger' : 'primary'} text={todoLine(lead.toDo, t, language)} />
+        <Notice tone={lead.toDo.bucket === 'OVERDUE' ? 'danger' : 'info'} text={todoLine(lead.toDo, t, language)} />
       ) : lead.stale ? (
-        <Banner tone="danger" text={staleWords(lead.stale, t, language)} />
+        <Notice tone="danger" text={staleWords(lead.stale, t, language)} />
       ) : null}
       {lead.status === 'PARKED' && (
         <ThemedText type="small" themeColor="warning">
@@ -179,33 +187,34 @@ export default function LeadScreen() {
       <Button icon="ellipsis-horizontal" label={t('bde.step.more')} variant="secondary" onPress={() => setMoreOpen(true)} />
       <ErrorText message={problem} />
 
-      <Pressable accessibilityRole="button" onPress={() => setDialog('next')} style={[styles.line, { borderColor: theme.border }]}>
-        <Ionicons name="alarm-outline" size={22} color={theme.primary} />
-        <View style={styles.flex}>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            {t('bde.next.title')}
-          </ThemedText>
-          <ThemedText type="default">{next ?? t('bde.next.none')}</ThemedText>
-        </View>
-        <ThemedText type="smallBold" themeColor="primary">
-          {t('bde.change')}
-        </ThemedText>
-      </Pressable>
-
-      <Pressable accessibilityRole="button" onPress={steps.edit.run} style={[styles.line, { borderColor: theme.border }]}>
-        <Ionicons name="person-outline" size={22} color={theme.primary} />
-        <View style={styles.flex}>
-          <ThemedText type="default">{details.join(' · ')}</ThemedText>
-          {lead.address && (
-            <ThemedText type="small" themeColor="textSecondary">
-              {lead.address}
+      <Card onPress={() => setDialog('next')} accessibilityLabel={`${t('bde.next.title')}: ${next ?? t('bde.next.none')}. ${t('bde.change')}`}>
+        <View style={styles.line}>
+          <Ionicons name="alarm-outline" size={22} color={theme.primary} />
+          <View style={styles.flex}>
+            <ThemedText type="smallBold" themeColor="textSecondary">
+              {t('bde.next.title')}
             </ThemedText>
-          )}
+            <ThemedText type="default">{next ?? t('bde.next.none')}</ThemedText>
+          </View>
+          <ThemedText type="smallBold" themeColor="primary">
+            {t('bde.change')}
+          </ThemedText>
         </View>
-        <ThemedText type="smallBold" themeColor="primary">
-          {t('bde.change')}
-        </ThemedText>
-      </Pressable>
+      </Card>
+
+      <Card>
+        {details.map(([label, value]) =>
+          value ? (
+            <View key={label} style={styles.detail}>
+              <ThemedText type="small" themeColor="textSecondary">
+                {label}
+              </ThemedText>
+              <ThemedText type="default">{value}</ThemedText>
+            </View>
+          ) : null,
+        )}
+        <Button variant="link" align="start" icon="create-outline" label={t('bde.step.edit')} onPress={steps.edit.run} />
+      </Card>
 
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
         {t('bde.timeline')}
@@ -250,18 +259,6 @@ function primaryStep(lead: Pick<LeadDetailDto, 'stage'>): 'check' | 'checkDone' 
   }
 }
 
-function Banner({ tone, text }: { tone: 'danger' | 'primary'; text: string }) {
-  const theme = useTheme();
-  const color = tone === 'danger' ? theme.danger : theme.primary;
-  return (
-    <View style={[styles.banner, { borderColor: color, backgroundColor: theme.backgroundElement }]} accessibilityRole="text">
-      <Ionicons name={tone === 'danger' ? 'alert-circle' : 'today-outline'} size={22} color={color} />
-      <ThemedText type="default" style={styles.flex}>
-        {text}
-      </ThemedText>
-    </View>
-  );
-}
 
 /** One thing that happened, with who and when; a free check with what needs fixing and its photos. */
 function TimelineEntry({ entry, unsent, sending }: { entry: LeadActivityDto; unsent: boolean; sending: boolean }) {
@@ -303,8 +300,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.two },
   flex: { flex: 1 },
   actions: { flexDirection: 'row', gap: Spacing.two },
-  banner: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderStartWidth: 4, borderRadius: Spacing.two, padding: Spacing.three },
-  line: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, minHeight: MinTouchSize },
+  line: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  detail: { gap: Spacing.half },
   sectionGap: { marginTop: Spacing.two },
   entry: { flexDirection: 'row', gap: Spacing.two, borderBottomWidth: 1, paddingBottom: Spacing.two },
   entryText: { flex: 1, gap: Spacing.half },

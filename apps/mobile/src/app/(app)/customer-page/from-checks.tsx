@@ -9,14 +9,17 @@ import {
   type PublicPhotoCaption,
   type PublicPhotoDto,
 } from '@eccs/shared';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState, type ComponentProps } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ProofPhoto } from '@/components/proof-photo';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorText } from '@/components/ui/error-text';
+import { Notice } from '@/components/ui/notice';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
@@ -58,6 +61,11 @@ const PAGE = 12;
  * the day of the check, a faked location) are counted under the list with the
  * reasons. Before 13 Oct 2026 all of these were left out without a word, and
  * the founder, testing away from the sample outlet, found an empty screen.
+ *
+ * With nothing to choose from, the screen says so in an empty state (a
+ * picture, one line, one sentence and the way to the checklists), and what the
+ * screen is for is folded under "About this screen"; the rule stays first, in
+ * the app's warning notice (22 Oct 2026).
  *
  * Opened from the customer page screen with `outletId`.
  */
@@ -134,19 +142,13 @@ export default function PhotosFromChecksScreen() {
     return { icon: 'eye-off', color: theme.textSecondary, text: t('cpage.photos.notShown', { count: PUBLIC_PAGE_RULES.maxPhotos }) };
   };
 
-  const card = [styles.card, { borderColor: theme.border }];
   const eligible = photos?.eligible ?? [];
   const visible = eligible.slice(0, showing);
 
   return (
-    <Screen back title={t('cpage.checks.title')} subtitle={t('cpage.checks.help')} onRefresh={load}>
+    <Screen back title={t('cpage.checks.title')} about={t('cpage.checks.help')} onRefresh={load}>
       {/* The rule comes first and stays in plain sight: it is what ECCS's office will judge each photo by. */}
-      <View style={[styles.card, styles.row, { borderColor: theme.warning }]}>
-        <Ionicons name="alert-circle" size={24} color={theme.warning} />
-        <ThemedText type="default" style={[styles.grow, styles.bold]}>
-          {t('cpage.propose.rule')}
-        </ThemedText>
-      </View>
+      <Notice tone="warning" title={t('cpage.propose.rule')} />
       <ErrorText message={error} onRetry={() => void load()} />
       {photos === null && !error && <ActivityIndicator color={theme.primary} />}
 
@@ -156,9 +158,12 @@ export default function PhotosFromChecksScreen() {
         </ThemedText>
       )}
       {photos !== null && eligible.length === 0 && (
-        <ThemedText type="default" themeColor="textSecondary">
-          {t('cpage.checks.none')}
-        </ThemedText>
+        <EmptyState
+          icon="images-outline"
+          title={t('cpage.checks.noneTitle')}
+          body={t('cpage.checks.noneBody')}
+          action={{ label: t('cpage.checks.goChecklists'), icon: 'checkbox-outline', onPress: () => router.push('/checklists') }}
+        />
       )}
 
       {visible.map((photo, index) => {
@@ -173,7 +178,7 @@ export default function PhotosFromChecksScreen() {
                 {formatDayLong(photo.date, language)}
               </ThemedText>
             )}
-            <View style={[styles.card, { borderColor: picked ? theme.primary : theme.border }]}>
+            <Card borderColor={picked ? theme.primary : undefined}>
               <View style={styles.row}>
                 {/* Tapping the picture shows it whole: look for people, faces and name badges before sending. */}
                 <ProofPhoto uri={api.fileUrl(photo.path)} label={`${checklist}. ${check}`} compact />
@@ -217,16 +222,13 @@ export default function PhotosFromChecksScreen() {
                     ))}
                   </View>
                   {/* Said at the moment of sending: ECCS does not otherwise see a restaurant's checklist photos. */}
-                  <View style={[styles.note, { borderColor: theme.warning }]}>
-                    <ThemedText type="smallBold">{t('cpage.checks.review')}</ThemedText>
-                    <ThemedText type="small">{t('cpage.propose.rule')}</ThemedText>
-                  </View>
+                  <Notice tone="warning" title={t('cpage.checks.review')} text={t('cpage.propose.rule')} />
                   <Button icon="send" label={t('cpage.checks.send')} loading={sending} disabled={!caption} onPress={() => void send(photo)} />
                   <ErrorText message={failed} />
                   <Button label={t('common.cancel')} variant="link" disabled={sending} onPress={() => choose(null)} />
                 </>
               )}
-            </View>
+            </Card>
           </View>
         );
       })}
@@ -259,19 +261,21 @@ export default function PhotosFromChecksScreen() {
           {photos.proposed.map((photo) => {
             const now = standing(photo);
             return (
-              <View key={photo.id} style={[card, styles.row]}>
-                <ProofPhoto uri={api.fileUrl(photo.path)} label={t(`public.photo.${photo.caption}`)} compact />
-                <View style={styles.grow}>
-                  <ThemedText type="smallBold">{t(`public.photo.${photo.caption}`)}</ThemedText>
-                  <View style={styles.status}>
-                    <Ionicons name={now.icon} size={20} color={now.color} />
-                    <ThemedText type="small" style={[styles.grow, { color: now.color }]}>
-                      {now.text}
-                    </ThemedText>
+              <Card key={photo.id}>
+                <View style={styles.row}>
+                  <ProofPhoto uri={api.fileUrl(photo.path)} label={t(`public.photo.${photo.caption}`)} compact />
+                  <View style={styles.grow}>
+                    <ThemedText type="smallBold">{t(`public.photo.${photo.caption}`)}</ThemedText>
+                    <View style={styles.status}>
+                      <Ionicons name={now.icon} size={20} color={now.color} />
+                      <ThemedText type="small" style={[styles.grow, { color: now.color }]}>
+                        {now.text}
+                      </ThemedText>
+                    </View>
+                    {photo.rejectReason && <ThemedText type="small">{t('cpage.propose.reason', { reason: photo.rejectReason })}</ThemedText>}
                   </View>
-                  {photo.rejectReason && <ThemedText type="small">{t('cpage.propose.reason', { reason: photo.rejectReason })}</ThemedText>}
                 </View>
-              </View>
+              </Card>
             );
           })}
         </>
@@ -281,14 +285,11 @@ export default function PhotosFromChecksScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  bold: { fontWeight: 700 },
   grow: { flex: 1 },
   entry: { gap: Spacing.two },
   day: { marginTop: Spacing.three },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  note: { borderWidth: 2, borderRadius: Spacing.two, padding: Spacing.two, gap: Spacing.one },
   status: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one },
   sectionGap: { marginTop: Spacing.four },
 });

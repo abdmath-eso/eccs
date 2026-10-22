@@ -54,6 +54,18 @@ export default function VendorScreen() {
   if (!vendorId || !outletId) return <Redirect href="/vendors" />;
 
   const vendor = data === 'GONE' ? null : data;
+  // The address as it is written in India, smallest part first, then the locality and the city, with the
+  // locality left out when the address already names it ("Shop 6, Begum Bazaar, Hyderabad"). It was the
+  // locality first, then the address, which named the locality a second time (22 Oct 2026).
+  const address = vendor
+    ? [
+        vendor.address,
+        vendor.address?.toLowerCase().includes(vendor.area.toLowerCase()) ? null : vendor.area,
+        vendor.address?.toLowerCase().includes(vendor.city.toLowerCase()) ? null : vendor.city,
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : '';
 
   // One fact: its picture, its words, and a quieter second line where there is more to say.
   const fact = (icon: IconName, text: string, more?: string | null, tone: ThemeColor = 'textSecondary') => (
@@ -90,14 +102,10 @@ export default function VendorScreen() {
           </View>
 
           <View style={styles.facts}>
-            {/* Where: how far from the outlet in view (when both places are known), then the locality and the address. */}
-            {fact(
-              'location-outline',
-              vendor.distanceMetres !== null
-                ? t('vendors.fromOutlet', { distance: ltrText(formatDistance(vendor.distanceMetres)) })
-                : `${vendor.area}, ${vendor.city}`,
-              [vendor.distanceMetres !== null ? `${vendor.area}, ${vendor.city}` : null, vendor.address].filter(Boolean).join('\n'),
-            )}
+            {/* Where: how far from the outlet in view (when both places are known), then the address. */}
+            {vendor.distanceMetres !== null
+              ? fact('location-outline', t('vendors.fromOutlet', { distance: ltrText(formatDistance(vendor.distanceMetres)) }), address)
+              : fact('location-outline', address)}
             {vendor.hours && fact('time-outline', t('vendors.open', { hours: localize(vendor.hours, language) }))}
             {vendor.delivers
               ? fact(

@@ -6,6 +6,7 @@ import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, View } from '
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
@@ -139,7 +140,7 @@ export default function FreeCheckScreen() {
         </ThemedText>
         {toFix.map((entry) => (
           <View key={entry.point} style={styles.fixRow}>
-            <Ionicons name="construct" size={18} color={theme.warning} />
+            <Ionicons name="construct" size={18} color={theme.warning} style={styles.fixIcon} />
             <ThemedText type="default" style={styles.flex}>
               {t(`bde.check.point.${entry.point}`)}
               <ThemedText type="small" themeColor="textSecondary">
@@ -174,7 +175,8 @@ export default function FreeCheckScreen() {
         </>
       }>
       {FREE_CHECK_POINTS.map((point, index) => (
-        <View key={point} style={[styles.point, { borderColor: answers[point] ? theme.border : theme.outline }]}>
+        // The app's one card; the darker outline edge marks a point not answered yet.
+        <Card key={point} borderColor={answers[point] ? undefined : theme.outline}>
           <ThemedText type="default" style={styles.bold}>
             {index + 1}. {t(`bde.check.point.${point}`)}
           </ThemedText>
@@ -207,9 +209,9 @@ export default function FreeCheckScreen() {
                 <Button label={t('bde.photo.retake')} variant="link" onPress={() => void addPhoto(point)} />
               </View>
             ) : (
-              <Button icon="camera-outline" label={t('bde.check.addPhoto')} variant="link" onPress={() => void addPhoto(point)} />
+              <Button icon="camera-outline" label={t('bde.check.addPhoto')} variant="link" align="start" onPress={() => void addPhoto(point)} />
             ))}
-        </View>
+        </Card>
       ))}
       <TextField label={t('bde.form.note')} value={note} onChangeText={setNote} maxLength={200} multiline />
     </Screen>
@@ -219,7 +221,6 @@ export default function FreeCheckScreen() {
 const styles = StyleSheet.create({
   bold: { fontWeight: 700 },
   flex: { flex: 1 },
-  point: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   answers: { flexDirection: 'row', gap: Spacing.two },
   answer: {
     flex: 1,
@@ -237,4 +238,6 @@ const styles = StyleSheet.create({
   photoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   thumb: { width: 64, height: 64, borderRadius: Spacing.two },
   fixRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
+  // On the first line of the point's name (24 high), not above it.
+  fixIcon: { marginTop: 3 },
 });

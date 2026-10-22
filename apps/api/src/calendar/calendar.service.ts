@@ -13,6 +13,7 @@ import {
   type CalendarVisitDto,
   type CalendarVisitState,
   type LocalizedText,
+  type VisitStatus,
 } from '@eccs/shared';
 import type { AuthUser } from '../auth/auth.types.js';
 import { ChecklistsService, indiaDate } from '../checklists/checklists.service.js';
@@ -24,7 +25,7 @@ const MAX_UPCOMING = 8;
 const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const fromDbDate = (date: Date) => date.toISOString().slice(0, 10);
 
-type JobRow = { id: string; scheduledDate: Date; scheduledSlot: string | null; status: string; serviceType: { name: unknown } };
+type JobRow = { id: string; scheduledDate: Date; scheduledSlot: string | null; status: VisitStatus; serviceType: { name: unknown } };
 
 /**
  * The restaurant's history calendar: for one outlet and one month, what
@@ -149,8 +150,9 @@ export class CalendarService {
 
 function toVisit(job: JobRow, today: string): CalendarVisitDto {
   let state: CalendarVisitState;
-  if (job.status === 'COMPLETED' || job.status === 'APPROVED') state = 'DONE';
+  // Done once the work is finished: waiting for sign-off, with ECCS for checking, or approved.
+  if (job.status === 'COMPLETED' || job.status === 'IN_REVIEW' || job.status === 'APPROVED') state = 'DONE';
   else if (job.status === 'IN_PROGRESS') state = 'IN_PROGRESS';
   else state = fromDbDate(job.scheduledDate) >= today ? 'UPCOMING' : 'NOT_DONE';
-  return { id: job.id, service: job.serviceType.name as LocalizedText, slot: job.scheduledSlot, state };
+  return { id: job.id, service: job.serviceType.name as LocalizedText, slot: job.scheduledSlot, state, status: job.status };
 }

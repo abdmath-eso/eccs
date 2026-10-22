@@ -8,7 +8,9 @@ import { ScoreExplain } from '@/components/score-explain';
 import { ScoreHeadline, ScoreTrend, useReasonText } from '@/components/score-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
+import { Expandable } from '@/components/ui/expandable';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
@@ -66,9 +68,8 @@ export default function ScoreScreen() {
     const name = t(`score.part.${entry.key}`);
     const fix = FIX[entry.key];
     return (
-      <View
-        key={entry.key}
-        style={[styles.part, { borderColor: theme.border }, !entry.measured && styles.partNotMeasured]}>
+      // The shared card; a dashed edge, as well as the words, marks a part that is not counted yet.
+      <Card key={entry.key} style={!entry.measured && styles.partNotMeasured}>
         <View
           style={styles.partTop}
           accessible
@@ -118,7 +119,7 @@ export default function ScoreScreen() {
         {entry.reasons.some((reason) => reason.lost > 0) && (
           <Button variant="secondary" label={t(`score.open.${fix.label}`)} onPress={() => router.push(fix.href)} />
         )}
-      </View>
+      </Card>
     );
   };
 
@@ -135,24 +136,18 @@ export default function ScoreScreen() {
           <ScoreExplain score={score} />
           {detail && (
             <>
-              {detail.possible > 0 && (
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  {t('score.total', { earned: points(detail.earned), possible: detail.possible })}
-                </ThemedText>
-              )}
-
-              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
-                {t('score.howTitle')}
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {t('score.how')}
-              </ThemedText>
-              {score.provisional && (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t('score.provisionalHelp')}
-                </ThemedText>
-              )}
+              {/* The parts first; how they make the number is read once, so it is folded under them
+                  (the founder's rule: main part first; Nielsen Norman Group on progressive disclosure). */}
               {detail.components.map(part)}
+              <Expandable title={t('score.howTitle')} icon="information-circle-outline">
+                <ThemedText type="small">{t('score.how')}</ThemedText>
+                {score.provisional && <ThemedText type="small">{t('score.provisionalHelp')}</ThemedText>}
+                {detail.possible > 0 && score.score !== null && (
+                  <ThemedText type="small">
+                    {t('score.total', { earned: points(detail.earned), possible: detail.possible, score: score.score })}
+                  </ThemedText>
+                )}
+              </Expandable>
 
               <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
                 {t('score.trend')}
@@ -168,8 +163,6 @@ export default function ScoreScreen() {
 
 const styles = StyleSheet.create({
   sectionGap: { marginTop: Spacing.three },
-  part: { borderWidth: 1.5, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  // A dashed edge, as well as the words, marks a part that is not counted yet.
   partNotMeasured: { borderStyle: 'dashed' },
   partTop: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   partName: { flex: 1, fontWeight: 700 },

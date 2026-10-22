@@ -1,17 +1,22 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import type { MessageKey } from '@eccs/i18n';
 import {
   ISSUE_CATEGORIES,
   localize,
   notificationWordingParams,
+  type LocalizedText,
   type NotificationDto,
+  type NotificationType,
 } from '@eccs/shared';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { isEccsUser } from '@/components/app-nav';
 import { PushStatus } from '@/components/push-status';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorText } from '@/components/ui/error-text';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
@@ -39,16 +44,35 @@ function indiaDayAndTime(iso: string): { day: string; time: string } {
   }
 }
 
+// The kinds that have their own words for several at once ("4 checklists missed"); any other kind
+// shows its title with the count after it, as Gmail counts the messages in a thread.
+const GROUP_WORDS = {
+  CHECKLIST_MISSED: 'notif.group.CHECKLIST_MISSED',
+  CHECKLIST_OVERDUE: 'notif.group.CHECKLIST_OVERDUE',
+  CHECKLIST_PROBLEM: 'notif.group.CHECKLIST_PROBLEM',
+} as const;
+
+// The kinds sent to the restaurant and to ECCS staff alike that have a sentence of their own for staff.
+const STAFF_BODY: Partial<Record<NotificationType, MessageKey>> = {
+  VISIT_TOMORROW: 'notif.VISIT_TOMORROW.bodyStaff',
+};
+
+type Row = NotificationDto & { time: string };
+
 /**
  * Notifications: everything the app has to tell this person, newest first and
- * grouped by day. One not yet read has a dot and heavier writing. Tapping one
- * opens what it is about and marks it read.
+ * grouped by day, as a plain list with thin lines between rows (Gmail, GitHub; Material 3
+ * lists). One not yet read has a dot beside its title, bold writing and a light tint.
+ * Tapping one opens what it is about and marks it read. Several of the same kind for the same
+ * outlet on the same day are one row ("4 checklists missed · Gachibowli") that opens to show
+ * them, as Android groups a phone's notifications; until 22 Oct 2026 each was a box of its own.
  */
 export default function NotificationsScreen() {
   const theme = useTheme();
-  const { t, api, language } = useSession();
+  const { t, api, language, user } = useSession();
   const { forwardIcon } = useDirection();
   const notify = useSnackbar();
+  const eccs = isEccsUser(user?.memberships[0]?.role);
   const [items, setItems] = useState<NotificationDto[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
@@ -56,6 +80,8 @@ export default function NotificationsScreen() {
   const [olderError, setOlderError] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
+  // The groups opened to show what is in them, by their key.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
     try {
@@ -132,13 +158,17 @@ export default function NotificationsScreen() {
     const values = notificationWordingParams(item.params, {
       text: (value) => localize(value, language),
       date: (value) => formatDate(value, language),
-      slot: (value) => (value ? formatSlot(value, language, t) : null) ?? t('notif.noTime'),
+      // Inside a sentence "after closing" takes no capital, as "time to be confirmed" does not.
+      slot: (value) =>
+        value === 'AFTER_CLOSING' ? t('notif.afterClosing') : ((value ? formatSlot(value, language, t) : null) ?? t('notif.noTime')),
       category: (value) => {
         const known = ISSUE_CATEGORIES.find((category) => category === value);
         return known ? t(`category.${known}`) : value;
       },
     });
-    return { title: t(`notif.${item.type}.title`, values), body: t(`notif.${item.type}.body`, values).trim() };
+    // ECCS staff read the sentence written for them where there is one ("… at Gachibowli is tomorrow").
+    const staffBody = eccs ? STAFF_BODY[item.type] : undefined;
+    return { title: t(`notif.${item.type}.title`, values), body: t(staffBody ?? `notif.${item.type}.body`, values).trim() };
   }
 
   const today = indiaToday();
@@ -146,88 +176,171 @@ export default function NotificationsScreen() {
   const dayName = (day: string) =>
     day === today ? t('notif.today') : day === yesterday ? t('notif.yesterday') : formatDayLong(day, language);
 
-  // The list arrives newest first, so each day's notifications are already together.
-  const days: { day: string; items: (NotificationDto & { time: string })[] }[] = [];
+  // The list arrives newest first, so each day's notifications are already together. Within a day,
+  // those of one kind for one outlet are gathered where the newest of them is.
+  const days: { day: string; groups: { key: string; rows: Row[] }[] }[] = [];
   for (const item of items ?? []) {
     const { day, time } = indiaDayAndTime(item.createdAt);
-    const last = days[days.length - 1];
-    if (last?.day === day) last.items.push({ ...item, time });
-    else days.push({ day, items: [{ ...item, time }] });
+    let last = days[days.length - 1];
+    if (last?.day !== day) {
+      last = { day, groups: [] };
+      days.push(last);
+    }
+    // A kind this version of the app does not know is never gathered: its words cannot be counted.
+    const key = item.type ? `${day}|${item.type}|${typeof item.params.outlet === 'string' ? item.params.outlet : ''}` : item.id;
+    const group = last.groups.find((entry) => entry.key === key);
+    if (group) group.rows.push({ ...item, time });
+    else last.groups.push({ key, rows: [{ ...item, time }] });
   }
 
+  /** The words of one row: unread with a dot beside the title, bold writing and a light tint. */
+  const row = (props: {
+    key: string;
+    title: string;
+    body: string;
+    meta: string;
+    isUnread: boolean;
+    first: boolean;
+    onPress: () => void;
+    trailing: ReactNode;
+    expanded?: boolean;
+    inset?: boolean;
+  }) => (
+    <Pressable
+      key={props.key}
+      accessibilityRole="button"
+      accessibilityState={props.expanded === undefined ? undefined : { expanded: props.expanded }}
+      accessibilityLabel={`${props.isUnread ? `${t('notif.unread')}. ` : ''}${props.title}. ${props.body} ${props.meta}`}
+      onPress={props.onPress}
+      style={({ pressed }) => [
+        styles.row,
+        props.inset && styles.inset,
+        !props.first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+        // The tint is the accent at 8%, light enough for the words on it.
+        { backgroundColor: pressed ? theme.backgroundSelected : props.isUnread ? `${theme.primary}14` : 'transparent' },
+      ]}>
+      {/* Kept even when there is no dot, so read and unread rows line up; at the title's line. */}
+      <View style={styles.dotColumn}>
+        {props.isUnread && <View style={[styles.dot, { backgroundColor: theme.primary }]} />}
+      </View>
+      <View style={styles.text}>
+        <ThemedText type="default" style={props.isUnread && styles.titleUnread}>
+          {props.title}
+        </ThemedText>
+        <ThemedText type="small" themeColor={props.isUnread ? 'text' : 'textSecondary'}>
+          {props.body}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {props.meta}
+        </ThemedText>
+      </View>
+      {props.trailing}
+    </Pressable>
+  );
+
+  /** One notification as a row of the list. */
+  const single = (item: Row, first: boolean, inset?: boolean) => {
+    const { title, body } = wording(item);
+    const outlet = typeof item.params.outlet === 'string' ? item.params.outlet : '';
+    return row({
+      key: item.id,
+      title,
+      body,
+      // Says which branch, for an Owner with several, unless the sentence already does.
+      meta: [outlet && !body.includes(outlet) ? outlet : null, formatTime(item.time, language)].filter(Boolean).join(' · '),
+      isUnread: !item.readAt,
+      first,
+      inset,
+      onPress: () => press(item),
+      trailing: item.link ? <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} /> : null,
+    });
+  };
+
+  /** Several of one kind for one outlet on one day, as one row that opens to show them. */
+  const gathered = (key: string, rows: Row[], first: boolean) => {
+    const newest = rows[0]!;
+    const type = newest.type!;
+    const open = openGroups.has(key);
+    const outlet = typeof newest.params.outlet === 'string' ? newest.params.outlet : '';
+    const words = type in GROUP_WORDS ? GROUP_WORDS[type as keyof typeof GROUP_WORDS] : null;
+    const title = words
+      ? t(words, { count: rows.length })
+      : t('notif.groupOther', { title: wording(newest).title, count: rows.length });
+    // The checklists by name; for other kinds, the newest one's sentence.
+    const nameOf = (value: unknown) =>
+      typeof value === 'string' ? value : value && typeof value === 'object' ? localize(value as LocalizedText, language) : '';
+    const names = [...new Set(rows.map((entry) => nameOf(entry.params.checklist)))].filter(Boolean);
+    const body = names.length > 0 ? names.join(', ') : wording(newest).body;
+    const toggle = () =>
+      setOpenGroups((current) => {
+        const next = new Set(current);
+        if (open) next.delete(key);
+        else next.add(key);
+        return next;
+      });
+    return (
+      <View key={key}>
+        {row({
+          key,
+          title,
+          body,
+          meta: [outlet || null, formatTime(newest.time, language)].filter(Boolean).join(' · '),
+          isUnread: rows.some((entry) => !entry.readAt),
+          first,
+          expanded: open,
+          onPress: toggle,
+          trailing: <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={22} color={theme.textSecondary} />,
+        })}
+        {open && rows.map((entry) => single(entry, false, true))}
+      </View>
+    );
+  };
+
   return (
-    <Screen back title={t('notif.title')} onRefresh={load}>
+    <Screen
+      back
+      title={t('notif.title')}
+      onRefresh={load}
+      // In the top bar, as Gmail and GitHub place it: a text button that acts on the whole list.
+      headerRight={
+        unread > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ busy: markingAll }}
+            disabled={markingAll}
+            onPress={() => void markAllRead()}
+            style={({ pressed }) => [styles.barButton, pressed && { backgroundColor: theme.backgroundElement }]}>
+            {markingAll ? (
+              <ActivityIndicator color={theme.primary} />
+            ) : (
+              <ThemedText type="default" themeColor="primary" numberOfLines={2} style={styles.barButtonText}>
+                {t('notif.markAllRead')}
+              </ThemedText>
+            )}
+          </Pressable>
+        ) : undefined
+      }>
       <ErrorText message={error} onRetry={items === null ? () => void load() : undefined} />
       {items === null && !error && <ActivityIndicator color={theme.primary} />}
 
       {/* Whether this phone shows notifications without the app being open, and how to turn that on. */}
       <PushStatus />
 
-      {unread > 0 && (
-        <Button
-          icon="checkmark-done"
-          label={t('notif.markAllRead')}
-          variant="secondary"
-          onPress={() => void markAllRead()}
-          loading={markingAll}
-        />
-      )}
-
       {items?.length === 0 && (
-        <View style={styles.empty}>
-          <Ionicons name="notifications-off-outline" size={56} color={theme.textSecondary} />
-          <ThemedText type="subtitle" style={styles.emptyTitle}>
-            {t('notif.empty')}
-          </ThemedText>
-          <ThemedText type="default" themeColor="textSecondary" style={styles.center}>
-            {t('notif.emptyHelp')}
-          </ThemedText>
-        </View>
+        <EmptyState icon="notifications-off-outline" title={t('notif.empty')} body={t('notif.emptyHelp')} />
       )}
 
-      {days.map((group) => (
-        <View key={group.day} style={styles.day}>
+      {days.map((day) => (
+        <View key={day.day} style={styles.day}>
           <ThemedText type="smallBold" themeColor="textSecondary" accessibilityRole="header">
-            {dayName(group.day)}
+            {dayName(day.day)}
           </ThemedText>
-          {group.items.map((item) => {
-            const { title, body } = wording(item);
-            const isUnread = !item.readAt;
-            const outlet = typeof item.params.outlet === 'string' ? item.params.outlet : '';
-            // Says which branch, for an Owner with several, unless the sentence already does.
-            const meta = [outlet && !body.includes(outlet) ? outlet : null, formatTime(item.time, language)].filter(Boolean).join(' · ');
-            return (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${isUnread ? `${t('notif.unread')}. ` : ''}${title}. ${body} ${meta}`}
-                onPress={() => press(item)}
-                style={({ pressed }) => [
-                  styles.row,
-                  {
-                    backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement,
-                    // Unread is marked three ways, never by colour alone: an edge, a dot and heavier writing.
-                    borderColor: isUnread ? theme.primary : 'transparent',
-                  },
-                ]}>
-                <View style={styles.dotColumn}>
-                  {isUnread && <View style={[styles.dot, { backgroundColor: theme.primary }]} />}
-                </View>
-                <View style={styles.text}>
-                  <ThemedText type="default" style={isUnread ? styles.titleUnread : styles.titleRead}>
-                    {title}
-                  </ThemedText>
-                  <ThemedText type="default" themeColor={isUnread ? 'text' : 'textSecondary'}>
-                    {body}
-                  </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {meta}
-                  </ThemedText>
-                </View>
-                {item.link && <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />}
-              </Pressable>
-            );
-          })}
+          {/* The rows of a day together, with no gap between them. */}
+          <View>
+            {day.groups.map((group, index) =>
+              group.rows.length > 1 ? gathered(group.key, group.rows, index === 0) : single(group.rows[0]!, index === 0),
+            )}
+          </View>
         </View>
       ))}
 
@@ -240,25 +353,24 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  day: { gap: Spacing.two },
+  day: { gap: Spacing.one },
+  // Edge to edge, as Material 3 lists run on a phone, with the words kept on the page's 16 edge.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    borderRadius: Spacing.three,
-    borderWidth: 1.5,
-    padding: Spacing.three,
-    paddingStart: Spacing.two,
-    minHeight: MinTouchSize * 1.6,
+    marginHorizontal: -Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
+    minHeight: MinTouchSize + Spacing.three,
   },
-  // Kept even when there is no dot, so read and unread rows line up.
-  // At the title's line, not halfway down a three- or four-line notification.
-  dotColumn: { width: 12, alignItems: 'center', alignSelf: 'flex-start', marginTop: 6 },
-  dot: { width: 12, height: 12, borderRadius: 6 },
+  // What a gathered row holds, set in under it (Material 3 insets nested items).
+  inset: { paddingStart: Spacing.three + Spacing.four },
+  // At the title's line, not halfway down a three-line notification.
+  dotColumn: { width: 10, alignItems: 'center', alignSelf: 'flex-start', marginTop: 7 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
   text: { flex: 1, gap: Spacing.half },
-  titleUnread: { fontWeight: 700, fontSize: 17 },
-  titleRead: { fontWeight: 500, fontSize: 17 },
-  empty: { alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.six },
-  emptyTitle: { fontSize: 20, lineHeight: 26, textAlign: 'center' },
-  center: { textAlign: 'center' },
+  titleUnread: { fontWeight: 700 },
+  barButton: { minHeight: MinTouchSize, justifyContent: 'center', paddingHorizontal: Spacing.two, borderRadius: Spacing.three, flexShrink: 1 },
+  barButtonText: { fontWeight: 700 },
 });

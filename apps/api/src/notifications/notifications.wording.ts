@@ -28,7 +28,7 @@ const ENGLISH: Record<NotificationType, { title: string; body: string }> = {
     title: 'Visit no longer yours',
     body: '{service} at {outlet} on {date} has been given to someone else or cancelled.',
   },
-  VISIT_TOMORROW: { title: 'Visit tomorrow', body: 'ECCS {service} is tomorrow, {time}.' },
+  VISIT_TOMORROW: { title: 'Visit tomorrow', body: '{service} by ECCS is tomorrow, {time}.' },
   VISIT_STARTED: { title: 'ECCS has arrived', body: 'The ECCS team has arrived for {service}.' },
   VISIT_FINISHED: { title: 'Visit finished', body: '{service} is finished. Check the photos and sign off.' },
   SIGN_OFF_WAITING: { title: 'Waiting for your sign-off', body: '{service} from {date} is waiting for your sign-off.' },
@@ -87,7 +87,7 @@ const englishFormatters = {
     const known = VISIT_SLOTS.find((slot) => slot === value);
     if (!known) return 'time to be confirmed';
     const window = visitSlotWindow(known);
-    return window ? `${clock(window.start)} – ${clock(window.end)}` : 'After closing';
+    return window ? `${clock(window.start)} – ${clock(window.end)}` : 'after closing'; // mid-sentence: "… is tomorrow, after closing."
   },
   category: (value: string) => CATEGORY[value as IssueCategory] ?? value,
 };

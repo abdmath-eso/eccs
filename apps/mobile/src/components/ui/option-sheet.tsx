@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DirectionView } from '@/components/direction-view';
@@ -25,7 +25,10 @@ interface OptionSheetProps {
   onClose: () => void;
 }
 
-/** A short list of choices that slides up from the bottom of the screen, with Cancel underneath. */
+/**
+ * A list of choices that slides up from the bottom of the screen, with Cancel underneath. A long
+ * list (13 SOP categories) scrolls inside the sheet, which never grows past most of the screen.
+ */
 export function OptionSheet({ visible, title, options, onClose }: OptionSheetProps) {
   const theme = useTheme();
   const { t } = useSession();
@@ -50,6 +53,7 @@ export function OptionSheet({ visible, title, options, onClose }: OptionSheetPro
               {title}
             </ThemedText>
           )}
+          <ScrollView style={styles.list} contentContainerStyle={styles.listContent} keyboardShouldPersistTaps="handled">
           {options.map((option, index) => {
             const color = option.danger ? theme.danger : theme.text;
             return (
@@ -66,6 +70,7 @@ export function OptionSheet({ visible, title, options, onClose }: OptionSheetPro
               </Pressable>
             );
           })}
+          </ScrollView>
           <Button label={t('common.cancel')} variant="secondary" onPress={onClose} />
         </View>
       </DirectionView>
@@ -84,7 +89,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.three,
     gap: Spacing.one,
+    maxHeight: '85%',
   },
+  list: { flexShrink: 1, flexGrow: 0 },
+  listContent: { gap: Spacing.one },
   title: { paddingHorizontal: Spacing.two, paddingBottom: Spacing.one },
   option: {
     flexDirection: 'row',

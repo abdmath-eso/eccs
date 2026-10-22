@@ -85,7 +85,8 @@ export default function PhoneScreen() {
           </View>
         </DirectionView>
       </View>
-      <Button label={t('phone.send')} onPress={submit} loading={busy} disabled={phone.trim().length < 10} />
+      {/* Never greyed out: tapped before ten digits are in, it says so under the box (GOV.UK validation). */}
+      <Button label={t('phone.send')} onPress={() => void submit()} loading={busy} />
     </Screen>
   );
 }

@@ -5,7 +5,6 @@ import {
   DEFAULT_LABEL_SIZE,
   findSameName,
   FOOD_LABEL_RULES,
-  formatLabelWhen,
   useByFor as addShelfLife,
   type FoodItemDto,
   type FoodLabelDto,
@@ -18,20 +17,21 @@ import { LabelPrintSheet } from '@/components/label-print-sheet';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { Notice } from '@/components/ui/notice';
 import { NumberDialog } from '@/components/ui/number-dialog';
 import { OptionChip } from '@/components/ui/option-chip';
 import { OptionSheet } from '@/components/ui/option-sheet';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
+import { SearchField } from '@/components/ui/search-field';
 import { useSnackbar } from '@/components/ui/snackbar';
-import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { takeAddedLabel } from '@/lib/label-added';
 import { recallLabelSize, rememberLabelSize, sendLabels, type PrintJob, type PrintOutcome, type PrintRoute } from '@/lib/label-print';
 import { keepLabelChoices, keptLabelChoices, queuedLabels, queueLabel, sendQueuedLabels } from '@/lib/label-queue';
-import { labelPrintData, shelfLifeText, type LabelFacts } from '@/lib/labels';
+import { labelPrintData, printedWhen, shelfLifeText, type LabelFacts } from '@/lib/labels';
 import { newId } from '@/lib/offline/files';
 import { isNoSignal } from '@/lib/offline/outbox';
 import { useSession } from '@/lib/session';
@@ -90,7 +90,7 @@ const LabelRow = memo(function LabelRow({ item, count, canEdit, now, onChange, o
   const { t, language } = useSession();
   const chosen = count > 0;
   const keeps = t('labels.keeps', { life: shelfLifeText(item.shelfLifeHours, t) });
-  const last = item.lastUsedAt ? t('labels.lastPrinted', { when: formatLabelWhen(item.lastUsedAt, new Date(now), language) }) : null;
+  const last = item.lastUsedAt ? t('labels.lastPrinted', { when: printedWhen(item.lastUsedAt, now, language) }) : null;
 
   const words = (
     <>
@@ -447,29 +447,8 @@ export default function FoodLabelsScreen() {
         }}
       />
 
-      {listed && (
-        <View style={styles.searchLine}>
-          <View style={styles.searchField}>
-            <TextField
-              label={t('common.search')}
-              value={search}
-              onChangeText={setSearch}
-              maxLength={60}
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-          </View>
-          {search !== '' && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('labels.clearSearch')}
-              onPress={() => setSearch('')}
-              style={({ pressed }) => [styles.clearSearch, pressed && styles.pressed]}>
-              <Ionicons name="close-circle" size={28} color={theme.textSecondary} />
-            </Pressable>
-          )}
-        </View>
-      )}
+      {/* The app's one search box, with a short placeholder that a screen reader hears as its name. */}
+      {listed && <SearchField value={search} onChangeText={setSearch} placeholder={t('labels.search')} maxLength={60} />}
 
       <ErrorText message={error} onRetry={() => void load()} />
       {(outletLoading || (items === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
@@ -479,14 +458,7 @@ export default function FoodLabelsScreen() {
         </ThemedText>
       )}
 
-      {waiting > 0 && (
-        <View style={[styles.notice, { borderColor: theme.warning }]}>
-          <Ionicons name="cloud-offline-outline" size={22} color={theme.warning} />
-          <ThemedText type="default" style={styles.noticeText}>
-            {t('labels.queue.waiting', { count: waiting })}
-          </ThemedText>
-        </View>
-      )}
+      {waiting > 0 && <Notice tone="warning" text={t('labels.queue.waiting', { count: waiting })} />}
 
       {/* Shown once something is chosen, to look over the batch before printing. */}
       {chosen.length > 0 && (
@@ -597,9 +569,6 @@ export default function FoodLabelsScreen() {
 
 const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  searchLine: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.one },
-  searchField: { flex: 1 },
-  clearSearch: { width: MinTouchSize, height: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
   // On a narrow phone, or in a language with longer words, the stepper moves under the name (to the
   // row's end) rather than squeezing the name into a column a few letters wide.
   row: {
@@ -647,14 +616,4 @@ const styles = StyleSheet.create({
   hint: { textAlign: 'center' },
   summary: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   summaryText: { flex: 1, fontWeight: 700 },
-  notice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    borderWidth: 2,
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  noticeText: { flex: 1 },
 });

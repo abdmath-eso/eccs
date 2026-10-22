@@ -19,6 +19,18 @@ import { useSession } from '@/lib/session';
 export const gradeColor = (grade: InspectionGrade | null): ThemeColor =>
   grade === 'A_PLUS' || grade === 'A' ? 'primary' : grade === 'B' ? 'warning' : grade === null ? 'textSecondary' : 'danger';
 
+/**
+ * Words joined by " · " that never leave the dot at the end of a line: the space after each dot cannot
+ * break, so a line that wraps starts with "· Exemplary" rather than ending in "A+ ·".
+ */
+export const keepDots = (text: string) => text.replace(/ · /g, ' ·\u00A0');
+
+/** A grade's two parts, "A+" and "Exemplary", from its words ("A+ · Exemplary"), for showing on two lines. */
+export function gradeParts(words: string): [string, string | null] {
+  const at = words.indexOf(' · ');
+  return at < 0 ? [words, null] : [words.slice(0, at), words.slice(at + 3)];
+}
+
 /** Where an inspection stands, in the label every status uses (components/ui/status-chip). */
 export function InspectionStatusBadge({ status }: { status: InspectionStatus }) {
   const { t } = useSession();
@@ -29,11 +41,12 @@ export function InspectionStatusBadge({ status }: { status: InspectionStatus }) 
   return <StatusChip tone="neutral" icon="ellipse-outline" label={label} />;
 }
 
-/** The overall score, large, with the grade in words beside it. */
+/** The overall score, large, with the grade beside it: its letter, and its word on the line under. */
 export function ScoreSummary({ score, grade }: { score: number; grade: InspectionGrade | null }) {
   const theme = useTheme();
   const { t } = useSession();
   const color = theme[gradeColor(grade)];
+  const [letter, word] = grade ? gradeParts(t(`insp.grade.${grade}`)) : ['', null];
   return (
     <View
       accessible
@@ -53,7 +66,12 @@ export function ScoreSummary({ score, grade }: { score: number; grade: Inspectio
         </ThemedText>
         {grade && (
           <ThemedText type="subtitle" style={[styles.grade, { color }]}>
-            {t(`insp.grade.${grade}`)}
+            {letter}
+          </ThemedText>
+        )}
+        {word && (
+          <ThemedText type="default" style={[styles.gradeWord, { color }]}>
+            {word}
           </ThemedText>
         )}
       </View>
@@ -127,8 +145,11 @@ export function InspectionCard({ inspection, showOutlet, mark }: InspectionCardP
       )}
       {finished ? (
         <ThemedText type="default" themeColor={gradeColor(inspection.grade)} style={styles.cardScore}>
-          {t('insp.scoreOutOf', { score: inspection.overallScore ?? 0 })}
-          {inspection.grade ? ` · ${t(`insp.grade.${inspection.grade}`)}` : ''}
+          {keepDots(
+            [t('insp.scoreOutOf', { score: inspection.overallScore ?? 0 }), inspection.grade ? t(`insp.grade.${inspection.grade}`) : null]
+              .filter(Boolean)
+              .join(' · '),
+          )}
         </ThemedText>
       ) : (
         inspection.status === 'IN_PROGRESS' && (
@@ -163,6 +184,7 @@ const styles = StyleSheet.create({
   scoreNumber: { fontSize: 40, lineHeight: 46, fontWeight: 700 },
   scoreWords: { flex: 1, gap: Spacing.one },
   grade: { fontSize: 22, lineHeight: 28, fontWeight: 700 },
+  gradeWord: { fontWeight: 700 },
   sectionRow: { gap: Spacing.one },
   sectionLine: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.two },
   sectionTitle: { flex: 1 },

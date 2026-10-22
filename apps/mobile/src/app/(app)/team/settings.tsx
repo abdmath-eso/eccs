@@ -64,7 +64,20 @@ export default function AttendanceSettingsScreen() {
   if (!allowed) return <Redirect href="/" />;
 
   return (
-    <Screen back title={t('att.settings.title')}>
+    <Screen
+      back
+      title={t('att.settings.title')}
+      // How a day is counted and what the divisor does, for reading once: folded away at the end, so the three
+      // settings come first with a one-line hint each (22 Oct 2026: about 25 lines of explanation for 3 settings).
+      about={
+        data ? (
+          <>
+            <ThemedText type="small">{t('att.settings.how', { hour: data.dayStartsAtHour })}</ThemedText>
+            <ThemedText type="small">{t('att.divisor.help')}</ThemedText>
+            <ThemedText type="small">{t('att.divisor.kept')}</ThemedText>
+          </>
+        ) : undefined
+      }>
       <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
       <ErrorText message={error} onRetry={() => void reload()} />
       {!data && !error && <ActivityIndicator color={theme.primary} />}
@@ -159,12 +172,10 @@ function SettingsForm({ settings, editable }: { settings: AttendanceSettingsDto;
 
   return (
     <>
-      {/* ── Hours ── */}
-      <ThemedText type="smallBold" themeColor="textSecondary">
+      {/* ── Hours ── Section headings in the text's own colour, bigger and with space above, so they do
+          not look like the grey labels of the fields under them (Material's list subheaders). */}
+      <ThemedText type="default" style={styles.heading}>
         {t('att.settings.hours')}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        {t('att.settings.how', { hour: settings.dayStartsAtHour })}
       </ThemedText>
       <TextField
         label={t('att.settings.full')}
@@ -192,11 +203,8 @@ function SettingsForm({ settings, editable }: { settings: AttendanceSettingsDto;
       />
 
       {/* ── The days a month's salary is divided by ── */}
-      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.heading}>
+      <ThemedText type="default" style={[styles.heading, styles.headingGap]}>
         {t('att.divisor.title')}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        {t('att.divisor.help')}
       </ThemedText>
       <View accessibilityRole="radiogroup" accessibilityLabel={t('att.divisor.title')}>
         {option(
@@ -228,10 +236,6 @@ function SettingsForm({ settings, editable }: { settings: AttendanceSettingsDto;
         />
       )}
       <ThemedText type="small" themeColor="textSecondary">
-        {t('att.divisor.kept')}
-      </ThemedText>
-
-      <ThemedText type="small" themeColor="textSecondary">
         {t(editable ? 'att.settings.applies' : 'att.settings.ownerOnly')}
       </ThemedText>
       <ErrorText message={saveError} />
@@ -241,7 +245,9 @@ function SettingsForm({ settings, editable }: { settings: AttendanceSettingsDto;
 }
 
 const styles = StyleSheet.create({
-  heading: { marginTop: Spacing.three },
+  heading: { fontWeight: 700 },
+  // More room above the second section than between a heading and its own fields.
+  headingGap: { marginTop: Spacing.three },
   bold: { fontWeight: 700 },
   // A plain row with a thin line above, tall enough for a thumb.
   // The radio beside the option's name, its first line, not halfway down its explanation.

@@ -5,9 +5,11 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 
 import { DayFactsLine, FlagList, PUNCH_KIND, PUNCH_METHOD } from '@/components/attendance-parts';
-import { DAY_MARK, useLoaded } from '@/components/team-parts';
+import { DayMarkChip, useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorText } from '@/components/ui/error-text';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { ReasonDialog } from '@/components/ui/reason-dialog';
@@ -79,29 +81,31 @@ export default function AttendanceReviewScreen() {
   const nothing = data !== null && data.punches.length === 0 && data.days.length === 0;
 
   return (
-    <Screen back title={t('att.review.title')} subtitle={t(isOwner ? 'att.review.help' : 'att.review.helpReadOnly')} onRefresh={reload}>
+    // The Manager is told in one line that only the Owner settles these; the Owner's instructions are given
+    // where they apply, above the clock-ins to check, rather than over the whole screen (22 Oct 2026).
+    <Screen back title={t('att.review.title')} subtitle={isOwner ? undefined : t('att.review.helpReadOnly')} onRefresh={reload}>
       <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
       <ErrorText message={loadError} onRetry={() => void reload()} />
       <ErrorText message={error} />
       {!data && !loadError && <ActivityIndicator color={theme.primary} />}
 
-      {nothing && (
-        <View style={styles.empty}>
-          <Ionicons name="checkmark-done-circle-outline" size={56} color={theme.primary} />
-          <ThemedText type="default" themeColor="textSecondary" style={styles.center}>
-            {t('att.review.empty')}
-          </ThemedText>
-        </View>
-      )}
+      {nothing && <EmptyState icon="checkmark-done-circle-outline" title={t('att.review.empty')} />}
 
       {/* ── Clock-ins and clock-outs to look at ── */}
       {data && data.punches.length > 0 && (
-        <ThemedText type="smallBold" themeColor="textSecondary">
-          {t('att.review.punches', { count: data.punches.length })}
-        </ThemedText>
+        <View style={styles.heading}>
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            {t('att.review.punches', { count: data.punches.length })}
+          </ThemedText>
+          {isOwner && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('att.review.help')}
+            </ThemedText>
+          )}
+        </View>
       )}
       {data?.punches.map((punch) => (
-        <View key={punch.id} style={[styles.card, { borderColor: theme.border }]}>
+        <Card key={punch.id}>
           <View style={styles.row}>
             {punch.photoPath ? (
               <Image source={{ uri: api.fileUrl(punch.photoPath) }} style={styles.photo} accessibilityLabel={t('att.punch.photo')} />
@@ -154,8 +158,13 @@ export default function AttendanceReviewScreen() {
               </View>
             </View>
           )}
-          <Button variant="link" label={t(isOwner ? 'att.review.fixDay' : 'att.review.openDay')} onPress={() => openDay(punch.staffId, punch.day)} />
-        </View>
+          <Button
+            variant="link"
+            align="start"
+            label={t(isOwner ? 'att.review.fixDay' : 'att.review.openDay')}
+            onPress={() => openDay(punch.staffId, punch.day)}
+          />
+        </Card>
       ))}
 
       {/* ── Days that cannot be counted without the Owner ── */}
@@ -164,36 +173,32 @@ export default function AttendanceReviewScreen() {
           {t('att.review.days', { count: data.days.length })}
         </ThemedText>
       )}
-      {data?.days.map((day) => {
-        const mark = DAY_MARK[day.status ?? 'NONE'];
-        return (
-          <View key={`${day.staffId}|${day.date}`} style={[styles.card, { borderColor: theme.border }]}>
-            <ThemedText type="default" style={styles.bold}>
-              {day.name}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {formatDayLong(day.date, language)}
-            </ThemedText>
-            <View style={styles.row}>
-              <Ionicons name={mark.icon} size={20} color={theme[mark.tone]} />
-              <ThemedText type="smallBold">{t(mark.label)}</ThemedText>
-              {day.provisional && (
-                <ThemedText type="small" themeColor="textSecondary" style={styles.flexText}>
-                  {t('att.provisional')}
-                </ThemedText>
-              )}
-            </View>
-            <DayFactsLine facts={day} />
-            <FlagList flags={day.flags} />
-            <Button
-              variant="secondary"
-              icon={isOwner ? 'create-outline' : 'eye-outline'}
-              label={t(isOwner ? 'att.review.fixDay' : 'att.review.openDay')}
-              onPress={() => openDay(day.staffId, day.date)}
-            />
+      {data?.days.map((day) => (
+        <Card key={`${day.staffId}|${day.date}`}>
+          <ThemedText type="default" style={styles.bold}>
+            {day.name}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {formatDayLong(day.date, language)}
+          </ThemedText>
+          <View style={styles.chipRow}>
+            <DayMarkChip mark={day.status ?? 'NONE'} />
+            {day.provisional && (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.flexText}>
+                {t('att.provisional')}
+              </ThemedText>
+            )}
           </View>
-        );
-      })}
+          <DayFactsLine facts={day} />
+          <FlagList flags={day.flags} />
+          <Button
+            variant="secondary"
+            icon={isOwner ? 'create-outline' : 'eye-outline'}
+            label={t(isOwner ? 'att.review.fixDay' : 'att.review.openDay')}
+            onPress={() => openDay(day.staffId, day.date)}
+          />
+        </Card>
+      ))}
 
       {voiding && (
         <ReasonDialog
@@ -216,12 +221,10 @@ const styles = StyleSheet.create({
   flexText: { flexShrink: 1 },
   flexButton: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  card: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  chipRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.two },
   photo: { width: 88, height: 88, borderRadius: Spacing.two },
   noPhoto: { alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', alignItems: 'stretch', gap: Spacing.two },
   bold: { fontWeight: 700 },
-  center: { textAlign: 'center' },
-  empty: { alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.five },
-  heading: { marginTop: Spacing.two },
+  heading: { marginTop: Spacing.two, gap: Spacing.one },
 });

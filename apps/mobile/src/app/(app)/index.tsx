@@ -88,7 +88,7 @@ export default function HomeScreen() {
   const place =
     membership.outletName ?? membership.organizationName ?? (membership.role === 'OWNER' ? t('home.allOutlets') : null);
   const roleAndPlace = `${t(`role.${membership.role}`)}${place ? ` · ${place}` : ''}`;
-  const outlet =overview?.find((entry) => entry.outletId === chosenOutlet) ?? overview?.[0];
+  const outlet = overview?.find((entry) => entry.outletId === chosenOutlet) ?? overview?.[0];
   const today = indiaToday();
   // Today's visits first, then any earlier ones still open, under their own heading (22 Oct 2026:
   // they were one list, oldest first, and today's work sat four screens down).
@@ -100,8 +100,9 @@ export default function HomeScreen() {
     <Screen onRefresh={load}>
       <View style={styles.top}>
         <View style={styles.header}>
-          <ThemedText type="subtitle" style={styles.greeting}>
-            {t('home.greeting', { name: user.name })}
+          {/* The first name only, on one line, as apps greet people ("Hello, Ravi"); the full name is on My profile. */}
+          <ThemedText type="subtitle" numberOfLines={1} style={styles.greeting}>
+            {t('home.greeting', { name: user.name.trim().split(/\s+/)[0] ?? user.name })}
           </ThemedText>
           <ThemedText type="default" themeColor="textSecondary">
             {roleAndPlace}

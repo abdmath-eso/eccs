@@ -6,12 +6,14 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
+import { Notice } from '@/components/ui/notice';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatMoney } from '@/lib/billing';
+import { formatMoney, invoiceTitle } from '@/lib/billing';
 import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { useSession } from '@/lib/session';
@@ -110,6 +112,8 @@ export default function PayScreen() {
 
   const amount = formatMoney(invoice.duePaise, language);
   const owing = invoice.duePaise > 0;
+  // What it is for, short ("15 Oct – 14 Nov 2026", the plan under it), when it is for one thing.
+  const name = invoice.lines.length <= 1 ? invoiceTitle(invoice, t, language) : null;
 
   return (
     <Screen
@@ -139,30 +143,41 @@ export default function PayScreen() {
         ) : undefined
       }>
       {/* Unmistakable, and first: this is not a real payment. */}
-      <View style={[styles.sample, { borderColor: theme.warning }]} accessibilityRole="alert">
-        <Ionicons name="flask" size={28} color={theme.warning} />
-        <View style={styles.sampleWords}>
-          <ThemedText type="default" style={styles.strong}>
-            {t('bill.sampleTitle')}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {t('bill.sampleBody')}
-          </ThemedText>
-        </View>
+      <View accessibilityRole="alert">
+        <Notice tone="sample" title={t('bill.sampleTitle')} text={t('bill.sampleBody')} />
       </View>
 
-      <View style={[styles.box, { borderColor: theme.border }]}>
-        <ThemedText type="smallBold" themeColor="textSecondary">
-          {t('bill.youPay')}
-        </ThemedText>
-        <ThemedText type="title" style={styles.total}>
-          {amount}
-        </ThemedText>
-        <ThemedText type="default">{invoice.lines[0]?.description ?? invoice.description}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {t('bill.number', { number: ltrText(invoice.number) })} · {t('bill.inclGst')}
-        </ThemedText>
-      </View>
+      <Card>
+        <View style={styles.box}>
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            {t('bill.youPay')}
+          </ThemedText>
+          <ThemedText type="title" style={styles.total}>
+            {amount}
+          </ThemedText>
+          {name ? (
+            <>
+              <ThemedText type="default" style={styles.strong}>
+                {name.title}
+              </ThemedText>
+              {name.detail && (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {name.detail}
+                </ThemedText>
+              )}
+            </>
+          ) : (
+            invoice.lines.map((line, index) => (
+              <ThemedText key={index} type="default">
+                {line.description}
+              </ThemedText>
+            ))
+          )}
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('bill.number', { number: ltrText(invoice.number) })} · {t('bill.inclGst')}
+          </ThemedText>
+        </View>
+      </Card>
 
       {!owing && (
         <View style={styles.stateRow}>
@@ -194,16 +209,8 @@ export default function PayScreen() {
       )}
 
       {failure && (
-        <View style={[styles.sample, { borderColor: theme.danger }]} accessibilityRole="alert" accessibilityLiveRegion="polite">
-          <Ionicons name="close-circle" size={28} color={theme.danger} />
-          <View style={styles.sampleWords}>
-            <ThemedText type="default" themeColor="danger" style={styles.strong}>
-              {failure}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {t('bill.payFailedHelp')}
-            </ThemedText>
-          </View>
+        <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <Notice tone="danger" title={failure} text={t('bill.payFailedHelp')} />
         </View>
       )}
     </Screen>
@@ -211,10 +218,8 @@ export default function PayScreen() {
 }
 
 const styles = StyleSheet.create({
-  sample: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two, borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three },
-  sampleWords: { flex: 1, gap: Spacing.one },
   strong: { fontWeight: 700 },
-  box: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  box: { gap: Spacing.one },
   total: { fontSize: 36, lineHeight: 44 },
   sectionGap: { marginTop: Spacing.three },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

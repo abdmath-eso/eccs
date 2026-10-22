@@ -32,6 +32,28 @@ export function shelfLifeText(hours: number, t: Translator): string {
   return t(unit === 'DAYS' ? 'labels.days' : 'labels.hours', { count: value });
 }
 
+/**
+ * When a label was last printed, for the list: the time if it was today ("10:02 am"), otherwise the
+ * day and month ("13 Oct"), with no weekday, so "Printed 13 Oct" stays on one line (22 Oct 2026:
+ * "Last printed Tue, 13 Oct" broke across two). Always Indian time.
+ */
+export function printedWhen(at: string, now: number, language: LanguageCode): string {
+  const day = (moment: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(moment);
+  const locale = `${language.toLowerCase()}-IN-u-nu-latn`;
+  try {
+    const today = day(new Date(at)) === day(new Date(now));
+    return new Intl.DateTimeFormat(
+      locale,
+      today ? { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' } : { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' },
+    )
+      .format(new Date(at))
+      // Non-breaking spaces, so "13 Oct" or "10:02 am" never splits across two lines.
+      .replace(/\s/g, ' ');
+  } catch {
+    return at.slice(0, 10);
+  }
+}
+
 /** "Milk, Tree nuts", in the app's language. */
 export const allergensText = (allergens: readonly Allergen[], t: Translator) =>
   allergens.map((allergen) => t(`labels.allergen.${allergen}`)).join(', ');

@@ -16,6 +16,11 @@ export default function RestaurantCodeScreen() {
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
+    // The button is never greyed out: tapped too early, it says what is missing (GOV.UK's buttons and
+    // validation; the 7 Oct rule). A code too short to be one is simply not found.
+    const typed = code.trim();
+    if (typed.length === 0) return setError(t('code.needed'));
+    if (typed.length < 5) return setError(t('error.restaurantCode'));
     setBusy(true);
     setError(null);
     try {
@@ -31,8 +36,10 @@ export default function RestaurantCodeScreen() {
 
   return (
     <Screen back title={t('code.title')} subtitle={t('code.help')}>
+      {/* One question on the page, so the title is its label (GOV.UK question pages) rather than the
+          same words twice; a screen reader still hears it on the box. */}
       <TextField
-        label={t('code.title')}
+        accessibilityLabel={t('code.title')}
         value={code}
         onChangeText={(next) => {
           setCode(next);
@@ -51,7 +58,7 @@ export default function RestaurantCodeScreen() {
         returnKeyType="done"
         onSubmitEditing={submit}
       />
-      <Button label={t('code.link')} onPress={submit} loading={busy} disabled={code.trim().length < 5} />
+      <Button label={t('code.link')} onPress={() => void submit()} loading={busy} />
     </Screen>
   );
 }

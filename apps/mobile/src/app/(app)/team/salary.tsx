@@ -1,18 +1,18 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { can, shiftMonth, type SalaryOutletMonthDto } from '@eccs/shared';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { MonthStepper, SALARY_STATE, useLoaded } from '@/components/team-parts';
+import { MonthStepper, SALARY_STATE, toneOf, useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
+import { ListRow } from '@/components/ui/list-row';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
-import { MinTouchSize, Spacing } from '@/constants/theme';
+import { StatusChip } from '@/components/ui/status-chip';
 import { useTheme } from '@/hooks/use-theme';
 import { formatMoney } from '@/lib/billing';
-import { useDirection } from '@/lib/direction';
 import { indiaToday } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
@@ -26,7 +26,6 @@ const MONTHS_BACK = 12;
 export default function SalaryMonthScreen() {
   const theme = useTheme();
   const { t, api, user, language } = useSession();
-  const { forwardIcon } = useDirection();
   const { outletId, outlets, choose } = useOutlet();
   const [month, setMonth] = useState(() => indiaToday().slice(0, 7));
 
@@ -40,7 +39,8 @@ export default function SalaryMonthScreen() {
   const owed = data?.people.reduce((total, person) => total + Math.max(person.balancePaise, 0), 0) ?? 0;
 
   return (
-    <Screen back title={t('team.pay.title')} subtitle={t('team.pay.notPayroll')} onRefresh={reload}>
+    // That this is a record book, not payroll, is read once: folded away at the end (22 Oct 2026).
+    <Screen back title={t('team.pay.title')} about={t('team.pay.notPayroll')} onRefresh={reload}>
       <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
       <MonthStepper month={month} thisMonth={thisMonth} earliest={shiftMonth(thisMonth, -MONTHS_BACK)} onChange={setMonth} />
 
@@ -48,12 +48,12 @@ export default function SalaryMonthScreen() {
       {!data && !error && <ActivityIndicator color={theme.primary} />}
 
       {data && data.people.length > 0 && (
-        <View style={[styles.total, { backgroundColor: theme.backgroundElement }]}>
+        <Card variant="filled">
           <ThemedText type="small" themeColor="textSecondary">
             {t(month === thisMonth ? 'team.pay.totalOwedSoFar' : 'team.pay.totalOwed')}
           </ThemedText>
           <ThemedText type="subtitle">{formatMoney(owed, language)}</ThemedText>
-        </View>
+        </Card>
       )}
       {data?.people.length === 0 && (
         <ThemedText type="default" themeColor="textSecondary">
@@ -61,60 +61,46 @@ export default function SalaryMonthScreen() {
         </ThemedText>
       )}
 
-      {data?.people.map((person) => {
-        const state = SALARY_STATE[person.state];
-        return (
-          <Pressable
-            key={person.staffId}
-            accessibilityRole="button"
-            onPress={() => router.push({ pathname: '/team/pay', params: { staffId: person.staffId, month } })}
-            style={({ pressed }) => [styles.card, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
-            <View style={styles.text}>
-              <ThemedText type="default" style={styles.bold}>
-                {person.name}
-              </ThemedText>
-              <View style={styles.state}>
-                <Ionicons name={state.icon} size={18} color={theme[state.tone]} />
-                <ThemedText type="smallBold" style={{ color: theme[state.tone] }}>
-                  {t(state.label)}
-                </ThemedText>
-              </View>
-              <ThemedText type="small" themeColor="textSecondary">
-                {t('team.pay.rowFigures', {
-                  payable: formatMoney(Math.max(person.payablePaise, 0), language),
-                  paid: formatMoney(person.paidPaise, language),
-                })}
-              </ThemedText>
-            </View>
-            <View style={styles.amount}>
-              <ThemedText type="small" themeColor="textSecondary">
-                {t(person.balancePaise < 0 ? 'team.pay.overpaid' : 'team.pay.stillOwed')}
-              </ThemedText>
-              <ThemedText type="default" style={styles.bold}>
-                {formatMoney(Math.abs(person.balancePaise), language)}
-              </ThemedText>
-            </View>
-            <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
-          </Pressable>
-        );
-      })}
+      {/* The same plain rows as the Staff list and the attendance day: the name, where the month's pay
+          stands, and at the end what is still owed. "Paid x of y" only once something has been paid, so
+          one amount is not shown twice. */}
+      <View>
+        {data?.people.map((person, index) => {
+          const state = SALARY_STATE[person.state];
+          return (
+            <ListRow
+              key={person.staffId}
+              title={person.name}
+              subtitle={
+                person.paidPaise > 0
+                  ? t('team.pay.paidOf', {
+                      paid: formatMoney(person.paidPaise, language),
+                      payable: formatMoney(Math.max(person.payablePaise, 0), language),
+                    })
+                  : null
+              }
+              below={<StatusChip tone={toneOf(state.tone)} icon={state.icon} label={t(state.label)} />}
+              trailing={
+                <View style={styles.amount}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {t(person.balancePaise < 0 ? 'team.pay.overpaid' : 'team.pay.stillOwed')}
+                  </ThemedText>
+                  <ThemedText type="default" style={styles.bold}>
+                    {formatMoney(Math.abs(person.balancePaise), language)}
+                  </ThemedText>
+                </View>
+              }
+              divider={index > 0}
+              onPress={() => router.push({ pathname: '/team/pay', params: { staffId: person.staffId, month } })}
+            />
+          );
+        })}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  total: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.half },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    minHeight: MinTouchSize,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-  },
-  text: { flex: 1, gap: Spacing.half },
-  state: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  amount: { alignItems: 'flex-end' },
+  amount: { alignItems: 'flex-end', maxWidth: '45%' },
   bold: { fontWeight: 700 },
 });

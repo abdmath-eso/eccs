@@ -46,7 +46,8 @@ const STAFF: MenuItem = { label: 'tile.team', icon: 'people-outline', href: '/te
 const HEAD_CHEF_MENU: MenuItem[] = [
   { label: 'tile.checklists', icon: 'checkbox-outline', href: '/checklists' },
   { label: 'tile.labels', icon: 'pricetag-outline', href: '/labels' },
-  { label: 'tile.issues', icon: 'chatbubble-ellipses-outline', href: '/support' },
+  // The screen's own title ("Issues" since 22 Oct 2026; "Raise an issue" is its main button).
+  { label: 'tab.issues', icon: 'chatbubble-ellipses-outline', href: '/support' },
   { label: 'tile.sops', icon: 'book-outline', href: '/sops' },
 ];
 const MANAGER_MENU: MenuItem[] = [

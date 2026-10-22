@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { localize, type CertificateDto } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -6,9 +5,12 @@ import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorText } from '@/components/ui/error-text';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
+import { StatusChip } from '@/components/ui/status-chip';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ltrText } from '@/lib/direction';
@@ -17,13 +19,22 @@ import { formatDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
-// The same three marks as for licences: each state has its own icon and word, never colour alone.
-const STATE_ICON = { VALID: 'checkmark-circle', EXPIRING: 'time', EXPIRED: 'alert-circle' } as const;
+// The same marks as for licences: each state has its own label with an icon and a word, never colour alone.
+const STATE_LOOK = {
+  VALID: { tone: 'good', icon: 'checkmark-circle-outline' },
+  EXPIRING: { tone: 'warn', icon: 'time-outline' },
+  EXPIRED: { tone: 'bad', icon: 'alert-circle-outline' },
+} as const;
 
 /**
  * The certificates ECCS has issued for one outlet, for its Owner and Manager.
  * Those still valid come first, so the one an inspector asks for is at the
  * top; expired ones stay underneath as a record. Each opens as a PDF.
+ *
+ * With none yet, the screen says so in an empty state (a picture, one line,
+ * one sentence and a way on to the services), not a grey paragraph under a
+ * grey introduction (Nielsen Norman Group and SAP Fiori on empty states, 22 Oct
+ * 2026). What the screen is for is folded under "About this screen".
  */
 export default function CertificatesScreen() {
   const theme = useTheme();
@@ -69,34 +80,31 @@ export default function CertificatesScreen() {
     }
   }
 
-  const stateColor = { VALID: theme.primary, EXPIRING: theme.warning, EXPIRED: theme.danger } as const;
-  const countdown = (certificate: CertificateDto) =>
-    certificate.daysLeft < 0
-      ? t('docs.expiredAgo', { count: -certificate.daysLeft })
-      : certificate.daysLeft === 0
-        ? t('docs.expiresToday')
-        : t('docs.daysLeft', { count: certificate.daysLeft });
+  // "160 days left", "1 day left", "3 days overdue": the number first, as people say it.
+  const countdown = (daysLeft: number) =>
+    daysLeft < -1
+      ? t('docs.expiredAgo', { count: -daysLeft })
+      : daysLeft === -1
+        ? t('docs.dayOverdueOne')
+        : daysLeft === 0
+          ? t('docs.expiresToday')
+          : daysLeft === 1
+            ? t('docs.dayLeftOne')
+            : t('docs.daysLeft', { count: daysLeft });
 
   const card = (certificate: CertificateDto) => {
-    const color = stateColor[certificate.state];
+    const look = STATE_LOOK[certificate.state];
     return (
-      <View
-        key={certificate.id}
-        style={[styles.card, { borderColor: certificate.state === 'VALID' ? theme.border : color }]}>
-        <View style={styles.cardHeader}>
-          <ThemedText type="default" style={styles.cardTitle}>
-            {localize(certificate.serviceName, language)}
-          </ThemedText>
-          <Ionicons
-            name={STATE_ICON[certificate.state]}
-            size={28}
-            color={color}
-            accessibilityLabel={t(`docs.state${certificate.state}`)}
-          />
-        </View>
-        <ThemedText type="smallBold" style={{ color }}>
-          {t(`docs.state${certificate.state}`)} · {countdown(certificate)}
+      <Card key={certificate.id}>
+        <ThemedText type="default" style={styles.cardTitle}>
+          {localize(certificate.serviceName, language)}
         </ThemedText>
+        <View style={styles.stateRow}>
+          <StatusChip tone={look.tone} icon={look.icon} label={t(`docs.state${certificate.state}`)} />
+          <ThemedText type="small" themeColor="textSecondary">
+            {countdown(certificate.daysLeft)}
+          </ThemedText>
+        </View>
         <ThemedText type="default">
           {t('cert.validFromTo', {
             from: formatDate(certificate.validFrom, language),
@@ -111,7 +119,8 @@ export default function CertificatesScreen() {
           <Button
             icon="document-text-outline"
             label={t('cert.open')}
-            variant={certificate.state === 'EXPIRED' ? 'secondary' : 'primary'}
+            // Soft rather than filled: with several certificates there would be a filled button on each.
+            variant={certificate.state === 'EXPIRED' ? 'secondary' : 'tonal'}
             loading={opening === certificate.id}
             disabled={opening !== null && opening !== certificate.id}
             onPress={() => void openPdf(certificate)}
@@ -124,11 +133,12 @@ export default function CertificatesScreen() {
             <Button
               label={t('cert.seeVisit')}
               variant="link"
+              align="start"
               onPress={() => router.push({ pathname: '/services/[visitId]', params: { visitId: certificate.visitId! } })}
             />
           )}
         </View>
-      </View>
+      </Card>
     );
   };
 
@@ -147,7 +157,7 @@ export default function CertificatesScreen() {
     );
 
   return (
-    <Screen back title={t('cert.title')} subtitle={t('cert.help')} onRefresh={load}>
+    <Screen back title={t('cert.title')} about={t('cert.help')} onRefresh={load}>
       <OutletPicker
         outlets={outlets}
         outletId={outletId}
@@ -163,9 +173,12 @@ export default function CertificatesScreen() {
       {(outletLoading || (certificates === null && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
 
       {certificates !== null && all.length === 0 && (
-        <ThemedText type="default" themeColor="textSecondary">
-          {t('cert.none')}
-        </ThemedText>
+        <EmptyState
+          icon="ribbon-outline"
+          title={t('cert.noneTitle')}
+          body={t('cert.noneBody')}
+          action={{ label: t('cert.seeServices'), icon: 'construct-outline', onPress: () => router.push('/services') }}
+        />
       )}
 
       {group(t('cert.inDate'), inDate, false)}
@@ -182,8 +195,8 @@ export default function CertificatesScreen() {
 
 const styles = StyleSheet.create({
   sectionGap: { marginTop: Spacing.four },
-  card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
-  cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },
+  cardTitle: { fontWeight: 700, fontSize: 18 },
+  // The state's label and how long is left, side by side; under each other when they do not fit.
+  stateRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: Spacing.two, rowGap: Spacing.one },
   cardActions: { gap: Spacing.two, marginTop: Spacing.one },
 });

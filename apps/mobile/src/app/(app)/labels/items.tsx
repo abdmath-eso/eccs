@@ -1,17 +1,16 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import type { FoodItemDto } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { ListRow } from '@/components/ui/list-row';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
-import { MinTouchSize, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useDirection } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { allergensText, shelfLifeText } from '@/lib/labels';
 import { useSession } from '@/lib/session';
@@ -28,7 +27,6 @@ import { useOutlet } from '@/lib/use-outlet';
 export default function FoodItemsScreen() {
   const theme = useTheme();
   const notify = useSnackbar();
-  const { forwardIcon } = useDirection();
   const { t, api } = useSession();
   const { outletId, loading: outletLoading } = useOutlet();
   const [items, setItems] = useState<FoodItemDto[] | null>(null);
@@ -79,8 +77,11 @@ export default function FoodItemsScreen() {
   const retired = (items ?? []).filter((item) => !item.isActive);
 
   return (
-    <Screen back title={t('labels.items.title')} subtitle={t('labels.items.help')} onRefresh={load}>
-      <Button icon="add" label={t('labels.items.add')} onPress={() => router.push('/labels/item')} />
+    // What the list is for is read once: folded away at the end (22 Oct 2026). The screen keeps the
+    // name of the link that opens it, "Manage labels", and calls each entry a label, as the Food labels
+    // screen does, rather than "food items" there and "labels" here.
+    <Screen back title={t('labels.manage')} about={t('labels.items.help')} onRefresh={load}>
+      <Button icon="add" label={t('labels.add')} onPress={() => router.push('/labels/item')} />
       <Button
         icon="sparkles-outline"
         label={t('labels.items.fromStarter')}
@@ -97,29 +98,19 @@ export default function FoodItemsScreen() {
         </ThemedText>
       )}
 
-      {active.map((item) => (
-        <Pressable
-          key={item.id}
-          accessibilityRole="button"
-          accessibilityLabel={`${item.name}. ${details(item)}`}
-          onPress={() => router.push({ pathname: '/labels/item', params: { itemId: item.id } })}
-          style={({ pressed }) => [styles.row, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
-          <View style={styles.words}>
-            <ThemedText type="default" style={styles.name}>
-              {item.name}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {details(item)}
-            </ThemedText>
-            {item.note && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {item.note}
-              </ThemedText>
-            )}
-          </View>
-          <Ionicons name={forwardIcon} size={22} color={theme.textSecondary} />
-        </Pressable>
-      ))}
+      {/* One plain list with thin lines between, as lists of like things are drawn across the app. */}
+      <View>
+        {active.map((item, index) => (
+          <ListRow
+            key={item.id}
+            title={item.name}
+            subtitle={[details(item), item.note].filter(Boolean).join('\n')}
+            divider={index > 0}
+            accessibilityLabel={`${item.name}. ${details(item)}`}
+            onPress={() => router.push({ pathname: '/labels/item', params: { itemId: item.id } })}
+          />
+        ))}
+      </View>
 
       {retired.length > 0 && (
         <>
@@ -129,24 +120,25 @@ export default function FoodItemsScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             {t('labels.items.retiredHelp')}
           </ThemedText>
-          {retired.map((item) => (
-            <View key={item.id} style={[styles.row, { borderColor: theme.border }]}>
-              <View style={styles.words}>
-                <ThemedText type="default" themeColor="textSecondary" style={styles.name}>
-                  {item.name}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {details(item)}
-                </ThemedText>
-              </View>
-              <Button
-                label={t('labels.items.bringBack')}
-                variant="link"
-                loading={restoring === item.id}
-                onPress={() => void bringBack(item)}
+          <View>
+            {retired.map((item, index) => (
+              <ListRow
+                key={item.id}
+                title={item.name}
+                subtitle={details(item)}
+                divider={index > 0}
+                dimmed
+                trailing={
+                  <Button
+                    label={t('labels.items.bringBack')}
+                    variant="link"
+                    loading={restoring === item.id}
+                    onPress={() => void bringBack(item)}
+                  />
+                }
               />
-            </View>
-          ))}
+            ))}
+          </View>
         </>
       )}
     </Screen>
@@ -154,17 +146,5 @@ export default function FoodItemsScreen() {
 }
 
 const styles = StyleSheet.create({
-  gap: { marginTop: Spacing.four },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    minHeight: MinTouchSize + Spacing.two,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  words: { flex: 1 },
-  name: { fontWeight: 700 },
+  gap: { marginTop: Spacing.two },
 });

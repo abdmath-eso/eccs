@@ -145,6 +145,3 @@ export async function callLead(lead: Pick<LeadDetailDto, 'id' | 'contactPhone' |
   await queueStep(lead.id, { kind: 'CALL' });
   if (lead.contactPhone && !lead.isSample) await Linking.openURL(`tel:${lead.contactPhone}`).catch(() => undefined);
 }
-
-/** The phone number to show: "+91 98480 22338". */
-export const phoneWords = (phone: string) => (/^\+91\d{10}$/.test(phone) ? `+91 ${phone.slice(3, 8)} ${phone.slice(8)}` : phone);

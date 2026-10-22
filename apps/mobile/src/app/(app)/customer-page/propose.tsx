@@ -7,7 +7,9 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { ProofPhoto } from '@/components/proof-photo';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
+import { Notice } from '@/components/ui/notice';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
@@ -143,17 +145,11 @@ export default function ProposePhotosScreen() {
   const bySource = new Map(proposed.filter((photo) => photo.sourcePhotoId).map((photo) => [photo.sourcePhotoId!, photo]));
   // Proposals not shown beside a photo above: those taken specially, and those from other visits.
   const others = proposed.filter((photo) => !sources?.some((source) => source.id === photo.sourcePhotoId));
-  const card = [styles.card, { borderColor: theme.border }];
 
   return (
-    <Screen back title={t('cpage.propose.title')} subtitle={t('cpage.propose.help')} onRefresh={load}>
+    <Screen back title={t('cpage.propose.title')} about={t('cpage.propose.help')} onRefresh={load}>
       {/* The rule comes first and stays in plain sight: it is what ECCS's office will judge each photo by. */}
-      <View style={[styles.card, styles.rule, { borderColor: theme.warning }]}>
-        <Ionicons name="alert-circle" size={24} color={theme.warning} />
-        <ThemedText type="default" style={[styles.grow, styles.bold]}>
-          {t('cpage.propose.rule')}
-        </ThemedText>
-      </View>
+      <Notice tone="warning" title={t('cpage.propose.rule')} />
 
       <ErrorText message={error} onRetry={() => void load()} />
       {sources === null && !error && <ActivityIndicator color={theme.primary} />}
@@ -171,7 +167,7 @@ export default function ProposePhotosScreen() {
           {sources.map((source, index) => {
             const already = bySource.get(source.id);
             return (
-              <View key={source.id} style={card}>
+              <Card key={source.id}>
                 <ProofPhoto uri={api.fileUrl(source.path)} label={t('visit.photoNumber', { title: t('cpage.propose.title'), number: index + 1, total: sources.length })} />
                 {already ? (
                   status(already)
@@ -191,14 +187,14 @@ export default function ProposePhotosScreen() {
                     <ErrorText message={failed?.at === source.id ? failed.message : null} />
                   </>
                 )}
-              </View>
+              </Card>
             );
           })}
         </>
       )}
 
       {sources !== null && (
-        <View style={card}>
+        <Card>
           {captionChoice(NEW)}
           <Button
             icon="camera"
@@ -209,7 +205,7 @@ export default function ProposePhotosScreen() {
             onPress={() => void takeNew()}
           />
           <ErrorText message={failed?.at === NEW ? failed.message : null} />
-        </View>
+        </Card>
       )}
 
       {others.length > 0 && (
@@ -218,10 +214,10 @@ export default function ProposePhotosScreen() {
             {t('cpage.propose.mine')}
           </ThemedText>
           {others.map((photo) => (
-            <View key={photo.id} style={card}>
+            <Card key={photo.id}>
               <ProofPhoto uri={api.fileUrl(photo.path)} label={t(`public.photo.${photo.caption}`)} compact />
               {status(photo)}
-            </View>
+            </Card>
           ))}
         </>
       )}
@@ -230,9 +226,6 @@ export default function ProposePhotosScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  rule: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  bold: { fontWeight: 700 },
   grow: { flex: 1 },
   choice: { gap: Spacing.two },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

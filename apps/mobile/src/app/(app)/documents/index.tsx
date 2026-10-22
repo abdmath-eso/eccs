@@ -8,22 +8,27 @@ import {
   type LicenceType,
 } from '@eccs/shared';
 import { useEffect, useState, useRef } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { AiMark, AiNote } from '@/components/ai-parts';
 import { DocumentPhoto } from '@/components/document-photo';
 import { FileChooser } from '@/components/file-chooser';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
+import { OptionSheet } from '@/components/ui/option-sheet';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
+import { StatusChip } from '@/components/ui/status-chip';
 import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { parseEnglishDay } from '@/lib/billing';
+import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, indiaToday, maskTypedDate, parseTypedDate, toTypedDate } from '@/lib/format';
 import type { ChosenFile } from '@/lib/pick-file';
@@ -34,6 +39,21 @@ type VaultCategory = Exclude<DocumentCategory, 'licence'>;
 const VAULT_CATEGORIES = DOCUMENT_CATEGORIES.filter((category): category is VaultCategory => category !== 'licence');
 
 type Removal = { kind: 'licence'; licence: LicenceDto } | { kind: 'document'; document: DocumentDto };
+
+// Each state of a licence has its own label with an icon and a word, never colour alone.
+const STATE_LOOK = {
+  VALID: { tone: 'good', icon: 'checkmark-circle-outline' },
+  EXPIRING: { tone: 'warn', icon: 'time-outline' },
+  EXPIRED: { tone: 'bad', icon: 'alert-circle-outline' },
+} as const;
+
+// The titles ECCS's server gives the papers it files here, written once in English (report-pdf, inspection-pdf,
+// certificate-pdf and invoice-pdf in apps/api). Read back so the row can say them short and in the person's language.
+const DAY = String.raw`(\d{1,2} [A-Za-z]+ \d{4})`;
+const SERVICE_REPORT = new RegExp(String.raw`^Service report (\S+): (.+), [A-Za-z]+, ${DAY}$`);
+const INSPECTION_REPORT = new RegExp(String.raw`^Inspection report (\S+): (\d+) out of 100, [A-Za-z]+, ${DAY}$`);
+const CERTIFICATE = new RegExp(String.raw`^Certificate (\S+): (.+), valid until ${DAY}$`);
+const TAX_INVOICE = /^Tax invoice (\S+)(?: \((void|paid)\))?$/;
 
 /**
  * What the AI read off the chosen document (14 Oct 2026), kept so each field can carry
@@ -53,7 +73,17 @@ interface AiFill {
   issuedTo: string | null;
 }
 
-/** Licences with their expiry dates, and the document vault, for one outlet. */
+/**
+ * Licences with their expiry dates, and the document vault, for one outlet.
+ *
+ * Since 22 Oct 2026, built the way file apps are (Google Drive, Files): each
+ * licence card keeps its everyday actions, View and Renew, and Remove sits in a
+ * ⋮ "More actions" menu; each document is a plain row that opens it, with a ⋮
+ * that holds Delete, instead of a red bin on every row. The confirmation before
+ * removing or deleting is as before. A paper ECCS filed is titled by what and
+ * when ("Pest control, 10 Oct 2026") with its number in grey, not the server's
+ * four-line English title.
+ */
 export default function DocumentsScreen() {
   const theme = useTheme();
   const { t, api, language } = useSession();
@@ -69,6 +99,8 @@ export default function DocumentsScreen() {
   const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [removal, setRemoval] = useState<Removal | null>(null);
+  // The licence or document whose ⋮ "More actions" menu is open.
+  const [menu, setMenu] = useState<Removal | null>(null);
 
   // Which form is open: adding a licence, renewing one (by id), adding a document, or none.
   const [form, setForm] = useState<'licence' | 'document' | { renew: string } | null>(null);
@@ -432,18 +464,83 @@ export default function DocumentsScreen() {
 
   const openFile = (path: string) => void Linking.openURL(api.fileUrl(path));
   const stateColor = { VALID: theme.primary, EXPIRING: theme.warning, EXPIRED: theme.danger } as const;
-  const stateIcon = { VALID: 'checkmark-circle', EXPIRING: 'time', EXPIRED: 'alert-circle' } as const;
 
   const licenceName = (licence: LicenceDto) => licence.name ?? t(`licenceType.${licence.type}`);
+  // "160 days left", "1 day left", "3 days overdue": the number first, as people say it.
   const countdown = (licence: LicenceDto) =>
-    licence.daysLeft < 0
+    licence.daysLeft < -1
       ? t('docs.expiredAgo', { count: -licence.daysLeft })
-      : licence.daysLeft === 0
-        ? t('docs.expiresToday')
-        : t('docs.daysLeft', { count: licence.daysLeft });
+      : licence.daysLeft === -1
+        ? t('docs.dayOverdueOne')
+        : licence.daysLeft === 0
+          ? t('docs.expiresToday')
+          : licence.daysLeft === 1
+            ? t('docs.dayLeftOne')
+            : t('docs.daysLeft', { count: licence.daysLeft });
+
+  /**
+   * A document's row: what it is and when as the title, and the rest in grey. A paper ECCS filed is
+   * read back from its English title ("Service report SR-2026-00002: Pest control, Friday, 9 October
+   * 2026") into "Pest control, 9 Oct 2026" with "Service report SR-2026-00002" under it; anything
+   * else keeps the title it was given, with its kind and the day it was added.
+   */
+  const documentName = (document: DocumentDto): { title: string; detail: string } => {
+    const added = formatDate(document.createdAt.slice(0, 10), language);
+    const byEccs = document.uploadedByEccs ? t('docs.addedByEccs') : null;
+    const titled = (what: string, date: string, ...rest: (string | null)[]) => ({
+      title: t('docs.titleOn', { what, date }),
+      detail: [...rest, byEccs].filter(Boolean).join(' · '),
+    });
+    const day = (text: string | undefined) => {
+      const iso = text ? parseEnglishDay(text) : null;
+      return iso ? formatDate(iso, language) : added;
+    };
+    const report = SERVICE_REPORT.exec(document.title);
+    if (report) return titled(report[2]!, day(report[3]), t('docs.serviceReport', { number: ltrText(report[1]!) }));
+    const inspection = INSPECTION_REPORT.exec(document.title);
+    if (inspection) {
+      return titled(
+        t('docs.inspection'),
+        day(inspection[3]),
+        t('docs.inspectionReport', { number: ltrText(inspection[1]!) }),
+        t('insp.scoreOutOf', { score: inspection[2]! }),
+      );
+    }
+    const certificate = CERTIFICATE.exec(document.title);
+    if (certificate) {
+      return titled(
+        certificate[2]!,
+        added,
+        t('cert.number', { number: ltrText(certificate[1]!) }),
+        t('cert.validUntil', { date: day(certificate[3]) }),
+      );
+    }
+    const invoice = TAX_INVOICE.exec(document.title);
+    if (invoice) {
+      const state = invoice[2] === 'paid' ? t('bill.statePaid') : invoice[2] === 'void' ? t('bill.cancelled') : null;
+      return titled(t('docs.taxInvoice'), added, ltrText(invoice[1]!), state);
+    }
+    return { title: document.title, detail: [t(`docCategory.${document.category}`), added, byEccs].filter(Boolean).join(' · ') };
+  };
+
+  /** The ⋮ that opens a licence's or a document's "More actions": a 52 target with the picture on the content's edge. */
+  const moreButton = (target: Removal, name: string, working: boolean) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${t('common.moreActions')}: ${name}`}
+      disabled={working}
+      onPress={() => setMenu(target)}
+      style={({ pressed }) => [styles.more, pressed && { backgroundColor: theme.backgroundElement }]}>
+      {working ? (
+        <ActivityIndicator color={theme.textSecondary} />
+      ) : (
+        <Ionicons name="ellipsis-vertical" size={22} color={theme.textSecondary} />
+      )}
+    </Pressable>
+  );
 
   return (
-    <Screen back title={t('docs.title')} subtitle={t('docs.help')} onRefresh={reload}>
+    <Screen back title={t('docs.title')} about={t('docs.help')} onRefresh={reload}>
       <OutletPicker
         outlets={outlets}
         outletId={outletId}
@@ -472,26 +569,23 @@ export default function DocumentsScreen() {
         </ThemedText>
       )}
       {licences?.map((licence) => {
-        const color = stateColor[licence.state];
+        const look = STATE_LOOK[licence.state];
         const renewing = typeof form === 'object' && form !== null && form.renew === licence.id;
         return (
-          <View
-            key={licence.id}
-            style={[styles.card, { borderColor: licence.state === 'VALID' ? theme.border : color }]}>
+          // A licence that is expiring or has expired keeps a coloured edge: it needs doing something about.
+          <Card key={licence.id} borderColor={licence.state === 'VALID' ? undefined : stateColor[licence.state]}>
             <View style={styles.cardHeader}>
               <ThemedText type="default" style={styles.cardTitle}>
                 {licenceName(licence)}
               </ThemedText>
-              <Ionicons
-                name={stateIcon[licence.state]}
-                size={28}
-                color={color}
-                accessibilityLabel={t(`docs.state${licence.state}`)}
-              />
+              {!renewing && moreButton({ kind: 'licence', licence }, licenceName(licence), busy === `remove-${licence.id}`)}
             </View>
-            <ThemedText type="smallBold" style={{ color }}>
-              {t(`docs.state${licence.state}`)} · {countdown(licence)}
-            </ThemedText>
+            <View style={styles.stateRow}>
+              <StatusChip tone={look.tone} icon={look.icon} label={t(`docs.state${licence.state}`)} />
+              <ThemedText type="small" themeColor="textSecondary">
+                {countdown(licence)}
+              </ThemedText>
+            </View>
             <ThemedText type="small" themeColor="textSecondary">
               {t(licence.state === 'EXPIRED' ? 'docs.expiredOn' : 'docs.expires', {
                 date: formatDate(licence.expiresOn, language),
@@ -527,16 +621,19 @@ export default function DocumentsScreen() {
                 <Button label={t('common.cancel')} variant="link" onPress={closeForm} />
               </View>
             ) : (
-              // The document gets a row of its own: three buttons side by side do not fit a phone.
+              // The everyday two, side by side (one under the other on a narrow phone); Remove is in the ⋮ menu.
               <View style={styles.cardActions}>
-                {licence.file ? (
-                  <Button label={t('docs.view')} variant="secondary" onPress={() => openFile(licence.file!.path)} />
-                ) : (
+                {!licence.file && (
                   <ThemedText type="small" themeColor="textSecondary">
                     {t('docs.noFile')}
                   </ThemedText>
                 )}
                 <View style={styles.actions}>
+                  {licence.file && (
+                    <View style={styles.action}>
+                      <Button fill label={t('docs.view')} variant="secondary" onPress={() => openFile(licence.file!.path)} />
+                    </View>
+                  )}
                   <View style={styles.action}>
                     <Button
                       fill
@@ -548,26 +645,17 @@ export default function DocumentsScreen() {
                       }}
                     />
                   </View>
-                  <View style={styles.action}>
-                    <Button
-                      fill
-                      label={t('docs.remove')}
-                      variant="danger"
-                      loading={busy === `remove-${licence.id}`}
-                      onPress={() => setRemoval({ kind: 'licence', licence })}
-                    />
-                  </View>
                 </View>
                 <ErrorText message={rowError?.id === licence.id ? rowError.message : null} />
               </View>
             )}
-          </View>
+          </Card>
         );
       })}
 
       {licences !== null &&
         (form === 'licence' ? (
-          <View style={[styles.card, { borderColor: theme.primary }]}>
+          <Card borderColor={theme.primary}>
             <ThemedText type="default" style={styles.cardTitle}>
               {t('docs.addLicence')}
             </ThemedText>
@@ -619,7 +707,7 @@ export default function DocumentsScreen() {
               disabled={reading === 'working'}
             />
             <Button label={t('common.cancel')} variant="link" onPress={closeForm} />
-          </View>
+          </Card>
         ) : (
           <Button icon="add" label={t('docs.addLicence')} variant="secondary" onPress={() => openForm('licence')} />
         ))}
@@ -635,43 +723,51 @@ export default function DocumentsScreen() {
           {t('docs.noDocuments')}
         </ThemedText>
       )}
-      {documents?.map((document) => (
-        <View key={document.id} style={styles.rowBlock}>
-          <View style={[styles.row, { borderColor: theme.border }]}>
-            <Pressable accessibilityRole="button" onPress={() => openFile(document.file.path)} style={styles.rowMain}>
-              <Ionicons
-                name={document.file.mimeType === 'application/pdf' ? 'document-text' : 'image'}
-                size={28}
-                color={theme.primary}
-              />
-              <View style={styles.rowText}>
-                <ThemedText type="default">{document.title}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t(`docCategory.${document.category}`)} · {formatDate(document.createdAt.slice(0, 10), language)}
-                  {document.uploadedByEccs ? ` · ${t('docs.addedByEccs')}` : ''}
-                </ThemedText>
+      {/*
+        One plain list with thin lines between the rows (the look of the shared ListRow). Built here rather
+        than with ListRow because each row holds two buttons, the document and its ⋮: inside one button,
+        the ⋮ would be out of reach of an iPhone's screen reader.
+      */}
+      {documents !== null && documents.length > 0 && (
+        <View>
+          {documents.map((document, index) => {
+            const name = documentName(document);
+            return (
+              <View key={document.id}>
+                <View style={[styles.row, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${name.title}. ${name.detail}`}
+                    onPress={() => openFile(document.file.path)}
+                    style={({ pressed }) => [styles.rowMain, pressed && { backgroundColor: theme.backgroundElement }]}>
+                    <View style={styles.leading}>
+                      <Ionicons
+                        name={document.file.mimeType === 'application/pdf' ? 'document-text' : 'image'}
+                        size={28}
+                        color={theme.primary}
+                      />
+                    </View>
+                    <View style={styles.rowText}>
+                      <ThemedText type="default" style={styles.rowTitle}>
+                        {name.title}
+                      </ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {name.detail}
+                      </ThemedText>
+                    </View>
+                  </Pressable>
+                  {moreButton({ kind: 'document', document }, name.title, busy === `remove-${document.id}`)}
+                </View>
+                <ErrorText message={rowError?.id === document.id ? rowError.message : null} />
               </View>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('docs.remove')}
-              disabled={busy === `remove-${document.id}`}
-              onPress={() => setRemoval({ kind: 'document', document })}
-              style={styles.rowDelete}>
-              {busy === `remove-${document.id}` ? (
-                <ActivityIndicator color={theme.danger} />
-              ) : (
-                <Ionicons name="trash-outline" size={24} color={theme.danger} />
-              )}
-            </Pressable>
-          </View>
-          <ErrorText message={rowError?.id === document.id ? rowError.message : null} />
+            );
+          })}
         </View>
-      ))}
+      )}
 
       {documents !== null &&
         (form === 'document' ? (
-          <View style={[styles.card, { borderColor: theme.primary }]}>
+          <Card borderColor={theme.primary}>
             <ThemedText type="default" style={styles.cardTitle}>
               {t('docs.addDocument')}
             </ThemedText>
@@ -704,10 +800,34 @@ export default function DocumentsScreen() {
             <ErrorText message={formError} />
             <Button label={t('docs.save')} onPress={saveDocument} loading={busy === 'form'} />
             <Button label={t('common.cancel')} variant="link" onPress={() => setForm(null)} />
-          </View>
+          </Card>
         ) : (
           <Button icon="add" label={t('docs.addDocument')} variant="secondary" onPress={() => openForm('document')} />
         ))}
+
+      {/* "More actions" for one licence or document: removing it, which then asks first, as before. */}
+      <OptionSheet
+        visible={menu !== null}
+        title={menu === null ? undefined : menu.kind === 'licence' ? licenceName(menu.licence) : documentName(menu.document).title}
+        options={
+          menu === null
+            ? []
+            : [
+                {
+                  label: t(menu.kind === 'licence' ? 'docs.remove' : 'docs.delete'),
+                  icon: 'trash-outline',
+                  danger: true,
+                  onPress: () => {
+                    const target = menu;
+                    setMenu(null);
+                    // An iPhone will not open the question while the sheet is still closing.
+                    setTimeout(() => setRemoval(target), Platform.OS === 'ios' ? 500 : 0);
+                  },
+                },
+              ]
+        }
+        onClose={() => setMenu(null)}
+      />
 
       <ConfirmDialog
         visible={removal !== null}
@@ -716,9 +836,9 @@ export default function DocumentsScreen() {
             ? ''
             : removal.kind === 'licence'
               ? t('docs.removeLicenceConfirm', { name: licenceName(removal.licence) })
-              : t('docs.removeDocumentConfirm', { name: removal.document.title })
+              : t('docs.removeDocumentConfirm', { name: documentName(removal.document).title })
         }
-        confirmLabel={t('docs.remove')}
+        confirmLabel={t(removal?.kind === 'document' ? 'docs.delete' : 'docs.remove')}
         danger
         onCancel={() => setRemoval(null)}
         onConfirm={confirmRemoval}
@@ -733,23 +853,37 @@ const styles = StyleSheet.create({
   reading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   aiSummary: { gap: Spacing.half },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   cardTitle: { flex: 1, fontWeight: 700, fontSize: 18 },
+  // The state's label and how long is left, side by side; under each other when they do not fit.
+  stateRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: Spacing.two, rowGap: Spacing.one },
   form: { gap: Spacing.two, marginTop: Spacing.two },
   cardActions: { gap: Spacing.two, marginTop: Spacing.one },
-  actions: { flexDirection: 'row', gap: Spacing.two },
-  action: { flex: 1 },
-  rowBlock: { gap: Spacing.two },
-  row: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: Spacing.three },
+  // Two buttons share the row while each has room for its words; on a narrow phone, or with long words,
+  // they go one under the other instead of squeezing the words into a column.
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  action: { flexGrow: 1, flexBasis: 128 },
+  // The ⋮: a 52 target whose picture sits on the card's (or the row's) end edge, not 15 inside it.
+  more: {
+    width: MinTouchSize,
+    height: MinTouchSize,
+    borderRadius: MinTouchSize / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: -(Spacing.two + Spacing.one),
+    marginEnd: -(Spacing.three - Spacing.half),
+  },
+  // A document's row, as the shared ListRow draws one: a 40 slot for the picture, bold title, grey line.
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   rowMain: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    padding: Spacing.three,
-    minHeight: MinTouchSize,
+    minHeight: MinTouchSize + Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
   },
+  leading: { width: 40, alignItems: 'center' },
   rowText: { flex: 1, gap: Spacing.half },
-  rowDelete: { minWidth: MinTouchSize, minHeight: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { fontWeight: 700 },
 });

@@ -19,13 +19,16 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Co
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { HeldNotice, SavedCopyNote } from '@/components/field-sync-parts';
-import { InspectionStatusBadge, ScoreSummary, SectionScoreRow } from '@/components/inspection-parts';
+import { InspectionStatusBadge, keepDots, ScoreSummary, SectionScoreRow } from '@/components/inspection-parts';
 import { InspectionSummarySection } from '@/components/inspection-summary';
 import { ProofPhoto } from '@/components/proof-photo';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
+import { Expandable } from '@/components/ui/expandable';
+import { Notice } from '@/components/ui/notice';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
@@ -33,6 +36,7 @@ import { TextField } from '@/components/ui/text-field';
 import { UnsentMark } from '@/components/unsent-mark';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { addDays, formatDate, indiaToday, maskTypedDate, parseTypedDate, toTypedDate } from '@/lib/format';
 import { fieldCache } from '@/lib/offline/field-cache';
@@ -712,6 +716,60 @@ export default function InspectionScreen() {
   const findings = checks.filter((check) => check.answer === 'NON_COMPLIANT');
   const notApplicable = checks.filter((check) => check.answer === 'NOT_APPLICABLE').length;
 
+  // When and by whom: a planned inspection shows only this; a report shows it under the score.
+  const facts = (
+    <Card variant="filled">
+      {fact(t('insp.inspectedOn'), formatDate(inspection.date, language))}
+      {fact(t('insp.inspectedBy'), inspection.supervisorName)}
+      {inspection.grade === null && inspection.status === 'PLANNED' && (
+        <ThemedText type="default" themeColor="textSecondary">
+          {t('insp.plannedFor', { date: formatDate(inspection.date, language) })}
+        </ThemedText>
+      )}
+    </Card>
+  );
+
+  // What can be done with a finished report: keep or pass on its PDF, put photos forward. Last, after the report itself.
+  const canPropose =
+    (inspection.status === 'SUBMITTED' || inspection.status === 'APPROVED') &&
+    !finishWaiting &&
+    viewerRole === 'SUPERVISOR' &&
+    inspection.supervisorId === user?.id;
+  const actions = (inspection.status === 'APPROVED' || canPropose) && (
+    <View style={[styles.actions, styles.sectionGap]}>
+      {/* Only an approved report is final, so only then is there a PDF to keep or pass on. */}
+      {inspection.status === 'APPROVED' && (
+        <>
+          <Button
+            icon="document-text"
+            label={t('visit.pdf')}
+            variant="secondary"
+            loading={busy === 'pdf'}
+            onPress={() => void openPdf()}
+          />
+          <ErrorText message={failed.pdf ?? null} />
+        </>
+      )}
+      {/* The Supervisor who inspected can put photos forward for the restaurant's customer page. */}
+      {canPropose && (
+        <Button
+          icon="images-outline"
+          label={t('cpage.propose.entry')}
+          variant="secondary"
+          onPress={() =>
+            router.push({ pathname: '/customer-page/propose', params: { outletId: inspection.outletId, inspectionId: inspection.id } })
+          }
+        />
+      )}
+    </View>
+  );
+
+  /**
+   * The report, in the order an inspection report is read (SafetyCulture's reports: the score on the
+   * title page, then the flagged items, then the inspection section by section): the score and grade
+   * first, then the summary and the non-compliances, then the section scores with how the score is
+   * worked out folded under them, and the actions last.
+   */
   const report = (
     <>
       {inspection.overallScore !== null && <ScoreSummary score={inspection.overallScore} grade={inspection.grade} />}
@@ -722,17 +780,12 @@ export default function InspectionScreen() {
         </ThemedText>
       )}
       {inspection.status === 'SUBMITTED' && eccs && (
-        <ThemedText type="default" themeColor="warning">
+        <ThemedText type="small" themeColor="textSecondary">
           {t('insp.waitingEccs')}
         </ThemedText>
       )}
       {inspection.criticalFailed > 0 && (
-        <View style={styles.warning}>
-          <Ionicons name="alert-circle" size={22} color={theme.danger} />
-          <ThemedText type="default" themeColor="danger" style={styles.flexText}>
-            {t('insp.criticalFailed', { count: inspection.criticalFailed })}
-          </ThemedText>
-        </View>
+        <Notice tone="danger" text={t('insp.criticalFailed', { count: inspection.criticalFailed })} />
       )}
       <ThemedText type="default" themeColor="textSecondary">
         {t('insp.counts', {
@@ -741,6 +794,7 @@ export default function InspectionScreen() {
           na: notApplicable,
         })}
       </ThemedText>
+      {facts}
 
       {/* The summary for the report: written by the Supervisor after Finish (by hand or from an AI draft they check). */}
       <InspectionSummarySection
@@ -750,17 +804,7 @@ export default function InspectionScreen() {
         onSaved={(next) => fieldCache.putInspection(next)}
       />
 
-      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
-        {t('insp.sections')}
-      </ThemedText>
-      {inspection.sections.map((section) => (
-        <SectionScoreRow key={section.key} section={section} />
-      ))}
-      <ThemedText type="small" themeColor="textSecondary">
-        {t('insp.howScored')}
-      </ThemedText>
-
-      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
+      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap} accessibilityRole="header">
         {t('insp.findings', { count: findings.length })}
       </ThemedText>
       {findings.length === 0 && (
@@ -769,14 +813,16 @@ export default function InspectionScreen() {
         </ThemedText>
       )}
       {findings.map((check) => (
-        <View key={check.itemId} style={[styles.finding, { borderColor: theme.border }]}>
+        <Card key={check.itemId}>
           <ThemedText type="default" style={styles.checkLabel}>
             {check.number}. {localize(check.label, language)}
           </ThemedText>
           <ThemedText type="smallBold" themeColor={check.severity === 'LOW' ? 'textSecondary' : 'danger'}>
-            {[check.critical && t('insp.critical'), check.severity && t(`insp.severity.${check.severity}`)]
-              .filter(Boolean)
-              .join(' · ')}
+            {keepDots(
+              [check.critical && t('insp.critical'), check.severity && t(`insp.severity.${check.severity}`)]
+                .filter(Boolean)
+                .join(' · '),
+            )}
           </ThemedText>
           {check.note && <ThemedText type="default">{check.note}</ThemedText>}
           {fact(t('insp.correctiveAction'), check.correctiveAction)}
@@ -800,8 +846,21 @@ export default function InspectionScreen() {
               ))}
             </View>
           )}
-        </View>
+        </Card>
       ))}
+
+      <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap} accessibilityRole="header">
+        {t('insp.sections')}
+      </ThemedText>
+      {inspection.sections.map((section) => (
+        <SectionScoreRow key={section.key} section={section} />
+      ))}
+      {/* Read once, so folded away (Nielsen Norman Group on progressive disclosure). */}
+      <Expandable title={t('insp.howScoredTitle')} icon="calculator-outline">
+        <ThemedText type="small">{t('insp.howScored')}</ThemedText>
+      </Expandable>
+
+      {actions}
     </>
   );
 
@@ -825,7 +884,12 @@ export default function InspectionScreen() {
     <Screen
       back
       title={inspection.outletName}
-      subtitle={recording ? (inspection.outletAddress ?? inspection.organizationName) : t('insp.report')}
+      // "Inspection report" said once, with its number, under the outlet's name.
+      subtitle={
+        recording
+          ? (inspection.outletAddress ?? inspection.organizationName)
+          : keepDots([t('insp.report'), inspection.reportNumber ? ltrText(inspection.reportNumber) : null].filter(Boolean).join(' · '))
+      }
       onRefresh={async () => {
         // Pulling down also sends anything still waiting, without waiting for the next automatic try.
         outbox.kick();
@@ -846,62 +910,10 @@ export default function InspectionScreen() {
       {finishWaiting && !held && <UnsentMark sending={hasSignal} text={t('offline.finishWaiting')} />}
 
       {recording && inspection.correctionNote && (
-        <View style={[styles.correction, { borderColor: theme.warning }]}>
-          <ThemedText type="smallBold" themeColor="warning">
-            {t('insp.correction')}
-          </ThemedText>
-          <ThemedText type="default">{inspection.correctionNote}</ThemedText>
-        </View>
+        <Notice tone="warning" title={t('insp.correction')} text={inspection.correctionNote} />
       )}
 
-      {recording ? (
-        inspection.sections.map(sectionBlock)
-      ) : (
-        <>
-          <View style={[styles.facts, { backgroundColor: theme.backgroundElement }]}>
-            {inspection.reportNumber && (
-              <ThemedText type="default" style={styles.bold}>
-                {t('insp.report')} · {inspection.reportNumber}
-              </ThemedText>
-            )}
-            {fact(t('insp.inspectedOn'), formatDate(inspection.date, language))}
-            {fact(t('insp.inspectedBy'), inspection.supervisorName)}
-            {inspection.grade === null && inspection.status === 'PLANNED' && (
-              <ThemedText type="default" themeColor="textSecondary">
-                {t('insp.plannedFor', { date: formatDate(inspection.date, language) })}
-              </ThemedText>
-            )}
-          </View>
-          {/* Only an approved report is final, so only then is there a PDF to keep or pass on. */}
-          {inspection.status === 'APPROVED' && (
-            <>
-              <Button
-                icon="document-text"
-                label={t('visit.pdf')}
-                variant="secondary"
-                loading={busy === 'pdf'}
-                onPress={() => void openPdf()}
-              />
-              <ErrorText message={failed.pdf ?? null} />
-            </>
-          )}
-          {/* The Supervisor who inspected can put photos forward for the restaurant's customer page. */}
-          {(inspection.status === 'SUBMITTED' || inspection.status === 'APPROVED') &&
-            !finishWaiting &&
-            viewerRole === 'SUPERVISOR' &&
-            inspection.supervisorId === user?.id && (
-              <Button
-                icon="images-outline"
-                label={t('cpage.propose.entry')}
-                variant="secondary"
-                onPress={() =>
-                  router.push({ pathname: '/customer-page/propose', params: { outletId: inspection.outletId, inspectionId: inspection.id } })
-                }
-              />
-            )}
-          {inspection.status !== 'PLANNED' && report}
-        </>
-      )}
+      {recording ? inspection.sections.map(sectionBlock) : inspection.status === 'PLANNED' ? facts : report}
 
       <ConfirmDialog
         visible={confirming}
@@ -982,10 +994,7 @@ const styles = StyleSheet.create({
   progress: { gap: Spacing.one },
   track: { height: 8, borderRadius: 4, overflow: 'hidden' },
   bar: { height: 8, borderRadius: 4 },
-  correction: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
-  facts: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   fact: { gap: Spacing.half },
-  warning: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
-  finding: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  actions: { gap: Spacing.two },
   due: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
 });

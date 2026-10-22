@@ -23,13 +23,13 @@ const LOCALES: Record<LanguageCode, string> = {
  * "+919000000000" or "9000000000". Anything else is returned as it is.
  */
 export function formatPhone(phone: string): string {
-  const digits = phone.replace(/[^d]/g, '');
+  const digits = phone.replace(/\D/g, '');
   const local = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits.length === 10 ? digits : null;
-  return local ? `+91 ${local.slice(0, 5)} ${local.slice(5)}` : phone;
+  return local ? `+91\u00A0${local.slice(0, 5)}\u00A0${local.slice(5)}` : phone;
 }
 
 /** A time's spaces made non-breaking, so "pm" never wraps onto a line of its own. */
-const unbroken = (text: string) => text.replace(/s/g, ' ');
+const unbroken = (text: string) => text.replace(/\s/g, '\u00A0');
 
 /** A checklist due time such as "14:30" as people read it, e.g. "2:30 pm". */
 export function formatTime(hhmm: string, language: LanguageCode): string {
@@ -69,7 +69,7 @@ export function formatSlot(slot: string | null, language: LanguageCode, t: Trans
   if (!known) return slot;
   const window = visitSlotWindow(known);
   // A line may break after the dash but never before it, so no line starts with "–".
-  return window ? `${formatTime(window.start, language)} – ${formatTime(window.end, language)}` : t('slot.AFTER_CLOSING');
+  return window ? `${formatTime(window.start, language)}\u00A0– ${formatTime(window.end, language)}` : t('slot.AFTER_CLOSING');
 }
 
 /** A calendar date with a short weekday and no year, e.g. "Thu, 8 Oct". */

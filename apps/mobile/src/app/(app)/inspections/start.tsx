@@ -1,14 +1,14 @@
 import type { InspectionOutletDto } from '@eccs/shared';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
-import { Spacing } from '@/constants/theme';
+import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { useSession } from '@/lib/session';
@@ -17,6 +17,11 @@ import { useSession } from '@/lib/session';
  * Starts an inspection for today: choose the outlet and go. Giving an
  * inspection to someone else, or planning one for another day, is done by
  * ECCS in the console.
+ *
+ * PATTERN FOLLOWED: a list of radio buttons for one choice out of several (Material 3's radio
+ * button in a list; GOV.UK Design System's radios): each outlet a full-width row with an empty or
+ * filled circle, its name and the brand on a second line, as the pay-day settings choose a divisor.
+ * Chips squeezed two-line outlet names into small boxes with no empty circle to say they were choices.
  */
 export default function StartInspectionScreen() {
   const theme = useTheme();
@@ -82,27 +87,57 @@ export default function StartInspectionScreen() {
           {t('insp.noOutlets')}
         </ThemedText>
       )}
+      {/* The line under the title asks the question, so the list carries no label of its own on screen. */}
       {outlets !== null && outlets.length > 0 && (
-        <>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            {t('insp.chooseOutlet')}
-          </ThemedText>
-          <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('insp.chooseOutlet')}>
-            {outlets.map((outlet) => (
-              <OptionChip
+        <View accessibilityRole="radiogroup" accessibilityLabel={t('insp.chooseOutlet')}>
+          {outlets.map((outlet, index) => {
+            const selected = outlet.id === outletId;
+            return (
+              <Pressable
                 key={outlet.id}
-                label={outlet.name === outlet.organizationName ? outlet.name : `${outlet.name} · ${outlet.organizationName}`}
-                selected={outlet.id === outletId}
+                accessibilityRole="radio"
+                accessibilityState={{ selected, checked: selected }}
                 onPress={() => setOutletId(outlet.id)}
-              />
-            ))}
-          </View>
-        </>
+                style={({ pressed }) => [
+                  styles.option,
+                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: theme.border },
+                  pressed && { backgroundColor: theme.backgroundElement },
+                ]}>
+                <Ionicons
+                  name={selected ? 'radio-button-on' : 'radio-button-off'}
+                  size={26}
+                  color={selected ? theme.primary : theme.textSecondary}
+                  style={styles.radio}
+                />
+                <View style={styles.optionText}>
+                  <ThemedText type="default" style={selected && styles.bold}>
+                    {outlet.name}
+                  </ThemedText>
+                  {outlet.organizationName !== outlet.name && (
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {outlet.organizationName}
+                    </ThemedText>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
       )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  options: { gap: Spacing.two },
+  // A plain row, tall enough for a thumb, with the radio beside the outlet's name, its first line.
+  option: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.three,
+    minHeight: MinTouchSize + Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
+  },
+  radio: { marginTop: -1 },
+  optionText: { flex: 1, gap: Spacing.half },
+  bold: { fontWeight: 700 },
 });

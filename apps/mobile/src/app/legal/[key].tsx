@@ -1,14 +1,18 @@
 import { isLegalDocumentKey, LEGAL_DOCUMENTS, type LegalDocumentDto } from '@eccs/shared';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View, type ScrollView } from 'react-native';
 
-import { LegalText } from '@/components/legal-parts';
+import { legalHeadings, LegalText } from '@/components/legal-parts';
+import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
+import { Expandable } from '@/components/ui/expandable';
 import { Screen } from '@/components/ui/screen';
+import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
+import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
 
 /**
@@ -29,6 +33,10 @@ export default function LegalDocumentScreen() {
   const [fetched, setFetched] = useState<LegalDocumentDto | null>(null);
   const [failure, setFailure] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  // Where the document starts in the page, and where each main heading starts in the document.
+  const documentY = useRef(0);
+  const headingY = useRef<number[]>([]);
 
   useEffect(() => {
     if (!isLegalDocumentKey(key)) return;
@@ -59,12 +67,14 @@ export default function LegalDocumentScreen() {
   const bundled = LEGAL_DOCUMENTS.find((document) => document.key === key);
   const shown =
     fetched ?? (bundled && (!params.version || params.version === bundled.version) ? bundled : null);
+  const headings = shown ? legalHeadings(shown.markdown) : [];
 
   return (
     <Screen
       back
       title={t(`legal.doc.${key}`)}
-      subtitle={shown ? t('legal.version', { date: formatDate(shown.version, language) }) : undefined}>
+      subtitle={shown ? t('legal.version', { date: formatDate(shown.version, language) }) : undefined}
+      scrollRef={scrollRef}>
       {!shown && failure === null && <ActivityIndicator color={theme.primary} />}
       {!shown && failure !== null && (
         <ErrorText
@@ -75,8 +85,39 @@ export default function LegalDocumentScreen() {
           }}
         />
       )}
+      {/* A contents list that jumps to each section, as GOV.UK's long guidance pages have; folded,
+          so the words themselves still start on the first screen. */}
+      {headings.length > 2 && (
+        <Expandable title={t('legal.contents')} icon="list-outline">
+          {headings.map((heading, position) => (
+            <Pressable
+              key={position}
+              accessibilityRole="link"
+              onPress={() => scrollToY(scrollRef, documentY.current + (headingY.current[position] ?? 0))}
+              style={({ pressed }) => [styles.contentsRow, pressed && { backgroundColor: theme.backgroundElement }]}>
+              <ThemedText type="default" themeColor="primary">
+                {heading}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </Expandable>
+      )}
       {/* The screen's title already names the document, so its own first line is left out. */}
-      {shown && <LegalText markdown={shown.markdown} skipTitle />}
+      {shown && (
+        <View onLayout={(event) => (documentY.current = event.nativeEvent.layout.y)}>
+          <LegalText
+            markdown={shown.markdown}
+            skipTitle
+            onHeading={(position, y) => {
+              headingY.current[position] = y;
+            }}
+          />
+        </View>
+      )}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  contentsRow: { minHeight: MinTouchSize, justifyContent: 'center', borderRadius: Spacing.two },
+});

@@ -1,17 +1,15 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { can, shiftMonth, type AttendanceMonthDto } from '@eccs/shared';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { countsOf, DayCounts, MonthStepper, useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
+import { ListRow } from '@/components/ui/list-row';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
-import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useDirection } from '@/lib/direction';
 import { indiaToday } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
@@ -23,7 +21,6 @@ const MONTHS_BACK = 12;
 export default function AttendanceMonthScreen() {
   const theme = useTheme();
   const { t, api, user } = useSession();
-  const { forwardIcon } = useDirection();
   const { outletId, outlets, choose } = useOutlet();
   const [month, setMonth] = useState(() => indiaToday().slice(0, 7));
 
@@ -52,37 +49,15 @@ export default function AttendanceMonthScreen() {
           Their job is on their own page. */}
       <View>
         {data?.people.map((person, index) => (
-          <Pressable
+          <ListRow
             key={person.staffId}
-            accessibilityRole="button"
+            title={person.name}
+            below={<DayCounts counts={countsOf(person.totals)} />}
+            divider={index > 0}
             onPress={() => router.push({ pathname: '/team/[staffId]', params: { staffId: person.staffId, month } })}
-            style={({ pressed }) => [
-              styles.row,
-              index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
-              pressed && { backgroundColor: theme.backgroundElement },
-            ]}>
-            <View style={styles.text}>
-              <ThemedText type="default" numberOfLines={1} style={styles.bold}>
-                {person.name}
-              </ThemedText>
-              <DayCounts counts={countsOf(person.totals)} />
-            </View>
-            <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
-          </Pressable>
+          />
         ))}
       </View>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    minHeight: MinTouchSize + Spacing.three,
-    paddingVertical: Spacing.two + Spacing.one,
-  },
-  text: { flex: 1, gap: Spacing.one },
-  bold: { fontWeight: 700 },
-});

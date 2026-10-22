@@ -5,7 +5,9 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
+import { Notice } from '@/components/ui/notice';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { Spacing } from '@/constants/theme';
@@ -96,13 +98,7 @@ export default function SopLibraryItemScreen() {
             {item.purpose}
           </ThemedText>
 
-          {item.kind === 'RECIPE' && (
-            <View style={[styles.note, { borderColor: theme.warning }]}>
-              <ThemedText type="small" themeColor="warning">
-                {t('soplib.recipeNote')}
-              </ThemedText>
-            </View>
-          )}
+          {item.kind === 'RECIPE' && <Notice tone="warning" text={t('soplib.recipeNote')} />}
 
           <View style={styles.steps}>
             {item.steps.map((step, index) => (
@@ -120,12 +116,12 @@ export default function SopLibraryItemScreen() {
           </View>
 
           {item.controls && (
-            <View style={[styles.note, { borderColor: theme.border }]}>
+            <Card>
               <ThemedText type="smallBold" themeColor="textSecondary">
                 {t('soplib.takeCare')}
               </ThemedText>
               <ThemedText type="default">{item.controls}</ThemedText>
-            </View>
+            </Card>
           )}
         </>
       )}
@@ -135,7 +131,6 @@ export default function SopLibraryItemScreen() {
 }
 
 const styles = StyleSheet.create({
-  note: { borderWidth: 1.5, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
   steps: { gap: Spacing.two },
   step: { flexDirection: 'row', gap: Spacing.three, borderRadius: Spacing.three, padding: Spacing.three },
   number: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },

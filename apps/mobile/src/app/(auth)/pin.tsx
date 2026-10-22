@@ -7,6 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { OptionSheet } from '@/components/ui/option-sheet';
 import { PinPad } from '@/components/ui/pin-pad';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
@@ -22,6 +23,7 @@ export default function PinScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmUnlink, setConfirmUnlink] = useState(false);
+  const [forgotSheet, setForgotSheet] = useState(false);
   // After too many wrong PINs the server locks this phone for a while. These two hold
   // the clock time the lock ends and the time now, so the wait can be counted down.
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
@@ -78,6 +80,23 @@ export default function PinScreen() {
 
   return (
     <Screen>
+      {/* Attendance, for every employee, needs no login. It comes first, where it is seen without
+          scrolling (clocking in is what most staff do here every day), and is kept apart from the
+          login below it by a line, with its own picture and words, so nobody takes it for a way to
+          log in. Under the keypad (tried on 22 Oct 2026) it fell below the bottom of a phone's
+          screen. Not shown on a phone linked to the restaurant as a whole: there is no outlet to
+          clock in at. */}
+      {linkedDevice.outletName !== null && (
+        <View style={[styles.clock, { borderColor: theme.border }]}>
+          <Button
+            icon="scan-circle-outline"
+            label={t('clock.title')}
+            hint={t('clock.pinHint')}
+            onPress={() => router.push('/clock')}
+          />
+        </View>
+      )}
+
       <View style={styles.header}>
         <ThemedText type="smallBold" themeColor="primary" style={styles.center}>
           {restaurantName}
@@ -90,20 +109,8 @@ export default function PinScreen() {
         </ThemedText>
       </View>
 
-      {/* Attendance, for every employee, needs no login. It is kept apart from the PIN pad
-          (its own box, picture and words) so nobody takes it for a way to log in. Not shown on
-          a phone linked to the restaurant as a whole: there is no outlet to clock in at. */}
-      {linkedDevice.outletName !== null && (
-        <View style={[styles.clock, { borderColor: theme.border }]}>
-          <Button
-            icon="scan-circle-outline"
-            label={t('clock.title')}
-            hint={t('clock.pinHint')}
-            onPress={() => router.push('/clock')}
-          />
-        </View>
-      )}
-
+      {/* The title and its dots together, straight above the keys (Square's passcode screen; until
+          22 Oct 2026 the Clock in button sat between them). */}
       <PinPad
         value={pin}
         onChange={change}
@@ -112,18 +119,29 @@ export default function PinScreen() {
         note={locked ? t('pin.unlocksIn', { time: timeLeft }) : null}
       />
 
-      <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-        {t('pin.forgotStaff')}
-      </ThemedText>
-
+      {/* One link for a forgotten PIN; the sheet it opens says what to do, owner or staff. */}
       <View>
-        <Button
-          label={t('pin.forgotOwner')}
-          variant="link"
-          onPress={() => router.push({ pathname: '/phone', params: { mode: 'reset' } })}
-        />
+        <Button label={t('pin.forgot')} variant="link" onPress={() => setForgotSheet(true)} />
         <Button label={t('pin.changeRestaurant')} variant="link" onPress={() => setConfirmUnlink(true)} />
       </View>
+
+      <OptionSheet
+        visible={forgotSheet}
+        title={t('pin.forgot')}
+        options={[
+          {
+            label: t('pin.forgotOwnerOption'),
+            icon: 'phone-portrait-outline',
+            onPress: () => {
+              setForgotSheet(false);
+              router.push({ pathname: '/phone', params: { mode: 'reset' } });
+            },
+          },
+          // Staff have nothing to do on this phone: the line itself is the answer, and tapping it closes the sheet.
+          { label: t('pin.forgotStaffOption'), icon: 'people-outline', onPress: () => setForgotSheet(false) },
+        ]}
+        onClose={() => setForgotSheet(false)}
+      />
 
       <ConfirmDialog
         visible={confirmUnlink}
@@ -141,9 +159,9 @@ export default function PinScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { alignItems: 'center', gap: Spacing.two, paddingTop: Spacing.four },
+  header: { alignItems: 'center', gap: Spacing.two },
   title: { fontSize: 28, lineHeight: 36 },
   center: { textAlign: 'center' },
   // A line under the attendance button sets it apart from the login below it.
-  clock: { borderBottomWidth: 1, paddingBottom: Spacing.four },
+  clock: { borderBottomWidth: 1, paddingTop: Spacing.three, paddingBottom: Spacing.four },
 });

@@ -127,21 +127,28 @@ export function LeadForm({ values, onChange, showMissing, read }: LeadFormProps)
         />
       </View>
 
-      {/* One line that opens the list, as the app's branch chooser does: seven chips took four rows. */}
-      <ThemedText type="smallBold" themeColor="textSecondary">
-        {t('bde.form.source')}
-      </ThemedText>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${t('bde.form.source')}: ${t(`bde.source.${values.source}`)}`}
-        onPress={() => setChoosing(true)}
-        style={({ pressed }) => [styles.chooser, { borderColor: theme.outline }, pressed && { backgroundColor: theme.backgroundElement }]}>
-        <Ionicons name="navigate-circle-outline" size={20} color={theme.primary} />
-        <ThemedText type="default" numberOfLines={1} style={styles.chooserText}>
-          {t(`bde.source.${values.source}`)}
+      {/* One line that opens the list, as the app's branch chooser does: seven chips took four rows. It is drawn
+          as the text boxes around it are (their label, fill, edge and size of words), with the arrow that says it
+          opens a list, so the form has one look for its fields (Material 3's exposed dropdown menu: a text field
+          that opens a menu). */}
+      <View style={styles.field}>
+        <ThemedText type="smallBold" themeColor="textSecondary">
+          {t('bde.form.source')}
         </ThemedText>
-        <Ionicons name="chevron-down" size={20} color={theme.textSecondary} />
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${t('bde.form.source')}: ${t(`bde.source.${values.source}`)}`}
+          onPress={() => setChoosing(true)}
+          style={({ pressed }) => [
+            styles.chooser,
+            { borderColor: theme.outline, backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
+          ]}>
+          <ThemedText type="default" numberOfLines={1} style={styles.chooserText}>
+            {t(`bde.source.${values.source}`)}
+          </ThemedText>
+          <Ionicons name="chevron-down" size={22} color={theme.textSecondary} />
+        </Pressable>
+      </View>
       <OptionSheet
         visible={choosing}
         title={t('bde.form.source')}
@@ -220,8 +227,10 @@ const styles = StyleSheet.create({
   form: { gap: Spacing.three },
   flex: { flex: 1 },
   inline: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  // As components/ui/text-field: label 8 above, a 1 edge in the outline colour on the grey fill, words at 20.
+  field: { gap: Spacing.two },
   chooser: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, minHeight: MinTouchSize, borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three },
-  chooserText: { flex: 1, fontWeight: 700 },
+  chooserText: { flex: 1, fontSize: 20, lineHeight: 30, fontWeight: 400 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   stepButton: { width: MinTouchSize, height: MinTouchSize, borderRadius: Spacing.three, alignItems: 'center', justifyContent: 'center' },
   stepValue: { minWidth: 36, textAlign: 'center', fontWeight: 700, fontSize: 20 },

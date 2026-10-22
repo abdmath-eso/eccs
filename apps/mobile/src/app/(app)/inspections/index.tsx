@@ -8,6 +8,7 @@ import { FieldMark, SavedCopyNote } from '@/components/field-sync-parts';
 import { InspectionCard } from '@/components/inspection-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorText } from '@/components/ui/error-text';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
@@ -142,7 +143,8 @@ export default function InspectionsScreen() {
     <Screen
       back
       title={t('insp.title')}
-      subtitle={t(eccs ? (role === 'SUPERVISOR' ? 'insp.helpSupervisor' : 'insp.helpAdmin') : 'insp.helpRestaurant')}
+      // What the screen is for, read once: folded at its end, so the list comes first (22 Oct 2026).
+      about={t(eccs ? (role === 'SUPERVISOR' ? 'insp.helpSupervisor' : 'insp.helpAdmin') : 'insp.helpRestaurant')}
       onRefresh={async () => {
         // Pulling down also sends anything still waiting, without waiting for the next automatic try.
         outbox.kick();
@@ -166,11 +168,14 @@ export default function InspectionsScreen() {
       {!hasSignal && saved && <SavedCopyNote at={saved.at} />}
       {(outletLoading || (inspections === null && !error)) && <ActivityIndicator color={theme.primary} />}
 
-      {inspections !== null && all.length === 0 && (
-        <ThemedText type="default" themeColor="textSecondary">
-          {t(eccs ? 'insp.none' : 'insp.noReports')}
-        </ThemedText>
-      )}
+      {/* Nothing yet: a picture, one line and one sentence, not a grey paragraph (Nielsen Norman Group on empty states). */}
+      {inspections !== null &&
+        all.length === 0 &&
+        (eccs ? (
+          <EmptyState icon="clipboard-outline" title={t('insp.none')} />
+        ) : (
+          <EmptyState icon="clipboard-outline" title={t('insp.noReportsTitle')} body={t('insp.noReportsBody')} />
+        ))}
 
       {eccs ? (
         <>

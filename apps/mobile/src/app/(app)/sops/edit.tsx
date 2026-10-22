@@ -2,18 +2,19 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { SOP_CATEGORIES, SOP_LANGUAGES, type SopCategory, type SopLanguage } from '@eccs/shared';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState, type ComponentProps } from 'react';
-import { ActivityIndicator, BackHandler, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OtherLanguagesNote } from '@/components/ai-parts';
+import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
-import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
-import { MinTouchSize, Spacing } from '@/constants/theme';
+import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { useSession } from '@/lib/session';
@@ -29,7 +30,7 @@ let lastKey = 0;
 const newStep = (text = ''): Step => ({ key: ++lastKey, text });
 
 /** What would be saved, as one string: used to tell whether anything has been changed. */
-const snapshot = (title: string, category: SopCategory, steps: Step[]) =>
+const snapshot = (title: string, category: SopCategory | null, steps: Step[]) =>
   JSON.stringify([title.trim(), category, steps.map((step) => step.text.trim()).filter(Boolean)]);
 
 /**
@@ -46,10 +47,13 @@ export default function EditSopScreen() {
   const [loading, setLoading] = useState(Boolean(sopId));
   const [attempt, setAttempt] = useState(0);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<SopCategory>('CLEANING');
+  // Nothing is chosen for a new SOP until the person picks one (GOV.UK: do not pre-select an answer,
+  // or it is saved without being thought about).
+  const [category, setCategory] = useState<SopCategory | null>(null);
+  const [choosingCategory, setChoosingCategory] = useState(false);
   const [steps, setSteps] = useState<Step[]>(() => [newStep(), newStep()]);
   // What the form held when it opened (or was loaded), to know whether there is anything to lose.
-  const [original, setOriginal] = useState(() => snapshot('', 'CLEANING', []));
+  const [original, setOriginal] = useState(() => snapshot('', null, []));
   // An SOP is changed in the language it was written in, whoever opens it.
   const [writtenIn, setWrittenIn] = useState<SopLanguage>(ownLanguage);
   const [saving, setSaving] = useState(false);
@@ -94,6 +98,7 @@ export default function EditSopScreen() {
   const written = steps.map((step) => step.text.trim()).filter(Boolean);
   const titleMissing = title.trim().length < 2;
   const stepsMissing = written.length === 0;
+  const categoryMissing = category === null;
   const changed = !loading && !loadError && snapshot(title, category, steps) !== original;
 
   /** Back, Cancel and the phone's back button all come here: ask first if there is work to lose. */
@@ -116,7 +121,7 @@ export default function EditSopScreen() {
   );
 
   async function save() {
-    if (titleMissing || stepsMissing) return setShowMissing(true);
+    if (titleMissing || stepsMissing || category === null) return setShowMissing(true);
     setSaving(true);
     setError(null);
     try {
@@ -191,18 +196,29 @@ export default function EditSopScreen() {
             error={showMissing && titleMissing ? t('sops.nameNeeded') : null}
           />
 
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            {t('sops.category')}
-          </ThemedText>
-          <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={t('sops.category')}>
-            {SOP_CATEGORIES.map((value) => (
-              <OptionChip
-                key={value}
-                label={t(`sopCategory.${value}`)}
-                selected={value === category}
-                onPress={() => setCategory(value)}
-              />
-            ))}
+          {/* The category is one line that shows the choice and opens the list, like the outlet picker:
+              thirteen chips filled a whole screen and pushed the steps out of sight (Nielsen Norman Group
+              on long option lists; Material's exposed dropdown menu). */}
+          <View style={styles.field}>
+            <ThemedText type="smallBold" themeColor="textSecondary">
+              {t('sops.category')}
+            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${t('sops.category')}: ${category ? t(`sopCategory.${category}`) : t('sops.chooseCategory')}`}
+              onPress={() => setChoosingCategory(true)}
+              style={({ pressed }) => [
+                styles.select,
+                { borderColor: theme.outline, backgroundColor: theme.backgroundElement },
+                showMissing && categoryMissing && { borderColor: theme.danger, borderWidth: 2 },
+                pressed && { backgroundColor: theme.backgroundSelected },
+              ]}>
+              <ThemedText type="default" themeColor={category ? 'text' : 'textSecondary'} style={styles.selectText}>
+                {category ? t(`sopCategory.${category}`) : t('sops.chooseCategory')}
+              </ThemedText>
+              <Ionicons name="chevron-down" size={22} color={theme.textSecondary} />
+            </Pressable>
+            <ErrorText message={showMissing && categoryMissing ? t('sops.categoryNeeded') : null} />
           </View>
 
           <ThemedText type="smallBold" themeColor="textSecondary">
@@ -249,7 +265,8 @@ export default function EditSopScreen() {
           ))}
           {steps.length < MAX_STEPS && (
             <Button
-              label={`+  ${t('sops.addStep')}`}
+              icon="add"
+              label={t('sops.addStep')}
               variant="secondary"
               onPress={() => setSteps((current) => [...current, newStep()])}
             />
@@ -264,6 +281,15 @@ export default function EditSopScreen() {
         </>
       )}
 
+      <CategorySheet
+        visible={choosingCategory}
+        chosen={category}
+        onChoose={(value) => {
+          setCategory(value);
+          setChoosingCategory(false);
+        }}
+        onClose={() => setChoosingCategory(false)}
+      />
       <ConfirmDialog
         visible={removing !== null && removingIndex >= 0}
         message={t('sops.removeStepConfirm', { number: removingIndex + 1 })}
@@ -290,8 +316,96 @@ export default function EditSopScreen() {
   );
 }
 
+interface CategorySheetProps {
+  visible: boolean;
+  chosen: SopCategory | null;
+  onChoose: (category: SopCategory) => void;
+  onClose: () => void;
+}
+
+/**
+ * The categories, sliding up from the bottom with the chosen one marked. It looks like the app's
+ * other choice sheets (`OptionSheet`) but scrolls, because thirteen categories are taller than a
+ * small phone's screen.
+ */
+function CategorySheet({ visible, chosen, onChoose, onClose }: CategorySheetProps) {
+  const theme = useTheme();
+  const { t } = useSession();
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <DirectionView style={styles.sheetRoot}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('common.close')} onPress={onClose} style={styles.backdrop} />
+        <View style={[styles.sheet, { backgroundColor: theme.backgroundRaised, paddingBottom: Spacing.three + insets.bottom }]}>
+          <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sheetTitle}>
+            {t('sops.category')}
+          </ThemedText>
+          <ScrollView accessibilityRole="radiogroup" contentContainerStyle={styles.sheetList} keyboardShouldPersistTaps="handled">
+            {SOP_CATEGORIES.map((value) => {
+              const selected = value === chosen;
+              return (
+                <Pressable
+                  key={value}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected, checked: selected }}
+                  onPress={() => onChoose(value)}
+                  style={({ pressed }) => [styles.sheetOption, pressed && { backgroundColor: theme.backgroundElement }]}>
+                  <Ionicons
+                    name={selected ? 'radio-button-on' : 'radio-button-off'}
+                    size={24}
+                    color={selected ? theme.primary : theme.textSecondary}
+                  />
+                  <ThemedText type="default" style={[styles.selectText, selected && styles.chosen]}>
+                    {t(`sopCategory.${value}`)}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Button label={t('common.cancel')} variant="secondary" onPress={onClose} />
+        </View>
+      </DirectionView>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  field: { gap: Spacing.two },
+  // The same box as a text field's, with an arrow that says it opens a list.
+  select: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    minHeight: MinTouchSize,
+    borderWidth: 1,
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  selectText: { flex: 1 },
+  chosen: { fontWeight: 700 },
+  sheetRoot: { flex: 1, justifyContent: 'flex-end', alignItems: 'center' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    maxHeight: '85%',
+    borderTopLeftRadius: Spacing.four,
+    borderTopRightRadius: Spacing.four,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
+    gap: Spacing.two,
+  },
+  sheetTitle: { paddingHorizontal: Spacing.two },
+  sheetList: { gap: Spacing.one },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    minHeight: MinTouchSize + Spacing.one,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Spacing.three,
+  },
   step: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   // Lined up with the first line of the text box beside it.
   number: {

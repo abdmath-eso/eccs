@@ -66,7 +66,8 @@ export function wordInLanguage(
       const known = VISIT_SLOTS.find((slot) => slot === value);
       if (!known) return value ?? t('notif.noTime');
       const window = visitSlotWindow(known);
-      return window ? `${clock(window.start, language)} – ${clock(window.end, language)}` : t('slot.AFTER_CLOSING');
+      // In the middle of a sentence ("… is tomorrow, after closing."), so the small-letter form.
+      return window ? `${clock(window.start, language)} – ${clock(window.end, language)}` : t('notif.afterClosing');
     },
     category: (value) => {
       const known = ISSUE_CATEGORIES.find((category) => category === value);

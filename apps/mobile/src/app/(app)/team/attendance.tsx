@@ -5,16 +5,17 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { DayFactsLine, EnrolledMark, FlagList } from '@/components/attendance-parts';
-import { DAY_MARK, DayCounts, useLoaded, type DayMark } from '@/components/team-parts';
+import { DayCounts, DayMarkChip, useLoaded, type DayMark } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { ListRow } from '@/components/ui/list-row';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useDirection } from '@/lib/direction';
-import { addDays, formatDayLong } from '@/lib/format';
+import { addDays, formatDayLong, formatDayShort } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
 
@@ -51,6 +52,8 @@ export default function AttendanceDayScreen() {
     <Screen
       back
       title={t('team.att.title')}
+      // How attendance is recorded is read once, so it is folded away at the end (22 Oct 2026).
+      about={t('att.day.how')}
       onRefresh={reload}
       footer={data && data.people.length > 0 ? <DayCounts counts={counts} /> : undefined}>
       <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
@@ -69,8 +72,9 @@ export default function AttendanceDayScreen() {
             </Pressable>
           )}
           <View style={styles.dayTitle}>
-            <ThemedText type="default" style={styles.dayName}>
-              {formatDayLong(data.date, language)}
+            {/* Short ("Thu, 22 Oct"), so it stays on one line between the arrows. */}
+            <ThemedText type="default" style={styles.dayName} accessibilityLabel={formatDayLong(data.date, language)}>
+              {formatDayShort(data.date, language)}
             </ThemedText>
             {data.date === data.today ? (
               <ThemedText type="small" themeColor="primary">
@@ -96,10 +100,10 @@ export default function AttendanceDayScreen() {
           )}
         </View>
       )}
-
-      <ThemedText type="small" themeColor="textSecondary">
-        {t('att.day.how')}
-      </ThemedText>
+      {/* The month's view is one tap from the top, rather than after every person's row. */}
+      {data && data.people.length > 0 && (
+        <Button icon="calendar-outline" variant="link" align="start" label={t('team.att.monthSummary')} onPress={() => router.push('/team/month')} />
+      )}
 
       <ErrorText message={error} onRetry={() => void reload()} />
       {!data && !error && <ActivityIndicator color={theme.primary} />}
@@ -113,55 +117,42 @@ export default function AttendanceDayScreen() {
         </>
       )}
 
-      {data?.people.map((person) => {
-        const mark = DAY_MARK[person.status ?? 'NONE'];
-        return (
-          <Pressable
+      {/* The same plain rows as the Staff list and the month, with where each person stands at the end of
+          the row, beside the arrow (Material's list item with a trailing status). */}
+      <View>
+        {data?.people.map((person, index) => (
+          <ListRow
             key={person.staffId}
-            accessibilityRole="button"
-            onPress={() => router.push({ pathname: '/team/day', params: { staffId: person.staffId, date: data.date } })}
-            style={({ pressed }) => [styles.card, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
-            <View style={styles.nameText}>
-              <View style={styles.nameRow}>
-                <ThemedText type="default" style={[styles.bold, styles.name]}>
-                  {person.name}
-                </ThemedText>
-                <View style={styles.status}>
-                  <Ionicons name={mark.icon} size={22} color={theme[mark.tone]} />
-                  {/* "No record" is not news, so it is grey; the other states keep the text colour. */}
-                  <ThemedText type="smallBold" themeColor={(person.status ?? 'NONE') === 'NONE' ? 'textSecondary' : 'text'}>
-                    {t(mark.label)}
+            title={person.name}
+            subtitle={[person.jobTitle, person.usualDayOff ? t('team.att.usualOff') : null].filter(Boolean).join(' · ') || null}
+            below={
+              <>
+                <DayFactsLine facts={person} />
+                {/* A status that may still change: the day is running, or the Owner has something to settle. */}
+                {person.provisional && person.status !== null && data.date !== data.today && (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {t('att.provisional')}
                   </ThemedText>
-                </View>
+                )}
+                {person.source === 'OWNER' && (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {t('att.setByOwner')}
+                  </ThemedText>
+                )}
+                <FlagList flags={person.flags} />
+                {!person.enrolled && <EnrolledMark enrolled={false} />}
+              </>
+            }
+            trailing={
+              <View style={styles.status}>
+                <DayMarkChip mark={person.status ?? 'NONE'} />
               </View>
-              {(person.jobTitle || person.usualDayOff) && (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {[person.jobTitle, person.usualDayOff ? t('team.att.usualOff') : null].filter(Boolean).join(' · ')}
-                </ThemedText>
-              )}
-              <DayFactsLine facts={person} />
-              {/* A status that may still change: the day is running, or the Owner has something to settle. */}
-              {person.provisional && person.status !== null && data.date !== data.today && (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t('att.provisional')}
-                </ThemedText>
-              )}
-              {person.source === 'OWNER' && (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t('att.setByOwner')}
-                </ThemedText>
-              )}
-              <FlagList flags={person.flags} />
-              {!person.enrolled && <EnrolledMark enrolled={false} />}
-            </View>
-            <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
-          </Pressable>
-        );
-      })}
-
-      {data && data.people.length > 0 && (
-        <Button icon="calendar-outline" variant="secondary" label={t('team.att.monthSummary')} onPress={() => router.push('/team/month')} />
-      )}
+            }
+            divider={index > 0}
+            onPress={() => router.push({ pathname: '/team/day', params: { staffId: person.staffId, date: data.date } })}
+          />
+        ))}
+      </View>
     </Screen>
   );
 }
@@ -173,20 +164,6 @@ const styles = StyleSheet.create({
   todayLink: { minHeight: MinTouchSize - Spacing.three, justifyContent: 'center', paddingHorizontal: Spacing.two },
   arrow: { minHeight: MinTouchSize, minWidth: MinTouchSize, alignItems: 'center', justifyContent: 'center' },
   faded: { opacity: 0.3 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    minHeight: MinTouchSize,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-  },
-  // The status moves under the name when both do not fit (a small phone, a long name or language),
-  // instead of squeezing the name into "Sample / Helper".
-  nameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: Spacing.two, rowGap: Spacing.half },
-  name: { flexGrow: 1, flexShrink: 1, flexBasis: 140 },
-  nameText: { flex: 1, gap: Spacing.half },
-  status: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  bold: { fontWeight: 700 },
+  // The status may take up to about half the row; a long word wraps inside it rather than squeezing the name.
+  status: { maxWidth: '45%', alignItems: 'flex-end' },
 });

@@ -16,7 +16,7 @@ import { TextField } from '@/components/ui/text-field';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { formatDateTime } from '@/lib/format';
+import { addDays, formatDate, formatDateTime, formatTimeOfDay, indiaToday } from '@/lib/format';
 import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 
@@ -119,6 +119,11 @@ export default function IssueScreen() {
 
   const reopen = () => void act('status', () => api.issues.setStatus(issue.id, 'OPEN'), t('support.reopened'));
 
+  // The day of a message as chat apps name it: Today, Yesterday, or the date.
+  const today = indiaToday();
+  const dayName = (day: string) =>
+    day === today ? t('notif.today') : day === addDays(today, -1) ? t('notif.yesterday') : formatDate(day, language);
+
   // Pinned under the conversation. A closed issue takes no replies: whoever may
   // reopen it is offered that instead, and everyone else is told it is closed.
   const footer = closed ? (
@@ -193,6 +198,7 @@ export default function IssueScreen() {
           <Button
             label={t('support.close')}
             variant="link"
+            align="start"
             onPress={() => void act('status', () => api.issues.setStatus(issue.id, 'CLOSED'), t('support.closed'))}
             loading={busy === 'status'}
             disabled={busy !== null}
@@ -209,32 +215,68 @@ export default function IssueScreen() {
           {t(open || issue.status === 'RESOLVED' ? 'support.noMessages' : 'support.closedNote')}
         </ThemedText>
       )}
-      {issue.comments.map((comment) => (
-        <View
-          key={comment.id}
-          style={[
-            styles.bubble,
-            comment.fromEccs
-              ? { backgroundColor: theme.backgroundElement, borderColor: theme.primary, alignSelf: 'flex-start' }
-              : { backgroundColor: theme.background, borderColor: theme.outline, alignSelf: 'flex-end' },
-          ]}>
-          <ThemedText type="smallBold" themeColor={comment.fromEccs ? 'primary' : 'textSecondary'}>
-            {comment.fromEccs ? `${t('support.eccs')} · ${comment.authorName}` : comment.authorName}
-          </ThemedText>
-          <TranslatableText original={comment.body} translation={comment.translation} />
-          <ThemedText type="small" themeColor="textSecondary">
-            {formatDateTime(comment.createdAt, language)}
-          </ThemedText>
-        </View>
-      ))}
+      {/* As chat apps lay a conversation out (WhatsApp, Google Messages): the day once, as a divider,
+          and the time on each message; the restaurant's own messages on the far side, filled with the
+          light accent and without their name when they are the reader's own; ECCS's on the near side,
+          grey, with who wrote them. */}
+      {issue.comments.map((comment, index) => {
+        const { day } = indiaDayOf(comment.createdAt);
+        const newDay = index === 0 || indiaDayOf(issue.comments[index - 1]!.createdAt).day !== day;
+        const own = !comment.fromEccs;
+        const mine = own && comment.authorName === user?.name;
+        return (
+          <View key={comment.id} style={styles.messageGroup}>
+            {newDay && (
+              <View style={styles.dayDivider} accessibilityRole="header">
+                <ThemedText type="small" themeColor="textSecondary" style={[styles.dayText, { backgroundColor: theme.backgroundElement }]}>
+                  {dayName(day)}
+                </ThemedText>
+              </View>
+            )}
+            <View
+              style={[
+                styles.bubble,
+                own
+                  ? [styles.ownBubble, { backgroundColor: theme.primaryContainer }]
+                  : [styles.theirBubble, { backgroundColor: theme.backgroundElement }],
+              ]}>
+              {!mine && (
+                <ThemedText type="smallBold" themeColor={comment.fromEccs ? 'primary' : 'textSecondary'}>
+                  {comment.fromEccs ? `${t('support.eccs')} · ${comment.authorName}` : comment.authorName}
+                </ThemedText>
+              )}
+              <TranslatableText original={comment.body} translation={comment.translation} />
+              <ThemedText type="small" themeColor="textSecondary" style={styles.time}>
+                {formatTimeOfDay(comment.createdAt, language)}
+              </ThemedText>
+            </View>
+          </View>
+        );
+      })}
     </Screen>
   );
+}
+
+/** The calendar date in India a message was written on, YYYY-MM-DD, whatever the phone's own time zone. */
+function indiaDayOf(iso: string): { day: string } {
+  try {
+    return { day: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date(iso)) };
+  } catch {
+    return { day: new Date(new Date(iso).getTime() + 5.5 * 3_600_000).toISOString().slice(0, 10) };
+  }
 }
 
 const styles = StyleSheet.create({
   sectionGap: { marginTop: Spacing.three },
   center: { textAlign: 'center' },
-  bubble: { maxWidth: '88%', borderWidth: 1.5, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  messageGroup: { gap: Spacing.three },
+  dayDivider: { alignItems: 'center', marginTop: Spacing.two },
+  dayText: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.one, borderRadius: Spacing.three, overflow: 'hidden' },
+  // Filled, with no edge, as chat bubbles are; the corner nearest the writer's side a little squarer.
+  bubble: { maxWidth: '88%', borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + Spacing.one, gap: Spacing.one },
+  ownBubble: { alignSelf: 'flex-end', borderBottomEndRadius: Spacing.one },
+  theirBubble: { alignSelf: 'flex-start', borderBottomStartRadius: Spacing.one },
+  time: { alignSelf: 'flex-end' },
   // The send button stays level with the bottom of the box as the box grows with the text.
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.two },
   composerField: { flex: 1 },

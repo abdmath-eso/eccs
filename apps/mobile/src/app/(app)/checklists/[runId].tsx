@@ -10,6 +10,7 @@ import { ProofPhoto } from '@/components/proof-photo';
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
@@ -265,6 +266,8 @@ export default function ChecklistRunScreen() {
       back
       title={localize(run.title, language)}
       subtitle={formatDayLong(run.date, language)}
+      // How a checklist is filled in, for reading once (it was the Checklists tab's subtitle until 22 Oct 2026).
+      about={mayFill ? t('checklists.photoRule') : undefined}
       footer={footer}
       onRefresh={async () => {
         // Pulling down also sends anything still waiting, without waiting for the next automatic try.
@@ -523,175 +526,176 @@ function ItemCard({ number, item, local, run, editable, hasSignal, draft, onDraf
       : problem
         ? { icon: 'alert', text: t('checklists.problemFound'), color: theme.danger }
         : { icon: 'checkmark', text: t('checklists.done'), color: theme.primary };
+  // An item with a state (done, a problem, not saved) shows it as a filled mark in the corner; one still
+  // to do shows none, since an empty circle there looked like a box to tick (22 Oct 2026).
   const filled = state.icon !== null;
 
   return (
-    <View
-      onLayout={(event) => onPlaced(event.nativeEvent.layout.y)}
-      style={[
-        styles.card,
-        { borderColor: filled ? state.color : theme.outline },
-        flagged && { borderColor: theme.danger, borderWidth: 3 },
-      ]}>
-      <View style={styles.header}>
-        <ThemedText type="default" style={styles.label}>
-          {number}. {localize(item.label, language)}
-        </ThemedText>
-        <View style={[styles.mark, { borderColor: state.color }, filled && { backgroundColor: state.color }]}>
-          {state.icon && <Ionicons name={state.icon} size={20} color={theme.onPrimary} />}
-        </View>
-      </View>
-      <ThemedText type="smallBold" style={{ color: state.color }}>
-        {state.text}
-        {item.isCustom ? `  ·  ${t('checklists.yourItem')}` : ''}
-      </ThemedText>
-      {/* Done here and on its way. The person can carry on; this mark goes once the server has it. */}
-      {local && <UnsentMark sending={hasSignal} />}
-      {flagged && <ErrorText message={t('checklists.stillToDo')} />}
-
-      {photoUri && <ProofPhoto uri={photoUri} label={localize(item.label, language)} stamp={stamp} />}
-      {/* Only the Owner and Manager are sent this: the photo matches one used before. A note to look, not a verdict. */}
-      {response?.photoRepeatOf && !localPhotoId && (
-        <View style={styles.repeat}>
-          <Ionicons name="copy-outline" size={18} color={theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary" style={styles.repeatText}>
-            {t('checklists.photoRepeat', { date: formatDayShort(response.photoRepeatOf, language) })}
+    // The shared card's one edge, in the state's colour once there is one; red, and a little heavier,
+    // on the item Submit pointed at (GOV.UK marks a field in error with a heavier red edge).
+    <View onLayout={(event) => onPlaced(event.nativeEvent.layout.y)}>
+      <Card borderColor={flagged ? theme.danger : filled ? state.color : undefined} style={flagged && styles.flagged}>
+        <View style={styles.header}>
+          <ThemedText type="default" style={styles.label}>
+            {number}. {localize(item.label, language)}
           </ThemedText>
-        </View>
-      )}
-      {error?.at === 'photo' && <ErrorText message={error.message} />}
-      {/* The nudge at the camera, for the photo on screen only; its Retake stands in for the one below. */}
-      {editable && shownNudge && (
-        <PhotoNudgeNotice
-          nudge={shownNudge.kind}
-          check={localize(item.label, language)}
-          reason={shownNudge.reason}
-          onRetake={() => void takePhoto()}
-          onKeep={keepNudged}
-        />
-      )}
-
-      {editable && !tickOnly && !shownNudge && (
-        <Button
-          icon="camera"
-          label={photoUri ? t('checklists.retakePhoto') : t('checklists.takePhoto')}
-          // Tonal, not filled: Submit, pinned at the foot, is the screen's one filled button (Material 3).
-          variant={photoUri ? 'secondary' : 'tonal'}
-          onPress={() => void takePhoto()}
-          loading={keeping}
-        />
-      )}
-
-      {/* Tick-only items: one large tap target instead of the camera. */}
-      {editable && tickOnly && !problem && (
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: response !== null, busy: saving }}
-          accessibilityLabel={localize(item.label, language)}
-          onPress={() => void toggleTick()}
-          style={({ pressed }) => [
-            styles.tickRow,
-            { borderColor: response ? theme.primary : theme.outline },
-            (response || pressed) && { backgroundColor: theme.backgroundElement },
-          ]}>
-          <Ionicons
-            name={response ? 'checkmark-circle' : 'ellipse-outline'}
-            size={44}
-            color={response ? theme.primary : theme.textSecondary}
-          />
-          <View style={styles.tickText}>
-            <ThemedText type="default" style={styles.tickLabel} themeColor={response ? 'primary' : 'text'}>
-              {response ? t('checklists.done') : t('checklists.tapToTick')}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {response ? `${stamp}  ·  ${t('checklists.tapToUndo')}` : t('checklists.noPhotoNeeded')}
-            </ThemedText>
-          </View>
-        </Pressable>
-      )}
-      {editable && tickOnly && !problem && !draft.describing && (
-        <Button label={t('checklists.reportProblem')} variant="link" onPress={() => onDraft({ describing: true })} />
-      )}
-      {tickOnly && response && (problem || !editable) && stamp && (
-        <ThemedText type="small" themeColor="textSecondary">
-          {stamp}
-        </ThemedText>
-      )}
-
-      {/* The chips show what is saved. Tapping Problem only opens the reason box below; it is saved from there. */}
-      {editable && response && (!tickOnly || problem) && (
-        <View style={styles.choices}>
-          <View style={styles.choice}>
-            <OptionChip label={t('checklists.ok')} selected={!problem} onPress={() => void chooseOk()} disabled={saving} />
-          </View>
-          <View style={styles.choice}>
-            <OptionChip
-              label={t('checklists.problem')}
-              selected={problem}
-              onPress={() => onDraft({ describing: true })}
-              disabled={saving}
-            />
-          </View>
-        </View>
-      )}
-      {error?.at === 'answer' && <ErrorText message={error.message} />}
-
-      {editable && showReason && (response || tickOnly) && (
-        <View style={[styles.reason, unsaved && [styles.reasonUnsaved, { borderColor: theme.warning }]]}>
-          {unsaved && (
-            <View style={styles.unsavedNote}>
-              <Ionicons name="create" size={22} color={theme.warning} />
-              <ThemedText type="smallBold" themeColor="warning" style={styles.unsavedText}>
-                {t('checklists.problemNotSaved')}
-              </ThemedText>
+          {filled && state.icon && (
+            <View style={[styles.mark, { backgroundColor: state.color }]}>
+              <Ionicons name={state.icon} size={20} color={theme.onPrimary} />
             </View>
           )}
-          <TextField
-            label={t('checklists.noteLabel')}
-            hint={t('checklists.noteHint')}
-            error={noteError}
-            value={note}
-            onChangeText={(text) => {
-              onDraft({ note: text });
-              setNoteError(null);
-            }}
-            maxLength={500}
-            multiline
-            autoFocus={draft.describing}
-            style={styles.note}
-          />
-          {error?.at === 'reason' && <ErrorText message={error.message} />}
-          {unsaved && (
-            <>
-              <Button label={t('checklists.saveNote')} variant="danger" loading={saving} onPress={() => void saveReason()} />
-              <Button label={t('common.cancel')} variant="link" onPress={cancelReason} disabled={saving} />
-            </>
-          )}
         </View>
-      )}
+        <ThemedText type="smallBold" style={{ color: state.color }}>
+          {state.text}
+        </ThemedText>
+        {/* Done here and on its way. The person can carry on; this mark goes once the server has it. */}
+        {local && <UnsentMark sending={hasSignal} />}
+        {flagged && <ErrorText message={t('checklists.stillToDo')} />}
 
-      {!editable && response && (
-        <View style={styles.recorded}>
-          <Ionicons
-            name={problem ? 'alert-circle' : 'checkmark-circle'}
-            size={22}
-            color={problem ? theme.danger : theme.primary}
+        {photoUri && <ProofPhoto uri={photoUri} label={localize(item.label, language)} stamp={stamp} />}
+        {/* Only the Owner and Manager are sent this: the photo matches one used before. A note to look, not a verdict. */}
+        {response?.photoRepeatOf && !localPhotoId && (
+          <View style={styles.repeat}>
+            <Ionicons name="copy-outline" size={18} color={theme.textSecondary} />
+            <ThemedText type="small" themeColor="textSecondary" style={styles.repeatText}>
+              {t('checklists.photoRepeat', { date: formatDayShort(response.photoRepeatOf, language) })}
+            </ThemedText>
+          </View>
+        )}
+        {error?.at === 'photo' && <ErrorText message={error.message} />}
+        {/* The nudge at the camera, for the photo on screen only; its Retake stands in for the one below. */}
+        {editable && shownNudge && (
+          <PhotoNudgeNotice
+            nudge={shownNudge.kind}
+            check={localize(item.label, language)}
+            reason={shownNudge.reason}
+            onRetake={() => void takePhoto()}
+            onKeep={keepNudged}
           />
-          <ThemedText type="default" themeColor={problem ? 'danger' : 'primary'} style={styles.recordedText}>
-            {t(problem ? 'checklists.problem' : 'checklists.ok')}
-            {response.note ? `: ${response.note}` : ''}
+        )}
+
+        {editable && !tickOnly && !shownNudge && (
+          <Button
+            icon="camera"
+            label={photoUri ? t('checklists.retakePhoto') : t('checklists.takePhoto')}
+            // Tonal, not filled: Submit, pinned at the foot, is the screen's one filled button (Material 3).
+            variant={photoUri ? 'secondary' : 'tonal'}
+            onPress={() => void takePhoto()}
+            loading={keeping}
+          />
+        )}
+
+        {/* Tick-only items: one large tap target instead of the camera. */}
+        {editable && tickOnly && !problem && (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: response !== null, busy: saving }}
+            accessibilityLabel={localize(item.label, language)}
+            onPress={() => void toggleTick()}
+            style={({ pressed }) => [
+              styles.tickRow,
+              { borderColor: response ? theme.primary : theme.outline },
+              (response || pressed) && { backgroundColor: theme.backgroundElement },
+            ]}>
+            <Ionicons
+              name={response ? 'checkmark-circle' : 'ellipse-outline'}
+              size={44}
+              color={response ? theme.primary : theme.textSecondary}
+            />
+            <View style={styles.tickText}>
+              <ThemedText type="default" style={styles.tickLabel} themeColor={response ? 'primary' : 'text'}>
+                {response ? t('checklists.done') : t('checklists.tapToTick')}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {response ? `${stamp}  ·  ${t('checklists.tapToUndo')}` : t('checklists.noPhotoNeeded')}
+              </ThemedText>
+            </View>
+          </Pressable>
+        )}
+        {editable && tickOnly && !problem && !draft.describing && (
+          <Button label={t('checklists.reportProblem')} variant="link" onPress={() => onDraft({ describing: true })} />
+        )}
+        {tickOnly && response && (problem || !editable) && stamp && (
+          <ThemedText type="small" themeColor="textSecondary">
+            {stamp}
           </ThemedText>
-        </View>
-      )}
+        )}
+
+        {/* The chips show what is saved. Tapping Problem only opens the reason box below; it is saved from there. */}
+        {editable && response && (!tickOnly || problem) && (
+          <View style={styles.choices}>
+            <View style={styles.choice}>
+              <OptionChip label={t('checklists.ok')} selected={!problem} onPress={() => void chooseOk()} disabled={saving} />
+            </View>
+            <View style={styles.choice}>
+              <OptionChip
+                label={t('checklists.problem')}
+                selected={problem}
+                onPress={() => onDraft({ describing: true })}
+                disabled={saving}
+              />
+            </View>
+          </View>
+        )}
+        {error?.at === 'answer' && <ErrorText message={error.message} />}
+
+        {editable && showReason && (response || tickOnly) && (
+          <View style={[styles.reason, unsaved && [styles.reasonUnsaved, { borderColor: theme.warning }]]}>
+            {unsaved && (
+              <View style={styles.unsavedNote}>
+                <Ionicons name="create" size={22} color={theme.warning} />
+                <ThemedText type="smallBold" themeColor="warning" style={styles.unsavedText}>
+                  {t('checklists.problemNotSaved')}
+                </ThemedText>
+              </View>
+            )}
+            <TextField
+              label={t('checklists.noteLabel')}
+              hint={t('checklists.noteHint')}
+              error={noteError}
+              value={note}
+              onChangeText={(text) => {
+                onDraft({ note: text });
+                setNoteError(null);
+              }}
+              maxLength={500}
+              multiline
+              autoFocus={draft.describing}
+              style={styles.note}
+            />
+            {error?.at === 'reason' && <ErrorText message={error.message} />}
+            {unsaved && (
+              <>
+                <Button label={t('checklists.saveNote')} variant="danger" loading={saving} onPress={() => void saveReason()} />
+                <Button label={t('common.cancel')} variant="link" onPress={cancelReason} disabled={saving} />
+              </>
+            )}
+          </View>
+        )}
+
+        {!editable && response && (
+          <View style={styles.recorded}>
+            <Ionicons
+              name={problem ? 'alert-circle' : 'checkmark-circle'}
+              size={22}
+              color={problem ? theme.danger : theme.primary}
+            />
+            <ThemedText type="default" themeColor={problem ? 'danger' : 'primary'} style={styles.recordedText}>
+              {t(problem ? 'checklists.problem' : 'checklists.ok')}
+              {response.note ? `: ${response.note}` : ''}
+            </ThemedText>
+          </View>
+        )}
+      </Card>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  flagged: { borderWidth: 2 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   label: { flex: 1, fontWeight: 700, fontSize: 18, lineHeight: 26 },
-  mark: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  mark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   choices: { flexDirection: 'row', gap: Spacing.two },
   choice: { flex: 1 },
   repeat: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one },

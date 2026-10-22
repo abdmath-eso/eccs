@@ -6,10 +6,12 @@ import { ActivityIndicator, BackHandler, Platform, Pressable, StyleSheet, View }
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
-import { TextField } from '@/components/ui/text-field';
+import { SearchField } from '@/components/ui/search-field';
+import { StatusChip } from '@/components/ui/status-chip';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
@@ -175,38 +177,21 @@ export default function SopLibraryScreen() {
       back
       {...(category !== null && { backLabel: t('soplib.allCategories'), onBack: () => openCategory(null) })}
       title={t('soplib.title')}
-      subtitle={overview ? t('soplib.help', { count: overview.total }) : undefined}
+      // How the library works is read once: folded away at the end, so the search box comes first.
+      about={overview ? t('soplib.help', { count: overview.total }) : undefined}
       onRefresh={refresh}>
-      {/* ── The search box: a magnifying glass where the typing starts, and a cross to empty it once there is text ── */}
-      <View>
-        <TextField
-          label={t('soplib.searchAll')}
-          value={text}
-          onChangeText={(next) => {
-            setText(next);
-            setSearchError(null);
-          }}
-          onSubmitEditing={() => remember(search)}
-          // One word: the examples did not fit the box at this text size.
-          placeholder={t('common.search')}
-          maxLength={80}
-          autoCorrect={false}
-          returnKeyType="search"
-          style={styles.searchInput}
-        />
-        <View style={[styles.searchIcon, styles.untouchable]}>
-          <Ionicons name="search" size={22} color={theme.textSecondary} />
-        </View>
-        {text.length > 0 && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('common.clear')}
-            onPress={() => setText('')}
-            style={styles.clear}>
-            <Ionicons name="close-circle" size={24} color={theme.textSecondary} />
-          </Pressable>
-        )}
-      </View>
+      {/* The app's one search box. Its short placeholder says how many there are to search, and a
+          screen reader hears it as the box's name (Material 3's search bar; Apple's search field). */}
+      <SearchField
+        value={text}
+        onChangeText={(next) => {
+          setText(next);
+          setSearchError(null);
+        }}
+        onSubmitEditing={() => remember(search)}
+        placeholder={overview ? t('soplib.searchCount', { count: overview.total }) : t('common.search')}
+        maxLength={80}
+      />
       {search.length > 0 && !searching && (
         <ThemedText type="small" themeColor="textSecondary">
           {t('soplib.typeMore')}
@@ -260,24 +245,22 @@ export default function SopLibraryScreen() {
           <ThemedText type="smallBold" themeColor="textSecondary">
             {t('soplib.browse')}
           </ThemedText>
-          {overview.categories.map((entry) => (
-            <Pressable
-              key={entry.category}
-              accessibilityRole="button"
-              onPress={() => openCategory(entry.category)}
-              style={({ pressed }) => [
-                styles.row,
-                { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
-              ]}>
-              <ThemedText type="default" style={styles.rowTitle}>
-                {t(`sopCategory.${entry.category}`)}
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {t('soplib.count', { count: entry.count })}
-              </ThemedText>
-              <Ionicons name={forwardIcon} size={22} color={theme.textSecondary} />
-            </Pressable>
-          ))}
+          {/* 8 apart, as on the SOPs list. The count is on a second line, so the name has the whole width
+              and does not wrap beside it. */}
+          <View style={styles.list}>
+            {overview.categories.map((entry) => (
+              <Card key={entry.category} variant="filled" chevron onPress={() => openCategory(entry.category)}>
+                <View style={styles.rowText}>
+                  <ThemedText type="default" style={styles.itemTitle}>
+                    {t(`sopCategory.${entry.category}`)}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {t('soplib.count', { count: entry.count })}
+                  </ThemedText>
+                </View>
+              </Card>
+            ))}
+          </View>
         </>
       )}
 
@@ -331,7 +314,8 @@ export default function SopLibraryScreen() {
                 }}
               />
               <Button
-                label={`+  ${t('sops.writeOwn')}`}
+                icon="add"
+                label={t('sops.writeOwn')}
                 variant="link"
                 onPress={() => router.push({ pathname: '/sops/edit', params: { outletId } })}
               />
@@ -342,36 +326,30 @@ export default function SopLibraryScreen() {
       {showingResults && results && (
         <View style={[styles.results, stale && styles.stale]}>
           {results.items.map((item) => (
-            <Pressable
+            <Card
               key={item.id}
-              accessibilityRole="button"
+              variant="filled"
               onPress={() => {
                 // A search that led to an SOP being opened is worth offering again.
                 if (searching) remember(search);
                 router.push({ pathname: '/sops/library/[itemId]', params: { itemId: item.id, outletId } });
-              }}
-              style={({ pressed }) => [
-                styles.row,
-                { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
-              ]}>
-              <View style={styles.rowText}>
-                <ThemedText type="default" style={styles.itemTitle}>
-                  {item.name}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {/* A search covers every category, so each result says which one it is from. */}
-                  {results.wanted.startsWith('search:') ? `${t(`sopCategory.${item.category}`)} · ` : ''}
-                  {item.sectionLabel ?? item.section}
-                </ThemedText>
+              }}>
+              <View style={styles.row}>
+                <View style={styles.rowText}>
+                  <ThemedText type="default" style={styles.itemTitle}>
+                    {item.name}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {/* A search covers every category, so each result says which one it is from. */}
+                    {results.wanted.startsWith('search:') ? `${t(`sopCategory.${item.category}`)} · ` : ''}
+                    {item.sectionLabel ?? item.section}
+                  </ThemedText>
+                  {/* Already in the outlet's SOPs: the app's one status label, under the name. */}
+                  {item.addedSopId && <StatusChip tone="good" icon="checkmark-circle" label={t('soplib.added')} />}
+                </View>
+                <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
               </View>
-              {item.addedSopId ? (
-                <ThemedText type="smallBold" themeColor="primary">
-                  ✓ {t('soplib.added')}
-                </ThemedText>
-              ) : (
-                <Ionicons name={forwardIcon} size={22} color={theme.textSecondary} />
-              )}
-            </Pressable>
+            </Card>
           ))}
         </View>
       )}
@@ -380,27 +358,6 @@ export default function SopLibraryScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Taps pass straight through to whatever is underneath.
-  untouchable: { pointerEvents: 'none' },
-  // Room for the magnifying glass where the typing starts (the left; the right in Urdu)
-  // and for the cross at the other end.
-  searchInput: { paddingStart: Spacing.three + 22 + Spacing.two, paddingEnd: MinTouchSize },
-  searchIcon: {
-    position: 'absolute',
-    start: Spacing.three,
-    bottom: 0,
-    height: MinTouchSize,
-    justifyContent: 'center',
-  },
-  clear: {
-    position: 'absolute',
-    end: 0,
-    bottom: 0,
-    width: MinTouchSize,
-    height: MinTouchSize,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   recent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -412,19 +369,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   recentText: { flexShrink: 1 },
-  results: { gap: Spacing.three },
+  // Cards 8 apart, as on the SOPs list.
+  list: { gap: Spacing.two },
+  results: { gap: Spacing.two },
   stale: { opacity: 0.45 },
   empty: { gap: Spacing.two },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    minHeight: MinTouchSize * 1.2,
-  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   rowText: { flex: 1, gap: Spacing.half },
-  rowTitle: { flex: 1, fontWeight: 700 },
   itemTitle: { fontWeight: 700 },
   categoryTitle: { fontWeight: 700, fontSize: 20 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

@@ -31,14 +31,32 @@ function Inline({ content }: { content: LegalInline[] }) {
   );
 }
 
+/** The main headings of a legal document, in order, for its contents list. */
+export function legalHeadings(markdown: string): string[] {
+  return parseLegalMarkdown(markdown)
+    .filter((block) => block.type === 'h2')
+    .map((block) => ('content' in block ? block.content.map((run) => run.text).join('') : ''));
+}
+
 /**
  * A legal document drawn from its Markdown (parseLegalMarkdown in packages/shared,
  * the same reading the public web pages use): headings in bold, lists indented,
  * links that open in the browser. `skipTitle` leaves out the document's own
- * "# " title when the screen already shows it.
+ * "# " title when the screen already shows it. `onHeading` is told where each main
+ * heading sits within the document, for the contents list to jump to it.
  */
-export function LegalText({ markdown, skipTitle }: { markdown: string; skipTitle?: boolean }) {
+export function LegalText({
+  markdown,
+  skipTitle,
+  onHeading,
+}: {
+  markdown: string;
+  skipTitle?: boolean;
+  onHeading?: (position: number, y: number) => void;
+}) {
   const blocks = parseLegalMarkdown(markdown);
+  // Each main heading's place among the main headings, matching legalHeadings().
+  const mainHeadings = blocks.flatMap((block, index) => (block.type === 'h2' ? [index] : []));
   return (
     <View style={styles.document}>
       {blocks.map((block, index) => {
@@ -49,10 +67,22 @@ export function LegalText({ markdown, skipTitle }: { markdown: string; skipTitle
                 <Inline content={block.content} />
               </ThemedText>
             );
-          case 'h2':
+          case 'h2': {
+            const position = mainHeadings.indexOf(index);
+            return (
+              <ThemedText
+                key={index}
+                type="default"
+                accessibilityRole="header"
+                onLayout={onHeading && ((event) => onHeading(position, event.nativeEvent.layout.y))}
+                style={styles.h2}>
+                <Inline content={block.content} />
+              </ThemedText>
+            );
+          }
           case 'h3':
             return (
-              <ThemedText key={index} type="default" accessibilityRole="header" style={block.type === 'h2' ? styles.h2 : styles.h3}>
+              <ThemedText key={index} type="default" accessibilityRole="header" style={styles.h3}>
                 <Inline content={block.content} />
               </ThemedText>
             );
@@ -140,11 +170,13 @@ const styles = StyleSheet.create({
   h2: { fontSize: 20, lineHeight: 28, fontWeight: 700, marginTop: Spacing.two },
   h3: { fontSize: 17, lineHeight: 24, fontWeight: 700 },
   paragraph: { lineHeight: 26 },
-  list: { gap: Spacing.two, paddingStart: Spacing.two },
+  // The marker on the text's own edge and the words just after it (until 22 Oct 2026 they started
+  // 40 in, which read as belonging to something above).
+  list: { gap: Spacing.two },
   item: { flexDirection: 'row', gap: Spacing.two },
-  marker: { minWidth: 24, lineHeight: 26 },
+  marker: { minWidth: Spacing.three, lineHeight: 26 },
   itemText: { flex: 1, lineHeight: 26 },
-  box: { borderWidth: 1.5, borderRadius: Spacing.three, overflow: 'hidden' },
+  box: { borderWidth: 1, borderRadius: Spacing.three, overflow: 'hidden' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -38,14 +38,9 @@ export function FileChooser({ value, onChange, error: missing }: FileChooserProp
       <ThemedText type="smallBold" themeColor="textSecondary">
         {t('docs.file')}
       </ThemedText>
-      <View style={styles.buttons}>
-        <View style={styles.button}>
-          <Button icon="camera" label={t('docs.takePhoto')} variant="secondary" onPress={() => void pick(photographDocument)} />
-        </View>
-        <View style={styles.button}>
-          <Button icon="document-attach" label={t('docs.chooseFile')} variant="secondary" onPress={() => void pick(chooseDocument)} />
-        </View>
-      </View>
+      {/* One under the other: side by side inside a card, a 320-wide phone left each label a column a word wide. */}
+      <Button icon="camera" label={t('docs.takePhoto')} variant="secondary" onPress={() => void pick(photographDocument)} />
+      <Button icon="document-attach" label={t('docs.chooseFile')} variant="secondary" onPress={() => void pick(chooseDocument)} />
       {value && (
         <ThemedText type="small" themeColor="primary">
           ✓ {t('docs.fileChosen', { name: value.name })}
@@ -58,6 +53,4 @@ export function FileChooser({ value, onChange, error: missing }: FileChooserProp
 
 const styles = StyleSheet.create({
   wrapper: { gap: Spacing.two },
-  buttons: { flexDirection: 'row', gap: Spacing.two },
-  button: { flex: 1 },
 });

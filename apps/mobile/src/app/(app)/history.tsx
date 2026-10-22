@@ -10,6 +10,7 @@ import {
   type CalendarMonthDto,
   type CalendarVisitDto,
   type ChecklistRunSummaryDto,
+  type VisitStatus,
 } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
@@ -18,23 +19,31 @@ import { ActivityIndicator, PanResponder, Pressable, StyleSheet, View, type Scro
 import { StatusBadge } from '@/components/status-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ErrorText } from '@/components/ui/error-text';
+import { Expandable } from '@/components/ui/expandable';
+import { ListRow } from '@/components/ui/list-row';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
+import { StatusChip } from '@/components/ui/status-chip';
+import { VisitStatusBadge } from '@/components/visit-card';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
-import { formatDate, formatDayLong, formatMonth, formatSlot, indiaToday, weekdayNames } from '@/lib/format';
+import { formatDate, formatDayLong, formatDayShort, formatMonth, formatSlot, indiaToday, weekdayNames } from '@/lib/format';
 import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 import { rememberOutlet, useOutlet } from '@/lib/use-outlet';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-// What a mark in a day cell is about. The picture says the kind of thing and nothing else.
+/** A calendar visit, with the visit's own status once the server sends it (see `visitBadge`). */
+type CalendarVisit = CalendarVisitDto & { status?: VisitStatus };
+
+// What a mark in a day cell is about. The picture says the kind of thing and nothing else: the
+// checklists' clipboard has no tick in it (until 22 Oct 2026 a ticked box beside a red "0/3" read as "done").
 const KINDS = ['checklists', 'service', 'licence', 'holiday'] as const;
 type Kind = (typeof KINDS)[number];
 const KIND_ICON: Record<Kind, IconName> = {
-  checklists: 'checkbox',
+  checklists: 'clipboard',
   service: 'sparkles',
   licence: 'document-text',
   holiday: 'flag',
@@ -241,6 +250,8 @@ export default function HistoryScreen() {
   const weeks = Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
 
   const selectedDay = byDate.get(selected);
+  // "Coming up" starts tomorrow: today's visits and licences are on today, which is chosen when the screen opens.
+  const upcoming = data?.upcoming.filter((entry) => entry.date > today) ?? [];
   const nothingOnDay =
     !selectedDay ||
     selectedDay.checklists.length +
@@ -251,46 +262,54 @@ export default function HistoryScreen() {
 
   const slotName = (slot: string | null) => formatSlot(slot, language, t);
 
-  const visitRow = (visit: CalendarVisitDto, date?: string) => (
-    <Pressable
+  /**
+   * A visit's state in the shared label, worded as Services words it ("Supervisor assigned", "Not
+   * done"), so the two screens say the same thing. The visit's own status is used when the server
+   * sends it; until then the calendar's coarser state stands in for it.
+   */
+  const visitBadge = (visit: CalendarVisit) => {
+    // The visit's own status first: a past visit ECCS is still checking is not "Not done". Only one
+    // that never started on its day is (the same rule as Services, `visitMissed`).
+    if (visit.status) {
+      const missed = visit.state === 'NOT_DONE' && (visit.status === 'SCHEDULED' || visit.status === 'ASSIGNED');
+      return <VisitStatusBadge status={visit.status} missed={missed} />;
+    }
+    if (visit.state === 'NOT_DONE') return <VisitStatusBadge status="SCHEDULED" missed />;
+    if (visit.state === 'DONE') return <StatusChip tone="good" icon="checkmark" label={t('visitState.DONE')} />;
+    return <VisitStatusBadge status={visit.state === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'SCHEDULED'} />;
+  };
+
+  // Plain rows with thin lines between them (Material 3 lists), the state label under the title,
+  // never beside it, so a long word in another language does not squeeze the name.
+  const visitRow = (visit: CalendarVisit, divider: boolean, date?: string) => (
+    <ListRow
       key={visit.id}
-      accessibilityRole="button"
+      divider={divider}
+      title={localize(visit.service, language)}
+      subtitle={[date ? formatDayShort(date, language) : null, slotName(visit.slot)].filter(Boolean).join(' · ')}
+      below={visitBadge(visit)}
       onPress={() => router.push({ pathname: '/services/[visitId]', params: { visitId: visit.id } })}
-      style={[styles.row, { borderColor: theme.border }]}>
-      <View style={[styles.stripe, { backgroundColor: statusColor[visitStatus(visit)] }]} />
-      <View style={styles.rowText}>
-        <ThemedText type="default" style={styles.rowTitle}>
-          {localize(visit.service, language)}
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {[date ? formatDate(date, language) : null, slotName(visit.slot)].filter(Boolean).join(' · ')}
-        </ThemedText>
-      </View>
-      <ThemedText type="smallBold" style={{ color: statusColor[visitStatus(visit)] }}>
-        {visit.state === 'DONE' ? '✓ ' : ''}
-        {t(`visitState.${visit.state}`)}
-      </ThemedText>
-    </Pressable>
+    />
   );
 
-  const licenceRow = (licence: CalendarLicenceDto, date: string, showDate: boolean) => (
-    <Pressable
+  const licenceRow = (licence: CalendarLicenceDto, date: string, showDate: boolean, divider: boolean) => (
+    <ListRow
       key={licence.id}
-      accessibilityRole="button"
+      divider={divider}
+      title={licenceName(licence)}
+      below={
+        <StatusChip
+          tone={date < today ? 'bad' : 'warn'}
+          icon={date < today ? 'alert' : 'hourglass-outline'}
+          label={
+            showDate
+              ? t('docs.expires', { date: formatDate(date, language) })
+              : t(date < today ? 'hist.licenceExpired' : 'hist.licenceExpires')
+          }
+        />
+      }
       onPress={() => outletId && void rememberOutlet(outletId).then(() => router.push('/documents'))}
-      style={[styles.row, { borderColor: theme.border }]}>
-      <View style={[styles.stripe, { backgroundColor: statusColor[licenceStatus(date)] }]} />
-      <View style={styles.rowText}>
-        <ThemedText type="default" style={styles.rowTitle}>
-          {licenceName(licence)}
-        </ThemedText>
-        <ThemedText type="small" style={{ color: statusColor[licenceStatus(date)] }}>
-          {showDate
-            ? t('docs.expires', { date: formatDate(date, language) })
-            : t(date < today ? 'hist.licenceExpired' : 'hist.licenceExpires')}
-        </ThemedText>
-      </View>
-    </Pressable>
+    />
   );
 
   return (
@@ -406,29 +425,32 @@ export default function HistoryScreen() {
         )}
       </View>
 
-      {/* ── What the marks mean: the picture is the kind of thing, the colour is how it stands ── */}
-      <View style={styles.legend}>
-        <View style={styles.legendRow}>
-          {KINDS.map((kind) => (
-            <View key={kind} style={styles.legendItem}>
-              <Ionicons name={KIND_ICON[kind]} size={14} color={theme.textSecondary} />
-              <ThemedText type="small" themeColor="textSecondary">
-                {t(`hist.${kind}`)}
-              </ThemedText>
-            </View>
-          ))}
+      {/* ── What the marks mean, folded away once learnt so the chosen day comes straight after the
+          month: the picture is the kind of thing, the colour is how it stands ── */}
+      <Expandable title={t('hist.legend')} icon="information-circle-outline">
+        <View style={styles.legend}>
+          <View style={styles.legendRow}>
+            {KINDS.map((kind) => (
+              <View key={kind} style={styles.legendItem}>
+                <Ionicons name={KIND_ICON[kind]} size={14} color={theme.textSecondary} />
+                <ThemedText type="small" themeColor="textSecondary">
+                  {t(`hist.${kind}`)}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+          <View style={styles.legendRow}>
+            {STATUSES.map((status) => (
+              <View key={status} style={styles.legendItem}>
+                <View style={[styles.dot, { backgroundColor: statusColor[status] }]} />
+                <ThemedText type="small" themeColor="textSecondary">
+                  {t(`hist.status.${status}`)}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
         </View>
-        <View style={styles.legendRow}>
-          {STATUSES.map((status) => (
-            <View key={status} style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: statusColor[status] }]} />
-              <ThemedText type="small" themeColor="textSecondary">
-                {t(`hist.status.${status}`)}
-              </ThemedText>
-            </View>
-          ))}
-        </View>
-      </View>
+      </Expandable>
 
       {/* ── The chosen day ── */}
       <View
@@ -464,28 +486,32 @@ export default function HistoryScreen() {
             <ThemedText type="smallBold" themeColor="textSecondary">
               {t('hist.checklists')}
             </ThemedText>
-            {selectedDay.checklists.map((checklist) => (
-              <Pressable
-                key={checklist.id}
-                accessibilityRole="button"
-                onPress={() => router.push({ pathname: '/checklists/[runId]', params: { runId: checklist.id } })}
-                style={[styles.row, { borderColor: theme.border }]}>
-                <View style={[styles.stripe, { backgroundColor: statusColor[checklistStatus(checklist)] }]} />
-                <View style={styles.rowText}>
-                  <ThemedText type="default" style={styles.rowTitle}>
-                    {localize(checklist.title, language)}
-                  </ThemedText>
-                  <ThemedText type="small" themeColor={checklist.problemCount > 0 ? 'danger' : 'textSecondary'}>
-                    {t('checklists.progress', { done: checklist.doneCount, total: checklist.itemCount })}
-                    {checklist.problemCount > 0
-                      ? ` · ${t('checklists.problems', { count: checklist.problemCount })}`
-                      : ''}
-                    {checklist.submittedByName ? ` · ${checklist.submittedByName}` : ''}
-                  </ThemedText>
-                </View>
-                <StatusBadge status={checklist.status} reviewed={checklist.reviewedAt !== null} />
-              </Pressable>
-            ))}
+            <View>
+              {selectedDay.checklists.map((checklist, index) => (
+                <ListRow
+                  key={checklist.id}
+                  divider={index > 0}
+                  title={localize(checklist.title, language)}
+                  subtitle={[
+                    t('checklists.progress', { done: checklist.doneCount, total: checklist.itemCount }),
+                    checklist.submittedByName,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  below={
+                    <>
+                      <StatusBadge status={checklist.status} reviewed={checklist.reviewedAt !== null} />
+                      {checklist.problemCount > 0 && (
+                        <ThemedText type="small" themeColor="danger">
+                          {t('checklists.problems', { count: checklist.problemCount })}
+                        </ThemedText>
+                      )}
+                    </>
+                  }
+                  onPress={() => router.push({ pathname: '/checklists/[runId]', params: { runId: checklist.id } })}
+                />
+              ))}
+            </View>
           </>
         )}
 
@@ -494,7 +520,7 @@ export default function HistoryScreen() {
             <ThemedText type="smallBold" themeColor="textSecondary">
               {t('hist.services')}
             </ThemedText>
-            {selectedDay.visits.map((visit) => visitRow(visit))}
+            <View>{selectedDay.visits.map((visit, index) => visitRow(visit, index > 0))}</View>
           </>
         )}
 
@@ -503,29 +529,29 @@ export default function HistoryScreen() {
             <ThemedText type="smallBold" themeColor="textSecondary">
               {t('hist.licences')}
             </ThemedText>
-            {selectedDay.licences.map((licence) => licenceRow(licence, selected, false))}
+            <View>{selectedDay.licences.map((licence, index) => licenceRow(licence, selected, false, index > 0))}</View>
           </>
         )}
       </View>
 
-      {/* ── What is coming, whichever month is open ── */}
+      {/* ── What is coming after today, whichever month is open (today's own are in the day above when it is chosen) ── */}
       {data && data.outletId === outletId && (
         <>
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
             {t('hist.upcoming')}
           </ThemedText>
-          {data.upcoming.length === 0 && (
+          {upcoming.length === 0 && (
             <ThemedText type="default" themeColor="textSecondary">
               {t('hist.noUpcoming')}
             </ThemedText>
           )}
-          {data.upcoming.map((entry) =>
-            entry.kind === 'visit' ? (
-              visitRow(entry.visit, entry.date)
-            ) : (
-              licenceRow(entry.licence, entry.date, true)
-            ),
-          )}
+          <View>
+            {upcoming.map((entry, index) =>
+              entry.kind === 'visit'
+                ? visitRow(entry.visit, index > 0, entry.date)
+                : licenceRow(entry.licence, entry.date, true, index > 0),
+            )}
+          </View>
         </>
       )}
     </Screen>
@@ -555,18 +581,6 @@ const styles = StyleSheet.create({
   dayPanel: { borderTopWidth: 1, paddingTop: Spacing.three, gap: Spacing.two },
   dayTitle: { fontWeight: 700, fontSize: 18 },
   holiday: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.half },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    minHeight: MinTouchSize,
-    overflow: 'hidden',
-  },
-  stripe: { position: 'absolute', start: 0, top: 0, bottom: 0, width: 5 },
-  rowText: { flex: 1, gap: Spacing.half },
   rowTitle: { fontWeight: 700 },
   sectionGap: { marginTop: Spacing.three },
 });

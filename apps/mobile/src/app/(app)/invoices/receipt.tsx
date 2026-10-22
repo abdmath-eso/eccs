@@ -6,11 +6,13 @@ import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
+import { Notice } from '@/components/ui/notice';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatMoney, paymentMethod } from '@/lib/billing';
+import { formatMoney, invoiceTitle, paymentMethod } from '@/lib/billing';
 import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { formatDateTime } from '@/lib/format';
@@ -21,6 +23,11 @@ import { useSession } from '@/lib/session';
  * on the invoice. What a payment confirmation should carry: a clear "received"
  * with its mark, the amount, what it paid, how, the reference to quote if
  * anything is questioned, the date and time, and what is left on the invoice.
+ *
+ * Laid out as payment apps' success screens are (Google Pay, PhonePe): the tick
+ * and "Payment received" are the top of the screen, with no separate title over
+ * them and no Back beside Done (22 Oct 2026). The words under the tick are the
+ * screen's heading for a screen reader, which hears "Receipt" with them.
  */
 // Values longer than this many characters go under their label rather than beside it.
 const LONG_VALUE = 18;
@@ -80,6 +87,7 @@ export default function ReceiptScreen() {
 
   const { payment, invoice } = receipt;
   const succeeded = payment.status === 'SUCCEEDED';
+  const name = invoiceTitle(invoice, t, language);
 
   const row = (label: string, value: string) =>
     value.length > LONG_VALUE ? (
@@ -101,17 +109,18 @@ export default function ReceiptScreen() {
   );
 
   return (
-    <Screen
-      back
-      title={t('bill.receipt')}
-      footer={<Button label={t('common.done')} onPress={() => router.back()} />}>
+    <Screen footer={<Button label={t('common.done')} onPress={() => (router.canGoBack() ? router.back() : router.replace('/invoices'))} />}>
       <View style={styles.head} accessibilityRole="alert">
         <Ionicons
           name={succeeded ? 'checkmark-circle' : 'close-circle'}
           size={72}
           color={succeeded ? theme.primary : theme.danger}
         />
-        <ThemedText type="subtitle" style={styles.centre}>
+        <ThemedText
+          type="subtitle"
+          style={styles.centre}
+          accessibilityRole="header"
+          accessibilityLabel={`${t('bill.receipt')}: ${succeeded ? t('bill.receiptTitle') : t('bill.payFailed')}`}>
           {succeeded ? t('bill.receiptTitle') : t('bill.payFailed')}
         </ThemedText>
         <ThemedText type="title" style={styles.total}>
@@ -119,22 +128,17 @@ export default function ReceiptScreen() {
         </ThemedText>
       </View>
 
-      {payment.gateway === 'sample' && (
-        <View style={[styles.sample, { borderColor: theme.warning }]}>
-          <Ionicons name="flask" size={24} color={theme.warning} />
-          <ThemedText type="default" style={styles.flex}>
-            {t('bill.sampleDone')}
-          </ThemedText>
-        </View>
-      )}
+      {payment.gateway === 'sample' && <Notice tone="sample" text={t('bill.sampleDone')} />}
 
-      <View style={[styles.box, { borderColor: theme.border }]}>
-        {row(t('bill.invoice'), ltrText(invoice.number))}
-        {row(t('bill.whatFor'), invoice.description)}
-        {row(t('bill.paidBy'), paymentMethod(payment, t))}
-        {payment.reference && row(t('bill.referenceLabel'), ltrText(payment.reference))}
-        {row(t('bill.paidAt'), formatDateTime(payment.paidAt ?? payment.createdAt, language))}
-      </View>
+      <Card>
+        <View style={styles.box}>
+          {row(t('bill.invoice'), ltrText(invoice.number))}
+          {row(t('bill.whatFor'), [name.title, name.detail].filter(Boolean).join(', '))}
+          {row(t('bill.paidBy'), paymentMethod(payment, t))}
+          {payment.reference && row(t('bill.referenceLabel'), ltrText(payment.reference))}
+          {row(t('bill.paidAt'), formatDateTime(payment.paidAt ?? payment.createdAt, language))}
+        </View>
+      </Card>
 
       {succeeded && (
         <View style={styles.stateRow}>
@@ -169,9 +173,8 @@ const styles = StyleSheet.create({
   head: { alignItems: 'center', gap: Spacing.one, paddingVertical: Spacing.three },
   centre: { textAlign: 'center', fontSize: 24, lineHeight: 30 },
   total: { fontSize: 36, lineHeight: 44 },
-  sample: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three },
   flex: { flex: 1 },
-  box: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  box: { gap: Spacing.one },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingVertical: Spacing.half },
   rowLabel: { flex: 1 },
   rowValue: { flexShrink: 1 },

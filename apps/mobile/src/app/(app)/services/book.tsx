@@ -57,6 +57,12 @@ type Step = 'outlet' | 'service' | 'date' | 'slot';
 /**
  * Booking a one-time service: pick it from the priced catalogue, then the
  * day and time of day. ECCS confirms the visit afterwards.
+ *
+ * Once a service is chosen the catalogue folds to that one card with
+ * "Change" beside it, so the day and the time follow straight after it
+ * instead of eleven more cards (22 Oct 2026). One question at a time, with
+ * the answer kept in view and a Change link to go back to it, is how GOV.UK
+ * forms and booking apps such as Urban Company and Practo do it.
  */
 export default function BookServiceScreen() {
   const theme = useTheme();
@@ -68,6 +74,8 @@ export default function BookServiceScreen() {
 
   const [catalog, setCatalog] = useState<ServiceCatalogItemDto[] | null>(null);
   const [itemId, setItemId] = useState<string | null>(params.itemId || null);
+  /** True while the whole catalogue is open again after a service was chosen. */
+  const [changing, setChanging] = useState(false);
   const [date, setDate] = useState<string | null>(null);
   const [slot, setSlot] = useState<VisitSlot | null>(null);
   const [notes, setNotes] = useState('');
@@ -173,6 +181,48 @@ export default function BookServiceScreen() {
 
   // What is being asked for, in one line above Send, so it can be checked without scrolling back up.
   const picked = catalog?.find((entry) => entry.id === itemId);
+
+  /** A service is chosen from the list: the list folds to it, and the page goes back up to it, with the days under it. */
+  function pick(id: string) {
+    setItemId(id);
+    setChanging(false);
+    const y = positions.current.service;
+    if (y !== undefined) scrollToY(scrollRef, y);
+  }
+
+  /** What a service card says: its name, price, how long it takes, a partner's part, and its description. */
+  const serviceBody = (item: ServiceCatalogItemDto, selected: boolean, end?: ReactNode) => {
+    const description = item.description ? localize(item.description, language) : '';
+    return (
+      <>
+        <View style={styles.serviceHeader}>
+          {selected && <Ionicons name="checkmark" size={20} color={theme.primary} />}
+          <ThemedText type="default" style={styles.serviceName} themeColor={selected ? 'primary' : 'text'}>
+            {localize(item.name, language)}
+          </ThemedText>
+          {end}
+        </View>
+        <ThemedText type="default">{t('book.price', { price: formatRupees(item.pricePaise, language) })}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('book.duration', { time: formatDuration(item.durationMinutes, language) })}
+        </ThemedText>
+        {/* Said in words with an icon: part of this is done by a lab, a clinic, a trainer or an audit agency, not by ECCS. */}
+        {item.partnerDelivered && (
+          <View style={styles.partner}>
+            <Ionicons name="people-outline" size={16} color={theme.textSecondary} />
+            <ThemedText type="small" themeColor="textSecondary" style={styles.partnerText}>
+              {t('services.withPartner')}
+            </ThemedText>
+          </View>
+        )}
+        {description !== '' && (
+          <ThemedText type="small" numberOfLines={selected ? undefined : 2}>
+            {description}
+          </ThemedText>
+        )}
+      </>
+    );
+  };
   const summary = [
     picked && localize(picked.name, language),
     date && formatDayShort(date, language),
@@ -186,7 +236,6 @@ export default function BookServiceScreen() {
     <Screen
       back
       title={t('book.title')}
-      subtitle={t('book.help')}
       scrollRef={scrollRef}
       footer={
         <>
@@ -210,65 +259,46 @@ export default function BookServiceScreen() {
       {section(
         'service',
         <>
-          {heading(t('book.service'))}
           {catalog === null && !catalogError && <ActivityIndicator color={theme.primary} />}
           <ErrorText message={catalogError} onRetry={() => setAttempt((count) => count + 1)} />
-          {/*
-            With a dozen services the list is grouped under a few headings, as booking apps do
-            (cleaning, pest control, tests…), cheapest first within each. Each service is a card
-            with its price, how long it takes and a short description; the description is cut to
-            two lines until the card is chosen, so the list stays short to scroll.
-          */}
-          {groupByCategory(catalog ?? []).map(({ category, items }) => (
-            <View key={category} style={styles.category} accessibilityRole="radiogroup">
-              <ThemedText type="default" style={styles.categoryName} accessibilityRole="header">
-                {t(`services.category.${category}`)}
-              </ThemedText>
-              {items.map((item) => {
-                const selected = item.id === itemId;
-                const description = item.description ? localize(item.description, language) : '';
-                return (
-                  <Pressable
-                    key={item.id}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected, checked: selected }}
-                    onPress={() => setItemId(item.id)}
-                    style={[
-                      styles.service,
-                      { borderColor: selected ? theme.primary : theme.outline },
-                      selected && { backgroundColor: theme.backgroundElement },
-                    ]}>
-                    <View style={styles.serviceHeader}>
-                      {selected && <Ionicons name="checkmark" size={20} color={theme.primary} />}
-                      <ThemedText type="default" style={styles.serviceName} themeColor={selected ? 'primary' : 'text'}>
-                        {localize(item.name, language)}
-                      </ThemedText>
-                    </View>
-                    <ThemedText type="default">
-                      {t('book.price', { price: formatRupees(item.pricePaise, language) })}
-                    </ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {t('book.duration', { time: formatDuration(item.durationMinutes, language) })}
-                    </ThemedText>
-                    {/* Said in words with an icon: part of this is done by a lab, a clinic, a trainer or an audit agency, not by ECCS. */}
-                    {item.partnerDelivered && (
-                      <View style={styles.partner}>
-                        <Ionicons name="people-outline" size={16} color={theme.textSecondary} />
-                        <ThemedText type="small" themeColor="textSecondary" style={styles.partnerText}>
-                          {t('services.withPartner')}
-                        </ThemedText>
-                      </View>
-                    )}
-                    {description !== '' && (
-                      <ThemedText type="small" numberOfLines={selected ? undefined : 2}>
-                        {description}
-                      </ThemedText>
-                    )}
-                  </Pressable>
-                );
-              })}
+          {picked && !changing ? (
+            // Chosen: the list is folded to this one card, with Change to open it again.
+            <View style={[styles.service, { borderColor: theme.primary, backgroundColor: theme.backgroundElement }]}>
+              {serviceBody(picked, true, <Button label={t('common.change')} variant="link" onPress={() => setChanging(true)} />)}
             </View>
-          ))}
+          ) : (
+            /*
+              With a dozen services the list is grouped under a few headings, as booking apps do
+              (cleaning, pest control, tests…), cheapest first within each. Each service is a card
+              with its price, how long it takes and a short description; the description is cut to
+              two lines until the card is chosen, so the list stays short to scroll. The group names
+              head the list: a "Which service?" line above them was smaller than they are.
+            */
+            groupByCategory(catalog ?? []).map(({ category, items }) => (
+              <View key={category} style={styles.category} accessibilityRole="radiogroup">
+                <ThemedText type="default" style={styles.categoryName} accessibilityRole="header">
+                  {t(`services.category.${category}`)}
+                </ThemedText>
+                {items.map((item) => {
+                  const selected = item.id === itemId;
+                  return (
+                    <Pressable
+                      key={item.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected, checked: selected }}
+                      onPress={() => pick(item.id)}
+                      style={[
+                        styles.service,
+                        { borderColor: selected ? theme.primary : theme.outline },
+                        selected && { backgroundColor: theme.backgroundElement },
+                      ]}>
+                      {serviceBody(item, selected)}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))
+          )}
           {need('service', t('book.needService'))}
         </>,
       )}

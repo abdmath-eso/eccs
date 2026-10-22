@@ -2,14 +2,18 @@ import { OTP_LENGTH } from '@eccs/shared';
 import * as Device from 'expo-device';
 import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
+import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
+import { MinTouchSize } from '@/constants/theme';
 import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
+import { formatPhone } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
 // How long after a code is sent before another can be asked for.
@@ -86,7 +90,7 @@ export default function OtpScreen() {
   }
 
   return (
-    <Screen back title={t('otp.title')} subtitle={t('otp.help', { phone: ltrText(phone) })}>
+    <Screen back title={t('otp.title')} subtitle={t('otp.help', { phone: ltrText(formatPhone(phone)) })}>
       <TextField
         label={t('otp.label')}
         value={code}
@@ -100,15 +104,30 @@ export default function OtpScreen() {
         editable={!busy}
         style={{ letterSpacing: 8, textAlign: 'center' }}
       />
-      <Button label={t('otp.verify')} onPress={() => verify(code)} loading={busy} disabled={code.length < OTP_LENGTH} />
-      <ErrorText message={resendError} />
+      {/* Never greyed out: tapped before the whole code is in, it says so under the box (GOV.UK validation). */}
       <Button
-        label={waiting ? t('otp.resendIn', { seconds: wait }) : t('otp.resend')}
-        variant="link"
-        onPress={resend}
-        loading={resending}
-        disabled={busy || waiting}
+        label={t('otp.verify')}
+        onPress={() => (code.length < OTP_LENGTH ? setError(t('otp.needed')) : void verify(code))}
+        loading={busy}
       />
+      <ErrorText message={resendError} />
+      {/* While a new code cannot be asked for yet, the wait is plain grey words, not a faded link; the
+          link appears when it can be tapped. */}
+      {waiting ? (
+        <View style={styles.wait}>
+          <ThemedText type="default" themeColor="textSecondary" style={styles.center} accessibilityLiveRegion="polite">
+            {t('otp.resendIn', { seconds: wait })}
+          </ThemedText>
+        </View>
+      ) : (
+        <Button label={t('otp.resend')} variant="link" onPress={resend} loading={resending} disabled={busy} />
+      )}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  // As tall as the link that takes its place, so nothing moves when the wait is over.
+  wait: { minHeight: MinTouchSize, justifyContent: 'center' },
+  center: { textAlign: 'center' },
+});

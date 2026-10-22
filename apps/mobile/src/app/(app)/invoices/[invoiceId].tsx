@@ -2,16 +2,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { gstStateLabel, type InvoiceDto, type PaymentDto } from '@eccs/shared';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
+import { ListRow } from '@/components/ui/list-row';
 import { Screen } from '@/components/ui/screen';
-import { MinTouchSize, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatMoney, invoiceState, paymentMethod } from '@/lib/billing';
-import { ltrText, useDirection } from '@/lib/direction';
+import { formatMoney, invoiceState, invoiceTitle, paymentMethod } from '@/lib/billing';
+import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -31,7 +33,6 @@ export default function InvoiceScreen() {
   const theme = useTheme();
   const { invoiceId } = useLocalSearchParams<{ invoiceId: string }>();
   const { t, api, language, user } = useSession();
-  const { forwardIcon } = useDirection();
 
   const [invoice, setInvoice] = useState<InvoiceDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,48 +112,33 @@ export default function InvoiceScreen() {
     </View>
   );
 
-  const payment = (entry: PaymentDto) => {
+  // One payment, as a row of a plain list: one that went through opens its receipt; a failed one has
+  // nothing more to show. Its mark and its words say which.
+  const payment = (entry: PaymentDto, index: number) => {
     const succeeded = entry.status === 'SUCCEEDED';
-    const body = (
-      <>
-        <Ionicons
-          name={succeeded ? 'checkmark-circle' : 'close-circle'}
-          size={24}
-          color={succeeded ? theme.primary : theme.danger}
-        />
-        <View style={styles.paymentWords}>
-          <ThemedText type="default" style={styles.strong}>
-            {formatMoney(entry.amountPaise, language)} · {paymentMethod(entry, t)}
-          </ThemedText>
-          <ThemedText type="small" themeColor={succeeded ? 'textSecondary' : 'danger'}>
-            {succeeded ? t('bill.paymentReceived') : t('bill.paymentFailed')} ·{' '}
-            {formatDateTime(entry.paidAt ?? entry.createdAt, language)}
-          </ThemedText>
-          {entry.reference && (
+    const amount = formatMoney(entry.amountPaise, language);
+    return (
+      <ListRow
+        key={entry.id}
+        divider={index > 0}
+        leading={<Ionicons name={succeeded ? 'checkmark-circle' : 'close-circle'} size={24} color={succeeded ? theme.primary : theme.danger} />}
+        title={`${amount} · ${paymentMethod(entry, t)}`}
+        subtitle={`${succeeded ? t('bill.paymentReceived') : t('bill.paymentFailed')} · ${formatDateTime(entry.paidAt ?? entry.createdAt, language)}`}
+        below={
+          entry.reference ? (
             <ThemedText type="small" themeColor="textSecondary">
               {t('bill.reference', { reference: ltrText(entry.reference) })}
             </ThemedText>
-          )}
-        </View>
-      </>
-    );
-    // A payment that went through opens its receipt; a failed one has nothing more to show.
-    return succeeded ? (
-      <Pressable
-        key={entry.id}
-        accessibilityRole="button"
-        accessibilityLabel={`${t('bill.seeReceipt')}: ${formatMoney(entry.amountPaise, language)}`}
-        onPress={() => router.push({ pathname: '/invoices/receipt', params: { paymentId: entry.id } })}
-        style={({ pressed }) => [styles.payment, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundSelected }]}>
-        {body}
-        <Ionicons name={forwardIcon} size={22} color={theme.textSecondary} />
-      </Pressable>
-    ) : (
-      <View key={entry.id} style={[styles.payment, { borderColor: theme.border }]}>
-        {body}
-      </View>
+          ) : undefined
+        }
+        onPress={succeeded ? () => router.push({ pathname: '/invoices/receipt', params: { paymentId: entry.id } }) : undefined}
+        accessibilityLabel={succeeded ? `${t('bill.seeReceipt')}: ${amount}` : undefined}
+      />
     );
   };
+  // What it is for, short and in the person's language, when the invoice is for one thing (a plan's
+  // cycle or one visit), as it nearly always is; otherwise each of its lines as written.
+  const name = invoice.lines.length === 1 ? invoiceTitle(invoice, t, language) : null;
 
   return (
     <Screen
@@ -178,53 +164,73 @@ export default function InvoiceScreen() {
       <ErrorText message={error} onRetry={() => void load()} />
 
       {/* Where it stands, first: the amount still to pay (or the total), and the state in words. */}
-      <View style={[styles.box, { borderColor: invoice.overdueDays > 0 ? theme.danger : theme.border }]}>
-        <ThemedText type="smallBold" themeColor="textSecondary">
-          {owing ? t('bill.leftToPay') : t('bill.total')}
-        </ThemedText>
-        <ThemedText type="title" style={styles.total}>
-          {formatMoney(owing ? invoice.duePaise : invoice.totalPaise, language)}
-        </ThemedText>
-        <View style={styles.stateRow}>
-          <Ionicons name={state.icon} size={24} color={stateColor} />
-          <ThemedText type="smallBold" style={[styles.stateText, { color: stateColor }]}>
-            {state.label}
+      <Card borderColor={invoice.overdueDays > 0 ? theme.danger : undefined}>
+        <View style={styles.box}>
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            {owing ? t('bill.leftToPay') : t('bill.total')}
           </ThemedText>
+          <ThemedText type="title" style={styles.total}>
+            {formatMoney(owing ? invoice.duePaise : invoice.totalPaise, language)}
+          </ThemedText>
+          <View style={styles.stateRow}>
+            <Ionicons name={state.icon} size={24} color={stateColor} />
+            <ThemedText type="smallBold" style={[styles.stateText, { color: stateColor }]}>
+              {state.label}
+            </ThemedText>
+          </View>
+          {invoice.status === 'VOID' && invoice.voidReason && (
+            <ThemedText type="default" themeColor="textSecondary">
+              {t('bill.voidReason', { reason: invoice.voidReason })}
+            </ThemedText>
+          )}
         </View>
-        {invoice.status === 'VOID' && invoice.voidReason && (
-          <ThemedText type="default" themeColor="textSecondary">
-            {t('bill.voidReason', { reason: invoice.voidReason })}
-          </ThemedText>
-        )}
-      </View>
+      </Card>
 
       <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
         {t('bill.whatFor')}
       </ThemedText>
-      {invoice.lines.map((line, index) => (
-        <View key={index} style={styles.line}>
-          <ThemedText type="default" style={styles.rowLabel}>
-            {line.description}
-          </ThemedText>
-          <ThemedText type="default">{formatMoney(line.taxablePaise, language)}</ThemedText>
+      {name ? (
+        <View style={styles.line}>
+          <View style={styles.lineWords}>
+            <ThemedText type="default" style={styles.strong}>
+              {name.title}
+            </ThemedText>
+            {name.detail && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {name.detail}
+              </ThemedText>
+            )}
+          </View>
+          <ThemedText type="default">{formatMoney(invoice.lines[0]!.taxablePaise, language)}</ThemedText>
         </View>
-      ))}
+      ) : (
+        invoice.lines.map((line, index) => (
+          <View key={index} style={styles.line}>
+            <ThemedText type="default" style={styles.rowLabel}>
+              {line.description}
+            </ThemedText>
+            <ThemedText type="default">{formatMoney(line.taxablePaise, language)}</ThemedText>
+          </View>
+        ))
+      )}
 
-      <View style={[styles.box, { borderColor: theme.border }]}>
-        {row(t('bill.beforeGst'), formatMoney(invoice.subtotalPaise, language))}
-        {invoice.interState ? (
-          row(taxLabel('IGST', 1), formatMoney(invoice.igstPaise, language))
-        ) : (
-          <>
-            {row(taxLabel('CGST', 0.5), formatMoney(invoice.cgstPaise, language))}
-            {row(taxLabel('SGST', 0.5), formatMoney(invoice.sgstPaise, language))}
-          </>
-        )}
-        <View style={[styles.rule, { backgroundColor: theme.border }]} />
-        {row(t('bill.total'), formatMoney(invoice.totalPaise, language), true)}
-        {invoice.paidPaise > 0 && row(t('bill.paidSoFar'), formatMoney(invoice.paidPaise, language))}
-        {owing && invoice.paidPaise > 0 && row(t('bill.leftToPay'), formatMoney(invoice.duePaise, language), true)}
-      </View>
+      <Card>
+        <View style={styles.box}>
+          {row(t('bill.beforeGst'), formatMoney(invoice.subtotalPaise, language))}
+          {invoice.interState ? (
+            row(taxLabel('IGST', 1), formatMoney(invoice.igstPaise, language))
+          ) : (
+            <>
+              {row(taxLabel('CGST', 0.5), formatMoney(invoice.cgstPaise, language))}
+              {row(taxLabel('SGST', 0.5), formatMoney(invoice.sgstPaise, language))}
+            </>
+          )}
+          <View style={[styles.rule, { backgroundColor: theme.border }]} />
+          {row(t('bill.total'), formatMoney(invoice.totalPaise, language), true)}
+          {invoice.paidPaise > 0 && row(t('bill.paidSoFar'), formatMoney(invoice.paidPaise, language))}
+          {owing && invoice.paidPaise > 0 && row(t('bill.leftToPay'), formatMoney(invoice.duePaise, language), true)}
+        </View>
+      </Card>
 
       <View style={styles.facts}>
         {row(t('bill.issuedOn'), formatDate(invoice.issueDate, language))}
@@ -248,7 +254,7 @@ export default function InvoiceScreen() {
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
             {t('bill.payments')}
           </ThemedText>
-          {invoice.payments.map(payment)}
+          <View>{invoice.payments.map(payment)}</View>
         </>
       )}
 
@@ -275,11 +281,12 @@ export default function InvoiceScreen() {
 
 const styles = StyleSheet.create({
   sectionGap: { marginTop: Spacing.three, gap: Spacing.two },
-  box: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  box: { gap: Spacing.one },
   total: { fontSize: 36, lineHeight: 44 },
   stateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   stateText: { flex: 1 },
   line: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
+  lineWords: { flex: 1, gap: Spacing.half },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingVertical: Spacing.half },
   rowLabel: { flex: 1 },
   rowValue: { flexShrink: 1 },
@@ -290,14 +297,4 @@ const styles = StyleSheet.create({
   strong: { fontWeight: 700 },
   rule: { height: 1, marginVertical: Spacing.one },
   facts: { gap: Spacing.half },
-  payment: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    minHeight: MinTouchSize,
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    padding: Spacing.two,
-  },
-  paymentWords: { flex: 1 },
 });

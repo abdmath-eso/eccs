@@ -10,19 +10,20 @@ import {
   type PlanServiceDto,
   type SubscriptionDto,
 } from '@eccs/shared';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState, type ComponentProps, type ReactNode } from 'react';
-import { ActivityIndicator, Modal, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DirectionView } from '@/components/direction-view';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { addDays, formatDate, formatDayShort, formatRupees, indiaToday } from '@/lib/format';
@@ -54,7 +55,14 @@ type Asking =
  * guidance against dark patterns in cancelling): the present plan is marked,
  * a change takes effect at the next cycle and says the date, cancelling takes
  * the same number of taps as subscribing, the confirmation says exactly what
- * happens and when, and until that day one tap undoes it.
+ * happens and when, and until that day one tap undoes it. "Cancel plan" is a
+ * red text link under "Change plan" (22 Oct 2026), as on Apple's and Google
+ * Play's subscription pages: easy to find, but not a button as large as the
+ * safe choices beside it.
+ *
+ * A service whose next visit has a day already past says "Due since 10 Oct"
+ * in amber with "Ask ECCS about it" (a plan visit is ECCS's to arrange and is paid for by the plan),
+ * rather than "Next visit" with a past date.
  */
 export default function PlanScreen() {
   const theme = useTheme();
@@ -164,7 +172,7 @@ export default function PlanScreen() {
   );
 
   /** "Pest control every 15 days", one line each with a tick, and under it whatever `extra` gives for that service. */
-  const included = (services: PlanServiceDto[], extra?: (service: PlanServiceDto) => string) => (
+  const included = (services: PlanServiceDto[], extra?: (service: PlanServiceDto) => ReactNode) => (
     <View style={styles.lines}>
       <ThemedText type="smallBold" themeColor="textSecondary">
         {t('plan.includes')}
@@ -174,32 +182,61 @@ export default function PlanScreen() {
           <Ionicons name="checkmark" size={20} color={theme.primary} style={styles.lineIcon} />
           <View style={styles.lineText}>
             <ThemedText type="default">{lineText(service)}</ThemedText>
-            {extra && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {extra(service)}
-              </ThemedText>
-            )}
+            {extra?.(service)}
           </View>
         </View>
       ))}
     </View>
   );
 
+  /**
+   * When a service of the plan is next visited. A day already past is not "next": it says "Due since
+   * 10 Oct" in amber, with "Ask ECCS about it", which opens Issues to call or message ECCS; today's
+   * says "today" (22 Oct 2026).
+   */
+  const nextVisit = (next: string | null | undefined) => {
+    const today = indiaToday();
+    if (next && next < today) {
+      return (
+        <>
+          <ThemedText type="smallBold" themeColor="warning">
+            {t('svc.planDueSince', { date: formatDayShort(next, language) })}
+          </ThemedText>
+          <Button
+            label={t('svc.planAsk')}
+            variant="link"
+            align="start"
+            // A plan visit is ECCS's to arrange and is paid for by the plan: a missed one is a question for
+            // ECCS (Raise an issue has Call and WhatsApp), not a new paid booking.
+            onPress={() => router.push('/support')}
+          />
+        </>
+      );
+    }
+    return (
+      <ThemedText type="small" themeColor="textSecondary">
+        {!next ? t('plan.noVisit') : next === today ? t('plan.nextVisitToday') : t('plan.nextVisit', { date: formatDayShort(next, language) })}
+      </ThemedText>
+    );
+  };
+
   /** A plan on offer. `action` is the one button under it, if the person may press one. */
   const offerCard = (plan: PlanOfferDto, action: ReactNode) => (
-    <View key={plan.code} style={[styles.card, { borderColor: theme.outline }]}>
-      <ThemedText type="default" style={styles.cardTitle}>
-        {localize(plan.name, language)}
-      </ThemedText>
-      {plan.description && (
-        <ThemedText type="default" themeColor="textSecondary">
-          {localize(plan.description, language)}
+    <Card key={plan.code}>
+      <View style={styles.cardBody}>
+        <ThemedText type="default" style={styles.cardTitle}>
+          {localize(plan.name, language)}
         </ThemedText>
-      )}
-      {priceBlock(plan)}
-      {included(plan.services)}
-      {action}
-    </View>
+        {plan.description && (
+          <ThemedText type="default" themeColor="textSecondary">
+            {localize(plan.description, language)}
+          </ThemedText>
+        )}
+        {priceBlock(plan)}
+        {included(plan.services)}
+        {action}
+      </View>
+    </Card>
   );
 
   /** One fact about the subscription: what it is, then what it says. */
@@ -257,31 +294,32 @@ export default function PlanScreen() {
 
     return (
       <>
-        <View style={[styles.card, styles.currentCard, { borderColor: theme.primary }]}>
-          <View style={styles.tagRow}>
-            <ThemedText type="smallBold" themeColor="primary">
-              {t('plan.currentTag')}
+        <Card borderColor={theme.primary}>
+          <View style={styles.cardBody}>
+            <View style={styles.tagRow}>
+              <ThemedText type="smallBold" themeColor="primary">
+                {t('plan.currentTag')}
+              </ThemedText>
+            </View>
+            <ThemedText type="default" style={styles.cardTitle}>
+              {planName}
             </ThemedText>
-          </View>
-          <ThemedText type="default" style={styles.cardTitle}>
-            {planName}
-          </ThemedText>
-          <View style={styles.state}>
-            <Ionicons name={state.icon} size={24} color={state.color} />
-            <ThemedText type="default" style={[styles.stateText, { color: state.color }]}>
-              {state.text}
-            </ThemedText>
-          </View>
-          {state.help && <ThemedText type="default">{state.help}</ThemedText>}
+            <View style={styles.state}>
+              <Ionicons name={state.icon} size={24} color={state.color} />
+              <ThemedText type="default" style={[styles.stateText, { color: state.color }]}>
+                {state.text}
+              </ThemedText>
+            </View>
+            {state.help && <ThemedText type="default">{state.help}</ThemedText>}
 
-          {priceBlock(current)}
-          {included(current.services, (service) => {
-            const next = current.services.find((entry) => entry.serviceCode === service.serviceCode)?.nextDate;
-            return next ? t('plan.nextVisit', { date: formatDayShort(next, language) }) : t('plan.noVisit');
-          })}
-          {fact(t('plan.cycle'), t('plan.cycleDates', { from: day(current.currentPeriodStart), until: day(current.currentPeriodEnd) }))}
-          {fact(t('plan.nextInvoice'), nextInvoice)}
-        </View>
+            {priceBlock(current)}
+            {included(current.services, (service) =>
+              nextVisit(current.services.find((entry) => entry.serviceCode === service.serviceCode)?.nextDate),
+            )}
+            {fact(t('plan.cycle'), t('plan.cycleDates', { from: day(current.currentPeriodStart), until: day(current.currentPeriodEnd) }))}
+            {fact(t('plan.nextInvoice'), nextInvoice)}
+          </View>
+        </Card>
 
         {/* Each button on its own row: two side by side do not fit a narrow phone. */}
         {mayManage ? (
@@ -308,8 +346,18 @@ export default function PlanScreen() {
             {settled && !choosing && (
               <Button icon="swap-horizontal" label={t('plan.change')} variant="secondary" disabled={busy} onPress={() => setChoosing(true)} />
             )}
+            {/* Red words, not a button the size of the safe choices; the question before it is unchanged. */}
             {!current.endsOn && (
-              <Button label={t('plan.cancel')} variant="danger" disabled={busy} onPress={() => setAsking({ kind: 'cancel' })} />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: busy }}
+                disabled={busy}
+                onPress={() => setAsking({ kind: 'cancel' })}
+                style={({ pressed }) => [styles.cancelLink, pressed && styles.pressed]}>
+                <ThemedText type="default" themeColor={busy ? 'textSecondary' : 'danger'} style={styles.cancelText}>
+                  {t('plan.cancel')}
+                </ThemedText>
+              </Pressable>
             )}
             <ErrorText message={actionError} />
           </View>
@@ -411,7 +459,16 @@ export default function PlanScreen() {
   }
 
   return (
-    <Screen back title={t('plan.title')} subtitle={t('plan.help')} onRefresh={load}>
+    <Screen
+      back
+      title={t('plan.title')}
+      about={
+        <>
+          <ThemedText type="small">{t('plan.help')}</ThemedText>
+          <ThemedText type="small">{t('plan.chooseHelp')}</ThemedText>
+        </>
+      }
+      onRefresh={load}>
       <OutletPicker
         outlets={outlets}
         outletId={outletId}
@@ -439,7 +496,6 @@ export default function PlanScreen() {
           <ThemedText type="smallBold" themeColor="textSecondary">
             {t('plan.choose')}
           </ThemedText>
-          <ThemedText type="default">{t('plan.chooseHelp')}</ThemedText>
           {!mayManage && (
             <ThemedText type="default" themeColor="textSecondary">
               {t('plan.ownerOnly')}
@@ -522,8 +578,7 @@ function Question({
 
 const styles = StyleSheet.create({
   sectionGap: { marginTop: Spacing.four },
-  card: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
-  currentCard: { borderWidth: 2 },
+  cardBody: { gap: Spacing.three },
   cardTitle: { fontWeight: 700, fontSize: 20, lineHeight: 28 },
   tagRow: { flexDirection: 'row' },
   state: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
@@ -536,6 +591,9 @@ const styles = StyleSheet.create({
   lineText: { flex: 1, gap: Spacing.half },
   fact: { borderTopWidth: 1, paddingTop: Spacing.two, gap: Spacing.half },
   actions: { gap: Spacing.two },
+  cancelLink: { minHeight: MinTouchSize, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.three },
+  cancelText: { fontWeight: 700, textAlign: 'center' },
+  pressed: { opacity: 0.6 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.four },
   dialog: { width: '100%', maxWidth: MaxContentWidth - 64, maxHeight: '100%', borderRadius: Spacing.four, padding: Spacing.four, gap: Spacing.three },
   dialogScroll: { flexShrink: 1 },

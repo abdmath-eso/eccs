@@ -17,6 +17,7 @@ import { BuddyMascot } from '@/components/buddy-mascot';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { Notice } from '@/components/ui/notice';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { buddyHref, openHref, showsBuddy } from '@/lib/buddy';
@@ -405,23 +406,18 @@ interface StateNoticeProps {
 }
 
 export function StateNotice({ state, dailyMessages, outletId, starters, onPick, onNewChat }: StateNoticeProps) {
-  const theme = useTheme();
   const { t } = useSession();
   const line = state === 'PERSON_LIMIT' ? t('buddy.state.PERSON_LIMIT', { count: dailyMessages }) : t(`buddy.state.${state}`);
   const screens = state === 'OFF' || state === 'LIMIT' || state === 'PERSON_LIMIT' || state === 'PAUSED';
   return (
-    <View style={[styles.notice, { borderColor: theme.warning }]}>
-      <View style={styles.answerHead}>
-        <Ionicons name="information-circle-outline" size={20} color={theme.warning} />
-        <ThemedText type="default" style={styles.flex}>
-          {line}
-        </ThemedText>
-      </View>
+    // The app's one notice box (22 Oct 2026): a question Buddy does not take is information; the rest
+    // (off, over a limit, failed) are warnings.
+    <Notice tone={state === 'OUT_OF_SCOPE' ? 'info' : 'warning'} text={line}>
       {screens && <OpenButtons opens={FALLBACK_SCREENS} outletId={outletId} />}
       {/* The line itself ends "Try one of these:", so the list has no heading of its own. */}
       {state === 'OUT_OF_SCOPE' && starters && onPick && starters.length > 0 && <Starters starters={starters} onPick={onPick} disabled={false} heading={false} />}
       {state === 'CHAT_FULL' && onNewChat && <Button icon="create-outline" label={t('buddy.newChat')} onPress={onNewChat} />}
-    </View>
+    </Notice>
   );
 }
 
@@ -479,7 +475,6 @@ const styles = StyleSheet.create({
   rowLabel: { width: 92, paddingTop: 2 },
   steps: { gap: Spacing.one },
   cardButtons: { flexDirection: 'row', gap: Spacing.two },
-  notice: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   listening: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   dot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
   languageChip: { flexDirection: 'row', alignItems: 'center', gap: Spacing.half, minHeight: 32 },

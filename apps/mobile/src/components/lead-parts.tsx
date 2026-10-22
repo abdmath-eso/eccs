@@ -4,7 +4,8 @@ import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { DocumentPhoto } from '@/components/document-photo';
-import { ThemedText } from '@/components/themed-text';
+import { tallScript, ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/card';
 import { UnsentMark } from '@/components/unsent-mark';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -39,26 +40,30 @@ export function CompactAction({
   icon,
   onPress,
   primary,
+  tonal,
   accessibilityLabel,
 }: {
   label: string;
   icon: IconName;
   onPress: () => void;
   primary?: boolean;
+  /**
+   * The soft teal of a second action that matters (Material 3's filled tonal button): Map beside
+   * a visit, which also has to show on a grey card, where the plain grey button would not.
+   */
+  tonal?: boolean;
   /** What a screen reader says when the word alone does not tell which row it is for ("Map" for which outlet). */
   accessibilityLabel?: string;
 }) {
   const theme = useTheme();
-  const color = primary ? theme.onPrimary : theme.primary;
+  const color = primary ? theme.onPrimary : tonal ? theme.onPrimaryContainer : theme.primary;
+  const background = primary ? theme.primary : tonal ? theme.primaryContainer : theme.backgroundElement;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.compact,
-        { backgroundColor: primary ? theme.primary : theme.backgroundElement, opacity: pressed ? 0.8 : 1 },
-      ]}>
+      style={({ pressed }) => [styles.compact, { backgroundColor: background, opacity: pressed ? 0.8 : 1 }]}>
       <Ionicons name={icon} size={20} color={color} />
       <ThemedText type="smallBold" style={{ color }}>
         {label}
@@ -72,7 +77,8 @@ const ACTION_ICONS: Record<DoTodayItemDto['action'], IconName> = {
   PARK_AGAIN: 'pause-circle-outline',
   SEND_QUOTE: 'document-text-outline',
   OPEN: 'open-outline',
-  SEND_PLAN: 'repeat-outline',
+  // A plan goes out as a quote too: the paper plane reads "send", where the old circling arrows read "repeat".
+  SEND_PLAN: 'paper-plane-outline',
 };
 
 /** One of today's to-dos: when, the lead, why in one line, and its one action. */
@@ -97,12 +103,14 @@ export function TodoRow({
   // within a button cannot be pressed on its own on the web, and screen readers merge them).
   return (
     // Red only on the "when" line: with most rows overdue, red borders on every one stopped saying anything.
-    <View style={[styles.todo, { borderColor: theme.border }]}>
+    // The app's one card (components/ui/card), as the lead cards on Leads are.
+    <Card style={styles.todo}>
       <View style={styles.todoText}>
         <Pressable accessibilityRole="button" onPress={onOpen} style={({ pressed }) => [styles.todoOpen, pressed && styles.pressed]}>
-          <View style={styles.row}>
-            {overdue && <Ionicons name="alert-circle" size={16} color={theme.danger} />}
-            <ThemedText type="smallBold" style={{ color: overdue ? theme.danger : theme.primary }}>
+          {/* The mark on the first line of a "when" that wraps, not halfway down it. */}
+          <View style={styles.firstLine}>
+            {overdue && <Ionicons name="alert-circle" size={16} color={theme.danger} style={styles.todoIcon} />}
+            <ThemedText type="smallBold" style={[styles.flexShrink, { color: overdue ? theme.danger : theme.primary }]}>
               {todoWhen(item, t, language)}
             </ThemedText>
           </View>
@@ -126,14 +134,19 @@ export function TodoRow({
         )}
       </View>
       {!done && <CompactAction label={t(`bde.action.${item.action}`)} icon={ACTION_ICONS[item.action]} onPress={() => onAction(item.action)} />}
-    </View>
+    </Card>
   );
 }
 
-/** This week against target in one row: leads, free checks, first jobs, plans, each with how it is going in an icon too. */
+/**
+ * This week against target in one row: leads, free checks, first jobs, plans, each with how it is
+ * going in an icon too. Drawn as the stat tiles on the restaurant's Home are (a grey tile, the number
+ * first and its word under it, read from the top), without the orange edge a figure behind target
+ * used to have: the icon and the screen reader's "behind" already say so.
+ */
 export function WeekRow({ week }: { week: BdeWeekDto }) {
   const theme = useTheme();
-  const { t } = useSession();
+  const { t, language } = useSession();
   return (
     <View style={styles.week}>
       {TARGET_FIGURES.map((figure) => {
@@ -144,10 +157,7 @@ export function WeekRow({ week }: { week: BdeWeekDto }) {
             key={figure}
             accessible
             accessibilityLabel={`${label}: ${t('bde.week.ofTarget', { done: week.actual[figure], target: week.targets[figure] })}${behind ? `, ${t('bde.week.behind')}` : ''}`}
-            style={[styles.figure, { backgroundColor: theme.backgroundElement, borderColor: behind ? theme.warning : 'transparent' }]}>
-            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-              {label}
-            </ThemedText>
+            style={[styles.figure, { backgroundColor: theme.backgroundElement }]}>
             <View style={styles.row}>
               <ThemedText type="default" style={styles.figureValue}>
                 {week.actual[figure]}
@@ -157,6 +167,9 @@ export function WeekRow({ week }: { week: BdeWeekDto }) {
               </ThemedText>
               <Ionicons name={behind ? 'alert-circle' : 'checkmark-circle'} size={16} color={behind ? theme.warning : theme.primary} />
             </View>
+            <ThemedText type="small" themeColor="textSecondary" style={[styles.figureName, tallScript(language) && styles.figureNameTall]}>
+              {label}
+            </ThemedText>
           </View>
         );
       })}
@@ -170,10 +183,8 @@ export function LeadCard({ lead, unsent, sending, onPress }: { lead: LeadRowDto;
   const { t, language } = useSession();
   const next = nextStepWords(lead, t, language);
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, { borderColor: theme.border }, pressed && { backgroundColor: theme.backgroundElement }]}>
+    // The app's one card, in the same look as the to-dos on Home; its lines sit a little closer than the card's own gap.
+    <Card onPress={onPress} style={styles.card}>
       <View style={styles.cardTop}>
         <ThemedText type="default" style={[styles.name, styles.flex]} numberOfLines={2}>
           {lead.businessName}
@@ -197,7 +208,7 @@ export function LeadCard({ lead, unsent, sending, onPress }: { lead: LeadRowDto;
         </ThemedText>
       )}
       {unsent && <UnsentMark sending={sending} />}
-    </Pressable>
+    </Card>
   );
 }
 
@@ -219,7 +230,9 @@ const styles = StyleSheet.create({
   // An icon on the first line of words that may wrap, not halfway down them.
   firstLine: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.one },
   lineIcon: { marginTop: 1 },
+  todoIcon: { marginTop: 2 },
   flex: { flex: 1 },
+  flexShrink: { flexShrink: 1 },
   tag: { flexDirection: 'row', alignItems: 'center', gap: Spacing.half, borderRadius: Spacing.two, paddingHorizontal: Spacing.two, paddingVertical: Spacing.half },
   tagText: { fontWeight: 600 },
   // One width for every row's button, so they line up in a column down the list.
@@ -232,17 +245,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.half,
   },
-  todo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three },
+  todo: { flexDirection: 'row', alignItems: 'center' },
   todoText: { flex: 1, gap: Spacing.half },
   todoOpen: { gap: Spacing.half },
   pressed: { opacity: 0.7 },
   name: { fontWeight: 700 },
   second: { alignSelf: 'flex-start', paddingVertical: Spacing.one },
   week: { flexDirection: 'row', gap: Spacing.two },
-  figure: { flex: 1, borderRadius: Spacing.three, borderWidth: 2, paddingVertical: Spacing.two, paddingHorizontal: Spacing.two, gap: Spacing.half },
+  // As Home's stat tiles (components/outlet-overview.tsx): from the top, so the numbers stay level however the words wrap.
+  figure: { flex: 1, borderRadius: Spacing.three, paddingVertical: Spacing.two + Spacing.one, paddingHorizontal: Spacing.two, justifyContent: 'flex-start', gap: Spacing.half },
   figureValue: { fontWeight: 700, fontSize: 22, lineHeight: 28 },
   figureLabel: { flexShrink: 1, marginEnd: Spacing.half },
-  card: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  figureName: { fontSize: 12, lineHeight: 16 },
+  figureNameTall: { fontSize: 13, lineHeight: 19 },
+  card: { gap: Spacing.one },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   thumb: { width: 88, height: 88, borderRadius: Spacing.two },
 });

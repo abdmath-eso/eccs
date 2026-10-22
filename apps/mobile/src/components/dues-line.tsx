@@ -2,13 +2,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { DuesDto } from '@eccs/shared';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { MinTouchSize, Spacing } from '@/constants/theme';
+import { Card } from '@/components/ui/card';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatMoney } from '@/lib/billing';
-import { useDirection } from '@/lib/direction';
 import { useSession } from '@/lib/session';
 import { rememberOutlet } from '@/lib/use-outlet';
 
@@ -22,7 +22,6 @@ import { rememberOutlet } from '@/lib/use-outlet';
 export function DuesLine({ outletId, stamp }: { outletId: string; stamp: number }) {
   const theme = useTheme();
   const { t, api, language, user } = useSession();
-  const { forwardIcon } = useDirection();
   const [loaded, setLoaded] = useState<{ outletId: string; dues: DuesDto } | null>(null);
 
   const role = user?.memberships[0]?.role;
@@ -54,42 +53,33 @@ export function DuesLine({ outletId, stamp }: { outletId: string; stamp: number 
   const detail = overdue ? t('bill.homeOverdue', { count: dues.oldestOverdueDays }) : t('bill.homeOpen');
 
   return (
-    <Pressable
-      accessibilityRole="button"
+    // The shared card, with a red edge while something is overdue.
+    <Card
       accessibilityLabel={`${title}. ${detail}`}
       // Invoices works on one outlet at a time and remembers which, so an Owner lands on this one.
       onPress={() => void rememberOutlet(outletId).then(() => router.push('/invoices'))}
-      style={({ pressed }) => [
-        styles.line,
-        { borderColor: overdue ? theme.danger : theme.border, backgroundColor: pressed ? theme.backgroundSelected : 'transparent' },
-      ]}>
-      {/* In a 36-wide slot, like Buddy's card below it on Home, so both cards' words start on one line. */}
-      <View style={styles.icon}>
-        <Ionicons name={overdue ? 'alert-circle' : 'receipt-outline'} size={26} color={overdue ? theme.danger : theme.primary} />
+      chevron
+      borderColor={overdue ? theme.danger : undefined}>
+      <View style={styles.line}>
+        {/* In a 36-wide slot, like Buddy's card below it on Home, so both cards' words start on one line. */}
+        <View style={styles.icon}>
+          <Ionicons name={overdue ? 'alert-circle' : 'receipt-outline'} size={26} color={overdue ? theme.danger : theme.primary} />
+        </View>
+        <View style={styles.words}>
+          <ThemedText type="default" style={[styles.title, { color }]}>
+            {title}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {detail}
+          </ThemedText>
+        </View>
       </View>
-      <View style={styles.words}>
-        <ThemedText type="default" style={[styles.title, { color }]}>
-          {title}
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {detail}
-        </ThemedText>
-      </View>
-      <Ionicons name={forwardIcon} size={22} color={theme.textSecondary} />
-    </Pressable>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  line: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    minHeight: MinTouchSize,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-  },
+  line: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   icon: { width: 36, alignItems: 'center' },
   words: { flex: 1 },
   title: { fontWeight: 700 },

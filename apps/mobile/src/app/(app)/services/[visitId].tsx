@@ -1,6 +1,7 @@
 import {
   isEccsRole,
   localize,
+  mapLink,
   VISIT_MAX_PHOTOS,
   VISIT_MAX_TECHNICIANS,
   VISIT_PARTNER_NAME_MAX,
@@ -18,17 +19,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DirectionView } from '@/components/direction-view';
 import { HeldNotice, SavedCopyNote } from '@/components/field-sync-parts';
+import { CompactAction } from '@/components/lead-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
+import { Notice } from '@/components/ui/notice';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { StarRating, type Stars } from '@/components/ui/star-rating';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
 import { UnsentMark } from '@/components/unsent-mark';
-import { VisitStatusBadge, visitMissed } from '@/components/visit-card';
+import { openInMaps, VisitStatusBadge, visitMissed } from '@/components/visit-card';
 import { ReadingInput, ReadingResult, VisitPartner } from '@/components/visit-results';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -396,17 +400,32 @@ export default function VisitScreen() {
       </View>
     ) : null;
 
-  const taskRow = (task: VisitTaskDto) => {
+  /**
+   * A task that is only read here (the restaurant's view, and a finished report): a row with a small
+   * icon and thin lines, no box, since it is not something to tap. Before the work an empty circle;
+   * afterwards a tick or a cross, with "Not done" and the reason in words, so it never rests on colour.
+   */
+  const readOnlyTask = (task: VisitTaskDto, index: number) => {
     const label = localize(task.label, language);
-    if (!recording) {
-      return (
-        <View key={task.itemId} style={[styles.task, { borderColor: theme.border }]}>
-          <ThemedText type="default" style={styles.taskLabel}>
-            {label}
-          </ThemedText>
-          {task.done !== null && (
-            <ThemedText type="smallBold" themeColor={task.done ? 'primary' : 'danger'}>
-              {task.done ? `✓ ${t('visit.done')}` : `✗ ${t('visit.notDone')}`}
+    // Each line is read out in turn, the reading and the note included; the tick says "Done" (a task
+    // not done says so in words already).
+    return (
+      <View
+        key={task.itemId}
+        style={[styles.readRow, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
+        <Ionicons
+          name={task.done === null ? 'ellipse-outline' : task.done ? 'checkmark-circle' : 'close-circle'}
+          size={20}
+          color={task.done === null ? theme.textSecondary : task.done ? theme.primary : theme.danger}
+          style={styles.readIcon}
+          accessible={task.done === true}
+          accessibilityLabel={task.done === true ? t('visit.done') : undefined}
+        />
+        <View style={styles.readText}>
+          <ThemedText type="default">{label}</ThemedText>
+          {task.done === false && (
+            <ThemedText type="smallBold" themeColor="danger">
+              {t('visit.notDone')}
             </ThemedText>
           )}
           <ReadingResult task={task} />
@@ -417,9 +436,12 @@ export default function VisitScreen() {
           )}
           {view.unsentTasks.has(task.itemId) && view.held === 0 && <UnsentMark sending={hasSignal} />}
         </View>
-      );
-    }
+      </View>
+    );
+  };
 
+  const taskRow = (task: VisitTaskDto) => {
+    const label = localize(task.label, language);
     const key = `task-${task.itemId}`;
     const open = explaining === task.itemId;
     const flagged = missing === key && task.done === null;
@@ -651,11 +673,15 @@ export default function VisitScreen() {
     );
   };
 
+  // The restaurant reads what the team will do (or did) as a plain list; ECCS staff read a finished
+  // report's ticked tasks as one card of rows with lines between them, as the day's sheet lists its visits;
+  // the Supervisor recording the visit gets a card per task, with its Done and Not done.
+  const taskHeading = forRestaurant && !recording ? t(isReport ? 'visit.tasksDone' : 'visit.tasksPlanned') : t('visit.tasks');
   const tasks = visit.tasks.length > 0 && (
     <>
       <View style={[styles.tasksHeading, styles.sectionGap]}>
-        <ThemedText type="smallBold" themeColor="textSecondary">
-          {t('visit.tasks')}
+        <ThemedText type="smallBold" themeColor="textSecondary" accessibilityRole="header" style={styles.flexText}>
+          {taskHeading}
         </ThemedText>
         {recording && (
           <ThemedText type="smallBold" themeColor="textSecondary">
@@ -663,7 +689,13 @@ export default function VisitScreen() {
           </ThemedText>
         )}
       </View>
-      {visit.tasks.map(taskRow)}
+      {recording ? (
+        visit.tasks.map(taskRow)
+      ) : forRestaurant ? (
+        <View>{visit.tasks.map(readOnlyTask)}</View>
+      ) : (
+        <View style={[styles.taskGroup, { borderColor: theme.border }]}>{visit.tasks.map(readOnlyTask)}</View>
+      )}
     </>
   );
 
@@ -704,11 +736,22 @@ export default function VisitScreen() {
     </>
   ) : undefined;
 
+  // Where the outlet is, before the work starts: the Supervisor going there opens it in a maps app (by its
+  // address: the visit does not carry the outlet's saved place). There is no Call yet: the visit does not
+  // carry a phone number for the outlet.
+  const map = visit.canRecord && !started && !held ? mapLink({ latitude: null, longitude: null, address: visit.outletAddress }) : null;
+  const slot = formatSlot(visit.slot, language, t);
+
   return (
     <Screen
       back
       title={localize(visit.serviceName, language)}
-      subtitle={[visit.outletName, visit.organizationName].filter((name, index, all) => all.indexOf(name) === index).join(' · ')}
+      // The restaurant knows its own company: the outlet is enough. ECCS staff see both, as long as they differ.
+      subtitle={
+        forRestaurant
+          ? visit.outletName
+          : [visit.outletName, visit.organizationName].filter((name, index, all) => all.indexOf(name) === index).join(' · ')
+      }
       onRefresh={async () => {
         // Pulling down also sends anything still waiting, without waiting for the next automatic try.
         outbox.kick();
@@ -724,8 +767,16 @@ export default function VisitScreen() {
         <HeldNotice subject="visit" subjectId={visitId} reason={view.holdReason} count={view.held} />
       )}
 
-      {/* Until the server has the Finish, the visit is not shown as finished: nobody else can see it yet. */}
-      <VisitStatusBadge status={visit.status} missed={visitMissed(visit)} />
+      {/* Where the visit stands, said once: the label, and for the restaurant one line on when the PDF comes.
+          Until the server has the Finish, the visit is not shown as finished: nobody else can see it yet. */}
+      <View style={styles.status}>
+        <VisitStatusBadge status={visit.status} missed={visitMissed(visit)} />
+        {visit.status === 'IN_REVIEW' && forRestaurant && (
+          <ThemedText type="small" themeColor="textSecondary">
+            {t('visit.pdfOnceApproved')}
+          </ThemedText>
+        )}
+      </View>
       {finishWaiting && !held && <UnsentMark sending={hasSignal} text={t('offline.finishWaiting')} />}
       {view.checkInPending && !finishWaiting && !held && <UnsentMark sending={hasSignal} />}
       {visit.reportNumber && (
@@ -734,16 +785,51 @@ export default function VisitScreen() {
         </ThemedText>
       )}
 
-      <View style={[styles.facts, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText type="default" style={styles.when}>
-          {[formatDayLong(visit.date, language), formatSlot(visit.slot, language, t)].filter(Boolean).join(' · ')}
-        </ThemedText>
-        {fact(t('visit.address'), visit.canRecord ? visit.outletAddress : null)}
+      <Card variant="filled">
+        {/* The day, then the time window on its own line, so the window is never split across two lines. */}
+        <View>
+          <ThemedText type="default" style={styles.when}>
+            {formatDayLong(visit.date, language)}
+          </ThemedText>
+          {slot && (
+            <ThemedText type="default" style={styles.when}>
+              {slot}
+            </ThemedText>
+          )}
+        </View>
+        {visit.canRecord && visit.outletAddress && (
+          <View>
+            <View style={styles.addressRow}>
+              <View style={[styles.fact, styles.flexText]}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {t('visit.address')}
+                </ThemedText>
+                <ThemedText type="default">{visit.outletAddress}</ThemedText>
+              </View>
+              {map && (
+                // Beside the address, never inside another button: the day's sheet has the same Map.
+                <CompactAction
+                  tonal
+                  icon="navigate-outline"
+                  label={t('sheet.map')}
+                  accessibilityLabel={t('sheet.mapOpen', { outlet: visit.outletName })}
+                  onPress={() => {
+                    setFailed(null);
+                    void openInMaps(map).then((opened) => {
+                      if (!opened) setFailed({ at: 'map', message: t('vendors.directionsFailed') });
+                    });
+                  }}
+                />
+              )}
+            </View>
+            <ErrorText message={errorAt('map')} />
+          </View>
+        )}
         {fact(t('visit.supervisor'), visit.supervisorName ?? (started ? null : t('visit.notAssigned')))}
         {fact(t('visit.arrived'), visit.checkInAt ? formatDateTime(visit.checkInAt, language) : null)}
         {fact(t('visit.finished'), visit.completedAt ? formatDateTime(visit.completedAt, language) : null)}
         {!recording && fact(t('visit.team'), visit.technicianNames.join(', ') || null)}
-      </View>
+      </Card>
 
       {visit.canRecord && !started && !held && (
         <>
@@ -763,7 +849,7 @@ export default function VisitScreen() {
 
       {/* ECCS does not know where this kitchen is yet: the person on the spot can save it, once. */}
       {recording && visit.canSetOutletLocation && (
-        <View style={[styles.facts, { backgroundColor: theme.backgroundElement }]}>
+        <Card variant="filled">
           <ThemedText type="smallBold">{t('visit.place.title')}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             {t('visit.place.help')}
@@ -776,17 +862,10 @@ export default function VisitScreen() {
             loading={busy === 'place'}
           />
           <ErrorText message={errorAt('place')} />
-        </View>
+        </Card>
       )}
 
-      {visit.correctionNote && (
-        <View style={[styles.correction, { borderColor: theme.warning }]}>
-          <ThemedText type="default" themeColor="warning" style={styles.signedText}>
-            {t('visit.correction')}
-          </ThemedText>
-          <ThemedText type="default">{visit.correctionNote}</ThemedText>
-        </View>
-      )}
+      {visit.correctionNote && <Notice tone="warning" title={t('visit.correction')} text={visit.correctionNote} />}
 
       {/* While working: before photo, the tasks, then the after photo. In the
           finished report the before and after photos sit together, above the tasks. */}
@@ -857,10 +936,13 @@ export default function VisitScreen() {
       )}
 
       {visit.signOff && (
-        <View style={[styles.signed, { borderColor: theme.primary }]}>
-          <ThemedText type="default" themeColor="primary" style={styles.signedText}>
-            ✓ {t('visit.signedBy', { name: visit.signOff.name })}
-          </ThemedText>
+        <Card borderColor={theme.primary} style={styles.signed}>
+          <View style={styles.signedLine}>
+            <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
+            <ThemedText type="default" themeColor="primary" style={[styles.signedText, styles.flexText]}>
+              {t('visit.signedBy', { name: visit.signOff.name })}
+            </ThemedText>
+          </View>
           <ThemedText type="small" themeColor="textSecondary">
             {formatDateTime(visit.signOff.signedAt, language)}
           </ThemedText>
@@ -873,7 +955,7 @@ export default function VisitScreen() {
             </View>
           )}
           {visit.signOff.comment && <ThemedText type="default">{visit.signOff.comment}</ThemedText>}
-        </View>
+        </Card>
       )}
       {/* The PDF exists once ECCS has approved the signed-off report. */}
       {visit.status === 'APPROVED' && visit.signOff && (
@@ -905,50 +987,42 @@ export default function VisitScreen() {
           <ErrorText message={errorAt('certificate')} />
         </>
       )}
-      {visit.status === 'IN_REVIEW' && (
-        <ThemedText type="default" themeColor="warning" style={styles.sectionGap}>
-          {t(forRestaurant ? 'visit.inReviewRestaurant' : 'visit.inReviewEccs')}
-        </ThemedText>
-      )}
-      {visit.status === 'COMPLETED' && !visit.canSignOff && (
-        <ThemedText type="default" themeColor="warning" style={styles.sectionGap}>
-          {t('visit.awaitingSignOff')}
-        </ThemedText>
-      )}
       {visit.canSignOff && (
         <View
-          style={[styles.rate, { borderColor: ratingMissing && rating === null ? theme.danger : theme.border }]}
+          style={styles.sectionGap}
           onLayout={(event) => {
             positions.current.rating = event.nativeEvent.layout.y;
           }}>
-          <ThemedText type="default" style={styles.rateTitle}>
-            {t('visit.rate')}
-          </ThemedText>
-          <StarRating
-            value={rating}
-            disabled={busy !== null}
-            onChange={(stars) => {
-              setRating(stars);
-              setRatingMissing(false);
-            }}
-          />
-          {/* The word for the chosen number of stars, so the rating is not a guess. */}
-          <ThemedText type="default" themeColor={rating ? 'text' : 'textSecondary'} style={styles.rateWord}>
-            {rating ? t(`visit.rating.${rating}`) : t('visit.rateHelp')}
-          </ThemedText>
-          <ErrorText message={ratingMissing && rating === null ? t('visit.rateFirst') : null} />
-          <TextField
-            label={t('visit.comment')}
-            value={comment}
-            onChangeText={setComment}
-            placeholder={t('visit.commentPlaceholder')}
-            maxLength={500}
-            multiline
-            style={styles.notes}
-          />
-          <ThemedText type="small" themeColor="textSecondary">
-            {t('visit.signOffHelp')}
-          </ThemedText>
+          <Card borderColor={ratingMissing && rating === null ? theme.danger : undefined}>
+            <ThemedText type="default" style={styles.rateTitle}>
+              {t('visit.rate')}
+            </ThemedText>
+            <StarRating
+              value={rating}
+              disabled={busy !== null}
+              onChange={(stars) => {
+                setRating(stars);
+                setRatingMissing(false);
+              }}
+            />
+            {/* The word for the chosen number of stars, so the rating is not a guess. */}
+            <ThemedText type="default" themeColor={rating ? 'text' : 'textSecondary'} style={styles.rateWord}>
+              {rating ? t(`visit.rating.${rating}`) : t('visit.rateHelp')}
+            </ThemedText>
+            <ErrorText message={ratingMissing && rating === null ? t('visit.rateFirst') : null} />
+            <TextField
+              label={t('visit.comment')}
+              value={comment}
+              onChangeText={setComment}
+              placeholder={t('visit.commentPlaceholder')}
+              maxLength={500}
+              multiline
+              style={styles.notes}
+            />
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('visit.signOffHelp')}
+            </ThemedText>
+          </Card>
         </View>
       )}
 
@@ -1017,19 +1091,24 @@ export default function VisitScreen() {
 }
 
 const styles = StyleSheet.create({
-  correction: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
-  rate: { marginTop: Spacing.four, borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   rateTitle: { fontWeight: 700, fontSize: 18, textAlign: 'center' },
   rateWord: { textAlign: 'center', fontWeight: 600 },
   rated: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.one },
   reportNumber: { fontWeight: 700 },
-  facts: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  status: { gap: Spacing.one },
   when: { fontWeight: 700, fontSize: 18 },
   fact: { gap: Spacing.half },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   section: { gap: Spacing.three },
   sectionGap: { marginTop: Spacing.four },
   tasksHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: Spacing.two },
   task: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  // A task only read: a plain row with a small icon on its first line and a thin line above it.
+  readRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingVertical: Spacing.two + Spacing.one },
+  readIcon: { marginTop: 2 },
+  readText: { flex: 1, gap: Spacing.half },
+  // ECCS staff's finished report: the rows in one card.
+  taskGroup: { borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three },
   flagged: { borderWidth: 2 },
   taskLabel: { fontSize: 17 },
   choices: { flexDirection: 'row', gap: Spacing.two },
@@ -1067,7 +1146,8 @@ const styles = StyleSheet.create({
   progressPhoto: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   flexText: { flex: 1 },
   notes: { minHeight: 100, paddingVertical: Spacing.two, fontSize: 17, textAlignVertical: 'top' },
-  signed: { marginTop: Spacing.four, borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  signed: { marginTop: Spacing.four, gap: Spacing.one },
+  signedLine: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   signedText: { fontWeight: 700 },
   viewer: {
     flex: 1,

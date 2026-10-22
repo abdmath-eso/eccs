@@ -259,9 +259,10 @@ describe('Push notifications (e2e)', () => {
     await push.idle();
     const forHindi = allSent().find((message) => message.to === token('hindi'))!;
     expect(forHindi.title).toBe('कल विज़िट है');
-    expect(forHindi.body).toBe('ECCS डीप क्लीन कल है, रेस्टोरेंट बंद होने के बाद।');
+    expect(forHindi.body).toBe('ECCS की डीप क्लीन कल है, रेस्टोरेंट बंद होने के बाद।');
     expect(forHindi.channelId).toBe('reminders');
-    expect(allSent().find((message) => message.to === token('english'))!.body).toBe('ECCS Deep clean is tomorrow, After closing.');
+    // "after closing" in small letters in the middle of the sentence (screen review, 22 Oct 2026).
+    expect(allSent().find((message) => message.to === token('english'))!.body).toBe('Deep clean by ECCS is tomorrow, after closing.');
 
     sent = [];
     await notifications.send(

@@ -17,6 +17,7 @@ import { countsOf, DAY_MARK, DayCounts, MonthStepper, useLoaded, type DayMark } 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { Notice } from '@/components/ui/notice';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -79,20 +80,24 @@ export default function PersonRecordScreen() {
   while (cells.length % 7 !== 0) cells.push(null);
   const weeks = Array.from({ length: cells.length / 7 }, (_, week) => cells.slice(week * 7, week * 7 + 7));
 
+  // Job, pay and leaving date as one line under the name ("Waiter · ₹18,000 a month"), as a contact card
+  // puts a person's details under their name, rather than three lines spaced apart (22 Oct 2026).
+  const details = staff
+    ? [
+        staff.jobTitle,
+        staff.pay
+          ? t(staff.pay.payType === 'DAILY' ? 'team.pay.perDay' : 'team.pay.perMonth', { amount: formatMoney(staff.pay.payPaise, language) })
+          : null,
+        staff.leftOn ? t('team.people.leftOn', { date: formatDate(staff.leftOn, language) }) : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : '';
+  // Whether any day this month carries the "needs a look" sign, to explain it beside the totals.
+  const anyLook = data ? Object.keys(data.days).some(needsLook) : false;
+
   return (
-    <Screen back title={staff?.name} subtitle={staff?.jobTitle ?? undefined} onRefresh={reload}>
-      {staff && (staff.pay || staff.leftOn) && (
-        <ThemedText type="default" themeColor="textSecondary">
-          {[
-            staff.pay
-              ? t(staff.pay.payType === 'DAILY' ? 'team.pay.perDay' : 'team.pay.perMonth', { amount: formatMoney(staff.pay.payPaise, language) })
-              : null,
-            staff.leftOn ? t('team.people.leftOn', { date: formatDate(staff.leftOn, language) }) : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </ThemedText>
-      )}
+    <Screen back title={staff?.name} subtitle={details || undefined} onRefresh={reload}>
 
       {/* The day their attendance and pay count from. Someone added before joining dates were asked for has
           none, and is counted from the day they were added; the Owner can put the real date in. */}
@@ -112,14 +117,7 @@ export default function PersonRecordScreen() {
       )}
 
       {/* The reader's own record: theirs to read, the Owner's to change. Said first, so nothing below surprises. */}
-      {staff?.selfLocked && (
-        <View style={[styles.note, { backgroundColor: theme.backgroundElement }]}>
-          <Ionicons name="lock-closed" size={22} color={theme.textSecondary} />
-          <ThemedText type="default" style={styles.noteText}>
-            {t('team.self.locked')}
-          </ThemedText>
-        </View>
-      )}
+      {staff?.selfLocked && <Notice tone="info" text={t('team.self.locked')} />}
 
       <MonthStepper month={month} thisMonth={thisMonth} earliest={shiftMonth(thisMonth, -MONTHS_BACK)} onChange={setMonth} />
       <ErrorText message={error} onRetry={() => void reload()} />
@@ -179,6 +177,15 @@ export default function PersonRecordScreen() {
         <>
           {/* The totals double as the key to the pictures: each has its picture, word and count. */}
           <DayCounts counts={countsOf(data.totals)} all />
+          {/* The small orange sign in a day's corner, in the key as well. */}
+          {anyLook && (
+            <View style={styles.lookKey}>
+              <Ionicons name="alert-circle" size={18} color={theme.warning} />
+              <ThemedText type="small" themeColor="textSecondary">
+                {t('att.needsLook')}
+              </ThemedText>
+            </View>
+          )}
           <ThemedText type="small" themeColor="textSecondary">
             {t('att.month.tapDay')}
           </ThemedText>
@@ -255,4 +262,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
   },
   startRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  lookKey: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
 });

@@ -42,8 +42,9 @@ const FEW_LEFT = 5;
 /**
  * ECCS Buddy, the AI helper (16 Oct 2026), for the Owner and the Manager. Opened from the Buddy
  * button at the top of a screen (so the suggested prompts fit that screen), the card on Home or the
- * More menu. Main part first, as the founder asks: the welcome is two lines and the suggested
- * prompts; what Buddy can and cannot do is folded away. The box is pinned at the bottom with the
+ * More menu. Main part first, as the founder asks: the welcome is one short line and the suggested
+ * prompts; what Buddy can do (and what it leaves to the person) is folded away (22 Oct 2026: in
+ * Telugu the welcome had run to five lines). The box is pinned at the bottom with the
  * mic and Send. Every change Buddy prepares comes as a card that does nothing until tapped.
  */
 export default function BuddyChatScreen() {

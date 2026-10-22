@@ -15,12 +15,13 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 
 import { useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorText } from '@/components/ui/error-text';
 import { Expandable } from '@/components/ui/expandable';
 import { OptionChip } from '@/components/ui/option-chip';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
-import { TextField } from '@/components/ui/text-field';
+import { SearchField } from '@/components/ui/search-field';
 import { VendorActions } from '@/components/vendor-actions';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -126,37 +127,15 @@ export default function VendorsScreen() {
       <ErrorText message={error} onRetry={() => void reload()} />
       {(outletLoading || (!directory && !error && outletId)) && <ActivityIndicator color={theme.primary} />}
 
-      {directory && everyone.length === 0 && (
-        <ThemedText type="default" themeColor="textSecondary">
-          {t('vendors.empty')}
-        </ThemedText>
-      )}
+      {directory && everyone.length === 0 && <EmptyState icon="storefront-outline" title={t('vendors.empty')} />}
 
       {everyone.length > 0 && (
         <>
-          {/* ── The search box: a magnifying glass where the typing starts, and a cross to empty it. What can be
-              searched is the line above the box, not grey words inside it: in most of the twelve languages
-              the sentence is longer than the box, and words inside a box are cut off where a line above wraps. ── */}
-          <View>
-            <TextField
-              label={t('vendors.search')}
-              placeholder={t('common.search')}
-              value={query}
-              onChangeText={setQuery}
-              maxLength={60}
-              autoCorrect={false}
-              returnKeyType="search"
-              style={styles.searchInput}
-            />
-            <View style={[styles.searchIcon, styles.untouchable]}>
-              <Ionicons name="search" size={22} color={theme.textSecondary} />
-            </View>
-            {query.length > 0 && (
-              <Pressable accessibilityRole="button" accessibilityLabel={t('common.clear')} onPress={() => setQuery('')} style={styles.clear}>
-                <Ionicons name="close-circle" size={24} color={theme.textSecondary} />
-              </Pressable>
-            )}
-          </View>
+          {/* ── The app's one search box (22 Oct 2026): a magnifying glass where the typing starts, two short words
+              in it, and a cross to empty it (Material 3's search bar, Apple's search field). Name, area and what
+              they sell are all searched. ── */}
+          <SearchField value={query} onChangeText={setQuery} placeholder={t('vendors.search')} maxLength={60} />
+
 
           {/* ── One row of chips to swipe sideways: "All", then what the listed vendors sell. One at a time. ── */}
           <ScrollView
@@ -203,21 +182,6 @@ export default function VendorsScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Taps pass straight through to the box underneath.
-  untouchable: { pointerEvents: 'none' },
-  // Room for the magnifying glass where the typing starts (the left; the right in Urdu)
-  // and for the cross at the other end.
-  searchInput: { paddingStart: Spacing.three + 22 + Spacing.two, paddingEnd: MinTouchSize },
-  searchIcon: { position: 'absolute', start: Spacing.three, bottom: 0, height: MinTouchSize, justifyContent: 'center' },
-  clear: {
-    position: 'absolute',
-    end: 0,
-    bottom: 0,
-    width: MinTouchSize,
-    height: MinTouchSize,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   chips: { gap: Spacing.two },
   vendor: { paddingVertical: Spacing.two },
   vendorText: { gap: Spacing.half, minHeight: MinTouchSize, justifyContent: 'center' },

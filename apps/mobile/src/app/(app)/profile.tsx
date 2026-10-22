@@ -8,6 +8,7 @@ import { Avatar } from '@/components/avatar';
 import { LegalDocList, LegalDocRow } from '@/components/legal-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionSheet, type SheetOption } from '@/components/ui/option-sheet';
 import { Screen } from '@/components/ui/screen';
@@ -81,12 +82,18 @@ export default function ProfileScreen() {
     }
   }
 
-  /** "You agreed on 14 Oct 2026 (version 14 Oct 2026)", for a document the person has agreed to. */
+  /**
+   * "Agreed 14 Oct 2026", for a document the person has agreed to. The version is named only when it
+   * is not the document's current one (until 22 Oct 2026 it was always given, usually the same date twice).
+   */
   const agreedNote = (key: LegalDocumentKey) => {
     const done = legal?.accepted.find((entry) => entry.key === key);
-    return done
-      ? t('legal.agreedOn', { date: formatDate(done.acceptedOn, language), version: formatDate(done.version, language) })
-      : null;
+    if (!done) return null;
+    const date = formatDate(done.acceptedOn, language);
+    const current = LEGAL_DOCUMENTS.find((document) => document.key === key)?.version;
+    return done.version === current
+      ? t('legal.agreedOn', { date })
+      : t('legal.agreedOnVersion', { date, version: formatDate(done.version, language) });
   };
   const openDocument = (key: LegalDocumentKey) => router.push({ pathname: '/legal/[key]', params: { key } });
 
@@ -210,7 +217,7 @@ export default function ProfileScreen() {
           </View>
 
           {editingName ? (
-            <View style={[styles.card, { borderColor: theme.primary }]}>
+            <Card borderColor={theme.primary} style={styles.cardGap}>
               <TextField
                 label={t('profile.name')}
                 value={name}
@@ -224,7 +231,7 @@ export default function ProfileScreen() {
               />
               <Button label={t('profile.saveName')} loading={busy === 'name'} onPress={() => void saveName()} />
               <Button label={t('common.cancel')} variant="link" onPress={() => setEditingName(false)} />
-            </View>
+            </Card>
           ) : profile.canEditName ? (
             <Button
               label={t('profile.editName')}
@@ -245,7 +252,7 @@ export default function ProfileScreen() {
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
             {t('profile.details')}
           </ThemedText>
-          <View style={[styles.card, { borderColor: theme.border }]}>
+          <Card style={styles.cardGap}>
             {line(t('profile.role'), t(`role.${profile.role}`))}
             {profile.phone &&
               line(
@@ -254,7 +261,7 @@ export default function ProfileScreen() {
               )}
             {profile.email && line(t('profile.email'), profile.email)}
             {line(t('profile.memberSince'), formatDate(profile.memberSince.slice(0, 10), language))}
-          </View>
+          </Card>
 
           {/* ── The restaurant and its branches ── */}
           {profile.organizationName && (
@@ -262,7 +269,7 @@ export default function ProfileScreen() {
               <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionGap}>
                 {t(profile.outlets.length > 1 ? 'profile.restaurantAndBranches' : 'profile.restaurant')}
               </ThemedText>
-              <View style={[styles.card, { borderColor: theme.border }]}>
+              <Card style={styles.cardGap}>
                 <ThemedText type="default" style={styles.strong}>
                   {profile.organizationName}
                 </ThemedText>
@@ -286,7 +293,7 @@ export default function ProfileScreen() {
                     {t('profile.codeHint')}
                   </ThemedText>
                 )}
-              </View>
+              </Card>
             </>
           )}
         </>
@@ -352,7 +359,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  card: { borderWidth: 1.5, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
+  // The shared card, with more room between its lines than a list item has.
+  cardGap: { gap: Spacing.three },
   line: { gap: Spacing.half },
   strong: { fontWeight: 700 },
   outlet: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.three, gap: Spacing.half },

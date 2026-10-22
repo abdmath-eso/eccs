@@ -2,14 +2,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ApiError } from '@eccs/api-client';
 import { searchStarterItems, type StarterFoodItem } from '@eccs/shared';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { ListRow } from '@/components/ui/list-row';
+import { Notice } from '@/components/ui/notice';
 import { Screen } from '@/components/ui/screen';
-import { TextField } from '@/components/ui/text-field';
-import { Spacing } from '@/constants/theme';
+import { SearchField } from '@/components/ui/search-field';
+import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/errors';
 import { allergensText, shelfLifeText } from '@/lib/labels';
@@ -72,15 +73,20 @@ export default function StarterItemsScreen() {
   const matching = searchStarterItems(search);
 
   return (
-    <Screen back title={t('labels.starter.title')} subtitle={t('labels.starter.help')}>
-      <View style={[styles.caution, { borderColor: theme.warning }]}>
-        <Ionicons name="information-circle" size={22} color={theme.warning} />
-        <ThemedText type="small" style={styles.cautionText}>
-          {t('labels.starter.caution')}
-        </ThemedText>
-      </View>
+    <Screen
+      back
+      title={t('labels.starter.title')}
+      // How the list works and why the times are only suggestions, for reading once (22 Oct 2026).
+      about={
+        <>
+          <ThemedText type="small">{t('labels.starter.help')}</ThemedText>
+          <ThemedText type="small">{t('labels.starter.caution')}</ThemedText>
+        </>
+      }>
+      {/* The caution that matters before adding anything stays in view, in one line. */}
+      <Notice tone="warning" text={t('labels.starter.cautionShort')} />
 
-      <TextField label={t('common.search')} value={search} onChangeText={setSearch} autoCorrect={false} returnKeyType="search" />
+      <SearchField value={search} onChangeText={setSearch} />
 
       {matching.length === 0 && (
         <ThemedText type="default" themeColor="textSecondary">
@@ -88,68 +94,73 @@ export default function StarterItemsScreen() {
         </ThemedText>
       )}
 
-      {matching.map((entry) => {
-        const isAdded = added.includes(entry.key) || added.includes(entry.name.toLowerCase());
-        return (
-          <View key={entry.key} style={[styles.row, { borderColor: theme.border }]}>
-            <View style={styles.words}>
-              <ThemedText type="default" style={styles.name}>
-                {entry.name}
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {[
-                  t(`labels.storage.${entry.storage}`),
-                  shelfLifeText(entry.shelfLifeHours, t),
-                  entry.allergens.length > 0 ? allergensText(entry.allergens, t) : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </ThemedText>
-              <ErrorText message={failed?.key === entry.key ? failed.message : null} />
-            </View>
-            {isAdded ? (
-              <View style={styles.added}>
-                <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
-                <ThemedText type="smallBold" themeColor="primary">
-                  {t('labels.starter.added')}
-                </ThemedText>
-              </View>
-            ) : (
-              <Button
-                icon="add"
-                label={t('labels.starter.add')}
-                variant="secondary"
-                loading={adding === entry.key}
-                disabled={adding !== null && adding !== entry.key}
-                onPress={() => void add(entry)}
-              />
-            )}
-          </View>
-        );
-      })}
+      {/* Plain rows with a compact Add at the end, the same width as "Added", so the names keep the
+          row's width and every row lines up (Material's list item with a trailing button). */}
+      <View>
+        {matching.map((entry, index) => {
+          const isAdded = added.includes(entry.key) || added.includes(entry.name.toLowerCase());
+          const busy = adding === entry.key;
+          return (
+            <ListRow
+              key={entry.key}
+              title={entry.name}
+              subtitle={[
+                t(`labels.storage.${entry.storage}`),
+                shelfLifeText(entry.shelfLifeHours, t),
+                entry.allergens.length > 0 ? allergensText(entry.allergens, t) : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+              below={<ErrorText message={failed?.key === entry.key ? failed.message : null} />}
+              divider={index > 0}
+              trailing={
+                isAdded ? (
+                  <View style={styles.action}>
+                    <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
+                    <ThemedText type="smallBold" themeColor="primary" style={styles.actionText}>
+                      {t('labels.starter.added')}
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t('labels.starter.add')}: ${entry.name}`}
+                    accessibilityState={{ disabled: adding !== null, busy }}
+                    disabled={adding !== null}
+                    onPress={() => void add(entry)}
+                    style={({ pressed }) => [
+                      styles.action,
+                      styles.addButton,
+                      { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
+                      adding !== null && !busy && styles.faded,
+                    ]}>
+                    {busy ? <ActivityIndicator color={theme.text} /> : <Ionicons name="add" size={20} color={theme.text} />}
+                    <ThemedText type="smallBold" style={styles.actionText}>
+                      {t('labels.starter.add')}
+                    </ThemedText>
+                  </Pressable>
+                )
+              }
+            />
+          );
+        })}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  caution: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    borderWidth: 2,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-  },
-  cautionText: { flex: 1 },
-  row: {
+  // "Add" and "Added" take the same room, so the names beside them all end on one line.
+  action: {
+    width: 104,
+    minHeight: MinTouchSize - Spacing.two,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    justifyContent: 'center',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.two,
   },
-  words: { flex: 1 },
-  name: { fontWeight: 700 },
-  added: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, paddingHorizontal: Spacing.two },
+  addButton: { borderRadius: Spacing.three },
+  actionText: { flexShrink: 1, textAlign: 'center' },
+  faded: { opacity: 0.5 },
 });

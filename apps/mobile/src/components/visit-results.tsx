@@ -13,6 +13,7 @@ import { Linking, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
@@ -118,14 +119,13 @@ export function ReadingInput({ task, disabled, onSave }: { task: VisitTaskDto; d
  * office; they are the same files as in the outlet's documents.
  */
 export function VisitPartner({ visit, showName }: { visit: VisitDto; /** False while the Supervisor is typing the name in the form below. */ showName: boolean }) {
-  const theme = useTheme();
   const { t, api } = useSession();
   const [failed, setFailed] = useState(false);
   const documents = visit.documents ?? [];
   if (!visit.partnerDelivered && documents.length === 0 && !visit.partnerName) return null;
 
   return (
-    <View style={[styles.partner, { borderColor: theme.border }]}>
+    <Card>
       <ThemedText type="smallBold" themeColor="textSecondary">
         {t('visit.partner.heading')}
       </ThemedText>
@@ -158,7 +158,7 @@ export function VisitPartner({ visit, showName }: { visit: VisitDto; /** False w
           </ThemedText>
         </>
       )}
-    </View>
+    </Card>
   );
 }
 
@@ -168,7 +168,6 @@ const styles = StyleSheet.create({
   verdict: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   verdictText: { flex: 1, fontWeight: 700 },
   input: { gap: Spacing.two },
-  partner: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   document: { gap: Spacing.one },
   documentTitle: { fontWeight: 700 },
 });

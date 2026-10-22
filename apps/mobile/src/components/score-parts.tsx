@@ -13,6 +13,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View, type GestureResponderEv
 import { DirectionView } from '@/components/direction-view';
 import { ScoreExplain } from '@/components/score-explain';
 import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/card';
 import { StatusChip } from '@/components/ui/status-chip';
 import { ErrorText } from '@/components/ui/error-text';
 import { MinTouchSize, Spacing } from '@/constants/theme';
@@ -146,12 +147,12 @@ export function ScoreCard({ outletId, stamp }: { outletId: string; stamp: number
 
   if (!score) {
     return (
-      <View style={[styles.card, { borderColor: theme.border }]}>
+      <Card>
         <ThemedText type="smallBold" themeColor="textSecondary">
           {t('score.title')}
         </ThemedText>
         {error ? <ErrorText message={error} onRetry={() => setAttempt((n) => n + 1)} /> : <ActivityIndicator color={theme.primary} />}
-      </View>
+      </Card>
     );
   }
 
@@ -181,7 +182,7 @@ export function ScoreCard({ outletId, stamp }: { outletId: string; stamp: number
   );
 
   // The Head Chef has no breakdown to open.
-  if (!score.detail) return <View style={[styles.card, { borderColor: theme.border }]}>{head}</View>;
+  if (!score.detail) return <Card>{head}</Card>;
 
   // The card still opens the breakdown from anywhere but "Why this score?", and lights up as a
   // whole when pressed. It is flat rather than one big button, because "Why this score?" and its
@@ -196,19 +197,23 @@ export function ScoreCard({ outletId, stamp }: { outletId: string; stamp: number
     onPressOut: () => setPressed(false),
   };
   return (
-    <View style={[styles.card, { borderColor: theme.outline }, pressed && { backgroundColor: theme.backgroundElement }]}>
+    <Card style={pressed && { backgroundColor: theme.backgroundElement }}>
       <Pressable accessible={false} focusable={false} style={styles.cardPart} {...openBreakdown}>
         {head}
       </Pressable>
-      {/* "Why this score?" for the Owner and Manager, when AI is on and something is costing points. */}
-      <ScoreExplain score={score} />
-      <Pressable accessibilityRole="button" style={styles.more} {...openBreakdown}>
-        <ThemedText type="smallBold" themeColor="primary" style={styles.factorText}>
-          {t('score.seeDetails')}
-        </ThemedText>
-        <Ionicons name={forwardIcon} size={18} color={theme.primary} />
-      </Pressable>
-    </View>
+      {/* The two links together, one under the other on the same left edge, with no extra gap between
+          them: each is a full-size tap target, so the target itself is the space (Material 3 lists). */}
+      <View>
+        {/* "Why this score?" for the Owner and Manager, when AI is on and something is costing points. */}
+        <ScoreExplain score={score} />
+        <Pressable accessibilityRole="button" style={styles.more} {...openBreakdown}>
+          <ThemedText type="smallBold" themeColor="primary" style={styles.factorText}>
+            {t('score.seeDetails')}
+          </ThemedText>
+          <Ionicons name={forwardIcon} size={18} color={theme.primary} />
+        </Pressable>
+      </View>
+    </Card>
   );
 }
 
@@ -315,13 +320,6 @@ export function ScoreTrend({ history, today }: { history: ScoreHistoryPointDto[]
 const styles = StyleSheet.create({
   // Taps pass straight through to whatever is underneath.
   untouchable: { pointerEvents: 'none' },
-  card: {
-    borderWidth: 1.5,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    gap: Spacing.two,
-    minHeight: MinTouchSize,
-  },
   // The number, then its notes under it, the same in every language: side by side, a short unit
   // (Telugu's "100 లో") let the notes squeeze into a narrow column beside the number.
   headline: { gap: Spacing.one },

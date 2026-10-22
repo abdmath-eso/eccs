@@ -3,23 +3,24 @@ import type { UploadFile } from '@eccs/api-client';
 import { ISSUE_CATEGORIES, type IssueCategory, type IssueSummaryDto, type SupportContactDto } from '@eccs/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 
 import { IssueStatusBadge } from '@/components/issue-status-badge';
 import { ProofPhoto } from '@/components/proof-photo';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
 import { OptionChip } from '@/components/ui/option-chip';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { TextField } from '@/components/ui/text-field';
-import { MinTouchSize, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ltrText } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatPhone } from '@/lib/format';
 import { CameraPermissionError, takeProofPhoto } from '@/lib/photo';
 import { useSession } from '@/lib/session';
 import { useOutlet } from '@/lib/use-outlet';
@@ -167,12 +168,13 @@ export default function RaiseIssueScreen() {
   const severalOutlets = new Set(issues?.map((issue) => issue.outletId)).size > 1;
 
   return (
-    <Screen back title={t('support.title')} subtitle={t('support.help')} onRefresh={load}>
+    // Titled with the tab's own word, so the title and the main button below do not say the same thing.
+    <Screen back title={t('tab.issues')} onRefresh={load}>
       {/* The form, tucked behind a button so the page opens clean. */}
-      {!formOpen && <Button label={t('support.title')} onPress={() => setFormOpen(true)} />}
+      {!formOpen && <Button icon="add" label={t('support.title')} onPress={() => setFormOpen(true)} />}
 
       {formOpen && (
-        <View style={[styles.form, { borderColor: theme.border }]}>
+        <Card style={styles.form}>
           {outletLoading && <ActivityIndicator color={theme.primary} />}
 
           {outlets.length > 1 && (
@@ -258,7 +260,7 @@ export default function RaiseIssueScreen() {
           <ErrorText message={sendError} />
           <Button label={t('support.send')} onPress={() => void send()} loading={sending} />
           <Button label={t('common.cancel')} variant="link" onPress={() => setFormOpen(false)} disabled={sending} />
-        </View>
+        </Card>
       )}
 
       {/* Contact ECCS directly. */}
@@ -289,7 +291,7 @@ export default function RaiseIssueScreen() {
             </View>
           </View>
           <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-            {ltrText(contact.phone)} · {contact.hours}
+            {ltrText(formatPhone(contact.phone))} · {contact.hours}
           </ThemedText>
         </>
       )}
@@ -309,21 +311,17 @@ export default function RaiseIssueScreen() {
         </ThemedText>
       )}
       {issues?.map((issue) => (
-        <Pressable
+        // The shared card, with the arrow that says it opens.
+        <Card
           key={issue.id}
-          accessibilityRole="button"
+          variant="filled"
+          chevron
           onPress={() =>
             router.push({
               pathname: '/support/[issueId]',
               params: { issueId: issue.id },
             })
-          }
-          style={({ pressed }) => [
-            styles.card,
-            {
-              backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement,
-            },
-          ]}>
+          }>
           <View style={styles.cardHeader}>
             <ThemedText type="default" style={styles.cardTitle}>
               {t(`category.${issue.category}`)}
@@ -351,19 +349,15 @@ export default function RaiseIssueScreen() {
               </>
             )}
           </View>
-        </Pressable>
+        </Card>
       ))}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  form: {
-    borderWidth: 1,
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    gap: Spacing.three,
-  },
+  // More room between the parts of the form than the card gives a list item.
+  form: { gap: Spacing.three },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   description: {
     minHeight: 120,
@@ -376,12 +370,6 @@ const styles = StyleSheet.create({
   contactButton: { flex: 1 },
   center: { textAlign: 'center' },
   sectionGap: { marginTop: Spacing.four },
-  card: {
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    gap: Spacing.two,
-    minHeight: MinTouchSize * 1.6,
-  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'baseline',

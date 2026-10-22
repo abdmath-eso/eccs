@@ -16,11 +16,14 @@ import { DaySheet } from '@/components/day-sheet';
 import { FieldMark, SavedCopyNote } from '@/components/field-sync-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
+import { Expandable } from '@/components/ui/expandable';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
+import { StatusChip } from '@/components/ui/status-chip';
 import { VisitCard, visitMissed } from '@/components/visit-card';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -203,6 +206,18 @@ export default function ServicesScreen() {
       {text}
     </ThemedText>
   );
+  const cards = (visits: VisitSummaryDto[]) =>
+    visits.map((visit) => {
+      const mine = summaries.get(visit.id);
+      return (
+        <VisitCard
+          key={visit.id}
+          visit={visit}
+          showOutlet={eccs}
+          mark={mine && (mine.unsent > 0 || mine.held > 0) ? <FieldMark summary={mine} hasSignal={hasSignal} /> : undefined}
+        />
+      );
+    });
   const group = (title: string, visits: VisitSummaryDto[], empty?: string) =>
     (visits.length > 0 || empty) && (
       <>
@@ -212,26 +227,56 @@ export default function ServicesScreen() {
             {empty}
           </ThemedText>
         )}
-        {visits.map((visit) => {
-          const mine = summaries.get(visit.id);
-          return (
-            <VisitCard
-              key={visit.id}
-              visit={visit}
-              showOutlet={eccs}
-              mark={mine && (mine.unsent > 0 || mine.held > 0) ? <FieldMark summary={mine} hasSignal={hasSignal} /> : undefined}
-            />
-          );
-        })}
+        {cards(visits)}
       </>
     );
+  // The day's sheet already lists today's visits, so a "Today" group under it would only repeat them.
+  const sheetShown = sheet !== null && sheet.visits.length > 0;
+  const earlier = onDay('past');
+
+  /**
+   * One service of the plan and when it is next visited. A day already past is not "next": it says
+   * "Due since 10 Oct" in amber with a way to book it, and today's says "today" (22 Oct 2026).
+   */
+  const planService = (service: OutletPlanDto['services'][number], index: number) => {
+    const due = service.nextDate < today;
+    const when = due
+      ? t('svc.planDueSince', { date: formatDayShort(service.nextDate, language) })
+      : service.nextDate === today
+        ? t('svc.planNextToday')
+        : t('svc.planNext', { date: formatDayShort(service.nextDate, language) });
+    return (
+      <View key={service.serviceCode} style={[styles.planLine, index > 0 && { borderTopWidth: 1, borderColor: theme.border }]}>
+        <ThemedText type="default" style={styles.planService}>
+          {localize(service.serviceName, language)}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('svc.planEvery', { count: service.intervalDays })} ·{' '}
+          <ThemedText type={due ? 'smallBold' : 'small'} themeColor={due ? 'warning' : 'textSecondary'}>
+            {when}
+          </ThemedText>
+        </ThemedText>
+        {due && (
+          <Button
+            label={t('svc.planAsk')}
+            variant="link"
+            align="start"
+            // A plan visit is ECCS's to arrange and is paid for by the plan: a missed one is a question for
+            // ECCS (Raise an issue has Call and WhatsApp), not a new paid booking.
+            onPress={() => router.push('/support')}
+          />
+        )}
+      </View>
+    );
+  };
 
   return (
     <Screen
       back
       // The tab's own one word, as the other tabs' titles: "Services and booking" ran onto two lines on a 360-wide phone.
       title={t(eccs ? 'svc.titleEccs' : 'tab.services')}
-      subtitle={t(eccs ? (role === 'SUPERVISOR' ? 'svc.helpSupervisor' : 'svc.helpAdmin') : 'svc.help')}
+      // What the screen is for, read once: folded at its end, so the list comes first (22 Oct 2026).
+      about={t(eccs ? (role === 'SUPERVISOR' ? 'svc.helpSupervisor' : 'svc.helpAdmin') : 'svc.help')}
       onRefresh={async () => {
         // Pulling down also sends anything still waiting, without waiting for the next automatic try.
         outbox.kick();
@@ -263,7 +308,7 @@ export default function ServicesScreen() {
         <>
           {heading(t('svc.requests'))}
           {requests.map((booking) => (
-            <View key={booking.id} style={[styles.request, { borderColor: theme.border }]}>
+            <Card key={booking.id}>
               <ThemedText type="default" style={styles.requestTitle}>
                 {localize(booking.serviceName, language)}
               </ThemedText>
@@ -277,12 +322,10 @@ export default function ServicesScreen() {
                     .join(' · '),
                 })}
               </ThemedText>
-              <ThemedText type="small" themeColor="warning">
-                {t('svc.requestWaiting')}
-              </ThemedText>
-              <Button label={t('svc.cancelRequest')} variant="link" onPress={() => setCancelling(booking)} />
+              <StatusChip tone="warn" icon="time-outline" label={t('svc.requestWaiting')} />
+              <Button label={t('svc.cancelRequest')} variant="link" align="start" onPress={() => setCancelling(booking)} />
               <ErrorText message={cancelFailed?.id === booking.id ? cancelFailed.message : null} />
-            </View>
+            </Card>
           ))}
         </>
       )}
@@ -290,8 +333,25 @@ export default function ServicesScreen() {
       {open !== null && eccs && (
         <>
           {group(t('svc.underWay'), underWay)}
-          {group(t('svc.overdue'), onDay('past'))}
-          {group(t('svc.today'), onDay('today'), t('home.noVisitsToday'))}
+          {/* Visits whose day has passed: folded behind their count, so the day's work comes first (22 Oct 2026). */}
+          {earlier.length > 0 && (
+            <View style={styles.sectionGap}>
+              <Expandable title={`${t('svc.overdue')} · ${earlier.length}`} icon="alert-circle-outline">
+                {cards(earlier)}
+              </Expandable>
+            </View>
+          )}
+          {/* The day's sheet lists today's visits, so they are not repeated here, except any with work
+              still on the phone or sent back by the server: only these cards show that mark. */}
+          {sheetShown
+            ? group(
+                t('svc.today'),
+                onDay('today').filter((visit) => {
+                  const mine = summaries.get(visit.id);
+                  return mine !== undefined && (mine.unsent > 0 || mine.held > 0);
+                }),
+              )
+            : group(t('svc.today'), onDay('today'), t('home.noVisitsToday'))}
           {group(t('svc.tomorrow'), onDay('tomorrow'))}
           {group(t('svc.later'), onDay('later'))}
           {group(t('svc.awaitingSignOff'), awaiting)}
@@ -303,27 +363,17 @@ export default function ServicesScreen() {
       {!eccs && plan?.plan && (
         <>
           {heading(t('svc.plan'))}
-          <View style={[styles.request, { borderColor: theme.border }]}>
+          <Card>
             <ThemedText type="default" style={styles.requestTitle}>
               {localize(plan.plan.name, language)}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {t('svc.planHelp')}
             </ThemedText>
-            {plan.services.map((service) => (
-              <View key={service.serviceCode} style={[styles.planLine, { borderColor: theme.border }]}>
-                <ThemedText type="default" style={styles.planService}>
-                  {localize(service.serviceName, language)}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {t('svc.planEvery', { count: service.intervalDays })} ·{' '}
-                  {t('svc.planNext', { date: formatDayShort(service.nextDate, language) })}
-                </ThemedText>
-              </View>
-            ))}
+            <View>{plan.services.map(planService)}</View>
             {/* The price, the cycle, changing and cancelling are on the Plan screen. */}
-            <Button label={t('plan.see')} variant="link" onPress={() => router.push('/plan')} />
-          </View>
+            <Button label={t('plan.see')} variant="link" align="start" onPress={() => router.push('/plan')} />
+          </Card>
         </>
       )}
       {/* No plan running: the way to the plans on offer (or to a plan ECCS has paused). */}
@@ -350,9 +400,9 @@ export default function ServicesScreen() {
 }
 
 const styles = StyleSheet.create({
-  planLine: { borderTopWidth: 1, paddingTop: Spacing.two, gap: Spacing.half },
+  // One service of the plan; a thin line between them.
+  planLine: { paddingVertical: Spacing.two, gap: Spacing.half },
   planService: { fontWeight: 600 },
   sectionGap: { marginTop: Spacing.four },
-  request: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   requestTitle: { fontWeight: 700, fontSize: 18 },
 });

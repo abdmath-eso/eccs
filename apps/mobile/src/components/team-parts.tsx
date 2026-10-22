@@ -6,6 +6,7 @@ import { useCallback, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { StatusChip, type StatusTone } from '@/components/ui/status-chip';
 import { MinTouchSize, Spacing, type ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useDirection } from '@/lib/direction';
@@ -62,6 +63,21 @@ export function DayCounts({ counts, all }: { counts: Record<DayMark, number>; al
       ))}
     </View>
   );
+}
+
+/** The app's status label for one of the colours above (its tone has the same colour). */
+export function toneOf(color: ThemeColor): StatusTone {
+  if (color === 'primary') return 'good';
+  if (color === 'warning') return 'warn';
+  if (color === 'danger') return 'bad';
+  if (color === 'info') return 'info';
+  return 'neutral';
+}
+
+/** A kind of day as the app's one status label: its picture and its word on a soft tint. */
+export function DayMarkChip({ mark }: { mark: DayMark }) {
+  const { t } = useSession();
+  return <StatusChip tone={toneOf(DAY_MARK[mark].tone)} icon={DAY_MARK[mark].icon} label={t(DAY_MARK[mark].label)} />;
 }
 
 /** Where a month's pay stands, in words with a picture of its own. */

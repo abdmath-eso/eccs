@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { can, type RestaurantUserDto, type StaffMemberDto } from '@eccs/shared';
 import { Redirect, router, type Href } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { EnrolledMark } from '@/components/attendance-parts';
 import { Avatar } from '@/components/avatar';
@@ -10,13 +10,14 @@ import { useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ErrorText } from '@/components/ui/error-text';
+import { ListRow } from '@/components/ui/list-row';
+import { Notice } from '@/components/ui/notice';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
-import { MinTouchSize, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatMoney } from '@/lib/billing';
-import { useDirection } from '@/lib/direction';
 import { errorMessage } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -27,7 +28,7 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 /**
  * "Staff" in the More menu, for the Owner and Manager: one place for everything
  * about the people who work at the outlet. Attendance and the salary tracker
- * are about every employee; "App logins and PINs" is the separate, smaller list
+ * are about every employee; "App logins" is the separate, smaller list
  * of the few who use this app.
  *
  * For the Owner it also names any Manager login that is not linked to a person
@@ -40,7 +41,6 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
 export default function TeamScreen() {
   const theme = useTheme();
   const { t, api, user, language } = useSession();
-  const { forwardIcon } = useDirection();
   const { outletId, outlets, choose } = useOutlet();
   const notify = useSnackbar();
   const [showLeft, setShowLeft] = useState(false);
@@ -108,82 +108,73 @@ export default function TeamScreen() {
 
   // The ways in are one plain list with a thin line between, not a pile of boxes: a list is quicker
   // to run the eye down than cards and takes less room (Nielsen Norman Group on cards against lists;
-  // Material's two-line list item).
+  // Material's two-line list item). The icons sit in the same 40-wide slot as the people's initials
+  // below, so all the names start on one line.
   const section = (icon: IconName, title: string, hint: string, href: Href, count = 0, first = false) => (
-    <Pressable
-      accessibilityRole="button"
+    <ListRow
+      title={title}
+      subtitle={hint}
+      leading={<Ionicons name={icon} size={26} color={theme.primary} />}
+      divider={!first}
       onPress={() => router.push(href)}
-      style={({ pressed }) => [
-        styles.section,
-        !first && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
-        pressed && { backgroundColor: theme.backgroundElement },
-      ]}>
-      {/* In a 40-wide slot, the same as the people's initials below, so all the names start on one line. */}
-      <View style={styles.lead}>
-        <Ionicons name={icon} size={26} color={theme.primary} />
-      </View>
-      <View style={styles.flex}>
-        <ThemedText type="default" style={styles.bold}>
-          {title}
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {hint}
-        </ThemedText>
-      </View>
-      {/* How many are waiting: a number in a filled circle, read out with the row. */}
-      {count > 0 && (
-        <View style={[styles.badge, { backgroundColor: theme.danger }]} accessibilityLabel={t('att.review.waiting', { count })}>
-          <ThemedText type="smallBold" style={{ color: theme.background }}>
-            {count > 99 ? '99+' : count}
-          </ThemedText>
-        </View>
-      )}
-      <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
-    </Pressable>
+      trailing={
+        // How many are waiting: a number in a filled circle, read out with the row.
+        count > 0 ? (
+          <View style={[styles.badge, { backgroundColor: theme.danger }]} accessibilityLabel={t('att.review.waiting', { count })}>
+            <ThemedText type="smallBold" style={{ color: theme.background }}>
+              {count > 99 ? '99+' : count}
+            </ThemedText>
+          </View>
+        ) : undefined
+      }
+    />
   );
 
   return (
     <Screen back title={t('team.title')} onRefresh={reload}>
       <OutletPicker outlets={outlets} outletId={outletId} onChoose={choose} />
 
-      {/* For the Owner: a Manager's login that is not yet tied to that Manager on the staff list. */}
+      {/* For the Owner: a Manager's login that is not yet tied to that Manager on the staff list. One line
+          and a short link (22 Oct 2026: four lines and a button naming the person); why it matters is said
+          when the person is chosen, where it counts. */}
       {(unlinked ?? []).map((login) => (
-        <View key={login.id} style={[styles.linkCard, { borderColor: theme.warning }]}>
-          <View style={styles.linkText}>
-            <Ionicons name="link" size={22} color={theme.warning} />
-            <ThemedText type="small" style={styles.flex}>
-              {t('team.link.body', { name: login.name })}
-            </ThemedText>
-          </View>
+        <Notice key={login.id} tone="warning" text={t('team.link.body', { name: login.name })}>
           {linking?.id === login.id ? (
             <>
-              <ThemedText type="smallBold">{t('team.link.pick', { name: login.name })}</ThemedText>
-              {linkable.map((person) => (
-                <Button
-                  key={person.id}
-                  variant="secondary"
-                  icon="person-outline"
-                  label={person.name}
-                  hint={person.jobTitle ?? undefined}
-                  disabled={linkBusy}
-                  onPress={() => void link(person)}
-                />
-              ))}
+              <ThemedText type="small">{t('team.link.pick', { name: login.name })}</ThemedText>
+              <View>
+                {linkable.map((person, index) => (
+                  <ListRow
+                    key={person.id}
+                    title={person.name}
+                    subtitle={person.jobTitle}
+                    leading={<Avatar name={person.name} size={40} />}
+                    divider={index > 0}
+                    chevron={false}
+                    accessibilityLabel={`${t('team.link.button')}: ${person.name}`}
+                    onPress={() => {
+                      if (!linkBusy) void link(person);
+                    }}
+                  />
+                ))}
+              </View>
+              {linkBusy && <ActivityIndicator color={theme.primary} />}
               <ErrorText message={linkError} />
-              <Button variant="link" label={t('common.cancel')} disabled={linkBusy} onPress={() => setLinking(null)} />
+              <Button variant="link" align="start" label={t('common.cancel')} disabled={linkBusy} onPress={() => setLinking(null)} />
             </>
           ) : (
             <Button
-              variant="secondary"
+              variant="link"
+              align="start"
               icon="link"
-              label={t('team.link.button', { name: login.name })}
+              label={t('team.link.button')}
               onPress={() => {
                 setLinkError(null);
                 setLinking(login);
               }}
             />
           )}
-        </View>
+        </Notice>
       ))}
 
       <View>
@@ -218,42 +209,29 @@ export default function TeamScreen() {
 
       <View>
         {people?.map((person, index) => (
-          <Pressable
+          <ListRow
             key={person.id}
-            accessibilityRole="button"
+            // Initials in a circle, as contact lists show people (Material's list item with an avatar).
+            leading={<Avatar name={person.name} size={40} />}
+            title={person.name}
+            subtitle={[
+              person.jobTitle,
+              person.pay
+                ? t(person.pay.payType === 'DAILY' ? 'team.pay.perDay' : 'team.pay.perMonth', {
+                    amount: formatMoney(person.pay.payPaise, language),
+                  })
+                : null,
+              person.leftOn ? t('team.people.leftOn', { date: formatDate(person.leftOn, language) }) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            // Only the exception is said here: someone the camera cannot recognise yet. "Face added" is on the
+            // person's own page. Shown once known, and only for people still working here.
+            below={person.isActive && extra && extra.enrolled[person.id] === false ? <EnrolledMark enrolled={false} /> : undefined}
+            dimmed={!person.isActive}
+            divider={index > 0}
             onPress={() => router.push({ pathname: '/team/[staffId]', params: { staffId: person.id } })}
-            style={({ pressed }) => [
-              styles.person,
-              index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
-              pressed && { backgroundColor: theme.backgroundElement },
-            ]}>
-            {/* Initials in a circle, as contact lists show people (Material's list item with an avatar). */}
-            <View style={[styles.lead, !person.isActive && styles.left]}>
-              <Avatar name={person.name} size={40} />
-            </View>
-            <View style={styles.flex}>
-              <ThemedText type="default" numberOfLines={1} style={[styles.bold, !person.isActive && styles.left]}>
-                {person.name}
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                {[
-                  person.jobTitle,
-                  person.pay
-                    ? t(person.pay.payType === 'DAILY' ? 'team.pay.perDay' : 'team.pay.perMonth', {
-                        amount: formatMoney(person.pay.payPaise, language),
-                      })
-                    : null,
-                  person.leftOn ? t('team.people.leftOn', { date: formatDate(person.leftOn, language) }) : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </ThemedText>
-              {/* Only the exception is said here: someone the camera cannot recognise yet. "Face added" is on the
-                  person's own page. Shown once known, and only for people still working here. */}
-              {person.isActive && extra && extra.enrolled[person.id] === false && <EnrolledMark enrolled={false} />}
-            </View>
-            <Ionicons name={forwardIcon} size={20} color={theme.textSecondary} />
-          </Pressable>
+          />
         ))}
       </View>
 
@@ -267,27 +245,6 @@ export default function TeamScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, gap: Spacing.half },
-  bold: { fontWeight: 700 },
-  left: { opacity: 0.6 },
   heading: { marginTop: Spacing.two },
-  linkCard: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  linkText: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   badge: { minWidth: 28, height: 28, borderRadius: 14, paddingHorizontal: Spacing.two, alignItems: 'center', justifyContent: 'center' },
-  // Plain rows with a thin line between: tall enough for a thumb, no box around each.
-  section: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    minHeight: MinTouchSize + Spacing.three,
-    paddingVertical: Spacing.two + Spacing.one,
-  },
-  lead: { width: 40, alignItems: 'center' },
-  person: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    minHeight: MinTouchSize + Spacing.three,
-    paddingVertical: Spacing.two + Spacing.one,
-  },
 });

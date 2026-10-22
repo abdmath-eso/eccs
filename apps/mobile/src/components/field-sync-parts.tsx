@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Notice } from '@/components/ui/notice';
 import { useSnackbar } from '@/components/ui/snackbar';
 import { UnsentMark } from '@/components/unsent-mark';
 import { Spacing } from '@/constants/theme';
@@ -72,21 +73,18 @@ interface HeldNoticeProps {
  * office has put things right; deleting is the person's own choice, asked twice.
  */
 export function HeldNotice({ subject, subjectId, reason, count }: HeldNoticeProps) {
-  const theme = useTheme();
   const { t } = useSession();
   const notify = useSnackbar();
   const [deleting, setDeleting] = useState(false);
   return (
-    <View style={[styles.held, { borderColor: theme.danger }]} accessibilityRole="alert">
-      <View style={styles.row}>
-        <Ionicons name="alert-circle" size={24} color={theme.danger} />
-        <ThemedText type="default" themeColor="danger" style={[styles.text, styles.bold]}>
-          {t('offline.heldTitle')}
-        </ThemedText>
-      </View>
-      <ThemedText type="default">{t(`offline.held.${subject}.${reason}`, { count })}</ThemedText>
-      <Button icon="refresh" label={t('offline.sendAgain')} variant="secondary" onPress={() => outbox.release(subject, subjectId)} />
-      <Button label={t('offline.deleteFromPhone')} variant="danger" onPress={() => setDeleting(true)} />
+    // The app's one notice box, in its danger look (22 Oct 2026: it was a box of its own with a thicker edge).
+    <View accessibilityRole="alert">
+      <Notice tone="danger" title={t('offline.heldTitle')} text={t(`offline.held.${subject}.${reason}`, { count })}>
+        <View style={styles.actions}>
+          <Button icon="refresh" label={t('offline.sendAgain')} variant="secondary" onPress={() => outbox.release(subject, subjectId)} />
+          <Button label={t('offline.deleteFromPhone')} variant="danger" onPress={() => setDeleting(true)} />
+        </View>
+      </Notice>
       <ConfirmDialog
         visible={deleting}
         message={t('offline.deleteConfirm', { count })}
@@ -104,8 +102,8 @@ export function HeldNotice({ subject, subjectId, reason, count }: HeldNoticeProp
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  // The icon on the first line of words that may wrap (in Telugu, or on a small phone), not halfway down them.
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   text: { flex: 1 },
-  bold: { fontWeight: 700 },
-  held: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
+  actions: { gap: Spacing.two, marginTop: Spacing.one },
 });

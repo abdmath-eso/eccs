@@ -1,14 +1,19 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { can, type OutletSummaryDto, type RestaurantUserDto } from '@eccs/shared';
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { PinReveal } from '@/components/pin-reveal';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
+import { ListRow } from '@/components/ui/list-row';
 import { OptionChip } from '@/components/ui/option-chip';
+import { OptionSheet } from '@/components/ui/option-sheet';
 import { OutletPicker } from '@/components/ui/outlet-picker';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
@@ -22,7 +27,10 @@ type StaffRole = 'MANAGER' | 'HEAD_CHEF';
 type ActionKind = 'reset' | 'deactivate' | 'restore';
 type PendingAction = { kind: ActionKind; person: RestaurantUserDto };
 
-/** Where the Owner or a Manager adds people and hands out their PINs. */
+// An iPhone will not open the question while the sheet of actions is still closing.
+const AFTER_SHEET_MS = Platform.OS === 'ios' ? 500 : 0;
+
+/** "App logins": where the Owner or a Manager adds the people who use this app and hands out their PINs. */
 export default function StaffScreen() {
   const theme = useTheme();
   const { t, api, user } = useSession();
@@ -44,6 +52,8 @@ export default function StaffScreen() {
   // The action waiting for a yes or no, and the one now running (its button shows a spinner).
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [working, setWorking] = useState<{ kind: ActionKind; personId: string } | null>(null);
+  // Whose sheet of actions (New PIN, Remove access) is open.
+  const [menuFor, setMenuFor] = useState<string | null>(null);
 
   const memberships = user?.memberships ?? [];
   const allowed = can(memberships, 'restaurantUsers', 'create');
@@ -84,6 +94,16 @@ export default function StaffScreen() {
   }
 
   if (!allowed) return <Redirect href="/" />;
+
+  /** Owners are managed by ECCS and by their own one-time code, and nobody changes their own login here. */
+  const mayChange = (person: RestaurantUserDto) =>
+    person.role !== 'OWNER' && person.id !== user?.id && (person.role === 'HEAD_CHEF' || mayAddManager);
+
+  /** From the sheet: closes it, then asks the same question as before. */
+  function ask(kind: ActionKind, person: RestaurantUserDto) {
+    setMenuFor(null);
+    setTimeout(() => setPending({ kind, person }), AFTER_SHEET_MS);
+  }
 
   async function create() {
     if (!name.trim()) {
@@ -152,10 +172,14 @@ export default function StaffScreen() {
     restore: { message: 'staff.restoreConfirm', label: 'staff.restore' },
   };
 
+  // The person whose row was tapped, with what may be done for them, while that sheet is open.
+  const sheetFor = (people ?? []).find((person) => person.id === menuFor) ?? null;
+
   return (
-    <Screen back title={t('staff.title')} subtitle={t('staff.help')} onRefresh={load}>
+    // What a PIN is for is read once: folded away at the end (22 Oct 2026).
+    <Screen back title={t('staff.title')} about={t('staff.help')} onRefresh={load}>
       {outlets.some((outlet) => outlet.code) && (
-        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+        <Card variant="filled">
           <ThemedText type="smallBold" themeColor="textSecondary">
             {t('staff.code')}
           </ThemedText>
@@ -173,11 +197,11 @@ export default function StaffScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             {t('staff.codeHelp')}
           </ThemedText>
-        </View>
+        </Card>
       )}
 
       {adding ? (
-        <View style={[styles.card, { borderColor: theme.border }]}>
+        <Card>
           <TextField
             label={t('staff.name')}
             value={name}
@@ -211,9 +235,9 @@ export default function StaffScreen() {
           <ErrorText message={createError} />
           <Button label={t('staff.create')} onPress={() => void create()} loading={busy} />
           <Button label={t('common.cancel')} variant="secondary" onPress={() => setAdding(false)} disabled={busy} />
-        </View>
+        </Card>
       ) : (
-        <Button label={t('staff.add')} onPress={() => setAdding(true)} />
+        <Button icon="add" label={t('staff.add')} onPress={() => setAdding(true)} />
       )}
 
       <ErrorText message={loadError} onRetry={() => void load()} />
@@ -224,58 +248,52 @@ export default function StaffScreen() {
         </ThemedText>
       )}
 
-      {people?.map((person) => {
-        // Owners are managed by ECCS and by their own one-time code, and nobody edits themselves here.
-        const editable =
-          person.role !== 'OWNER' && person.id !== user?.id && (person.role === 'HEAD_CHEF' || mayAddManager);
-        const running = working?.personId === person.id ? working.kind : null;
-        return (
-          <View key={person.id} style={[styles.card, { borderColor: theme.border }]}>
-            <ThemedText type="default" style={styles.personName}>
-              {person.name}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {t(`role.${person.role}`)}
-              {person.outletName ? ` · ${person.outletName}` : ''}
-              {person.isActive ? '' : ` · ${t('staff.inactive')}`}
-            </ThemedText>
-            {editable && person.isActive && (
-              <View style={styles.actions}>
-                <View style={styles.flex}>
-                  <Button
-                    fill
-                    label={t('staff.resetPin')}
-                    variant="secondary"
-                    loading={running === 'reset'}
-                    disabled={working !== null}
-                    onPress={() => setPending({ kind: 'reset', person })}
-                  />
-                </View>
-                <View style={styles.flex}>
-                  <Button
-                    fill
-                    label={t('staff.deactivate')}
-                    variant="danger"
-                    loading={running === 'deactivate'}
-                    disabled={working !== null}
-                    onPress={() => setPending({ kind: 'deactivate', person })}
-                  />
-                </View>
-              </View>
-            )}
-            {editable && !person.isActive && (
-              <Button
-                label={t('staff.restore')}
-                variant="secondary"
-                loading={running === 'restore'}
-                disabled={working !== null}
-                onPress={() => setPending({ kind: 'restore', person })}
-              />
-            )}
-            <ErrorText message={actionError?.personId === person.id ? actionError.message : null} />
-          </View>
-        );
-      })}
+      {/* One plain row per login. Its actions are in a short sheet that the row opens, as admin consoles
+          keep a member's "Reset password" and "Deactivate" behind the member (Slack's ⋮ beside each
+          member; Google Workspace's user page), instead of two buttons on every card (22 Oct 2026). */}
+      <View>
+        {people?.map((person, index) => {
+          const editable = mayChange(person);
+          const running = working?.personId === person.id;
+          return (
+            <ListRow
+              key={person.id}
+              title={person.name}
+              subtitle={[t(`role.${person.role}`), person.outletName, person.isActive ? null : t('staff.inactive')].filter(Boolean).join(' · ')}
+              below={<ErrorText message={actionError?.personId === person.id ? actionError.message : null} />}
+              leading={<Avatar name={person.name} size={40} />}
+              dimmed={!person.isActive}
+              divider={index > 0}
+              chevron={false}
+              accessibilityLabel={editable ? `${person.name}, ${t('common.moreActions')}` : undefined}
+              trailing={
+                running ? (
+                  <ActivityIndicator color={theme.primary} />
+                ) : editable ? (
+                  <Ionicons name="ellipsis-vertical" size={22} color={theme.textSecondary} />
+                ) : undefined
+              }
+              onPress={editable && working === null ? () => setMenuFor(person.id) : undefined}
+            />
+          );
+        })}
+      </View>
+
+      <OptionSheet
+        visible={sheetFor !== null}
+        title={sheetFor?.name}
+        onClose={() => setMenuFor(null)}
+        options={
+          sheetFor === null
+            ? []
+            : sheetFor.isActive
+              ? [
+                  { label: t('staff.resetPin'), icon: 'key-outline', onPress: () => ask('reset', sheetFor) },
+                  { label: t('staff.deactivate'), icon: 'person-remove-outline', danger: true, onPress: () => ask('deactivate', sheetFor) },
+                ]
+              : [{ label: t('staff.restore'), icon: 'refresh-outline', onPress: () => ask('restore', sheetFor) }]
+        }
+      />
 
       <ConfirmDialog
         visible={pending !== null}
@@ -290,10 +308,6 @@ export default function StaffScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  personName: { fontWeight: 700 },
   code: { fontSize: 24, lineHeight: 32, fontWeight: 700, letterSpacing: 1 },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  actions: { flexDirection: 'row', gap: Spacing.two },
-  flex: { flex: 1 },
 });

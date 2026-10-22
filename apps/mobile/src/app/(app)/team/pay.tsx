@@ -8,14 +8,16 @@ import {
   type StaffPayEntryKind,
 } from '@eccs/shared';
 import { Redirect, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, Share, StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, Share, StyleSheet, View, type ScrollView } from 'react-native';
 
 import { countsOf, DAY_MARK, DAY_MARK_ORDER, DayCounts, MonthStepper, parseRupees, SALARY_STATE, typedRupees, useLoaded } from '@/components/team-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ErrorText } from '@/components/ui/error-text';
+import { Expandable } from '@/components/ui/expandable';
+import { Notice } from '@/components/ui/notice';
 import { OptionChip } from '@/components/ui/option-chip';
 import { Screen } from '@/components/ui/screen';
 import { useSnackbar } from '@/components/ui/snackbar';
@@ -25,6 +27,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { formatMoney } from '@/lib/billing';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, formatMonth, indiaToday, maskTypedDate, parseTypedDate, toTypedDate } from '@/lib/format';
+import { scrollToY } from '@/lib/scroll';
 import { useSession } from '@/lib/session';
 
 const MONTHS_BACK = 12;
@@ -103,6 +106,9 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState<StaffPayEntryKind | null>(null);
   const [removing, setRemoving] = useState<StaffPayEntryDto | null>(null);
+  // Where the payments are on the page, so the pinned "Record a payment" can bring its boxes into view.
+  const scrollRef = useRef<ScrollView>(null);
+  const paymentsY = useRef(0);
 
   /** What is typed, as the server takes it; null if a box does not hold an amount. */
   function readForm(): SaveSalaryInput | null {
@@ -250,7 +256,8 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
               accessibilityLabel={t('team.pay.removeEntry')}
               onPress={() => setRemoving(entry)}
               style={styles.entryRemove}>
-              <Ionicons name="trash-outline" size={22} color={theme.danger} />
+              {/* Grey on the list; red is kept for the question that confirms it. */}
+              <Ionicons name="trash-outline" size={22} color={theme.textSecondary} />
             </Pressable>
           )}
         </View>
@@ -263,29 +270,46 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
   const partMonth = data.totals.countedDays > 0 && data.totals.countedDays < data.totals.daysInMonth;
   // The share of the salary for the days counted, before anything is taken off for absences.
   const sharePaise = Math.round((data.ratePaise * data.totals.countedDays) / data.totals.daysInMonth);
+  /** Opens the boxes for a payment and brings them into view. */
+  function recordPayment() {
+    setAdding('PAYMENT');
+    scrollToY(scrollRef, paymentsY.current);
+  }
+
   return (
     <Screen
       back
       title={data.name}
-      subtitle={t('team.pay.notPayroll')}
+      // That this is a record, not payroll, is read once: folded away at the end (22 Oct 2026).
+      about={t('team.pay.notPayroll')}
       onRefresh={onRefresh}
+      scrollRef={scrollRef}
+      // The main thing done here is recording what was paid, so that is the one filled button, pinned
+      // where the thumb is (Material 3: one filled button for the main action; Zoho Books puts Record
+      // Payment first on an invoice). While something typed is not saved yet, Save is the filled button
+      // and recording a payment stays one tap away under it (its suggested amount already counts what
+      // was typed). Sharing the summary is the second action, in grey.
       footer={
         <>
           <ErrorText message={formError} />
           {dirty && !locked && <Button label={t('team.save')} loading={busy} onPress={() => void save()} />}
-          <Button variant={dirty && !locked ? 'secondary' : 'primary'} icon="share-social-outline" label={t('team.pay.share')} disabled={busy} onPress={() => void share()} />
+          {!locked && adding !== 'PAYMENT' && (
+            <Button
+              icon="cash-outline"
+              label={t('team.pay.addPayment')}
+              variant={dirty ? 'tonal' : 'primary'}
+              disabled={busy}
+              onPress={recordPayment}
+            />
+          )}
+          {!dirty && (
+            <Button variant="secondary" icon="share-social-outline" label={t('team.pay.share')} disabled={busy} onPress={() => void share()} />
+          )}
         </>
       }>
       <MonthStepper month={data.month} thisMonth={thisMonth} earliest={shiftMonth(thisMonth, -MONTHS_BACK)} onChange={onMonth} />
 
-      {locked && (
-        <View style={[styles.card, styles.lockedNote, { borderColor: theme.border }]}>
-          <Ionicons name="lock-closed" size={22} color={theme.textSecondary} />
-          <ThemedText type="default" style={styles.flex}>
-            {t('team.self.locked')}
-          </ThemedText>
-        </View>
-      )}
+      {locked && <Notice tone="info" text={t('team.self.locked')} />}
 
       {data.beforeRecords && (
         <ThemedText type="default" themeColor="textSecondary">
@@ -309,16 +333,34 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
             })}
           </ThemedText>
         )}
+        {line(t('team.pay.worked', { days: data.paidDays }), data.computedDuePaise, { strong: !ownDue })}
+        {ownDue ? (
+          <>
+            <TextField
+              label={t('team.pay.ownFigure')}
+              value={dueText}
+              onChangeText={setDueText}
+              keyboardType="decimal-pad"
+              hint={t('team.pay.ownFigureHint')}
+              editable={!locked}
+            />
+            {!locked && <Button variant="link" align="start" label={t('team.pay.useApps')} onPress={() => setOwnDue(false)} />}
+          </>
+        ) : (
+          // On the card's left edge, with the words it belongs to, not centred under them.
+          !locked && <Button variant="link" align="start" label={t('team.pay.useOwn')} onPress={() => setOwnDue(true)} />
+        )}
+      </View>
+
+      {/* How the month's pay is worked out, step by step in rupees: there for checking, folded so the
+          figures and the payments come first (Nielsen Norman Group on progressive disclosure). */}
+      <Expandable title={t('team.pay.how')} icon="calculator-outline">
         {data.payType === 'DAILY' ? (
           <ThemedText type="small" themeColor="textSecondary">
             {t('team.pay.ruleDaily', { amount })}
           </ThemedText>
         ) : (
-          // How the month's pay is worked out, step by step in rupees, with the day rate.
           <View style={styles.how}>
-            <ThemedText type="smallBold" themeColor="textSecondary">
-              {t('team.pay.how')}
-            </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {t(divisor === data.totals.daysInMonth ? 'team.pay.howRateMonth' : 'team.pay.howRateFixed', {
                 amount,
@@ -355,23 +397,7 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
             </ThemedText>
           </View>
         )}
-        {line(t('team.pay.worked', { days: data.paidDays }), data.computedDuePaise, { strong: !ownDue })}
-        {ownDue ? (
-          <>
-            <TextField
-              label={t('team.pay.ownFigure')}
-              value={dueText}
-              onChangeText={setDueText}
-              keyboardType="decimal-pad"
-              hint={t('team.pay.ownFigureHint')}
-              editable={!locked}
-            />
-            {!locked && <Button variant="link" label={t('team.pay.useApps')} onPress={() => setOwnDue(false)} />}
-          </>
-        ) : (
-          !locked && <Button variant="link" label={t('team.pay.useOwn')} onPress={() => setOwnDue(true)} />
-        )}
-      </View>
+      </Expandable>
 
       {/* ── Typed by hand ── */}
       <View style={styles.pair}>
@@ -432,10 +458,10 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
               hint={t('team.pay.ownFigureHint')}
               editable={!locked}
             />
-            {!locked && <Button variant="link" label={t('team.pay.useApps')} onPress={() => setOwnCarried(false)} />}
+            {!locked && <Button variant="link" align="start" label={t('team.pay.useApps')} onPress={() => setOwnCarried(false)} />}
           </>
         ) : (
-          !locked && <Button variant="link" label={t('team.pay.useOwn')} onPress={() => setOwnCarried(true)} />
+          !locked && <Button variant="link" align="start" label={t('team.pay.useOwn')} onPress={() => setOwnCarried(true)} />
         )}
       </View>
 
@@ -460,16 +486,19 @@ function PayForm({ data, thisMonth, onMonth, onChanged, onRefresh }: PayFormProp
         </View>
       </View>
 
-      {/* ── Payments ── */}
-      <ThemedText type="smallBold" themeColor="textSecondary">
-        {t('team.pay.payments')}
-      </ThemedText>
-      {entryList('PAYMENT')}
-      {adding === 'PAYMENT' ? (
-        <EntryForm kind="PAYMENT" data={data} suggested={Math.max(balancePaise, 0)} onDone={() => setAdding(null)} onChanged={onChanged} />
-      ) : (
-        !locked && <Button variant="secondary" icon="cash-outline" label={t('team.pay.addPayment')} onPress={() => setAdding('PAYMENT')} />
-      )}
+      {/* ── Payments: recorded with the pinned button at the foot of the screen ── */}
+      <View style={styles.section} onLayout={(event) => (paymentsY.current = event.nativeEvent.layout.y)}>
+        {/* The heading only over something: with no payments yet the section is empty until the form opens. */}
+        {(adding === 'PAYMENT' || data.entries.some((entry) => entry.kind === 'PAYMENT')) && (
+          <ThemedText type="smallBold" themeColor="textSecondary">
+            {t('team.pay.payments')}
+          </ThemedText>
+        )}
+        {entryList('PAYMENT')}
+        {adding === 'PAYMENT' && (
+          <EntryForm kind="PAYMENT" data={data} suggested={Math.max(balancePaise, 0)} onDone={() => setAdding(null)} onChanged={onChanged} />
+        )}
+      </View>
 
       <TextField label={t('team.pay.note')} value={note} onChangeText={setNote} maxLength={300} multiline editable={!locked} />
 
@@ -544,7 +573,7 @@ function EntryForm({ kind, data, suggested, onDone, onChanged }: EntryFormProps)
         placeholder="DD/MM/YYYY"
         error={errors.date}
       />
-      <TextField label={t('team.pay.entryNote')} value={note} onChangeText={setNote} maxLength={120} hint={t('team.person.optional')} />
+      <TextField label={t('team.pay.entryNote')} value={note} onChangeText={setNote} maxLength={120} />
       <ErrorText message={failure} />
       <Button label={t(kind === 'ADVANCE' ? 'team.pay.addAdvance' : 'team.pay.addPayment')} loading={busy} onPress={() => void add()} />
       <Button variant="secondary" label={t('common.cancel')} disabled={busy} onPress={onDone} />
@@ -562,7 +591,8 @@ const styles = StyleSheet.create({
   state: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   pair: { flexDirection: 'row', gap: Spacing.two },
   flex: { flex: 1 },
-  lockedNote: { flexDirection: 'row', alignItems: 'center' },
+  // The page's own gap, kept inside the payments group.
+  section: { gap: Spacing.three },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   entry: {
     flexDirection: 'row',

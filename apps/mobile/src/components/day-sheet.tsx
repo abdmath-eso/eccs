@@ -8,6 +8,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { CompactAction } from '@/components/lead-parts';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { ErrorText } from '@/components/ui/error-text';
 import { MinTouchSize, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -127,7 +128,8 @@ export function DaySheet({ sheet, now }: DaySheetProps) {
 
       {/* The evening: what the office's close still lists for these visits. */}
       {toDo.length > 0 && (
-        <View style={[styles.toDo, { borderColor: theme.warning }]}>
+        // The app's one card with an amber edge, for a card that needs attention.
+        <Card borderColor={theme.warning} style={styles.toDo}>
           <ThemedText type="default" themeColor="warning" style={styles.bold} accessibilityRole="header">
             {t('sheet.stillToDo')}
           </ThemedText>
@@ -147,7 +149,7 @@ export function DaySheet({ sheet, now }: DaySheetProps) {
               </Pressable>
             );
           })}
-        </View>
+        </Card>
       )}
 
       {/* The visits in order. The row opens the visit; Map sits beside it, never inside it. */}
@@ -187,7 +189,9 @@ export function DaySheet({ sheet, now }: DaySheetProps) {
                   )}
                 </Pressable>
                 {!!visit.mapUrl && (
+                  // Tonal, as on the visit cards below and on the visit itself: Map looks the same wherever it is.
                   <CompactAction
+                    tonal
                     icon="navigate-outline"
                     label={t('sheet.map')}
                     accessibilityLabel={t('sheet.mapOpen', { outlet: visit.outletName })}
@@ -227,12 +231,16 @@ export function DaySheet({ sheet, now }: DaySheetProps) {
               />
             </View>
           )}
-          {/* One card of short rows, as a packing list: the visits are listed just above, so each thing names them by time. */}
+          {/* One card of short rows, as a packing list: the visits are listed just above, so each thing names them by time.
+              A thing every visit needs says so in a count ("All 3 visits") rather than naming every outlet again; any
+              other says which visits, on a small line of its own under the thing. With one visit today, there is nothing to say. */}
           {(!allPacked || showPacked) && (
             <View style={[styles.visits, { borderColor: theme.border }]}>
               {sheet.carry.map((entry, index) => {
                 const checked = ticks.has(carryKey(entry.item));
-                const forWhich = entry.visits.map((visit) => (visit.time ? formatTime(visit.time, language) : visit.outletName)).join(', ');
+                const forAll = entry.visits.length >= sheet.visits.length;
+                const names = entry.visits.map((visit) => (visit.time ? formatTime(visit.time, language) : visit.outletName)).join(', ');
+                const forWhich = sheet.visits.length < 2 ? null : forAll ? t('sheet.carryAll', { count: sheet.visits.length }) : t('sheet.carryFor', { visits: names });
                 const inFull = entry.visits.map((visit) => [visit.time ? formatTime(visit.time, language) : null, visit.outletName].filter(Boolean).join(' ')).join(', ');
                 return (
                   <Pressable
@@ -247,13 +255,14 @@ export function DaySheet({ sheet, now }: DaySheetProps) {
                       (checked || pressed) && { backgroundColor: theme.backgroundElement },
                     ]}>
                     <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={26} color={checked ? theme.primary : theme.outline} />
-                    <ThemedText type="default" style={styles.flex}>
-                      {entry.item}
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {'  '}
-                        {forWhich}
-                      </ThemedText>
-                    </ThemedText>
+                    <View style={styles.carryText}>
+                      <ThemedText type="default">{entry.item}</ThemedText>
+                      {forWhich && (
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {forWhich}
+                        </ThemedText>
+                      )}
+                    </View>
                   </Pressable>
                 );
               })}
@@ -275,7 +284,7 @@ const styles = StyleSheet.create({
   // The pin on the address's first line, not halfway down a two-line address.
   addressLine: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.two },
   lineIcon: { marginTop: 2 },
-  toDo: { borderWidth: 2, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
+  toDo: { gap: Spacing.one },
   toDoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -290,4 +299,5 @@ const styles = StyleSheet.create({
   visitText: { flex: 1, gap: Spacing.half },
   carryTop: { marginTop: Spacing.two },
   carryRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, minHeight: MinTouchSize, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+  carryText: { flex: 1, gap: Spacing.half },
 });

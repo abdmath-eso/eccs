@@ -14,19 +14,41 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ## Thursday 22 October 2026
 
-*In progress. To be written up at the next end of day.*
+A short day: a new APK with the console plan's phone parts, and step 3 (Quality and the day's sheet) deployed to AWS, so all of the console plan is now live. 2 commits, with the end of day. Pushed to GitHub at the end of the day, with 20 Oct's work.
 
-**So far**
+### What was done
 
-- **New APK, at the founder's request** (built by the step 1 builder, which the founder reopened): `apps/mobile/ECCS-test.apk`, 11:51 am, 126 MB, from `85bf92e`, calling `https://api.eosfera.in/v1` (17-minute build, log in `.work/biz/i/apk-build.log`). It adds the console plan's phone parts: the Supervisor's day sheet at the top of their Visits list, and the BDE's "quote sent, not opened in 5 days" line. The sheet stays hidden until step 3 is deployed to AWS, which still waits for the founder's word after the 20 Oct deploy was stopped for low memory. The working tree was clean afterwards.
+- **New APK, at the founder's request** (built by the step 1 builder, which the founder reopened): `apps/mobile/ECCS-test.apk`, 11:51 am, 126 MB, from `85bf92e`, calling `https://api.eosfera.in/v1` (17-minute build, log in `.work/biz/i/apk-build.log`). It adds the console plan's phone parts: the Supervisor's day sheet at the top of their Visits list, and the BDE's "quote sent, not opened in 5 days" line. The sheet stays hidden until step 3 is deployed to AWS. The working tree was clean afterwards; the founder then stopped that builder, and nothing of it was left running.
+- **Step 3 deployed to AWS** (the founder: "deploy and eod"). With 5.1 GB of memory free this time, the deploy built the images, uploaded them and applied migration `20261020200000_quality_day_sheet` on the server: version `aed0ac2ce771`, health `{"status":"ok"}`, the console answering, and the new day-sheet route refusing a request with no login (401), as it should. All of the console plan is now on `console.eosfera.in`, and the 22 Oct APK's day sheet shows. The server has no "What to carry" lists: `seed:live` has none, so they are typed in Catalogue there.
+- **End of day:** the 20 Oct entry written up in full (it had stayed as "so far" notes), STATUS brought up to date, and everything pushed to GitHub.
+
+### Decisions the founder made
+
+- A new APK (for the AWS server, with the console plan's phone parts).
+- Deploy step 3 to AWS, and end the day.
+
+### How it was tested
+
+- **The APK:** the build log shows the AWS address built in and "BUILD SUCCESSFUL"; not yet tried on a phone.
+- **The deploy:** the migration applied, the containers healthy, the API's health check and the console's login page answering, and the new route present.
+
+### Problems found
+
+- None new. The 20 Oct deploy's memory problem did not come back with 5.1 GB free.
+
+### Left open
+
+- The founder trying the APK and the console plan (`docs/TEST_LOGINS.md` sections 31 to 33).
+- The choices in STATUS section 4, above all the hygiene score and the privacy line.
+- What comes next: Partners and Supplies are "later" in the plan.
 
 ---
 
 ## Tuesday 20 October 2026
 
-*In progress. To be written up at the next end of day.*
+A very long day: ECCS went live on AWS (`console.eosfera.in`, `api.eosfera.in`, `eccs.eosfera.in`) with a clean APK for it; the Licences page and the restaurant's checklists and licences left the console's Monitoring; the console's notification sound moved to Windows; a DevOps plan was written and benched; and the founder's eight-page operations design became the console plan, agreed and then built in three steps (the Week board, Quotes, New outlets and more; Today as the home; Quality and the day's sheet). 20 commits. Steps 1 and 2 reached AWS that evening; step 3's deploy was stopped by low memory on this PC and went out on 22 Oct. Not pushed until 22 Oct, the next "eod".
 
-**So far**
+### What was done
 
 - **The ECCS server on AWS** (the founder: deploy today, on their domain `eosfera.in`, with only the seeded data, no sample restaurants or test logins, and Buddy on; every login code 123456 until SMS exists, as there is no DLT registration yet). The founder signed the CLI in to the project account "Big Ideas Live Here" (profile `eccs`, IAM user `abdmath`) and to the management account (default profile, IAM user `abdmath01`); Mumbai was only hidden in the console by the account's "Visible Regions" setting, not blocked. `eosfera.in` and `www` already serve the founder's Eosfera website, so ECCS uses `api.`, `console.` and `eccs.eosfera.in` (the QR pages, quotes and legal pages) and leaves the site alone. AWS refused the 4 GB Lightsail plan for this new account ("can not create an instance using this Lightsail plan size"), so the server is on the 2 GB plan (US$12 a month) with 2 GB of swap. Created by Claude with the founder's go-ahead, in Mumbai: the server `eccs-live` (Ubuntu 24.04, static IP 15.206.236.36, firewall SSH, 80 and 443 only, nightly snapshots at 2:30 am India time), the bucket `eccs-files-412611737507` (private, versioned, encrypted, old versions dropped after 90 days) and the IAM user `eccs-server` reaching only that bucket. The server is prepared (Docker, swap, its own firewall, automatic security updates) and restarted. The settings file is `Documents\eccs-server\eccs.env` on this PC (secrets made there and never shown); the SSH key is `.ssh\eccs-lightsail`.
 - The founder added the three DNS records at GoDaddy (the first try had not been saved; GoDaddy's zone changed only on the second) and the Anthropic key to the settings file, and asked for two more Super Admins. `seed:live` made only one Super Admin and the console cannot add one, so Claude let its first run make all the founders at once (repeat `--phone` and `--name`; all or none; still none once one exists). While the DNS waited, Claude built the three images for that commit and put them and the settings file on the server (618 MB, uploaded in 25 seconds), so the deploy only migrated and started.
@@ -53,6 +75,42 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 - **Step 3 reviewed, tested and committed.** The builder looked at 78 pictures and the PDFs (`.work/biz/shots-i3/`) and fixed: a sideways scroll on the follow-up panel at 390 px, photos shown as thumbnails, the sheet laid out as the design's two columns (What to carry, Route), a stray "·" on the printed sheet, the phone's carry list made compact, "Still to do" telling apart two visits at one outlet, and the incident form's wording. The builder ran the new suites (quality 16, incidents 6, day-sheet 5) and the related ones, 288/288. Claude reran type checks and lint (clean), shared unit tests 822/822, API unit tests 23/23, mobile offline 53/53, and **the whole API end-to-end suite, 49 files, 840/840**. Committed as `afd4424` at about 9:05 pm; Claude built the founder's `apps/api/dist` from it at 9:05 pm, so `pnpm --filter @eccs/api start:prod` gives the founder steps 1 to 3. The builder removed its throwaway records (a "Screenshot Mehfil Dhaba" restaurant and everything made for it, the first run's leftovers) by their recorded ids; the founder's 4000, 3000 and 8081 were not touched. Two early type checks wrote a compiler cache file into the founder's `apps/api/dist`; it was deleted at once.
 - **A side effect on the founder's copy.** Follow-ups come in whenever Quality or Today is read, so the sample data on this PC now brings in a real follow-up (Spice Route, Gachibowli, rated 1 star on 10 Oct) that will show until about 24 Oct, and every test that reads Quality or Today makes such follow-ups too. The builder removed the two its runs made, by their ids; the one the founder sees will come back on the next read until the rating is older than 14 days.
 - **Not deployed.** The deploy of step 3 to AWS was stopped on this PC by Claude Code for low memory while it was building the images, so nothing reached the server: AWS still runs step 2 (version `9fbec859ec6a`), healthy. Step 3 goes to AWS when the founder says so (Claude reruns `.\infra\scripts\deploy.ps1`). Stage I's three steps are built; Partners and Supplies are "later" in the plan, so what comes next is the founder's call.
+
+### Decisions the founder made
+
+- Deploy to AWS today on `eosfera.in` subdomains, with only the seeded library (no sample restaurants), Buddy on, and the login code 123456 for everyone until SMS with DLT exists.
+- Three Super Admins: Abdul Matheen, Sonu Jopat and Krishna Deshpande.
+- A clean, production-like APK for the AWS server.
+- Buddy's mascot: A, "Chef Bubble", final.
+- No Licences page in the console; no checklists or licences on Monitoring.
+- The console's notification sound from Windows, not the browser.
+- The DevOps plan (CI/CD, OIDC, federated keys): benched for later.
+- No People page; the console plan agreed as recommended (crew clock-in not now, fixed roles, Close the day warns, free redo visits allowed with no re-score, customer-page photo approvals into Quality), and "go ahead with the plan".
+
+### How it was tested
+
+- **AWS:** the three addresses answering over HTTPS with Let's Encrypt certificates, health `{"status":"ok"}`, 47 migrations and `seed:live`'s counts checked on the server.
+- **The APK:** the AWS address checked inside the file; not yet tried on a phone.
+- **Licences and Monitoring removal:** shared 723, type checks and lint, end to end 145/145.
+- **Stage I:** each step's pictures looked at (115, 87 and 78 of them, plus PDFs) and fixed; step 1: shared 774, the new and touched suites 76/76; step 2: shared 793, its suites 117/117; step 3: shared 822, mobile offline 53, and **the whole API end-to-end suite 840/840**; type checks and lint clean at each step.
+- **Deploys:** step 1 (`8fb79c195f09`) and step 2 (`9fbec859ec6a`) applied their migrations on the server and answered health checks.
+
+### Problems found
+
+- **AWS refused the 4 GB Lightsail plan** for the new account: the server is on the 2 GB plan with 2 GB of swap.
+- **The first APK build stopped** in the Android compile step with its output filtered away; run again with a full log, it succeeded.
+- **`seed:live` could make only one Super Admin** and the console cannot add one: its first run now makes all the founders at once.
+- **A test clean-up in step 2 could not go by recorded ids** (lost when the run stopped part-way); found by keys only that run used, checked and removed, and the suite fixed so it cannot happen again.
+- **Step 3's deploy was stopped by Claude Code for low memory** on this PC while building the images; nothing reached the server.
+- **The two new notifications were numbered S20 and Q1 in the code,** numbers the register already used; the register calls them S26 and QY1 and the code comments were corrected.
+
+### Left open
+
+- Step 3 on AWS (done on 22 Oct).
+- The founder's choices in STATUS section 4 for the three steps, above all whether a rejected photo should lower the hygiene score, and the privacy line for staff seeing doubtful checklist photos (`docs/LEGAL_NOTES.md` point 14).
+- Login SMS (MSG91 with DLT), or at least a private code instead of 123456, before any real restaurant uses the server.
+- Partners and Supplies, "later" in the plan.
+- The BD briefing still shows Buddy's old sparkle.
 
 ---
 

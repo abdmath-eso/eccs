@@ -12,6 +12,16 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Thursday 22 October 2026
+
+*In progress. To be written up at the next end of day.*
+
+**So far**
+
+- **New APK, at the founder's request** (built by the step 1 builder, which the founder reopened): `apps/mobile/ECCS-test.apk`, 11:51 am, 126 MB, from `85bf92e`, calling `https://api.eosfera.in/v1` (17-minute build, log in `.work/biz/i/apk-build.log`). It adds the console plan's phone parts: the Supervisor's day sheet at the top of their Visits list, and the BDE's "quote sent, not opened in 5 days" line. The sheet stays hidden until step 3 is deployed to AWS, which still waits for the founder's word after the 20 Oct deploy was stopped for low memory. The working tree was clean afterwards.
+
+---
+
 ## Tuesday 20 October 2026
 
 *In progress. To be written up at the next end of day.*

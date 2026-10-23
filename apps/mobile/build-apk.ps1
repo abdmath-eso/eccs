@@ -56,6 +56,12 @@ $env:NODE_ENV = 'production'
 $env:CI = '1'
 Write-Host "API address built into the app: $ApiUrl"
 
+# The address is written into the app's code when the code is bundled, and the bundler keeps a
+# cache of its work that does not notice a changed address: on 23 Oct 2026 a build for this PC
+# came out still calling the AWS server, because the build before it had been for AWS. So the
+# cache is emptied first; the build takes a few minutes longer.
+Remove-Item -Recurse -Force (Join-Path $env:TEMP 'metro-cache') -ErrorAction SilentlyContinue
+
 # The shared packages the app imports (their built output is not kept in git).
 Set-Location $repo
 pnpm build --filter=@eccs/shared --filter=@eccs/i18n --filter=@eccs/api-client

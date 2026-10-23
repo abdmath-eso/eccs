@@ -12,6 +12,22 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ---
 
+## Friday 23 October 2026
+
+So far (written up at the end of the day).
+
+- **The founder's video** (`docs/screenshots/2026-10-22 old Edit checklists scrolling lag.mp4`, recorded 22 Oct, 2:42 pm, with the 11:51 am APK): scrolling lags and the phone warms a little. Asked whether it is AWS and whether the app is optimised.
+- **Measured, not guessed:**
+  - The video, frame by frame (in Edge, about 24 frames a second): most flicks start with a frozen frame and then a 150 to 190 pixel jump, so the app really did stall. The screen is the old Edit checklists, which drew every checklist with two big buttons under every item; it was rebuilt on 22 Oct (W5).
+  - AWS answers in 0.15 to 0.18 s; scrolling never calls the server.
+  - The current app in the Android emulator (a test APK against a test API on 4001; nothing on AWS): 17 long screens at 10 to 15% late frames, against 9% for Android's own Settings app on the same emulator; Edit checklists 8%. Services and SOPs were slower only the first time they opened, while their data was still arriving.
+  - Idle: no frames drawn, no server calls, no location or camera, but about 6 to 10% of one core on the main thread. A system trace and React Native's own source show it is React Native's event dispatcher, which re-schedules itself on every screen refresh in every React Native app, and stops in the background.
+- **Fixed on the way:** `build-apk.ps1` kept the previous build's server address when the address changed (a cache); it now empties the cache first. The founder's 5:34 pm APK was checked: it calls AWS as intended.
+- **Mistakes and clean-up:** a test call of Claude's linked a "probe" phone on the local sample data; it, the emulator's phone and login, and the four "New phone linked" notifications they caused were removed by id. A first test APK called AWS (the cache problem); its two link attempts and one PIN were refused there, so nothing was created. Docker was started (it was off after a restart).
+- **Open:** photo previews drawn at their shown size (`expo-image`) for photo-heavy screens, if the founder wants it; long-list virtualisation only if lists grow to hundreds of rows.
+
+---
+
 ## Thursday 22 October 2026
 
 A short day: a new APK with the console plan's phone parts, and step 3 (Quality and the day's sheet) deployed to AWS, so all of the console plan is now live. 2 commits, with the end of day. Pushed to GitHub at the end of the day, with 20 Oct's work.

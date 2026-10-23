@@ -14,7 +14,7 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ## Friday 23 October 2026
 
-The lag in the founder's video looked into, a legal pack made for the lawyer, and usage analytics built and deployed to AWS. 7 commits, with the end of day. Pushed to GitHub at the end of the day.
+The lag in the founder's video looked into, a legal pack made for the lawyer, and usage analytics built and deployed to AWS. 7 commits with this correction (6 at the end of day). Pushed to GitHub at the end of the day.
 
 ### What was done
 

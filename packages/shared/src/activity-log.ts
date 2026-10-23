@@ -381,6 +381,9 @@ export const ACTIVITY_ACTIONS = {
   "system.request.failed": ["system", "A page failed with a server error"],
   "system.logs.exported": ["system", "Exported the activity log"],
   "system.logs.pruned": ["system", "Deleted log entries older than the keeping period"],
+  // The Usage page (23 Oct 2026). Screen opens are counted, never logged one by one: the first never has a row.
+  "system.usage.counted": ["system", "Counted screens opened, for the Usage page"],
+  "system.usage.pruned": ["system", "Deleted usage counts older than the keeping period (timed job)"],
   "system.translations.filled": ["system", "Filled in missing languages of restaurants' own text (timed job)"],
 
   // Money and budget (the Finance page, 15 Oct 2026): amounts and kinds only, never who

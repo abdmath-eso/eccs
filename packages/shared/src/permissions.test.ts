@@ -103,6 +103,13 @@ describe("can", () => {
     for (const role of ["SUPERVISOR", "BDE"] as const) expect(can(eccs(role), "aiUsage", "read")).toBe(false);
     for (const members of [owner, manager, headChef]) expect(can(members, "aiUsage", "read")).toBe(false);
   });
+
+  it("shows the Usage page to the Super Admin only, and lets nobody change it (23 Oct 2026)", () => {
+    expect(can(eccs("SUPER_ADMIN"), "usage", "read")).toBe(true);
+    expect(can(eccs("SUPER_ADMIN"), "usage", "update")).toBe(false);
+    for (const role of ["OPS_MANAGER", "SUPERVISOR", "BDE"] as const) expect(can(eccs(role), "usage", "read")).toBe(false);
+    for (const members of [owner, manager, headChef]) expect(can(members, "usage", "read")).toBe(false);
+  });
 });
 
 describe("accessScope", () => {

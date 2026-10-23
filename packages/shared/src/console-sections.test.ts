@@ -33,8 +33,8 @@ describe("consoleSectionsFor", () => {
     expect(labels("SUPER_ADMIN")).toEqual(CONSOLE_SECTIONS.map((section) => section.label));
   });
 
-  it("stays at 16 entries, with Quality after Issues and no Customer pages (console plan step 3)", () => {
-    expect(CONSOLE_SECTIONS).toHaveLength(16);
+  it("has 17 entries, with Quality after Issues and no Customer pages (console plan step 3; Usage added 23 Oct 2026)", () => {
+    expect(CONSOLE_SECTIONS).toHaveLength(17);
     const keys = CONSOLE_SECTIONS.map((section) => section.key);
     expect(keys.indexOf("quality")).toBe(keys.indexOf("issues") + 1);
     expect(keys).not.toContain("customerPages");
@@ -46,6 +46,12 @@ describe("consoleSectionsFor", () => {
     expect(labels("OPS_MANAGER")).toContain("Quality");
     expect(labels("SUPERVISOR")).not.toContain("Quality");
     expect(labels("BDE")).not.toContain("Quality");
+  });
+
+  it("gives Usage to the Super Admin only (23 Oct 2026)", () => {
+    expect(labels("SUPER_ADMIN")).toContain("Usage");
+    for (const role of ["OPS_MANAGER", "SUPERVISOR", "BDE"] as const) expect(labels(role)).not.toContain("Usage");
+    expect(CONSOLE_SECTIONS.find((section) => section.key === "usage")).toMatchObject({ href: "/usage", group: "Business" });
   });
 
   it("agrees with the menu's own check", () => {

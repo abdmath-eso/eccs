@@ -35,6 +35,7 @@ export const RESOURCES = [
   "team", // ECCS's own team: who is in, their week, leave and salaries (the console's Team page)
   "aiUsage", // what the AI helpers cost, the request log, and the AI settings (the console's AI usage page)
   "quality", // follow-ups, photo judgements and incidents (the console's Quality page)
+  "usage", // who uses the apps and the console, how often and which parts (the console's Usage page)
 ] as const;
 
 export type Resource = (typeof RESOURCES)[number];
@@ -111,6 +112,9 @@ const LETTER: Record<string, Action> = { C: "create", R: "read", U: "update", A:
 // visit, add an incident; U = close a follow-up, judge a photo (accept, or reject and ask for a
 // retake), change or close an incident. The Super Admin and the Ops Manager; nobody else (the plan:
 // "SA, OM"). The customer-page photos shown on the same page keep their own grant, publicPage A.
+// For usage (the Usage page, 23 Oct 2026): R = who uses the apps and the console, how often and
+// which parts. The Super Admin only: it names people, ECCS's own team included. Every logged-in
+// person's app sends the screens they open with no grant at all (usage.controller.ts).
 const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
   SUPER_ADMIN: {
     clients: "CRU", eccsUsers: "CRU", restaurantUsers: "CRU", sopTemplates: "CRU",
@@ -118,7 +122,7 @@ const GRANTS: Record<Role, Partial<Record<Resource, string>>> = {
     subscriptions: "CRU", schedule: "CRU", jobs: "CRUA", inspections: "CRUA", reports: "CRA",
     publicPage: "RUA", licences: "CRU", documents: "CRU", scores: "R",
     invoices: "CRU", payments: "CRU", auditLog: "R", settings: "RU", finance: "CRU", sales: "CRUA",
-    team: "CRUA", aiUsage: "RU", quality: "CRU",
+    team: "CRUA", aiUsage: "RU", quality: "CRU", usage: "R",
   },
   OPS_MANAGER: {
     clients: "CRU", eccsUsers: "R", restaurantUsers: "CRU", sopTemplates: "CRU",

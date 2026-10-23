@@ -211,12 +211,13 @@ describe('Activity log (e2e)', () => {
       for (const route of changing) expect(Object.hasOwn(ACTIVITY_ACTIONS, route.action!), `${route.method} ${route.route}`).toBe(true);
     });
 
-    it('leaves only the clock-in and face-scan routes unrecorded, each with its reason', () => {
+    it('leaves only the clock-in and face-scan routes, and the Usage page counting (23 Oct 2026), unrecorded, each with its reason', () => {
       const never = app.get(ActivityRoutesService).routes().filter((route) => route.never);
       expect(never.map((route) => `${route.method} ${route.route}`).sort()).toEqual([
         'POST /attendance/clock/assisted',
         'POST /attendance/clock/confirm',
         'POST /attendance/clock/identify',
+        'POST /usage/views',
       ]);
       for (const route of never) expect(route.never!.length).toBeGreaterThan(20);
     });

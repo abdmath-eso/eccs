@@ -70,6 +70,8 @@ export const CONSOLE_SECTIONS: readonly ConsoleSection[] = [
   { key: "finance", label: "Finance", href: "/finance", group: "Business", needs: { resource: "finance", action: "read" }, about: "ECCS's own money" },
   { key: "team", label: "Team", href: "/team", group: "Business", needs: { resource: "team", action: "read" }, about: "ECCS's own team" },
   { key: "aiUsage", label: "AI usage", href: "/ai-usage", group: "Business", needs: { resource: "aiUsage", action: "read" }, about: "what the AI helpers cost" },
+  // The Super Admin only (23 Oct 2026): it names who uses the apps, ECCS's own team included.
+  { key: "usage", label: "Usage", href: "/usage", group: "Business", needs: { resource: "usage", action: "read" }, about: "who uses the apps, how often and which parts" },
   { key: "catalogue", label: "Catalogue", href: "/catalogue", group: "Set-up", needs: { resource: "catalog", action: "update" }, about: "services and prices" },
   { key: "plans", label: "Plans", href: "/plans", group: "Set-up", needs: { resource: "catalog", action: "update" }, about: "subscription plans" },
   { key: "sops", label: "SOPs", href: "/sops", group: "Set-up", needs: { resource: "sopTemplates", action: "read" }, about: "standard procedures" },

@@ -2849,3 +2849,30 @@ model DaySheetSend {
 
   @@index([date, supervisorId])
 }
+
+/// The Usage page (23 Oct 2026): how many times a logged-in person opened one screen of one
+/// app on one day, and nothing more (packages/shared/src/usage.ts). `key` is the row's
+/// day, person, app and screen together, so each open adds one to the same row. No record ids,
+/// searches or contents. Deleted after a year by a daily job.
+model UsageDay {
+  id             String   @id @default(uuid())
+  key            String   @unique
+  /// The day in India.
+  day            DateTime @db.Date
+  userId         String
+  /// The person's role when counted: a restaurant role, or an ECCS one.
+  role           Role
+  /// The restaurant, for a restaurant login; null for ECCS's own team.
+  organizationId String?
+  /// "APP" (the phone app, the Supervisor's included) or "CONSOLE".
+  app            String
+  /// The route's pattern, such as "/team/[staffId]", with a console tab at most.
+  screen         String
+  views          Int      @default(1)
+  firstAt        DateTime
+  lastAt         DateTime
+
+  @@index([day])
+  @@index([organizationId, day])
+  @@index([userId, day])
+}

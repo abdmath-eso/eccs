@@ -14,21 +14,52 @@ Each entry has the same parts: what was built, what the founder decided, what wa
 
 ## Friday 23 October 2026
 
-So far (written up at the end of the day).
+The lag in the founder's video looked into, a legal pack made for the lawyer, and usage analytics built and deployed to AWS. 7 commits, with the end of day. Pushed to GitHub at the end of the day.
 
-- **The founder's video** (`docs/screenshots/2026-10-22 old Edit checklists scrolling lag.mp4`, recorded 22 Oct, 2:42 pm, with the 11:51 am APK): scrolling lags and the phone warms a little. Asked whether it is AWS and whether the app is optimised.
-- **Measured, not guessed:**
+### What was done
+
+- **The founder's video** (`docs/screenshots/2026-10-22 old Edit checklists scrolling lag.mp4`, recorded 22 Oct, 2:42 pm, with the 11:51 am APK): scrolling lags and the phone warms a little; was it AWS, and is the app optimised? Measured, not guessed (`482868f`):
   - The video, frame by frame (in Edge, about 24 frames a second): most flicks start with a frozen frame and then a 150 to 190 pixel jump, so the app really did stall. The screen is the old Edit checklists, which drew every checklist with two big buttons under every item; it was rebuilt on 22 Oct (W5).
   - AWS answers in 0.15 to 0.18 s; scrolling never calls the server.
   - The current app in the Android emulator (a test APK against a test API on 4001; nothing on AWS): 17 long screens at 10 to 15% late frames, against 9% for Android's own Settings app on the same emulator; Edit checklists 8%. Services and SOPs were slower only the first time they opened, while their data was still arriving.
   - Idle: no frames drawn, no server calls, no location or camera, but about 6 to 10% of one core on the main thread. A system trace and React Native's own source show it is React Native's event dispatcher, which re-schedules itself on every screen refresh in every React Native app, and stops in the background.
-- **Fixed on the way:** `build-apk.ps1` kept the previous build's server address when the address changed (a cache); it now empties the cache first. The founder's 5:34 pm APK was checked: it calls AWS as intended.
-- **Mistakes and clean-up:** a test call of Claude's linked a "probe" phone on the local sample data; it, the emulator's phone and login, and the four "New phone linked" notifications they caused were removed by id. A first test APK called AWS (the cache problem); its two link attempts and one PIN were refused there, so nothing was created. Docker was started (it was off after a restart).
-- **Open:** photo previews drawn at their shown size (`expo-image`) for photo-heavy screens, if the founder wants it; long-list virtualisation only if lists grow to hundreds of rows.
-- **Legal pack for the lawyer** (the founder: every legal document and the face agreement as separate PDFs, as a brief, with what data we ask for and give): `docs/legal-pack/`, 14 PDFs and a zip, made by `build-pack.mjs` from the app's own texts. A brief with 12 questions and a table of where the drafts no longer match the app; a data inventory (16 groups of people, 10 outside recipients, sensitive data, deletion built and not built); the five documents with blanks in yellow and the 72 choices in orange; the agreement screen, the face consent (with all 11 translations, flagged as never read by a native speaker), the permission questions, the AI notices, the customer page, ECCS employees' notice, letter and handbook; LEGAL_NOTES. Checked page by page in Edge's PDF viewer. New gaps found and added to LEGAL_NOTES point 15: backups kept 90 days, not 30; prospects and Supervisors' check-in location not covered; Expo's push service not named.
-- **How to know who opened what** (the founder asked): explained the Logs page (every change, some opens, refusals and errors, 365 days; the Super Admin and the Ops Manager), the Team access card and the linked phones; there was no usage analytics.
-- **Usage analytics** (the founder: "yes add the usage analytics"): Console > Business > Usage, Super Admin only (`d36c111`, `3a0e2bc`). Researched first: Pendo's account overview, Mixpanel's company profile, Google Workspace's apps usage report, the stickiness ratio, Metabase's feature-adoption guide, Plausible's top pages. The console and the phone app note the screens a logged-in person opens and send them every half minute; the server keeps one row per person, day, app and screen with a count (no record ids, nothing on the screen), 365 days. The page: active today, this week and this month, restaurants this week, daily ÷ monthly, people per day, restaurants needing a look first, parts of the apps, top screens, every login's last day. Tested: 16 unit tests and 10 server tests; the activity log's list of unrecorded routes updated; end to end on test copies (4001, 3001, 8082) with photographs at desktop and phone width; the 8 rows, 2 sessions, phone and login code the check made removed by id. Migration applied locally and the local API rebuilt. Choices to confirm in STATUS section 4, "Usage"; LEGAL_NOTES point 16 and the lawyer's pack (00, 01) updated. Found on the way: the pack had said customer-page visits were logged and that only the Super Admin reads the Logs; both corrected (only refused or failed requests are logged; the Ops Manager reads the Logs too).
-- **Open:** a deploy to AWS and a new APK, both at the founder's word.
+  - Fixed on the way: `build-apk.ps1` kept the previous build's server address when the address changed (a cache); it now empties the cache first. The founder's 5:34 pm APK was checked: it calls AWS as intended. The founder then said to leave it.
+- **Legal pack for the lawyer** (the founder: every legal document and the face agreement as separate PDFs, as a brief, with what data we ask for and give): `docs/legal-pack/`, 14 PDFs and a zip, made by `build-pack.mjs` from the app's own texts (`0c2c900`). 00 a brief with 12 questions and a table of where the drafts no longer match the app; 01 a data inventory (every group of people, every outside recipient, sensitive data, deletion built and not built); 02 to 06 the five documents with blanks in yellow and the 72 choices in orange; 07 the agreement screen; 08 the face consent with all 11 translations, flagged as never read by a native speaker; 09 the permission questions; 10 the AI notices; 11 the customer page; 12 ECCS employees' notice, letter and handbook; 13 LEGAL_NOTES. New gaps found and added to LEGAL_NOTES point 15: backups kept 90 days, not 30; prospects and Supervisors' check-in location not covered; Expo's push service not named.
+- **"How do I know who opened what?"** (the founder): explained the Logs page (every change, some opens, refusals and errors, kept 365 days; the Super Admin and the Ops Manager), the Team access card and the linked phones; there was no usage analytics.
+- **Usage analytics** (the founder: "yes add the usage analytics"): Console > Business > **Usage**, the Super Admin only (`d36c111` counting and figures, `3a0e2bc` the page and the apps, `3009725` docs). Researched first: Pendo's account overview, Mixpanel's company profile, Google Workspace's apps usage report, the stickiness ratio (Pendo, Gainsight), Metabase's feature-adoption guide, Plausible's top pages.
+  - The console and the phone app note the screens a logged-in person opens (the route's pattern, never a record's id) and send them every half minute; the server keeps one row per person, day, app and screen with a count, 365 days, with no outside tool. Nobody is counted while nobody is logged in.
+  - The page: Restaurants and ECCS team tabs; 7, 30 or 90 days; one restaurant at a time. Active today, this week and this month (of the logins), restaurants this week, daily ÷ monthly; people active each day; restaurants needing a look first (no use for 7 days, 30% fewer days than the 4 weeks before, never used); the parts of the apps used; top screens; every login with its last day of use.
+  - Docs: STATUS (decision, section 4 "Usage", build progress J), PROPOSAL, NOTIFICATIONS (US1 to US4, none built), TEST_LOGINS section 34, LEGAL_NOTES point 16, and the lawyer's pack (00 and 01) remade.
+- **Deployed to AWS** (the founder: "Deploy on AWS and EOD"): version `30097252a16a` (from `3009725`) built on this PC with 4.8 GB of memory free, uploaded, migration `20261023120000_usage` applied on the server, every container healthy. Usage is live in the console there; phones count once they have a new APK.
+- **End of day:** this entry, STATUS brought up to date, everything pushed to GitHub.
+
+### Decisions the founder made
+
+- Leave the lag work there (the current app is within Android's own range).
+- Make the legal pack for the lawyer, each document its own PDF, with the brief and the data inventory.
+- Add usage analytics.
+- Deploy to AWS and end the day.
+
+### How it was tested
+
+- **Lag:** Android's frame statistics on the emulator, a system trace, and the video frame by frame.
+- **Legal pack:** every PDF opened in Edge's PDF viewer and looked at page by page; a scan for unfilled placeholders; the zip holds all 14.
+- **Usage:** 16 new unit tests (screen names, the figures, "needs a look") with all 840 shared tests passing; 10 new server tests (counting, refusals, the Super Admin only, one restaurant, the team), the activity log's 30 tests (its list of unrecorded routes now has the counting route) and the legal gate's; type checks of the API, the console and the app, and lint. Then end to end on test copies (API 4001, console 3001, app preview 8082): the Spice Route Owner opened phone screens and the Super Admin console pages, and the rows came out right; the page photographed at desktop and phone width (no sideways scroll). The check's 8 rows, 2 sessions, phone and login code were removed by id.
+- **Deploy:** the API health check `{"status":"ok"}`; the new routes refuse a request with no login (401) as they should; the console's /usage page answers (200); the server's database lists `20261023120000_usage` as applied and has the new table, empty.
+
+### Problems found
+
+- The legal pack's first draft said customer-page visits are logged and that only the Super Admin reads the Logs; neither is true (only refused or failed requests are logged; the Ops Manager reads the Logs too). Corrected, and the founder told; the same mistake was in Claude's answer about the Logs.
+- A `node -e "…"` command in Git Bash ran the file names in backquotes inside it as commands while writing STATUS; nothing was changed by it (checked with git), and the text was redone with the editor. Noted in STATUS section 6.
+- The first test of the usage server logged its own test users out (its clean-up ran first); fixed in the test.
+- Customer-page visits by diners cannot be counted without changing the 15 Oct rule that they are never recorded, so they are left out of the Usage page (a count per outlet and day could be added if the founder wants).
+
+### Left open
+
+- The founder's choices in STATUS section 4, "Usage" (above all: the Super Admin only; 365 days; the "needs a look" thresholds), and the earlier ones ("Screen review": whose number a Supervisor may call).
+- A new APK, so phones send their counts (built when the founder asks).
+- Sending the legal pack to the lawyer (if the first copy went already, the new 00 and 01).
+- The Privacy Policy and a staff notice should mention the usage counts (LEGAL_NOTES point 16), with the lawyer.
 
 ---
 

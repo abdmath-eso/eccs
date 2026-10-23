@@ -66,6 +66,10 @@ import type {
   UpdateProfileInput,
   UpdateRestaurantUserInput,
   VerifyOtpInput,
+  UsageOverviewDto,
+  UsagePeriod,
+  UsageSegment,
+  UsageViewsInput,
 } from "@eccs/shared";
 
 // notifications-types: the notifications worker imports its types from "@eccs/shared" on the next line
@@ -1367,6 +1371,21 @@ export function createApiClient(options: ApiClientOptions) {
       settings: () => call<AiSettingsDto>("GET", "/ai/settings"),
       /** Changes some settings (the Super Admin only); answers with the settings as saved. */
       saveSettings: (change: AiSettingsPatch) => call<AiSettingsDto>("PATCH", "/ai/settings", change),
+    },
+    // usage-api: the console's Usage page (23 Oct 2026)
+    /**
+     * Who uses the apps and the console, how often and which parts. Every logged-in person's
+     * app records the screens they open (no grant needed); only the Super Admin reads the page.
+     */
+    usage: {
+      /** The screens opened since the last call, at most 50. Answers with nothing. */
+      record: (input: UsageViewsInput) => call<void>("POST", "/usage/views", input),
+      /** Everything on the page: the period (7, 30 or 90 days), restaurants or ECCS's team, and one restaurant if chosen. */
+      overview: (filters: { days?: UsagePeriod; segment?: UsageSegment; restaurant?: string | null } = {}) =>
+        call<UsageOverviewDto>(
+          "GET",
+          `/usage/overview${query({ ...(filters.days && { days: filters.days }), ...(filters.segment && { segment: filters.segment }), ...(filters.restaurant && { restaurant: filters.restaurant }) })}`,
+        ),
     },
     // finance-api: the console's Finance page (15 Oct 2026)
     /**

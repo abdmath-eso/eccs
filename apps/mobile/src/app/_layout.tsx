@@ -8,6 +8,7 @@ import { SnackbarProvider } from '@/components/ui/snackbar';
 import { useDirection } from '@/lib/direction';
 import { KeyboardRoot } from '@/lib/keyboard';
 import { SessionProvider, useSession } from '@/lib/session';
+import { UsageCounter } from '@/lib/usage';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -68,18 +69,22 @@ function RootNavigator() {
   if (!ready) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={user !== null && !mustAgree}>
-        <Stack.Screen name="(app)" />
-      </Stack.Protected>
-      <Stack.Protected guard={mustAgree}>
-        <Stack.Screen name="accept" />
-      </Stack.Protected>
-      <Stack.Protected guard={user === null}>
-        <Stack.Screen name="(auth)" />
-      </Stack.Protected>
-      <Stack.Screen name="legal/[key]" />
-    </Stack>
+    <>
+      {/* Counts the screens a logged-in person opens, for the console's Usage page (23 Oct 2026). Draws nothing. */}
+      {user && <UsageCounter userId={user.id} />}
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={user !== null && !mustAgree}>
+          <Stack.Screen name="(app)" />
+        </Stack.Protected>
+        <Stack.Protected guard={mustAgree}>
+          <Stack.Screen name="accept" />
+        </Stack.Protected>
+        <Stack.Protected guard={user === null}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+        <Stack.Screen name="legal/[key]" />
+      </Stack>
+    </>
   );
 }
 

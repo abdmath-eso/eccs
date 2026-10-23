@@ -27,6 +27,7 @@ import {
   SopsIcon,
   TeamIcon,
   TodayIcon,
+  UsageIcon,
   VisitsIcon,
 } from "./icons";
 
@@ -61,6 +62,7 @@ const LOOKS: Record<string, { icon: ReactNode; count?: keyof NavCounts; waiting?
   finance: { icon: <FinanceIcon /> },
   team: { icon: <TeamIcon />, count: "team", waiting: "people to keep an eye on" },
   aiUsage: { icon: <AiUsageIcon />, count: "ai", waiting: "AI warnings" },
+  usage: { icon: <UsageIcon /> },
   catalogue: { icon: <CatalogueIcon /> },
   plans: { icon: <PlansIcon /> },
   sops: { icon: <SopsIcon /> },

@@ -14,6 +14,7 @@ import { Button, Loading } from "@/components/ui";
 import { LiveNotifications } from "@/lib/live-notifications";
 import { NavCountsProvider } from "@/lib/nav-counts";
 import { useSession } from "@/lib/session";
+import { UsageCounter } from "@/lib/usage-counter";
 
 const ROLE_NAMES: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
@@ -61,6 +62,8 @@ export default function ConsoleLayout({ children }: LayoutProps<"/">) {
       <ConfirmProvider>
         <NavCountsProvider>
           <LiveNotifications>
+            {/* Counts the pages opened, for the Usage page (23 Oct 2026). Draws nothing. */}
+            <UsageCounter userId={user.id} />
             <div className="flex flex-1 flex-col">
               {/* The first thing the keyboard reaches: jumps over the top bar and the menu. */}
               <a href="#main-content" className="skip-link rounded-lg bg-surface px-4 py-2 font-semibold text-primary shadow-lg">

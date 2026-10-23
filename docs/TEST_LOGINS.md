@@ -480,3 +480,14 @@ First: stop the API terminal and run `pnpm --filter @eccs/api start:prod`. Claud
 7. **Catalogue:** open a kind of service and change its **What to carry** list (the sample lists say "Sample list" until edited); the day's sheet follows. Put it back afterwards.
 8. **As the Supervisor** (`9000000003`): no Quality in the menu. **As the Super Admin** (`9000000001`): the same as the Ops Manager.
 9. **On the phone, with the new APK only:** ECCS staff login as the Supervisor (`9000000003`, code `123456`). The sheet is at the top of Visits: the visits in order with the address, Map and the last note, and What to carry with tick boxes (the ticks stay on that phone for the day). From 4 pm it shows "Still to do today". It also works without signal.
+
+## 34. Trying Usage (23 Oct)
+
+First: start the API with `pnpm --filter @eccs/api start:prod` (Claude built it with Usage on 23 Oct; the local database already has its table). The page starts empty: it counts from the moment the apps send their first notes.
+
+1. **Make some use:** in the app preview (8081), log in as the Spice Route Owner (PIN `2580`) and open Checklists, Services and Team. In the console, as the Super Admin (`9000000001`, code `123456`), open a few pages. Wait half a minute: each app sends what it noted every 30 seconds.
+2. **Console, as the Super Admin:** Business > **Usage**. The cards (active today, this week, this month, restaurants this week, daily ÷ monthly), people active each day, **Restaurants** with the ones needing a look first ("Not used yet", "No use for 9 days", "Used less"), the parts of the apps, top screens and every login with when it was last used.
+3. **7 days / 30 days / 90 days**, and choose **Spice Route Kitchens** under Restaurant: everything narrows to it. Copy the page address into a new tab: the same view opens.
+4. **ECCS team** tab: the same for the Super Admin, Ops Manager, Supervisors and BDEs, and which of the phone app and the console each used.
+5. **As the Ops Manager** (`9000000002`): no Usage in the menu, and `/usage` says it is for the Super Admin.
+6. **On a phone:** counts only with an APK built after 23 Oct (and, for the AWS server, after a deploy).

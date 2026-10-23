@@ -767,17 +767,24 @@ function inventoryPage() {
     ],
     [
       'Technical and activity log',
-      'For each action: who, what, when, the result, the IP address, the device\u2019s ID, the app or browser, the app\u2019s version. Includes visits to customer pages.',
+      'For every change anyone makes, for some opens (report, certificate and invoice PDFs, legal documents, joining files) and for every refused or failed request: who, what, when, the result, the IP address, the device\u2019s ID, the app or browser, the app\u2019s version. Just looking at a screen is not logged here.',
       'Security, fraud prevention, fixing faults, legal duties (CERT-In)',
-      'ECCS\u2019s Super Admin',
+      'ECCS\u2019s Super Admin and Ops Manager',
       `${logDays} days, then deleted by a daily job (built)`,
     ],
     [
+      'Usage counts (since 23 Oct 2026)',
+      'For every logged-in person: how many times each day they opened each screen of the phone app or the console (the screen\u2019s name, never which record), with their role and restaurant and the first and last time that day. Nothing about what was on the screen.',
+      'Seeing which restaurants and people use the apps, and which parts; supporting those who use it less',
+      'ECCS\u2019s Super Admin only',
+      `${shared.USAGE_RULES.keepDays} days, then deleted by a daily job (built)`,
+    ],
+    [
       'Diners and website visitors',
-      'Nothing asked. The server receives the IP address, browser type, page and time with each request.',
+      'Nothing asked. The server receives the IP address, browser type, page and time with each request; the app keeps none of it, except for a refused or failed request (the activity log). Whether the web server in front keeps its own access logs is to be checked.',
       'Delivering the page, security',
       'ECCS (logs)',
-      `As the activity log, ${logDays} days`,
+      `Not kept, except refused or failed requests (${logDays} days)`,
     ],
     [
       'Prospects (sales leads, before any agreement)',
@@ -844,7 +851,7 @@ ${table(['Kind', 'Where the app holds it', 'Rule'], sensitive.map((row) => row.m
 ${table(
   ['Built and running', 'Promised in the drafts, not built yet'],
   [[
-    `<ul><li>Clock-in photos after ${photoDays} days</li><li>Face templates at withdrawal or leaving</li><li>Buddy chats ${keep} days after their last message</li><li>The activity log after ${logDays} days</li><li>Customer-page photos and inspections drop off the page after ${shared.PUBLIC_PAGE_RULES.photoShownDays} and ${shared.PUBLIC_PAGE_RULES.inspectionValidDays} days</li></ul>`,
+    `<ul><li>Clock-in photos after ${photoDays} days</li><li>Face templates at withdrawal or leaving</li><li>Buddy chats ${keep} days after their last message</li><li>The activity log after ${logDays} days</li><li>Usage counts after ${shared.USAGE_RULES.keepDays} days</li><li>Customer-page photos and inspections drop off the page after ${shared.PUBLIC_PAGE_RULES.photoShownDays} and ${shared.PUBLIC_PAGE_RULES.inspectionValidDays} days</li></ul>`,
     '<ul><li>Export for 30 days after an account closes, then deletion within 90 days</li><li>Users\u2019 details within 1 year of their login being removed</li><li>Support messages, partner contacts: 1 year after</li><li>Backups within 30 days. Today the file store keeps deleted files\u2019 old versions for 90 days, and the server takes a daily snapshot (the last 7 kept)</li><li>Nothing yet for prospects or ECCS employees who leave</li></ul>',
   ]],
 )}`;
@@ -918,13 +925,10 @@ ${table(
     ['Deletion after closure, after a year, and so on (Privacy 15)', 'Built only for clock-in photos, face templates, Buddy chats and the activity log', 'Settle the schedule, then build it'],
     ['Servers in India [to confirm] (Privacy 14)', 'True since 20 October 2026, except the AI and push services above', 'Confirm, with those exceptions'],
     ['Withdraw face consent by telling the Owner or writing to ECCS (Privacy 7)', 'The in-app notice says only "tell the Owner"', 'Align the notice (08)'],
+    ['"We use no advertising or analytics trackers" (Privacy 1, 12); the list of what is collected (Privacy 6)', 'Since 23 October, the console’s Usage page counts, on ECCS’s own server, how many times each logged-in person opened each screen each day (kept 365 days; the Super Admin only). No outside tool or tracker', 'List it in Privacy 6 and 15, and in the staff notice'],
   ],
 )}
-<h2>6. Good to know</h2>
-<ul>
-<li><strong>Placeholders:</strong> company name, CIN, GSTIN, address, contacts, website and Grievance Officer are blank until the company is registered (13, section 2).</li>
-<li><strong>Not built yet:</strong> account deletion handling, data export at closure, breach notices, and the "terms updated" notice. The app\u2019s Profile has a "How to delete your account" link to Privacy section 18.</li>
-</ul>`;
+<p class="small"><strong>Also:</strong> the company name, CIN, GSTIN, address, contacts, website and Grievance Officer stay blank until the company is registered (13, section 2). Not built yet: handling account deletion requests (Profile links to Privacy section 18), data export at closure, breach notices and a "terms updated" notice.</p>`;
   return {
     no: '00',
     file: '00 Brief for the lawyer.pdf',

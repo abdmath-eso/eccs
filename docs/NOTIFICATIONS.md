@@ -275,6 +275,17 @@ The Logs page (15 Oct 2026) sends nothing itself. Alerts it could feed, for ECCS
 | LG2 | A run of server errors (for example 5 in 10 minutes) | Adm | "The server failed {count} requests in the last 10 minutes." | Push + in-app | not built |
 | LG3 | A timed job failed (visits from plans, billing, renewals, reminders) | Adm | "Tonight's {job} did not finish." | Push + in-app | not built |
 
+## 16c-2. Usage
+
+The Usage page (23 Oct 2026) sends nothing itself. Alerts it could feed, for the Super Admin (the only person who sees the page):
+
+| # | When | Who | Says | Channel (suggested) | Status |
+|---|---|---|---|---|---|
+| US1 | A restaurant has had no use of the app for 7 days (it had some before) | SA | "Nobody at {restaurant} has opened the app for {days} days." | In-app | not built |
+| US2 | A restaurant used the app on 30% fewer days in the last 4 weeks than the 4 before | SA | "{restaurant} used the app on {percent}% fewer days this month." | In-app | not built |
+| US3 | A new restaurant has still not used the app 3 days after its logins were made | SA | "{restaurant}'s logins have not been used yet." | In-app | not built |
+| US4 | Monday morning, a short week's summary | SA | "Last week: {people} people in {restaurants} restaurants used the app; {quiet} need a look." | In-app (email later) | not built |
+
 
 ## 16d. Finance
 
@@ -419,6 +430,7 @@ I1 and I2 (section 15: a proof photo with a certain flag, outlets with doubtful 
 
 | Date | Change |
 |---|---|
+| 23 Oct 2026 | Usage analytics: section 16c-2 added (US1 to US4), for the Super Admin. None built. |
 | 15 Oct 2026 | Translations of library picks and the hourly filler: no notification needed. |
 | 16 Oct 2026 | The BDE's phone app: SL10 to SL12 added to section 16e; AI1 also covers the shop-board reader. None built. |
 | 16 Oct 2026 | The Team page: section 16f added (TM1 to TM8). None built. |
